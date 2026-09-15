@@ -1,0 +1,70 @@
+"use client";
+
+import { useState } from "react";
+import { Button, Page } from "@/components/independent/ui";
+import { useDemo } from "@/lib/independent/store";
+
+type Filter = "all" | "unread" | "contracts" | "offers" | "payments";
+const FILTERS: { value: Filter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "unread", label: "Unread" },
+  { value: "contracts", label: "Contracts" },
+  { value: "offers", label: "Offers" },
+  { value: "payments", label: "Payments" },
+];
+
+/** Figma "Notifications / Independent": 12.5px pill filters, #e3e8ed list with 10.5px group headers; unread rows #f0f5fc. */
+export default function Notifications() {
+  const { notifications, markRead } = useDemo();
+  const [filter, setFilter] = useState<Filter>("all");
+  const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : n.kind === filter));
+  const groups = ["Today", "Yesterday", "Earlier"] as const;
+
+  return (
+    <Page title="Notifications">
+      <div className="flex items-center gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            type="button"
+            onClick={() => setFilter(f.value)}
+            aria-pressed={f.value === filter}
+            className={`rounded-2xl px-3 py-[7px] text-[12.5px] leading-[1.45] font-semibold ${
+              f.value === filter ? "bg-ink-deep text-white" : "bg-white text-muted outline -outline-offset-1 outline-line hover:bg-surface-alt"
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+        <span className="w-2.5" />
+        <Button size="sm" onClick={() => markRead()} disabled={!notifications.some((n) => n.unread)}>
+          Mark all as read
+        </Button>
+      </div>
+      <div className="overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-line">
+        {groups.map((g) => {
+          const items = list.filter((n) => n.group === g);
+          if (!items.length) return null;
+          return (
+            <section key={g}>
+              <h2 className="px-4 pt-3 pb-1.5 text-[10.5px] leading-[1.45] font-semibold text-muted uppercase">{g}</h2>
+              <ul>
+                {items.map((n) => (
+                  <li key={n.id} className={`flex items-start gap-3 border-t border-line px-4 py-3 leading-[1.45] ${n.unread ? "bg-[#f0f5fc]" : "bg-white"}`}>
+                    <span className={`mt-[5px] size-2 shrink-0 rounded-full ${n.unread ? "bg-accent" : "bg-line"}`} aria-hidden />
+                    <button type="button" onClick={() => markRead(n.id)} className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
+                      <p className="text-[13.5px] font-semibold text-ink-deep">{n.title}</p>
+                      <p className="text-[12.5px] text-muted">{n.body}</p>
+                    </button>
+                    <span className="shrink-0 text-[11.5px] text-muted">{n.time}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+        {list.length === 0 && <p className="px-4 py-8 text-center text-[13px] text-muted">You’re all caught up.</p>}
+      </div>
+    </Page>
+  );
+}

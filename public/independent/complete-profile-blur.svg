@@ -1,0 +1,13 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="1009" height="386" viewBox="0 0 1009 386" fill="none" xmlns="http://www.w3.org/2000/svg">
+<foreignObject x="-60" y="-60" width="1129" height="506"><div xmlns="http://www.w3.org/1999/xhtml" style="backdrop-filter:blur(70px);clip-path:url(#bgblur_0_0_58_clip_path);height:100%;width:100%"></div></foreignObject><g id="Rectangle 14" filter="url(#filter0_f_0_58)" data-figma-bg-blur-radius="140">
+<path d="M80 80H929V306H80V80Z" fill="white" fill-opacity="0.4"/>
+</g>
+<defs>
+<filter id="filter0_f_0_58" x="-60" y="-60" width="1129" height="506" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+<feFlood flood-opacity="0" result="BackgroundImageFix"/>
+<feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+<feGaussianBlur stdDeviation="40" result="effect1_foregroundBlur_0_58"/>
+</filter>
+<clipPath id="bgblur_0_0_58_clip_path" transform="translate(60 60)"><path d="M80 80H929V306H80V80Z"/>
+</clipPath></defs>
+</svg>

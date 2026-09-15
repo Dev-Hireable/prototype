@@ -1,0 +1,49 @@
+"use client";
+
+import { useState } from "react";
+import { RoleCard } from "@/components/independent/RoleCard";
+import { EmptyState, LinkButton, Page, SearchBox, Select } from "@/components/independent/ui";
+import { roles } from "@/lib/independent/data";
+import { useDemo } from "@/lib/independent/store";
+
+/** Figma "Job Board / Saved roles · list / · empty": toolbar 522 wide (search + 150 type), list gap 12. */
+export default function SavedRoles() {
+  const { saved } = useDemo();
+  const [q, setQ] = useState("");
+  const [type, setType] = useState("Type: All");
+  const list = roles
+    .filter((r) => saved.includes(r.slug))
+    .filter((r) => (type === "Type: All" ? true : type === "Type: Trial" ? r.type === "trial" : r.type === "full-time"))
+    .filter((r) => `${r.title} ${r.company}`.toLowerCase().includes(q.toLowerCase()));
+
+  return (
+    <Page title="Saved roles">
+      {saved.length === 0 ? (
+        <EmptyState
+          title="No saved roles yet"
+          body="Save roles from Discover to compare them here and apply when you are ready."
+          action={
+            <LinkButton href="/independent/jobs" variant="primary" size="lg">
+              Discover roles
+            </LinkButton>
+          }
+        />
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="flex w-[522px] items-center gap-3">
+              <SearchBox value={q} onChange={setQ} placeholder="Search saved roles" className="min-w-0 flex-1" />
+              <Select options={["Type: All", "Type: Trial", "Type: Full-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[150px]" />
+            </div>
+            <span className="text-[14px] leading-[1.4] text-ink-2">{list.length} saved roles</span>
+          </div>
+          <div className="flex flex-col gap-3">
+            {list.map((r) => (
+              <RoleCard key={r.slug} role={r} variant="saved" />
+            ))}
+          </div>
+        </>
+      )}
+    </Page>
+  );
+}

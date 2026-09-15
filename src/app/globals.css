@@ -2,25 +2,98 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #212121;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-dm-sans);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Hireable brand — from the Figma logo vectors */
+  --color-brand-pink: #fb2e6f;
+  --color-brand-magenta: #ff2fc5;
+  --color-brand-orange: #ff8112;
+  --color-brand-blue: #00a7f8;
+  --color-ink-muted: #616161;
+  --color-ink-faint: #b0b0b0;
+
+  /* Portal tokens — values from the Figma design context (variables + literal fills) */
+  --color-ink: #212121; /* Text/Primary */
+  --color-ink-2: #616161; /* Text/Secondary, Icon/Secondary */
+  --color-ink-deep: #141a21; /* card values, table primary cells */
+  --color-muted: #737d8a; /* card labels, table secondary cells */
+  --color-muted-2: #8a8f98;
+  --color-border: #c3c3c3; /* Border/Primary — panels, header, inputs */
+  --color-line: #e3e8ed; /* card + table hairlines */
+  --color-grid: #edf0f2; /* chart gridlines */
+  --color-baseline: #ccd4db; /* chart baseline */
+  --color-surface-2: #f2f2f2; /* Background/Secondary — frame + rail */
+  --color-surface-alt: #f9fafb; /* table head */
+  --color-row-alt: #fcfdfe; /* even table rows */
+  --color-accent: #1770d9;
+  --color-accent-soft: #99c7f5;
+  --color-accent-bg: #e6f3fc;
+  --color-accent-ink: #004675;
+  --color-primary: #007acc; /* Button/Primary-enabled (Independent + Team Builder portals) */
+  --color-ok: #27ae60;
+  --color-warn: #f7ba00;
+  --color-warn-bg: #fff9e7;
+  --color-danger: #dc2626;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Figma "Scrollbar" (20370:739 horizontal / 20370:740 vertical): 8px pill track #f2f2f2,
+   8px pill thumb #969696. Inherited from :root, so every scroll container in the app matches. */
+/* Chromium ignores ::-webkit-scrollbar as soon as scrollbar-width/-color are set, so the standard
+   properties are the Firefox-only fallback (no radius control there). scrollbar-width doesn't
+   inherit — hence `*` rather than :root. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #969696 var(--color-surface-2);
+  }
+}
+
+/* Same box on both axes, so the two bars are identical apart from orientation. */
+::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+}
+
+/* Figma wraps the 8px bar in an 8px-padded frame. 8px of transparent border plus padding-box
+   clipping keeps the painted track 8px thick and inset 8px from the container's sides; that
+   same 8px border also caps the ends, so the pill is fully rounded top and bottom. */
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border: 8px solid transparent;
+  background-clip: padding-box;
+  border-radius: 100px;
+}
+
+/* No margin here: the 8px transparent border above already insets the painted track by 8px on every
+   side, ends included. Adding a margin insets the track a second time but not the thumb, so at the
+   extremes the thumb's rounded cap overshoots the track's and both ends read as cut off. */
+::-webkit-scrollbar-track {
+  background-color: var(--color-surface-2);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #969696;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* The Figma scrollbar is track + thumb only — drop the platform stepper arrows. */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+
