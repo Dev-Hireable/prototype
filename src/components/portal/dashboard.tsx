@@ -6,7 +6,7 @@ import { PORTAL_CONTENT_CLASS } from "@/components/portal/layout";
 
 const Check = ICONS.check;
 
-export type DashboardChecklistItem = { label: string; done: boolean; grow?: boolean };
+export type DashboardChecklistItem = { label: string; done: boolean };
 
 export function DashboardFrame({ children }: { children: ReactNode }) {
   return <div className={`${PORTAL_CONTENT_CLASS} flex flex-col gap-10 p-10`}>{children}</div>;
@@ -62,7 +62,6 @@ export function DashboardSetupCard({
   completion,
   completionHref,
   items,
-  checklistClassName = "gap-2",
   uncheckedStyle = "soft",
 }: {
   avatarSrc: string;
@@ -72,11 +71,10 @@ export function DashboardSetupCard({
   completion: string;
   completionHref: string;
   items: readonly DashboardChecklistItem[];
-  checklistClassName?: string;
   uncheckedStyle?: "border" | "soft";
 }) {
   return (
-    <div className="relative flex min-h-[225px] w-full max-w-[704px] min-w-[min(100%,_604px)] flex-1 flex-col justify-between overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4">
+    <div className="relative flex min-h-[225px] w-full max-w-[604px] min-w-[min(100%,_604px)] flex-1 flex-col justify-between overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4">
       <Image src="/independent/complete-profile.png" alt="" width={600} height={600} priority className="pointer-events-none absolute top-[-21px] left-[330px] size-[290px] max-w-none rotate-[6.6deg] opacity-80" />
       <Image src="/independent/complete-profile-blur.svg" alt="" width={1009} height={386} className="pointer-events-none absolute top-[53px] left-[-213px] max-w-none" />
       <div className="relative flex items-center gap-4">
@@ -86,15 +84,15 @@ export function DashboardSetupCard({
           <p className="text-[12px] text-ink-2">{description}</p>
         </div>
       </div>
-      <div className={`relative flex w-full items-center justify-between overflow-x-auto rounded-full border border-[#e5e5e5] bg-white py-2 pr-3 pl-4 ${checklistClassName}`}>
+      <div className="relative flex w-full min-w-0 items-center justify-between gap-[8px] overflow-x-auto rounded-full border border-[#e5e5e5] bg-white py-2 pr-3 pl-4">
         {items.map((item, index) => (
-          <span key={item.label} className="flex min-w-max shrink-0 items-center">
+          <span key={item.label} className="contents">
             {index > 0 && (
               <span className="flex h-8 w-0 shrink-0 items-center justify-center">
                 <Image src="/independent/divider.svg" alt="" width={32} height={1} className="h-px w-8 max-w-none flex-none rotate-90" />
               </span>
             )}
-            <span className="flex shrink-0 items-center gap-2 text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap text-ink">
+            <span className="flex shrink-0 items-center gap-[8px] px-[8px] text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap text-ink">
               <span className={`flex size-6 shrink-0 items-center justify-center rounded-full ${item.done ? "bg-primary text-white" : uncheckedStyle === "border" ? "border-[1.5px] border-[#e5e5e5]" : "bg-[#f2f2f2]"}`}>
                 {item.done ? <Check size={16} aria-hidden /> : uncheckedStyle === "soft" && <span className="size-4 rounded-full border border-[#e5e5e5]" />}
               </span>

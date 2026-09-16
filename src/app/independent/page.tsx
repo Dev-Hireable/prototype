@@ -31,9 +31,9 @@ export default function Dashboard() {
             items={[
               { label: "Email", done: true },
               { label: "Work style", done: true },
-              { label: "Profile", done: false, grow: true },
-              { label: "Payment", done: false, grow: true },
-              { label: "Apply to role", done: false, grow: true },
+              { label: "Profile", done: false },
+              { label: "Payment", done: false },
+              { label: "Apply to role", done: false },
             ]}
           />
         </DashboardHero>

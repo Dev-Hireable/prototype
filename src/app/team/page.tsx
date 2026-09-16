@@ -29,13 +29,12 @@ export default function Dashboard() {
             description="Complete your account to start hiring."
             completion="22%"
             completionHref="/team/profile/company"
-            checklistClassName="gap-4"
             uncheckedStyle="border"
             items={[
-              { label: "Email", done: true, grow: true },
+              { label: "Email", done: true },
               { label: "Work style", done: true },
-              { label: "Company", done: false, grow: true },
-              { label: "Payment", done: false, grow: true },
+              { label: "Company", done: false },
+              { label: "Payment", done: false },
             ]}
           />
         </DashboardHero>
