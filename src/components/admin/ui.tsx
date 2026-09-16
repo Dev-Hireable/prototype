@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { PortalContent } from "@/components/portal/layout";
 import { ScrollFade } from "@/components/portal/ScrollFade";
 import { ICONS } from "./icons";
 
@@ -27,12 +28,12 @@ export function AdminPage({
         {actions && <div className="flex shrink-0 items-center gap-2 pb-2">{actions}</div>}
       </header>
       {/* Gutter trimmed from the Figma 16/16/24 so the board breathes; it sits on this wrapper, not
-          on the scroller, so nothing scrolls through it. Content is capped at a desktop width (1440)
-          and centred so cards never stretch on ultra-wide screens. */}
+          on the scroller, so nothing scrolls through it. Content is capped at the shared 1200px
+          desktop width and centred so cards never stretch on ultra-wide screens. */}
       <div className="flex min-h-0 flex-1 px-2 pt-2 pb-3">
         <ScrollFade className="flex w-full min-w-0">
           <div className="w-full overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6">{children}</div>
+            <PortalContent>{children}</PortalContent>
           </div>
         </ScrollFade>
       </div>

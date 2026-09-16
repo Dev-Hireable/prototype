@@ -36,7 +36,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   };
 
   return (
-    <Page title="My Applications">
+    <Page title="My Applications" heading="default">
       <div className="flex flex-col gap-10 pb-14">
         <BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>
         <div className="flex items-start justify-center gap-6">
@@ -189,7 +189,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
               </Card>
             )}
 
-            <PipelineTracker stage={app.stage} />
+            <PipelineTracker stage={app.stage} mode="milestone" />
 
             <Card className="flex flex-col gap-6 p-4">
               <h3 className={H2}>About the team builder</h3>

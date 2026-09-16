@@ -1,10 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ICONS, type IconName } from "@/components/admin/icons";
+import { PortalContent } from "@/components/portal/layout";
 import { ScrollFade } from "@/components/portal/ScrollFade";
+import { FORM_CONTROL } from "@/components/portal/styles";
+
+export { KebabMenu, MenuAction, MenuLink, Select } from "@/components/portal/controls";
+export type { SelectProps } from "@/components/portal/controls";
 
 /* ---------------------------------------------------------------- page ---- */
 
@@ -57,11 +62,9 @@ export function Page({
       {/* The gutter is on this wrapper, not the scroller, so nothing scrolls through it; ScrollFade
           hugs the scroller so its ramps land on the scrollport edges. The width cap goes on the inner
           column, matching AdminPage. `padded={false}` pages set their own (wizards, the kanban). */}
-      <div className={`flex min-h-0 flex-1 ${padded ? "p-2" : ""}`}>
+      <div className={`flex min-h-0 flex-1 ${padded ? "p-4" : ""}`}>
         <ScrollFade className="flex w-full min-w-0">
-          <div className="w-full overflow-y-auto">
-            {padded ? <div className="mx-auto flex min-h-full w-full max-w-[1440px] flex-col gap-6">{children}</div> : children}
-          </div>
+          <div className="w-full overflow-y-auto">{padded ? <PortalContent className="min-h-full">{children}</PortalContent> : children}</div>
         </ScrollFade>
       </div>
     </>
@@ -324,29 +327,16 @@ export function Field({ label, hint, children, className = "" }: { label: ReactN
   );
 }
 
-const INPUT =
-  "h-11 w-full rounded-lg border border-border bg-white px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2 focus:border-primary disabled:bg-surface-2";
+const NOOP_SUBSCRIBE = () => () => {};
+const CLIENT_MOUNTED = () => true;
+const SERVER_MOUNTED = () => false;
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`${INPUT} ${props.className ?? ""}`} />;
+  return <input {...props} className={`${FORM_CONTROL} ${props.className ?? ""}`} />;
 }
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`${INPUT} h-auto min-h-16 py-[13.5px] ${props.className ?? ""}`} />;
-}
-
-export function Select({ options, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { options: string[] }) {
-  const C = ICONS.chevron;
-  return (
-    <span className="relative block">
-      <select {...props} className={`${INPUT} appearance-none pr-11 ${props.className ?? ""}`}>
-        {options.map((o) => (
-          <option key={o}>{o}</option>
-        ))}
-      </select>
-      <C size={24} aria-hidden className="pointer-events-none absolute top-2.5 right-4 text-ink" />
-    </span>
-  );
+  return <textarea {...props} className={`${FORM_CONTROL} h-auto min-h-16 py-[13.5px] ${props.className ?? ""}`} />;
 }
 
 export function SearchBox({ value, onChange, placeholder, className = "" }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string }) {
@@ -465,13 +455,14 @@ export function Modal({
   const id = useId();
   const X = ICONS.close;
   const W = ICONS.warning;
+  const mounted = useSyncExternalStore(NOOP_SUBSCRIBE, CLIENT_MOUNTED, SERVER_MOUNTED);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
-  if (!open) return null;
+  if (!open || !mounted || typeof document === "undefined") return null;
   // Portalled to <body>: page content sits inside ScrollFade's `isolate`, which would otherwise
   // trap this overlay in a stacking context that the shell's sidebar paints over.
   return createPortal(
@@ -568,17 +559,17 @@ export function ObjectiveRow({ index, children, right }: { index: number; childr
 
 export function Steps({ steps, current }: { steps: string[]; current: number }) {
   return (
-    <ol className="relative flex h-14 items-start justify-between">
-      <span aria-hidden className="absolute top-[15px] right-0 left-0 h-1 bg-border" />
+    <ol className="relative flex h-14 w-full items-start">
       {steps.map((s, i) => {
         // Figma "Header" stepper variants: done = blue ring + dot, current = grey ring + dot, upcoming = empty ring.
         const done = i < current;
         return (
-          <li key={s} className="relative flex h-14 flex-col items-center gap-2 bg-white px-1">
-            <span className={`flex size-8 items-center justify-center rounded-full border-2 bg-white ${done ? "border-primary" : "border-border"}`}>
+          <li key={s} className="relative flex h-14 min-w-0 flex-1 flex-col items-center gap-2">
+            {i < steps.length - 1 && <span aria-hidden className="pointer-events-none absolute top-[15px] left-1/2 h-1 w-full bg-border" />}
+            <span className={`relative z-10 flex size-8 items-center justify-center rounded-full border-2 bg-white ${done ? "border-primary" : "border-border"}`}>
               <span className={`size-5 rounded-full ${done ? "bg-primary" : i === current ? "bg-border" : "bg-transparent"}`} />
             </span>
-            <span className={`h-4 text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${done ? "text-ink" : "text-ink-2"}`}>{s}</span>
+            <span className={`relative z-10 h-4 text-center text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${done ? "text-ink" : "text-ink-2"}`}>{s}</span>
           </li>
         );
       })}
@@ -601,15 +592,31 @@ export const PIPELINE = [
   { key: "hired", label: "Hired", major: true },
 ] as const;
 export type Stage = (typeof PIPELINE)[number]["key"];
+type MajorStage = "applied" | "matched" | "interviewed" | "proposal_sent" | "offer_accepted" | "hired";
+
+const MILESTONE_COLORS: Record<MajorStage, string> = {
+  applied: "bg-ink-2",
+  matched: "bg-primary",
+  interviewed: "bg-brand-orange",
+  proposal_sent: "bg-[#6e0e52]",
+  offer_accepted: "bg-[#f2c94c]",
+  hired: "bg-ok",
+};
+
+function milestoneColor(key: string) {
+  return MILESTONE_COLORS[key as MajorStage];
+}
 
 /**
  * Figma "Pipeline Tracker": a 16px rail (8px circles, 4px connectors) beside a label column —
  * majors 12px semibold / 16 tall, sub-statuses 10px indented 12, gap 16 (12 inside a sub group).
  * Rail colours: past majors #616161, current #007acc, connector below current #007acc, reached
- * sub-statuses above the current major #ff8112, everything else #f2f2f2.
+ * sub-statuses above the current major #ff8112, everything else #f2f2f2. Milestone mode uses
+ * the Figma palette: green, yellow, purple, orange, blue, then gray.
  */
-export function PipelineTracker({ stage, labels = {} }: { stage: Stage; labels?: Partial<Record<Stage, string>> }) {
+export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { stage: Stage; labels?: Partial<Record<Stage, string>>; mode?: "progress" | "milestone" }) {
   const idx = PIPELINE.findIndex((p) => p.key === stage);
+  const milestoneMode = mode === "milestone";
   // Lay the reversed list out top-down and remember each row's centre y on the rail.
   const rows = [...PIPELINE].reverse();
   let y = 0;
@@ -639,9 +646,10 @@ export function PipelineTracker({ stage, labels = {} }: { stage: Stage; labels?:
             const next = majors[k + 1];
             if (!next) return null;
             const reached = m.i <= idx; // upper major reached → the whole connector is done
-            return <span key={m.key} className={`absolute left-1.5 w-1 ${reached ? "bg-primary" : "bg-surface-2"}`} style={{ top: m.cy, height: next.cy - m.cy }} />;
+            const color = milestoneMode ? milestoneColor(m.key) : reached ? "bg-primary" : "bg-surface-2";
+            return <span key={m.key} className={`absolute left-1.5 w-1 ${color}`} style={{ top: m.cy, height: next.cy - m.cy }} />;
           })}
-          {cur && topReachedSub && (
+          {!milestoneMode && cur && topReachedSub && (
             <span
               className="absolute left-1.5 w-1 bg-brand-orange"
               style={{
@@ -651,7 +659,11 @@ export function PipelineTracker({ stage, labels = {} }: { stage: Stage; labels?:
             />
           )}
           {majors.map((m) => (
-            <span key={m.key} className={`absolute left-0 size-4 rounded-full ${m.key === currentMajor ? "bg-primary" : m.i <= idx ? "bg-ink-2" : "bg-surface-2"}`} style={{ top: m.cy - 8 }} />
+            <span
+              key={m.key}
+              className={`absolute left-0 size-4 rounded-full ${milestoneMode ? milestoneColor(m.key) : m.key === currentMajor ? "bg-primary" : m.i <= idx ? "bg-ink-2" : "bg-surface-2"}`}
+              style={{ top: m.cy - 8 }}
+            />
           ))}
         </span>
         <ol className="relative shrink-0" style={{ height: H }}>
@@ -659,7 +671,7 @@ export function PipelineTracker({ stage, labels = {} }: { stage: Stage; labels?:
             <li
               key={p.key}
               className={`absolute flex items-center leading-[1.2] tracking-[0.2px] whitespace-nowrap ${p.major ? "text-[12px] font-semibold" : "pl-3 text-[10px]"} ${
-                p.i <= idx ? (p.major ? "text-ink" : "text-ink-2") : "text-[#c3c3c3]"
+                milestoneMode ? (p.major ? "text-ink" : "text-ink-2") : p.i <= idx ? (p.major ? "text-ink" : "text-ink-2") : "text-[#c3c3c3]"
               }`}
               style={{ top: p.top, height: p.h }}
             >
@@ -677,7 +689,7 @@ export function PipelineTracker({ stage, labels = {} }: { stage: Stage; labels?:
 const TRAITS = ["Decision Making", "Adaptability", "Responsiveness", "Time Management", "Cooperativeness", "Communication"];
 
 /**
- * Figma "Work style" card: six 80px columns of five 80px cells that overlap by 32px (48px pitch), a
+ * Figma "Work style" card: six equal-width columns of five 80px cells that overlap by 32px (48px pitch), a
  * #e5e5e5 grid (column rules + a rule through each cell's centre) and a 64px bubble per party centred
  * on that rule — Team Builder #22d3ee, Independent #fbbf24, both at 90% with multiply so overlaps read green.
  */
@@ -689,7 +701,7 @@ export function WorkStyleChart({ builder, independent, match }: { builder: numbe
           <CardTitle className="text-ink-deep">Work style</CardTitle>
           <MatchPill pct={match} />
         </div>
-        <p className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">See How Your Work Style Aligns With Independent Contractors.</p>
+        <p className="w-full text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">See How Your Work Style Aligns With Independent Contractors.</p>
       </div>
       <div className="flex items-center gap-4 text-[10px] leading-[1.2] tracking-[0.2px] text-ink-2">
         <span className="flex items-center gap-1">
@@ -699,18 +711,18 @@ export function WorkStyleChart({ builder, independent, match }: { builder: numbe
           <span className="size-2.5 rounded-full bg-[#fbbf24]" /> Independent contractor
         </span>
       </div>
-      <div className="flex items-center">
+      <div className="flex w-full items-start">
         {TRAITS.map((t, col) => (
-          <div key={t} className="flex w-20 flex-col">
+          <div key={t} className="flex min-w-0 flex-[1_0_0] flex-col items-start">
             {[5, 4, 3, 2, 1].map((level, r) => (
-              <div key={level} className={`relative flex size-20 items-center justify-center border-x border-[#e5e5e5] ${r < 4 ? "-mb-8" : ""}`}>
+              <div key={level} className={`relative flex h-20 w-full shrink-0 items-center justify-center border-x border-[#e5e5e5] ${r < 4 ? "-mb-8" : ""}`}>
                 <span aria-hidden className="absolute top-[39px] right-0 left-0 h-px bg-[#e5e5e5]" />
                 {builder[col] === level && <Bubble color="#22d3ee" />}
                 {independent[col] === level && <Bubble color="#fbbf24" />}
               </div>
             ))}
-            <div className="flex h-14 items-start justify-center border-x border-[#e5e5e5] px-2 pt-3 pb-6 text-center">
-              <span className="text-[8px] leading-[1.2] tracking-[0.2px] text-ink-2">{t}</span>
+            <div className="flex h-14 w-full shrink-0 items-start justify-center border-x border-[#e5e5e5] px-2 pt-3 pb-6 text-center">
+              <span className="min-w-0 flex-[1_0_0] text-[8px] leading-[1.2] tracking-[0.2px] text-ink-2">{t}</span>
             </div>
           </div>
         ))}

@@ -17,7 +17,7 @@ export default function Profile() {
   const [toast, setToast] = useToast();
 
   return (
-    <Page title="Profile">
+    <Page title="Profile" heading="default">
       <div className="flex items-center justify-end gap-3">
         <span className="rounded-full bg-[#eef9f2] px-2.5 py-1 text-[12px] leading-4 font-semibold tracking-[0.24px] text-ok">Pro</span>
         <Button size="lg" onClick={() => setRetake(true)}>

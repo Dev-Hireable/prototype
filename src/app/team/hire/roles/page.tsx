@@ -4,14 +4,17 @@ import Link from "next/link";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
 import { Row, Table, Toolbar } from "@/components/team/ui";
 import { ROLE_STATUS } from "@/lib/team/data";
 import type { Role, RoleStatus } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 
-const More = ICONS.moreV;
 /** Figma columns: Role flex · Status 110 · Candidates 100 · Matched 90 · Interviews 90 · Offers 80 · Hired 70 · Updated 120 · Actions 60. */
 const COLS = ["min-w-0 flex-1", "w-[110px]", "w-[100px]", "w-[90px]", "w-[90px]", "w-[80px]", "w-[70px]", "w-[120px]", "w-[60px]"];
+const Edit = ICONS.edit;
+const Copy = ICONS.copy;
+const Trash = ICONS.trash;
 
 type Confirm = { role: Role; action: "close" | "reopen" | "archive" | "delete" };
 
@@ -46,7 +49,7 @@ export default function AllRoles() {
 
   return (
     <Page title="All roles">
-      <div onClick={() => setMenu(null)} className="flex flex-col gap-6">
+      <div onClick={() => setMenu(null)} className="flex min-h-full w-full flex-col gap-6">
         <Toolbar
           right={
             <>
@@ -82,43 +85,50 @@ export default function AllRoles() {
                 </span>
               ))}
               <span className={COLS[7]}>{r.updated}</span>
-              <span className={`${COLS[8]} relative`}>
-                <button
-                  type="button"
-                  aria-label="Role actions"
-                  aria-expanded={menu === r.slug}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenu(menu === r.slug ? null : r.slug);
-                  }}
-                  className="flex size-8 items-center justify-center rounded-lg text-ink hover:bg-surface-alt"
+              <span className={COLS[8]}>
+                <KebabMenu
+                  label="Role actions"
+                  open={menu === r.slug}
+                  onOpenChange={(open) => setMenu(open ? r.slug : null)}
+                  itemCount={r.status === "Draft" ? 3 : r.status === "Archived" ? 2 : 3}
+                  iconSize={20}
+                  menuWidth={220}
+                  buttonClassName="!size-7 !rounded-full"
                 >
-                  <More size={20} aria-hidden />
-                </button>
-                {menu === r.slug && (
-                  <div role="menu" className="absolute top-9 right-0 z-10 flex w-48 flex-col rounded-lg bg-white py-1 text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.14)] outline -outline-offset-1 outline-border" onClick={(e) => e.stopPropagation()}>
-                    <Link role="menuitem" href={`/team/hire/roles/${r.slug}`} className="px-3 py-2 text-left hover:bg-surface-alt">
-                      View candidates
-                    </Link>
-                    {r.status === "Active" ? (
-                      <button role="menuitem" type="button" onClick={() => { setConfirm({ role: r, action: "close" }); setMenu(null); }} className="px-3 py-2 text-left hover:bg-surface-alt">
-                        Close role
-                      </button>
-                    ) : (
-                      <button role="menuitem" type="button" onClick={() => { setConfirm({ role: r, action: "reopen" }); setMenu(null); }} className="px-3 py-2 text-left hover:bg-surface-alt">
-                        Reopen role
-                      </button>
-                    )}
-                    {r.status !== "Archived" && (
-                      <button role="menuitem" type="button" onClick={() => { setConfirm({ role: r, action: "archive" }); setMenu(null); }} className="px-3 py-2 text-left hover:bg-surface-alt">
-                        Archive role
-                      </button>
-                    )}
-                    <button role="menuitem" type="button" onClick={() => { setConfirm({ role: r, action: "delete" }); setMenu(null); }} className="px-3 py-2 text-left text-danger hover:bg-surface-alt">
-                      Delete role
-                    </button>
-                  </div>
-                )}
+                  {r.status === "Draft" ? (
+                    <>
+                      <MenuLink href={`/team/hire/new?type=${r.type}&edit=${r.slug}`} icon={<Edit size={18} aria-hidden />}>
+                        Continue editing
+                      </MenuLink>
+                      <MenuAction onClick={() => { setMenu(null); setToast("Role draft duplicated"); }} icon={<Copy size={18} aria-hidden />}>
+                        Duplicate
+                      </MenuAction>
+                      <MenuAction destructive onClick={() => { setConfirm({ role: r, action: "delete" }); setMenu(null); }} icon={<Trash size={18} aria-hidden />}>
+                        Delete draft
+                      </MenuAction>
+                    </>
+                  ) : (
+                    <>
+                      <MenuLink density="compact" href={`/team/hire/roles/${r.slug}`}>
+                        View candidates
+                      </MenuLink>
+                      {r.status === "Active" ? (
+                        <MenuAction density="compact" onClick={() => { setConfirm({ role: r, action: "close" }); setMenu(null); }}>
+                          Close role
+                        </MenuAction>
+                      ) : (
+                        <MenuAction density="compact" onClick={() => { setConfirm({ role: r, action: "reopen" }); setMenu(null); }}>
+                          Reopen role
+                        </MenuAction>
+                      )}
+                      {r.status !== "Archived" && (
+                        <MenuAction density="compact" onClick={() => { setConfirm({ role: r, action: "archive" }); setMenu(null); }}>
+                          Archive role
+                        </MenuAction>
+                      )}
+                    </>
+                  )}
+                </KebabMenu>
               </span>
             </Row>
           ))}

@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Checkbox, EmptyState, Field, Input, Modal, Page, SearchBox, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Button, EmptyState, Field, Modal, Page, SearchBox, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { EXPERIENCE_LEVELS, MarketplaceFilterPanel, SKILL_OPTIONS } from "@/components/portal/filters";
 import { IndependentCard, Pagination, ProfileDrawer } from "@/components/team/ui";
 import { independents } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 
-const LEVELS = ["Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
-const DEFAULT = { levels: new Set(LEVELS), min: "", max: "" };
+const DEFAULT = { levels: new Set(EXPERIENCE_LEVELS), min: "", max: "" };
 
 /** Figma "Discover / Discover independents · browse / · no results / Invite to apply · modal / · sent toast". */
 export default function Discover() {
@@ -72,36 +72,18 @@ export default function Discover() {
           )}
         </div>
 
-        <aside className="flex w-[280px] shrink-0 flex-col gap-5">
-          <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-            Filter
-          </h2>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-[14px] leading-[1.4] font-medium text-ink">Experience level</legend>
-            {LEVELS.map((l) => (
-              <Checkbox key={l} checked={draft.levels.has(l)} onChange={() => toggleLevel(l)}>
-                {l}
-              </Checkbox>
-            ))}
-          </fieldset>
-          <label className="flex flex-col gap-2 text-[14px] leading-[1.4] font-medium text-ink">
-            Skills
-            <Select options={["Select skills", "Outbound sales", "HubSpot", "Negotiation", "Cold calling"]} />
-          </label>
-          <div className="flex flex-col gap-2 text-[14px] leading-[1.4] font-medium text-ink">
-            Monthly rate (USD)
-            <div className="flex gap-2">
-              <Input placeholder="Min" inputMode="numeric" value={draft.min} onChange={(e) => setDraft((d) => ({ ...d, min: e.target.value }))} />
-              <Input placeholder="Max" inputMode="numeric" value={draft.max} onChange={(e) => setDraft((d) => ({ ...d, max: e.target.value }))} />
-            </div>
-          </div>
-          <Button variant="primary" size="lg" onClick={() => setApplied(draft)}>
-            Apply filters
-          </Button>
-          <Button size="lg" onClick={reset}>
-            Reset filters
-          </Button>
-        </aside>
+        <MarketplaceFilterPanel
+          levels={EXPERIENCE_LEVELS}
+          selectedLevels={draft.levels}
+          onToggleLevel={toggleLevel}
+          min={draft.min}
+          max={draft.max}
+          onMinChange={(value) => setDraft((d) => ({ ...d, min: value }))}
+          onMaxChange={(value) => setDraft((d) => ({ ...d, max: value }))}
+          skillOptions={SKILL_OPTIONS}
+          onApply={() => setApplied(draft)}
+          onReset={reset}
+        />
       </div>
 
       <Modal

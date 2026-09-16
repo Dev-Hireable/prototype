@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { RoleCard } from "@/components/independent/RoleCard";
-import { Button, Checkbox, EmptyState, Input, Page, SearchBox, Select } from "@/components/independent/ui";
+import { Button, Checkbox, EmptyState, Page, SearchBox } from "@/components/independent/ui";
+import { EXPERIENCE_LEVELS, MarketplaceFilterPanel, SKILL_OPTIONS } from "@/components/portal/filters";
 import { roles } from "@/lib/independent/data";
 
-const LEVELS = ["Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
-const DEFAULT = { trial: true, fullTime: true, levels: new Set(LEVELS), min: "", max: "" };
+const DEFAULT = { trial: true, fullTime: true, levels: new Set(EXPERIENCE_LEVELS), min: "", max: "" };
+const INITIAL_DRAFT = { ...DEFAULT, levels: new Set(EXPERIENCE_LEVELS.slice(1, 3)) };
 
 const Prev = ICONS.chevronLeft;
 const Next = ICONS.chevronRight;
@@ -15,7 +16,7 @@ const Next = ICONS.chevronRight;
 /** Figma "Job Board / Discover roles · browse / · no results": results (gap 16) + 280px filter column, content gap 24. */
 export default function Discover() {
   const [q, setQ] = useState("");
-  const [draft, setDraft] = useState(DEFAULT);
+  const [draft, setDraft] = useState(INITIAL_DRAFT);
   const [applied, setApplied] = useState(DEFAULT);
 
   const rate = (r: string) => Number(r.replace(/[^0-9]/g, ""));
@@ -45,7 +46,7 @@ export default function Discover() {
     });
 
   return (
-    <Page title="Discover roles">
+    <Page title="Discover roles" heading="default">
       <div className="flex items-start gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <SearchBox value={q} onChange={setQ} placeholder="Search by title, company or skill" />
@@ -85,41 +86,25 @@ export default function Discover() {
           )}
         </div>
 
-        <aside className="flex w-[280px] shrink-0 flex-col gap-5">
-          <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-            Filter
-          </h2>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-[14px] leading-[1.4] font-medium text-ink">Role type</legend>
-            <Checkbox checked={draft.trial} onChange={(v) => setDraft((d) => ({ ...d, trial: v }))}>Trial (30 days)</Checkbox>
-            <Checkbox checked={draft.fullTime} onChange={(v) => setDraft((d) => ({ ...d, fullTime: v }))}>Full-time</Checkbox>
-          </fieldset>
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-[14px] leading-[1.4] font-medium text-ink">Experience level</legend>
-            {LEVELS.map((l) => (
-              <Checkbox key={l} checked={draft.levels.has(l)} onChange={() => toggleLevel(l)}>
-                {l}
-              </Checkbox>
-            ))}
-          </fieldset>
-          <label className="flex flex-col gap-2 text-[14px] leading-[1.4] font-medium text-ink">
-            Skills
-            <Select options={["Select skills", "Outbound sales", "HubSpot", "Negotiation", "Cold calling"]} />
-          </label>
-          <div className="flex flex-col gap-2 text-[14px] leading-[1.4] font-medium text-ink">
-            Monthly rate (USD)
-            <div className="flex gap-2">
-              <Input placeholder="Min" inputMode="numeric" value={draft.min} onChange={(e) => setDraft((d) => ({ ...d, min: e.target.value }))} />
-              <Input placeholder="Max" inputMode="numeric" value={draft.max} onChange={(e) => setDraft((d) => ({ ...d, max: e.target.value }))} />
-            </div>
-          </div>
-          <Button variant="primary" size="lg" onClick={() => setApplied(draft)}>
-            Apply filters
-          </Button>
-          <Button size="lg" onClick={reset}>
-            Reset filters
-          </Button>
-        </aside>
+        <MarketplaceFilterPanel
+          roleTypeSlot={
+            <fieldset className="flex flex-col gap-2">
+              <legend className="mb-2 text-[14px] leading-[1.4] font-medium text-ink">Role type</legend>
+              <Checkbox checked={draft.trial} onChange={(value) => setDraft((d) => ({ ...d, trial: value }))}>Trial (30 days)</Checkbox>
+              <Checkbox checked={draft.fullTime} onChange={(value) => setDraft((d) => ({ ...d, fullTime: value }))}>Full-time</Checkbox>
+            </fieldset>
+          }
+          levels={EXPERIENCE_LEVELS}
+          selectedLevels={draft.levels}
+          onToggleLevel={toggleLevel}
+          min={draft.min}
+          max={draft.max}
+          onMinChange={(value) => setDraft((d) => ({ ...d, min: value }))}
+          onMaxChange={(value) => setDraft((d) => ({ ...d, max: value }))}
+          skillOptions={SKILL_OPTIONS}
+          onApply={() => setApplied(draft)}
+          onReset={reset}
+        />
       </div>
     </Page>
   );

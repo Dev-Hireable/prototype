@@ -30,7 +30,7 @@ export default function Messages() {
   };
 
   return (
-    <Page title="Messages">
+    <Page title="Messages" heading="default">
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-line">
         {/* Conversations */}
         <section className="flex w-[384px] shrink-0 flex-col border-r border-line">

@@ -181,7 +181,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
                 </button>
               </dl>
             )}
-            <PipelineTracker stage={cand.stage} labels={EMPLOYER_STAGE_LABELS} />
+            <PipelineTracker stage={cand.stage} labels={EMPLOYER_STAGE_LABELS} mode="milestone" />
             <div className="flex items-center gap-4 text-[14px] leading-[1.2] tracking-[0.2px] font-medium">
               <button type="button" onClick={() => setDialog("flag")} className="flex items-center gap-2 text-accent-ink">
                 <MdOutlineFlag size={20} aria-hidden /> Flag candidate
@@ -418,4 +418,3 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
     </Page>
   );
 }
-

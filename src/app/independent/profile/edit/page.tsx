@@ -16,7 +16,7 @@ export default function EditProfile() {
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   return (
-    <Page title="Edit profile">
+    <Page title="Edit profile" heading="default">
       <Card className="mx-auto flex w-[760px] flex-col gap-4 p-6">
         <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
           Edit profile

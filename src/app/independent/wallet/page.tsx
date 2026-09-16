@@ -4,12 +4,12 @@ import Image from "next/image";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
-import { Button, Card, Chip, InfoBanner, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, InfoBanner, KebabMenu, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { MenuAction } from "@/components/portal/controls";
 import { transactions } from "@/lib/independent/data";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
-const More = ICONS.moreV;
 const Verified = ICONS.checkCircle;
 const Check = ICONS.check;
 const Add = ICONS.add;
@@ -37,9 +37,11 @@ export default function Wallet() {
   const [toast, setToast] = useToast();
   const rows = transactions.filter((t) => `${t.desc} ${t.party}`.toLowerCase().includes(q.toLowerCase()));
   const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+  const defaultPayout = payouts.find((p) => p.isDefault);
+  const canWithdraw = available > 0 && !!defaultPayout?.verified.startsWith("Verified");
 
   return (
-    <Page title="Wallet">
+    <Page title="Earnings">
       <div className="flex flex-col gap-6" onClick={() => setMenu(null)}>
         <div className="flex gap-4 whitespace-nowrap">
           {[
@@ -91,18 +93,17 @@ export default function Wallet() {
                     <span className="h-[26px] text-[20px] leading-[26px] font-bold text-ink">Bank</span>
                   )}
                   <span className="flex-1" />
-                  <button
-                    type="button"
-                    aria-label="Payout method actions"
-                    aria-expanded={menu === m.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setMenu(menu === m.id ? null : m.id);
-                    }}
-                    className={`flex size-7 items-center justify-center rounded-full text-ink ${menu === m.id ? "bg-accent-bg" : ""}`}
-                  >
-                    <More size={18} aria-hidden />
-                  </button>
+                  <KebabMenu label="Payout method actions" open={menu === m.id} onOpenChange={(open) => setMenu(open ? m.id : null)} itemCount={3} buttonClassName="!size-7 !rounded-full">
+                    <MenuAction disabled={m.isDefault || !m.verified.startsWith("Verified")} onClick={() => { setDefaultPayout(m.id); setMenu(null); setToast(`${m.brand} ····${m.last4} is now your default`); }} icon={<SetDefault size={18} aria-hidden />}>
+                      Set as default
+                    </MenuAction>
+                    <MenuAction onClick={() => { setMenu(null); setToast("Payout history opens below"); }} icon={<History size={18} aria-hidden />}>
+                      View payout history
+                    </MenuAction>
+                    <MenuAction destructive disabled={payouts.length === 1} onClick={() => { setRemoving(m); setMenu(null); }} icon={<Trash size={18} aria-hidden className="text-[#c0392b]" />}>
+                      Remove
+                    </MenuAction>
+                  </KebabMenu>
                 </div>
                 <p className="text-[20px] leading-[1.3] font-semibold tracking-[1px] whitespace-pre text-ink">{`••••  ••••  ${m.last4}`}</p>
                 <div className="flex items-end gap-4 text-[10px] leading-[1.3] font-semibold whitespace-nowrap">
@@ -112,28 +113,11 @@ export default function Wallet() {
                   </span>
                   <span className="flex flex-col items-end gap-[3px]">
                     <span className="tracking-[0.8px] text-muted-2 uppercase">Status</span>
-                    <span className="flex items-center gap-1 text-[12px] text-ink">
-                      <Verified size={14} aria-hidden className="text-ok" /> {m.verified}
+                    <span className={`flex items-center gap-1 text-[12px] ${m.verified.startsWith("Verified") ? "text-ink" : "text-warn"}`}>
+                      {m.verified.startsWith("Verified") && <Verified size={14} aria-hidden className="text-ok" />} {m.verified}
                     </span>
                   </span>
                 </div>
-                {menu === m.id && (
-                  <div
-                    role="menu"
-                    className="absolute top-12 right-5 z-10 flex w-[172px] flex-col rounded-lg rounded-tr-none border border-[#e3e6ea] bg-white py-1.5 text-[12.5px] leading-[1.3] whitespace-nowrap drop-shadow-[0_6px_9px_rgba(0,0,0,0.14)]"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button role="menuitem" type="button" disabled={m.isDefault} onClick={() => { setDefaultPayout(m.id); setMenu(null); setToast(`${m.brand} ····${m.last4} is now your default`); }} className="flex items-center gap-2.5 px-3.5 py-[9px] text-left hover:bg-surface-alt disabled:text-[#c3c3c3]">
-                      <SetDefault size={18} aria-hidden /> Set as default
-                    </button>
-                    <button role="menuitem" type="button" onClick={() => { setMenu(null); setToast("Payout history opens below"); }} className="flex items-center gap-2.5 px-3.5 py-[9px] text-left hover:bg-surface-alt">
-                      <History size={18} aria-hidden /> View payout history
-                    </button>
-                    <button role="menuitem" type="button" disabled={payouts.length === 1} onClick={() => { setRemoving(m); setMenu(null); }} className="flex items-center gap-2.5 px-3.5 py-[9px] text-left text-[#eb5757] hover:bg-surface-alt disabled:text-[#c3c3c3] disabled:[&_svg]:text-[#c3c3c3]">
-                      <Trash size={18} aria-hidden className="text-[#c0392b]" /> Remove
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
             <button
@@ -155,7 +139,7 @@ export default function Wallet() {
           <SearchBox value={q} onChange={setQ} placeholder="Search by contract or reference" className="w-[340px]" />
           <Select options={["All types", "Released", "Escrow", "Payout"]} className="!w-[160px]" />
           <Select options={["Last 90 days", "Last 30 days", "All time"]} className="!w-[160px]" />
-          <Button variant="primary" size="lg" className="ml-auto" disabled={!available} onClick={() => setWithdrawing(true)}>
+          <Button variant="primary" size="lg" className="ml-auto" disabled={!canWithdraw} onClick={() => setWithdrawing(true)}>
             Withdraw {money(available)}
           </Button>
         </div>

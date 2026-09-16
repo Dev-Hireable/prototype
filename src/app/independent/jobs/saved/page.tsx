@@ -17,7 +17,7 @@ export default function SavedRoles() {
     .filter((r) => `${r.title} ${r.company}`.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <Page title="Saved roles">
+    <Page title="Saved roles" heading="default">
       {saved.length === 0 ? (
         <EmptyState
           title="No saved roles yet"

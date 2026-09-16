@@ -488,15 +488,15 @@ export const profile = {
 
 /* ------------------------------------------------------- notifications ---- */
 
-export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: "contracts" | "offers" | "payments" | "interviews" | "other" };
+export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: "contracts" | "offers" | "payments" | "interviews" | "other"; href: string };
 
 export const notifications: Notification[] = [
-  { id: "n1", group: "Today", title: "Week 2 update approved", body: "Alex Rivera approved your update for Sales Manager — 5 of 6 objectives on track.", time: "10:02", unread: true, kind: "contracts" },
-  { id: "n2", group: "Today", title: "Payout method verified", body: "Your Maya account is verified. Trial payments will be released to it at each cycle end.", time: "08:15", unread: true, kind: "payments" },
-  { id: "n3", group: "Yesterday", title: "Interview rescheduled", body: "Vela Partners moved your Account Executive interview to Thu 18 Sep, 2:00 PM PHT.", time: "16:40", unread: false, kind: "interviews" },
-  { id: "n4", group: "Yesterday", title: "Offer received", body: "Brightline Health sent a full-time offer for Customer Success Lead — $1,400 /month.", time: "11:20", unread: false, kind: "offers" },
-  { id: "n5", group: "Earlier", title: "Objective due in 3 days", body: "“Book 12 discovery calls” is at 72% — log progress to stay on track.", time: "8 Sep", unread: false, kind: "contracts" },
-  { id: "n6", group: "Earlier", title: "Escrow funded", body: "Nairobi Solutions funded $1,600 for your Sales Manager trial. You can start on 25 Aug.", time: "25 Aug", unread: false, kind: "payments" },
+  { id: "n1", group: "Today", title: "Week 2 update approved", body: "Alex Rivera approved your update for Sales Manager — 5 of 6 objectives on track.", time: "10:02", unread: true, kind: "contracts", href: "/independent/contracts/sales-manager" },
+  { id: "n2", group: "Today", title: "Payout method verified", body: "Your Maya account is verified. Trial payments will be released to it at each cycle end.", time: "08:15", unread: true, kind: "payments", href: "/independent/wallet" },
+  { id: "n3", group: "Yesterday", title: "Interview rescheduled", body: "Vela Partners moved your Account Executive interview to Thu 18 Sep, 2:00 PM PHT.", time: "16:40", unread: false, kind: "interviews", href: "/independent/jobs/interviews" },
+  { id: "n4", group: "Yesterday", title: "Offer received", body: "Brightline Health sent a full-time offer for Customer Success Lead — $1,400 /month.", time: "11:20", unread: false, kind: "offers", href: "/independent/jobs/applications/o1/offer" },
+  { id: "n5", group: "Earlier", title: "Objective due in 3 days", body: "“Book 12 discovery calls” is at 72% — log progress to stay on track.", time: "8 Sep", unread: false, kind: "contracts", href: "/independent/contracts/sales-manager/objectives/demos" },
+  { id: "n6", group: "Earlier", title: "Escrow funded", body: "Nairobi Solutions funded $1,600 for your Sales Manager trial. You can start on 25 Aug.", time: "25 Aug", unread: false, kind: "payments", href: "/independent/wallet" },
 ];
 
 /* ------------------------------------------------------------ messages ---- */

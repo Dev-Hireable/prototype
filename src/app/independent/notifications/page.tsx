@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Button, Page } from "@/components/independent/ui";
 import { useDemo } from "@/lib/independent/store";
@@ -21,7 +22,7 @@ export default function Notifications() {
   const groups = ["Today", "Yesterday", "Earlier"] as const;
 
   return (
-    <Page title="Notifications">
+    <Page title="Notifications" heading="default">
       <div className="flex items-center gap-2">
         {FILTERS.map((f) => (
           <button
@@ -50,13 +51,15 @@ export default function Notifications() {
               <h2 className="px-4 pt-3 pb-1.5 text-[10.5px] leading-[1.45] font-semibold text-muted uppercase">{g}</h2>
               <ul>
                 {items.map((n) => (
-                  <li key={n.id} className={`flex items-start gap-3 border-t border-line px-4 py-3 leading-[1.45] ${n.unread ? "bg-[#f0f5fc]" : "bg-white"}`}>
-                    <span className={`mt-[5px] size-2 shrink-0 rounded-full ${n.unread ? "bg-accent" : "bg-line"}`} aria-hidden />
-                    <button type="button" onClick={() => markRead(n.id)} className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-                      <p className="text-[13.5px] font-semibold text-ink-deep">{n.title}</p>
-                      <p className="text-[12.5px] text-muted">{n.body}</p>
-                    </button>
-                    <span className="shrink-0 text-[11.5px] text-muted">{n.time}</span>
+                  <li key={n.id} className={`border-t border-line leading-[1.45] ${n.unread ? "bg-[#f0f5fc]" : "bg-white"}`}>
+                    <Link href={n.href} onClick={() => markRead(n.id)} className="flex items-start gap-3 px-4 py-3 text-left hover:bg-surface-alt">
+                      <span className={`mt-[5px] size-2 shrink-0 rounded-full ${n.unread ? "bg-accent" : "bg-line"}`} aria-hidden />
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-[13.5px] font-semibold text-ink-deep">{n.title}</span>
+                        <span className="text-[12.5px] text-muted">{n.body}</span>
+                      </span>
+                      <span className="shrink-0 text-[11.5px] text-muted">{n.time}</span>
+                    </Link>
                   </li>
                 ))}
               </ul>

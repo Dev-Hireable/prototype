@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { Button, Card, Checkbox, EmptyState, Field, InfoBanner, Input, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { PaymentMethodRow } from "@/components/portal/settings";
 import { CardHeading } from "@/components/team/ui";
 import type { PaymentMethod } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
@@ -30,26 +31,29 @@ export default function PaymentMethods() {
         <p className="text-[13px] leading-[1.4] text-ink-2">Escrow deposits and salaries are charged to your default method.</p>
         {cards.length === 0 && <EmptyState title="No payment method yet" body="Add a card to fund escrow for trials and pay salaries." />}
         {cards.map((c) => (
-          <div key={c.id} className="flex items-center gap-4 rounded-lg p-4 outline -outline-offset-1 outline-border">
-            <span className="flex items-start rounded bg-surface-2 px-2.5 py-1.5">
-              <Image src={c.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={c.brand} width={26} height={17} className="h-[17px] w-[26px]" />
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="flex items-center gap-2 text-[14px] leading-[1.4] font-medium text-ink">
+          <PaymentMethodRow
+            key={c.id}
+            brand={<Image src={c.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={c.brand} width={26} height={17} className="h-[17px] w-[26px]" />}
+            title={
+              <>
                 {c.brand} ending {c.last4}
                 {c.isDefault && <StatusDot tone="ok">Default</StatusDot>}
-              </span>
-              <span className="text-[12px] leading-[1.4] text-ink-2">Expires {c.expires}</span>
-            </span>
-            {!c.isDefault && (
-              <Button size="sm" onClick={() => { setDefaultCard(c.id); setToast(`${c.brand} ending ${c.last4} is now your default`); }}>
-                Set as default
-              </Button>
-            )}
-            <Button size="sm" disabled={only || c.isDefault} onClick={() => setRemoving(c)}>
-              Remove
-            </Button>
-          </div>
+              </>
+            }
+            subtitle={`Expires ${c.expires}`}
+            actions={
+              <>
+                {!c.isDefault && (
+                  <Button size="sm" onClick={() => { setDefaultCard(c.id); setToast(`${c.brand} ending ${c.last4} is now your default`); }}>
+                    Set as default
+                  </Button>
+                )}
+                <Button size="sm" disabled={only || c.isDefault} onClick={() => setRemoving(c)}>
+                  Remove
+                </Button>
+              </>
+            }
+          />
         ))}
         {only && (
           <div className="w-[530px]">

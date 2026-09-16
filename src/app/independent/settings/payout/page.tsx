@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
 import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { PaymentMethodRow } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
@@ -28,26 +29,29 @@ export default function PayoutSettings() {
         </div>
         <p className="text-[13px] leading-[1.4] text-ink-2">Trial payouts and salaries go to your default method.</p>
         {payouts.map((m) => (
-          <div key={m.id} className="flex items-center gap-4 rounded-lg p-4 outline -outline-offset-1 outline-border">
-            <span className="flex items-center rounded bg-surface-2 px-2.5 py-1.5 text-[12px] leading-[1.4] font-semibold text-ink">
-              {m.brand === "Bank" ? "Bank" : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-              <span className="flex items-center gap-2 text-[14px] leading-[1.4] font-medium text-ink">
+          <PaymentMethodRow
+            key={m.id}
+            brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
+            title={
+              <>
                 {m.brand === "Bank" ? `BPI · account ending ${m.last4}` : `${m.brand} · ${m.brand === "GCash" ? "0917 555 0142" : `····${m.last4}`}`}
                 {m.isDefault && <StatusDot tone="ok">Default</StatusDot>}
-              </span>
-              <span className="text-[12px] leading-[1.4] text-ink-2">{m.brand === "Bank" ? "InstaPay / PESONet" : "E-wallet"}</span>
-            </span>
-            {!m.isDefault && (
-              <Button size="sm" onClick={() => { setDefaultPayout(m.id); setToast(`${m.brand} is now your default`); }}>
-                Set as default
-              </Button>
-            )}
-            <Button size="sm" disabled={only || m.isDefault} onClick={() => setRemoving(m)}>
-              Remove
-            </Button>
-          </div>
+              </>
+            }
+            subtitle={m.brand === "Bank" ? "InstaPay / PESONet" : "E-wallet"}
+            actions={
+              <>
+                {!m.isDefault && (
+                  <Button size="sm" disabled={!m.verified.startsWith("Verified")} onClick={() => { setDefaultPayout(m.id); setToast(`${m.brand} is now your default`); }}>
+                    Set as default
+                  </Button>
+                )}
+                <Button size="sm" disabled={only || m.isDefault} onClick={() => setRemoving(m)}>
+                  Remove
+                </Button>
+              </>
+            }
+          />
         ))}
         {only && (
           <div className="w-[530px]">
