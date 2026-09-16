@@ -52,7 +52,7 @@ export const disputes: Dispute[] = [
     timeline: [
       { event: "Dispute filed", actor: "Juan Dela Cruz", when: "08 Sep 2026, 18:02" },
       { event: "Employer notified", actor: "system", when: "08 Sep 2026, 18:02" },
-      { event: "Evidence requested from employer", actor: "admin: R. Milano", when: "09 Sep 2026, 09:30" },
+      { event: "Evidence requested from employer", actor: "admin: Admin Lead", when: "09 Sep 2026, 09:30" },
     ],
   },
   {

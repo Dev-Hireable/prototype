@@ -54,10 +54,10 @@ export const subscriptions: Subscription[] = [
       { label: "Next charge", value: "12 Oct 2026", sub: "card ending 4182" },
     ],
     history: [
-      { change: "Upgraded Starter → Growth", by: "Rowena Alcantara", effective: "12 Aug 2026" },
-      { change: "Seats 3 → 5", by: "Rowena Alcantara", effective: "01 Sep 2026" },
-      { change: "Payment method updated", by: "Rowena Alcantara", effective: "04 Sep 2026" },
-      { change: "Subscription created", by: "Rowena Alcantara", effective: "12 Mar 2026" },
+      { change: "Upgraded Starter → Growth", by: "Alex Rivera", effective: "12 Aug 2026" },
+      { change: "Seats 3 → 5", by: "Alex Rivera", effective: "01 Sep 2026" },
+      { change: "Payment method updated", by: "Alex Rivera", effective: "04 Sep 2026" },
+      { change: "Subscription created", by: "Alex Rivera", effective: "12 Mar 2026" },
     ],
   },
   {

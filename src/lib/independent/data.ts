@@ -312,13 +312,13 @@ export const contracts: Contract[] = [
     initials: "NS",
     type: "trial",
     location: "Remote, US hours",
-    line: "Started 25 Aug 2026 · Day 18 of 30 · $1,600 /month · Manager: Rowena Alcantara",
+    line: "Started 25 Aug 2026 · Day 18 of 30 · $1,600 /month · Manager: Alex Rivera",
     status: { label: "On track", tone: "ok" },
     progressLabel: "Trial progress",
     progress: 60,
     progressTone: "primary",
-    manager: "Rowena Alcantara",
-    managerFirst: "Rowena",
+    manager: "Alex Rivera",
+    managerFirst: "Alex",
     started: "25 Aug 2026",
     day: "Day 18 of 30",
     ends: "24 Sep 2026",
@@ -491,7 +491,7 @@ export const profile = {
 export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: "contracts" | "offers" | "payments" | "interviews" | "other" };
 
 export const notifications: Notification[] = [
-  { id: "n1", group: "Today", title: "Week 2 update approved", body: "Rowena Alcantara approved your update for Sales Manager — 5 of 6 objectives on track.", time: "10:02", unread: true, kind: "contracts" },
+  { id: "n1", group: "Today", title: "Week 2 update approved", body: "Alex Rivera approved your update for Sales Manager — 5 of 6 objectives on track.", time: "10:02", unread: true, kind: "contracts" },
   { id: "n2", group: "Today", title: "Payout method verified", body: "Your Maya account is verified. Trial payments will be released to it at each cycle end.", time: "08:15", unread: true, kind: "payments" },
   { id: "n3", group: "Yesterday", title: "Interview rescheduled", body: "Vela Partners moved your Account Executive interview to Thu 18 Sep, 2:00 PM PHT.", time: "16:40", unread: false, kind: "interviews" },
   { id: "n4", group: "Yesterday", title: "Offer received", body: "Brightline Health sent a full-time offer for Customer Success Lead — $1,400 /month.", time: "11:20", unread: false, kind: "offers" },
@@ -502,7 +502,7 @@ export const notifications: Notification[] = [
 /* ------------------------------------------------------------ messages ---- */
 
 export const conversations = [
-  { id: "c1", name: "Nairobi Solutions", sub: "Rowena Alcantara · Sales Manager trial", preview: "Looks good — approved the week 2 update.", time: "10:02", unread: 1, initials: "NS" },
+  { id: "c1", name: "Nairobi Solutions", sub: "Alex Rivera · Sales Manager trial", preview: "Looks good — approved the week 2 update.", time: "10:02", unread: 1, initials: "NS" },
   { id: "c2", name: "Brightline Health", sub: "Owen Price · Customer Success", preview: "Offer letter attached, have a read.", time: "Yesterday", unread: 0, initials: "BH" },
   { id: "c3", name: "Vela Partners", sub: "Ana Reyes · Account Executive", preview: "Interview moved to Thursday 2pm.", time: "Tue", unread: 0, initials: "VP" },
   { id: "c4", name: "Hireable support", sub: "Payouts", preview: "Your Maya payout method is verified.", time: "8 Sep", unread: 0, initials: "H" },

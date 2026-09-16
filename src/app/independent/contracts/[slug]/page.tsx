@@ -162,7 +162,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                   Your fit so far
                 </h3>
                 <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">
-                  From {contract.managerFirst}’s reviews of your updates. {contract.managerFirst === "Rowena" ? "Her" : "Their"} final evaluation opens on Day 30.
+                  From {contract.managerFirst}’s reviews of your updates. Their final evaluation opens on Day 30.
                 </p>
                 {(
                   [
@@ -221,7 +221,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
         open={!!updating}
         onClose={() => setUpdating(null)}
         title={`Update progress: ${updating?.title ?? ""}`}
-        description={`Tell ${contract.managerFirst} what changed. ${contract.managerFirst === "Rowena" ? "She reviews" : "They review"} the update and can approve it or ask for a revision.`}
+        description={`Tell ${contract.managerFirst} what changed. They review the update and can approve it or ask for a revision.`}
         footer={
           <>
             <Button size="lg" onClick={() => setUpdating(null)}>

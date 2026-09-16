@@ -7,7 +7,7 @@ export default function AuditLogs() {
     <AdminPage title="Audit logs">
       <Toolbar>
         <SearchInput placeholder="Search events" />
-        <Select label="Admin" options={["All admins", "R. Milano", "T. Arnaiz", "Rowena Alcantara"]} />
+        <Select label="Admin" options={["All admins", "Admin Lead", "Product Lead", "Ops Manager"]} />
         <Select label="Action" options={["All actions", "Escrow", "Accounts", "Verification", "Roles"]} />
         <Button variant="primary">Export</Button>
       </Toolbar>

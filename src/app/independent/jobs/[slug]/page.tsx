@@ -119,7 +119,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
         open={open}
         onClose={() => setOpen(false)}
         title={`Apply to ${role.title} at ${role.company}`}
-        description="Your profile, monthly rate and availability go with the application. Add a short note so Rowena knows why you fit."
+        description="Your profile, monthly rate and availability go with the application. Add a short note so Alex knows why you fit."
         footer={
           <>
             <Button size="lg" onClick={() => setOpen(false)}>

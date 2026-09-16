@@ -22,9 +22,9 @@ const KIND = {
       { date: "09 Sep 2026", text: "+2 calls logged — flagged off track", status: { label: "Off track", tone: "danger" as const } },
     ],
     discussion: [
-      { who: "Rowena Alcantara", when: "2 days ago", text: "Nice jump on Wednesday — what changed?" },
+      { who: "Alex Rivera", when: "2 days ago", text: "Nice jump on Wednesday — what changed?" },
       { who: "Juan Dela Cruz", when: "2 days ago", text: "Switched to the afternoon calling block, PHT. Better pickup from the US west coast." },
-      { who: "Rowena Alcantara", when: "Yesterday", text: "Keep it. Let’s aim for 10+ this week." },
+      { who: "Alex Rivera", when: "Yesterday", text: "Keep it. Let’s aim for 10+ this week." },
     ],
     progress: 72,
   },
@@ -41,9 +41,9 @@ const KIND = {
       { date: "25 Aug 2026", text: "Objective and three key results agreed at offer", status: { label: "Started", tone: "ok" as const } },
     ],
     discussion: [
-      { who: "Rowena Alcantara", when: "3 days ago", text: "Once the 8 opps are qualified, let’s review the doc together before hand-over." },
+      { who: "Alex Rivera", when: "3 days ago", text: "Once the 8 opps are qualified, let’s review the doc together before hand-over." },
       { who: "Juan Dela Cruz", when: "Today", text: "Doc is in the shared drive — marked the KR done." },
-      { who: "Rowena Alcantara", when: "Today", text: "Approved. One KR to go." },
+      { who: "Alex Rivera", when: "Today", text: "Approved. One KR to go." },
     ],
     progress: 67,
   },
@@ -52,16 +52,16 @@ const KIND = {
     label: "Task",
     cadence: "Due 30 Sep 2026",
     target: "",
-    about: "Juan owns the CRM setup for Q4 outreach. Done means the board is live in HubSpot with the six agreed stages, all 41 target accounts imported, and an owner on every account. A task is binary — done or not done — and needs Rowena’s approval to count.",
+    about: "Juan owns the CRM setup for Q4 outreach. Done means the board is live in HubSpot with the six agreed stages, all 41 target accounts imported, and an owner on every account. A task is binary — done or not done — and needs Sam’s approval to count.",
     update: { date: "10 Sep 2026", text: "Board is live in HubSpot with the 6 stages we agreed, 41 accounts imported and owners assigned. Screenshots and the import log are attached.", file: "crm-board.png · import-log.csv", progress: ["Marked as done ·", "awaiting approval"] },
     history: [
       { date: "10 Sep 2026", text: "Marked as done — board live, 41 accounts imported", status: { label: "Pending approval", tone: "warn" as const } },
-      { date: "02 Sep 2026", text: "Stage naming agreed with Rowena", status: { label: "Approved", tone: "ok" as const } },
+      { date: "02 Sep 2026", text: "Stage naming agreed with Alex", status: { label: "Approved", tone: "ok" as const } },
       { date: "25 Aug 2026", text: "Task started", status: { label: "Started", tone: "ok" as const } },
     ],
     discussion: [
       { who: "Juan Dela Cruz", when: "10 Sep", text: "Marked as done — let me know if you want a different stage naming." },
-      { who: "Rowena Alcantara", when: "Today", text: "Looks right. Approving now." },
+      { who: "Alex Rivera", when: "Today", text: "Looks right. Approving now." },
     ],
     progress: 100,
   },
@@ -175,7 +175,7 @@ export default function ObjectiveDashboard({ params }: { params: Promise<{ slug:
             ))}
           </div>
           <div className="flex justify-end gap-3">
-            <Button size="lg" onClick={() => setToast("Revision request sent to Rowena")}>
+            <Button size="lg" onClick={() => setToast("Revision request sent to Alex")}>
               Request revision
             </Button>
             <Button size="lg" variant="primary" onClick={() => setToast("Update approved")}>
