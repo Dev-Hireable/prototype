@@ -171,12 +171,12 @@ function CreateRoleWizard() {
     setSkills((all) => [...all, s]);
     setSkill("");
   };
-  const publish = () => {
-    const r: Role = {
+  const roleFrom = (status: Role["status"]): Role => {
+    return {
       slug,
-      title: title.trim(),
+      title: title.trim() || "Untitled role",
       type,
-      status: "Active",
+      status,
       candidates: 0,
       matched: 0,
       interviews: 0,
@@ -192,8 +192,18 @@ function CreateRoleWizard() {
       attachment,
       benefits: Object.entries(benefits).map(([label, amount]) => ({ label, amount: amount || "0" })),
     };
-    addRole(r);
+  };
+  const publish = () => {
+    addRole(roleFrom("Active"));
     setStep(4);
+  };
+  /**
+   * TB-030 — Save as draft used to navigate away and keep nothing: the role was gone. It now
+   * writes what has been filled in so far, so the draft can be reopened and finished.
+   */
+  const saveDraft = () => {
+    addRole(roleFrom("Draft"));
+    router.push("/team/hire/roles");
   };
   const back = () => (step === 0 ? router.push("/team/hire") : setStep(step - 1));
 
@@ -282,7 +292,7 @@ function CreateRoleWizard() {
                 </div>
               </div>
             </div>
-            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
+            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
           </StepCard>
         )}
 
@@ -303,7 +313,7 @@ function CreateRoleWizard() {
                   <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{t.hint2}</span>
                 </label>
               </div>
-              <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
+              <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
             </StepCard>
           </>
         )}
@@ -337,7 +347,7 @@ function CreateRoleWizard() {
                 </div>
               </div>
             </div>
-            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
+            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
           </StepCard>
         )}
 
@@ -372,7 +382,7 @@ function CreateRoleWizard() {
               })}
               <InfoBanner tone="warn">{BENEFITS_DISCLAIMER}</InfoBanner>
             </div>
-            <Cta next={t.next[step]} disabled={false} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
+            <Cta next={t.next[step]} disabled={false} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
           </StepCard>
         )}
 
@@ -451,7 +461,7 @@ function CreateRoleWizard() {
               </Card>
             )}
             <div className="flex justify-end gap-3">
-              <Button size="lg" className="!px-5" onClick={() => router.push("/team/hire/roles")}>
+              <Button size="lg" className="!px-5" onClick={saveDraft}>
                 Save as draft
               </Button>
               <Button size="lg" variant="primary" className="!px-5" onClick={publish}>

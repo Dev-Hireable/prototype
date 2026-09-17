@@ -105,8 +105,6 @@ export type Role = {
   duplicatedFrom?: string;
 };
 
-const DESC =
-  "We need someone to own our digital marketing end to end. You'll plan and run campaigns across social, email, and paid channels, track what's working, and report weekly. You'll work directly with the founder, async-first, with one weekly sync. We move fast and expect you to take ownership without being managed.";
 
 
 /** Nothing is posted yet: the demo starts with Create role. */
