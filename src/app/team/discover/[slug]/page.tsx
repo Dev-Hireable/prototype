@@ -2,7 +2,8 @@
 
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
-import { BackLink, Button, Field, Modal, Page, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { BackLink, Button, Page, Toast, useToast } from "@/components/independent/ui";
+import { InviteModal } from "@/components/team/InviteModal";
 import { IntroCard, ProfileColumn } from "@/components/team/ui";
 import { independents } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
@@ -12,9 +13,8 @@ export default function IndependentProfile({ params }: { params: Promise<{ slug:
   const { slug } = use(params);
   const person = independents.find((p) => p.slug === slug);
   if (!person) notFound();
-  const { saved, toggleSaved, invite, roles } = useDemo();
+  const { saved, toggleSaved, inPipeline } = useDemo();
   const [inviting, setInviting] = useState(false);
-  const [role, setRole] = useState(roles[0]?.slug ?? "");
   const [toast, setToast] = useToast();
   const isSaved = saved.includes(person.slug);
 
@@ -25,8 +25,8 @@ export default function IndependentProfile({ params }: { params: Promise<{ slug:
           <div className="flex w-[384px] shrink-0 flex-col gap-4">
             <IntroCard person={person} onPlay={() => setToast("Intro video plays here")} />
             <div className="flex flex-col gap-2">
-              <Button size="lg" variant="primary" className="w-full" onClick={() => setInviting(true)}>
-                Invite to apply
+              <Button size="lg" variant="primary" className="w-full" onClick={() => setInviting(true)} disabled={inPipeline(person.slug)}>
+                {inPipeline(person.slug) ? "In your pipeline" : "Invite to apply"}
               </Button>
               <Button size="lg" className="w-full" onClick={() => toggleSaved(person.slug)}>
                 {isSaved ? "Saved" : "Save"}
@@ -37,31 +37,7 @@ export default function IndependentProfile({ params }: { params: Promise<{ slug:
         </div>
       </div>
 
-      <Modal
-        open={inviting}
-        onClose={() => setInviting(false)}
-        title={`Invite ${person.name} to apply`}
-        description="They get the invite by email and in-app and can accept or decline."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setInviting(false)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => { invite(person.slug, role); setInviting(false); setToast(`Invite sent to ${person.name}`); }}>
-              Send invite
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <Field label="Role">
-            <Select options={roles.filter((r) => r.status === "Active").map((r) => r.title)} value={roles.find((r) => r.slug === role)?.title} onChange={(e) => setRole(roles.find((r) => r.title === e.target.value)?.slug ?? role)} />
-          </Field>
-          <Field label="Note (optional)">
-            <Textarea rows={3} className="h-[78px]" placeholder="Why you think they’re a fit" />
-          </Field>
-        </div>
-      </Modal>
+      <InviteModal target={inviting ? person : null} onClose={() => setInviting(false)} onSent={(name) => setToast(`Invite sent to ${name}`)} />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

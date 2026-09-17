@@ -28,7 +28,7 @@ export default function Interviews() {
   const rows = tab === "upcoming" ? upcoming : past;
 
   return (
-    <Page title="Interviews" heading="default">
+    <Page title="Interviews">
       <Pills
         value={tab}
         onChange={setTab}

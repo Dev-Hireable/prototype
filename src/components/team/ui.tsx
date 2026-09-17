@@ -32,15 +32,20 @@ export function Person({ name, role, avatar, href }: { name: string; role: strin
 /** Figma "Table": #f2f2f2 header (13 medium), rows px 16 / py 12 with #c3c3c3 rules. `cols` are Tailwind width classes. */
 export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
   return (
-    <div className="w-full overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-border">
-      <div className="flex items-center gap-4 bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2">
-        {head.map((h, i) => (
-          <span key={h} className={cols[i]}>
-            {h}
-          </span>
-        ))}
+    // overflow-x-auto + min-w-max: the columns are fixed widths, so a narrow pane used to crush
+    // the flexible first column into its neighbour. Now the table keeps its natural width and
+    // scrolls sideways instead.
+    <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
+      <div className="min-w-max">
+        <div className="flex items-center gap-4 bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2">
+          {head.map((h, i) => (
+            <span key={h} className={cols[i]}>
+              {h}
+            </span>
+          ))}
+        </div>
+        {children}
       </div>
-      {children}
     </div>
   );
 }
@@ -82,7 +87,7 @@ export function IndependentCard({
   /** Saved list only — TB-022 routes this through a confirmation prompt. */
   onRemove?: () => void;
 }) {
-  const { saved, toggleSaved } = useDemo();
+  const { saved, toggleSaved, inPipeline } = useDemo();
   const isSaved = saved.includes(person.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
@@ -120,8 +125,8 @@ export function IndependentCard({
               <Mark size={16} aria-hidden />
             </button>
           )}
-          <Button size="sm" variant="primary" onClick={onInvite}>
-            Invite to apply
+          <Button size="sm" variant="primary" onClick={onInvite} disabled={inPipeline(person.slug)}>
+            {inPipeline(person.slug) ? "In your pipeline" : "Invite to apply"}
           </Button>
         </div>
       </div>
@@ -207,7 +212,7 @@ export function Drawer({ open, onClose, title, children, width = 800 }: { open: 
 
 /** Figma "Discover / Independent profile · preview drawer": profile card, match note, Save + Invite, rate, skills, View full profile. */
 export function ProfileDrawer({ person, onClose, onInvite }: { person: Independent | null; onClose: () => void; onInvite: (p: Independent) => void }) {
-  const { saved, toggleSaved } = useDemo();
+  const { saved, toggleSaved, inPipeline } = useDemo();
   const p = person;
   const isSaved = !!p && saved.includes(p.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
@@ -240,8 +245,8 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
             <Button size="lg" className="flex-1" onClick={() => toggleSaved(p.slug)}>
               {isSaved ? "Saved" : "Save"}
             </Button>
-            <Button size="lg" variant="primary" className="flex-1" onClick={() => onInvite(p)}>
-              Invite to apply
+            <Button size="lg" variant="primary" className="flex-1" onClick={() => onInvite(p)} disabled={inPipeline(p.slug)}>
+              {inPipeline(p.slug) ? "In your pipeline" : "Invite to apply"}
             </Button>
           </div>
           <div className="flex flex-col gap-6 rounded-lg p-4 outline -outline-offset-1 outline-border">

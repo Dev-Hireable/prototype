@@ -37,7 +37,7 @@ export function Page({
   children: ReactNode;
   padded?: boolean;
   /** One header strip for every page: 24 DM Sans by default; "modal" is the 20 Inter close-button variant (offer / edit screens). */
-  heading?: "default" | "modal" | "display";
+  heading?: "modal" | "display";
 }) {
   const Close = ICONS.close;
   return (
@@ -49,9 +49,7 @@ export function Page({
             className={`flex items-center gap-2 text-ink ${
               heading === "display"
                 ? "font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px]"
-                : heading === "modal"
-                  ? "text-[20px] leading-[1.5] font-semibold tracking-[0.4px]"
-                  : "text-[16px] leading-[1.5] font-semibold tracking-[0.2px]"
+                : "text-[20px] leading-[1.5] font-semibold tracking-[0.4px]"
             }`}
             style={heading === "display" ? { fontVariationSettings: '"opsz" 14' } : undefined}
           >
@@ -256,13 +254,12 @@ export function InfoBanner({ children, tone = "info" }: { children: ReactNode; t
 /* --------------------------------------------------------------- badges --- */
 
 export function JobBadge({ type }: { type: "trial" | "full-time" }) {
-  // Darker ink than the Figma swatch: brand-orange on #fff5ec measured 2.32:1 and the primary
-  // blue 4.16:1, both under the 4.5:1 WCAG AA minimum for text this size. Same hues, same
-  // backgrounds — only the text is taken down far enough to read.
+  // Solid fills, white text. Trial is the brand orange token (the logo mark) as asked — note white
+  // on it is 2.5:1, under the 4.5:1 AA minimum; dark ink (#3d1a00) would be 8:1.
   return (
     <span
       className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap uppercase ${
-        type === "trial" ? "bg-[#fff5ec] text-[#8a4200]" : "bg-[#ebf8fe] text-[#005b99]"
+        type === "trial" ? "bg-brand-orange text-white" : "bg-[#005b99] text-white"
       }`}
     >
       {type}
@@ -272,14 +269,15 @@ export function JobBadge({ type }: { type: "trial" | "full-time" }) {
 
 /**
  * Figma "Match pill": one gradient for every score; 0 = grey placeholder.
- * `coded` switches to the TB-012 traffic light — green (high), yellow (medium), grey (low) —
- * used on the Discover talent cards where the AC asks for it. `title` carries the tooltip
- * explaining what the score is based on.
+ * `coded` switches to the TB-012 traffic light — yellow (medium), grey (low) — used on the
+ * Discover talent cards where the AC asks for it. The high band keeps the gradient so a strong
+ * score looks the same here as on the profile sheet. `title` carries the tooltip explaining
+ * what the score is based on.
  */
 export function MatchPill({ pct, coded = false, title }: { pct: number; coded?: boolean; title?: string }) {
-  const tone = pct >= 80 ? "bg-[#27ae60] text-white" : pct >= 60 ? "bg-[#f2c94c] text-[#5c4708]" : "bg-[#e5e5e5] text-[#616161]";
+  const tone = pct >= 60 ? "bg-[#f2c94c] text-[#5c4708]" : "bg-[#e5e5e5] text-[#616161]";
   const base = "inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap";
-  if (coded && pct) {
+  if (coded && pct && pct < 80) {
     return (
       <span className={`${base} ${tone}`} title={title}>
         {pct}% match
@@ -444,7 +442,7 @@ export function Pills<T extends string>({ value, onChange, options }: { value: T
           type="button"
           onClick={() => onChange(o.value)}
           aria-pressed={o.value === value}
-          className={`rounded-full px-3 py-1.5 text-[13px] leading-[1.4] font-medium transition ${o.value === value ? "bg-ink text-white" : "bg-surface-2 text-ink hover:bg-[#e5e5e5]"}`}
+          className={`rounded-full px-3 py-1.5 text-[13px] leading-[1.4] font-medium transition ${o.value === value ? "bg-primary text-white" : "bg-surface-2 text-ink hover:bg-[#e5e5e5]"}`}
         >
           {o.label}
         </button>
@@ -722,7 +720,7 @@ export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { sta
             const next = majors[k + 1];
             if (!next) return null;
             const reached = m.i <= idx; // upper major reached → the whole connector is done
-            const color = milestoneMode ? milestoneColor(m.key) : reached ? "bg-primary" : "bg-surface-2";
+            const color = milestoneMode ? (reached ? milestoneColor(m.key) : "bg-surface-2") : reached ? "bg-primary" : "bg-surface-2";
             return <span key={m.key} className={`absolute left-1.5 w-1 ${color}`} style={{ top: m.cy, height: next.cy - m.cy }} />;
           })}
           {!milestoneMode && cur && topReachedSub && (
@@ -737,7 +735,7 @@ export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { sta
           {majors.map((m) => (
             <span
               key={m.key}
-              className={`absolute left-0 size-4 rounded-full ${milestoneMode ? milestoneColor(m.key) : m.key === currentMajor ? "bg-primary" : m.i <= idx ? "bg-ink-2" : "bg-surface-2"}`}
+              className={`absolute left-0 size-4 rounded-full ${milestoneMode ? (m.i <= idx ? milestoneColor(m.key) : "bg-surface-2") : m.key === currentMajor ? "bg-primary" : m.i <= idx ? "bg-ink-2" : "bg-surface-2"}`}
               style={{ top: m.cy - 8 }}
             />
           ))}
@@ -747,7 +745,7 @@ export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { sta
             <li
               key={p.key}
               className={`absolute flex items-center leading-[1.2] tracking-[0.2px] whitespace-nowrap ${p.major ? "text-[12px] font-semibold" : "pl-3 text-[10px]"} ${
-                milestoneMode ? (p.major ? "text-ink" : "text-ink-2") : p.i <= idx ? (p.major ? "text-ink" : "text-ink-2") : "text-[#c3c3c3]"
+                p.i <= idx ? (p.major ? "text-ink" : "text-ink-2") : "text-[#c3c3c3]"
               }`}
               style={{ top: p.top, height: p.h }}
             >

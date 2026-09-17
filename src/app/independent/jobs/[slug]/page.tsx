@@ -47,7 +47,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   };
 
   return (
-    <Page title="Discover roles" heading="default" nav={<BackLink href="/independent/jobs">Back to roles</BackLink>}>
+    <Page title="Discover roles" nav={<BackLink href="/independent/jobs">Back to roles</BackLink>}>
       <div className="flex items-start gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <div className="flex flex-wrap items-center gap-3">
@@ -69,7 +69,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
           <section className="flex flex-col gap-2">
             <h3 className="text-[14px] leading-[1.4] font-semibold text-ink">Skills</h3>
             <div className="flex flex-wrap gap-2">
-              {(role.slug === "sales-manager" ? ["Outbound sales", "Discovery calls", "HubSpot", "Coaching", "Forecasting"] : [...role.skills, "Coaching"].slice(0, 5)).map((s) => (
+              {role.skills.map((s) => (
                 <Chip key={s}>{s}</Chip>
               ))}
             </div>

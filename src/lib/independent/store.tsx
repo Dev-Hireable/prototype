@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
-import { clearDeal, getDeal, startDeal, today, trialDay, updateDeal, useDeal } from "@/lib/demo/deal";
+import { canMessage, clearDeal, getDeal, stageOf, startDeal, today, trialDay, updateDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { markRead as markLiveRead, move, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
@@ -22,6 +22,8 @@ type Demo = {
   saved: string[];
   toggleSaved: (slug: string) => void;
   applications: Application[];
+  /** IN-006 — false until the company invites them to interview; there is no thread before that. */
+  canChat: boolean;
   /**
    * `notify` overrides which notification fires: omitted infers it from the stage, `false` stays
    * silent, and a kind names it outright — declining an offer stays on the same stage, so
@@ -109,7 +111,7 @@ const applicationFromDeal = (deal: Deal): Application => ({
   company: deal.company,
   match: deal.match,
   submitted: `Submitted ${deal.submitted}`,
-  stage: deal.stage,
+  stage: stageOf(deal),
   status: deal.stage === "hired" ? { label: "Hired · trial running", tone: "ok" } : deal.offer?.status === "sent" ? { label: "Offer received", tone: "ok" } : deal.interview?.accepted ? { label: "Interview confirmed", tone: "info", meta: deal.interview.when } : deal.interview ? { label: "Interview invitation", tone: "warn", meta: deal.interview.when } : undefined,
 });
 
@@ -238,6 +240,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       }
     : null;
   const dealApplication = deal ? applicationFromDeal(deal) : null;
+  const canChat = canMessage(deal);
   const dealContract = deal ? contractFromDeal(deal) : null;
   const allApplications: Application[] = dealApplication ? [dealApplication, ...applications] : applications;
   const allContracts: Contract[] = dealContract ? [dealContract, ...contracts] : contracts;
@@ -246,6 +249,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     saved,
     toggleSaved: (slug) => setSaved((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug])),
     applications: allApplications,
+    canChat,
     setStage: (id, stage, status, notify) => {
       const app = allApplications.find((x) => x.id === id);
       const kind = notify === undefined ? STAGE_MOVE[stage as keyof typeof STAGE_MOVE] : notify || undefined;

@@ -18,7 +18,7 @@ export default function Contracts() {
   });
 
   return (
-    <Page title="All contracts" heading="default">
+    <Page title="All contracts">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <SearchBox value={q} onChange={setQ} placeholder="Search contracts" className="w-[360px]" />

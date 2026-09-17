@@ -6,6 +6,7 @@ import { Suspense, use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { BackLink, Card, Chip, JobBadge, KeyValue, LinkButton, MatchPill, Page, StatusDot, Tabs, Toast, useToast, WorkStyleChart } from "@/components/independent/ui";
 import { ScrollFade } from "@/components/portal/ScrollFade";
+import { InterviewDialog } from "@/components/team/InterviewDialog";
 import { Avatar, MATCH_TOOLTIP } from "@/components/team/ui";
 import { byName, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate } from "@/lib/team/data";
@@ -30,7 +31,9 @@ export default function RolePage({ params }: { params: Promise<{ slug: string }>
  */
 function Role({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { roles, candidates, setStage, setDropped } = useDemo();
+  const { roles, candidates, canChat, setStage, setDropped } = useDemo();
+  /** TB-037 — booking happens on the board, so a first interview is one click from the column. */
+  const [inviting, setInviting] = useState<Candidate | null>(null);
   const live = useLive();
   const role = roles.find((r) => r.slug === slug);
   const [tab, setTab] = useState<"candidates" | "details">(useSearchParams().get("tab") === "details" ? "details" : "candidates");
@@ -93,7 +96,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                   <section key={col.key} className="flex h-full min-h-0 w-[320px] shrink-0 flex-col gap-3">
                     <header
                       className="flex items-center justify-between rounded px-3 py-2 text-[14px] leading-[1.2] font-medium tracking-[0.2px]"
-                      style={{ background: col.bg, color: col.text, boxShadow: `inset 0 0 0 0.5px ${col.border}` }}
+                      style={{ background: col.bg, color: col.text }}
                     >
                       {col.label}
                       <span className="min-w-9 rounded p-1 text-center" style={{ background: col.count }}>
@@ -115,12 +118,18 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                                 <span className="truncate text-[12px] text-ink-2">{p.role}</span>
                               </Link>
                               {/* TB-037: unread messages show a red badge on the message icon. */}
-                              <Link href="/team/messages" aria-label={`Message ${p.name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
-                                <Message size={16} aria-hidden />
-                                {isPair && unread > 0 && (
-                                  <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>
-                                )}
-                              </Link>
+                              {canChat || !isPair ? (
+                                <Link href="/team/messages" aria-label={`Message ${p.name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
+                                  <Message size={16} aria-hidden />
+                                  {isPair && unread > 0 && (
+                                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>
+                                  )}
+                                </Link>
+                              ) : (
+                                <span title="Messaging opens once you invite them to interview" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink-2 opacity-50">
+                                  <Message size={16} aria-hidden />
+                                </span>
+                              )}
                             </div>
                             <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">
                               {p.rate} · {p.level}
@@ -131,8 +140,14 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                             </div>
                             <p className="text-[11.5px] leading-[1.2] text-ink-2">{c.status?.meta ?? c.submitted}</p>
 
-                            {/* TB-103: Request Proposal lives on Matched and Interview cards. */}
-                            {!c.dropped && (col.key === "matched" || col.key === "interview") && (
+                            {/* TB-037: book the interview from the column, without opening a profile. */}
+                            {!c.dropped && (col.key === "candidates" || col.key === "matched") && (
+                              <button type="button" onClick={() => setInviting(c)} className="h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
+                                Invite to interview
+                              </button>
+                            )}
+                            {/* TB-103: Request Proposal once the interview is under way. */}
+                            {!c.dropped && col.key === "interview" && (
                               <button type="button" onClick={() => requestProposal(c)} className="h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
                                 Request Proposal
                               </button>
@@ -224,6 +239,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
           </div>
         )}
       </div>
+      <InterviewDialog candidate={inviting} roleTitle={role.title} onClose={() => setInviting(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

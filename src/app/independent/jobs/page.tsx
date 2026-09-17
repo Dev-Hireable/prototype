@@ -53,7 +53,7 @@ export default function Discover() {
     });
 
   return (
-    <Page title="Discover roles" heading="default">
+    <Page title="Discover roles">
       <div className="flex items-start gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <SearchBox value={q} onChange={setQ} placeholder="Search by title, company or skill" />

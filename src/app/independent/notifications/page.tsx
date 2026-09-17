@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Page } from "@/components/independent/ui";
+import { Button, Page, Pills } from "@/components/independent/ui";
 import { resetDemo } from "@/lib/demo/live";
 import { useDemo } from "@/lib/independent/store";
 
@@ -23,21 +23,9 @@ export default function Notifications() {
   const groups = ["Today", "Yesterday", "Earlier"] as const;
 
   return (
-    <Page title="Notifications" heading="default">
+    <Page title="Notifications">
       <div className="flex items-center gap-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            type="button"
-            onClick={() => setFilter(f.value)}
-            aria-pressed={f.value === filter}
-            className={`rounded-2xl px-3 py-[7px] text-[12.5px] leading-[1.45] font-semibold ${
-              f.value === filter ? "bg-ink-deep text-white" : "bg-white text-muted outline -outline-offset-1 outline-line hover:bg-surface-alt"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        <Pills value={filter} onChange={setFilter} options={FILTERS} />
         <span className="w-2.5" />
         <Button size="sm" onClick={() => markRead()} disabled={!notifications.some((n) => n.unread)}>
           Mark all as read

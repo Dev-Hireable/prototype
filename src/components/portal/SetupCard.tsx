@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
+import { TraitTag } from "@/components/portal/TraitTag";
 import type { DashboardChecklistItem } from "@/components/portal/dashboard";
 
 const Check = ICONS.check;
@@ -14,8 +15,9 @@ const Lock = ICONS.lock;
  * each row has room for a label, a line of explanation, and its own button.
  *
  * The list is always open — a setup checklist people are meant to finish shouldn't hide its
- * actions behind a click. The whole card disappears once every step is done, so it only takes
- * up space while there is something to do.
+ * actions behind a click. Once every step is done the card stays where it is and turns into the
+ * work-style traits earned along the way: the dashboard doesn't reshuffle itself the moment
+ * someone finishes setting up, and the space keeps saying something.
  *
  * Acceptance criteria the pills used to cover still hold: the percentage and progress bar are
  * derived from `items`, completed steps are checked off and greyed, each incomplete step links
@@ -28,6 +30,8 @@ export function DashboardSetupCard({
   description,
   completionHref,
   items,
+  traits = [],
+  completeDescription = "Setup complete — here is the work style you are matched on.",
 }: {
   avatarSrc: string;
   avatarClassName?: string;
@@ -35,13 +39,18 @@ export function DashboardSetupCard({
   description: string;
   completionHref: string;
   items: readonly DashboardChecklistItem[];
+  /** Shown in place of the checklist once it is finished. */
+  traits?: readonly { label: string; trait: number }[];
+  completeDescription?: string;
 }) {
   const done = items.filter((i) => i.done).length;
   const percent = items.length ? Math.round((done / items.length) * 100) : 100;
-  if (done === items.length) return null; // checklist disappears once all steps are complete
+  const complete = done === items.length;
 
   return (
-    <section className="relative flex w-full min-w-0 flex-col overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4">
+    // self-start once complete: the traits row is a third of the checklist's height, and stretching
+    // to the greeting column left ~100px of empty gradient under it. Incomplete, it still stretches.
+    <section className={`relative flex w-full min-w-0 flex-col overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4 ${complete ? "self-start" : ""}`}>
       {/* Sized as a share of the card and anchored right, so it scales with the card instead of
           drifting over the header copy — a fixed 330px-from-left offset put it on top of the
           text as the card grew. The header text is capped below so the two never meet. */}
@@ -52,8 +61,8 @@ export function DashboardSetupCard({
         <Image src={avatarSrc} alt="" width={96} height={96} className={`size-12 shrink-0 rounded-full bg-[#d2d8db] object-cover ${avatarClassName}`} />
         {/* Capped so the copy wraps before it runs under the decorative art on the right. */}
         <div className="flex min-w-0 max-w-[50%] flex-1 flex-col gap-1.5 leading-[1.25] tracking-[0.2px]">
-          <p className="text-[18px] font-semibold text-ink">{title}</p>
-          <p className="text-[14px] text-ink-2">{description}</p>
+          <p className="text-[18px] font-semibold text-ink">{complete ? "You're all set" : title}</p>
+          <p className="text-[14px] text-ink-2">{complete ? completeDescription : description}</p>
           <div role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Account setup progress" className="mt-1 h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-white/70">
             <span className="block h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${percent}%` }} />
           </div>
@@ -64,6 +73,15 @@ export function DashboardSetupCard({
         {percent}%
       </Link>
 
+      {complete ? (
+        <div className="relative mt-4 flex flex-wrap items-center gap-2 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
+          {traits.length > 0 ? (
+            traits.map((t) => <TraitTag key={t.label} label={t.label} trait={t.trait} />)
+          ) : (
+            <p className="text-[14px] leading-[1.35] text-ink-2">Take the work-style quiz to earn your trait badges.</p>
+          )}
+        </div>
+      ) : (
       <ul className="relative mt-4 flex flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_1px_2px_rgba(0,0,0,.04)]">
         {items.map((item) => {
           const missing = (item.requires ?? []).filter((r) => !items.find((i) => i.label === r)?.done);
@@ -92,6 +110,7 @@ export function DashboardSetupCard({
           );
         })}
       </ul>
+      )}
     </section>
   );
 }

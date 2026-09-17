@@ -3,8 +3,9 @@
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { MdOutlineFlag, MdOutlineThumbDown } from "react-icons/md";
-import { BackLink, Button, Field, Input, JobBadge, LinkButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { BackLink, Button, Field, JobBadge, LinkButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { IntroCard, ProfileColumn } from "@/components/team/ui";
+import { InterviewDialog } from "@/components/team/InterviewDialog";
 import { SendOfferDialog } from "@/components/team/SendOfferDialog";
 import { ProposalReview } from "@/components/team/ProposalReview";
 import type { Proposal } from "@/components/team/ProposalReview";
@@ -58,15 +59,12 @@ type Dialog = null | "invite" | "drop" | "flag" | "request" | "proposal" | "decl
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
   const router = useRouter();
-  const { roles, candidates, setStage, setDropped, sendOffer, cards, addInterview } = useDemo();
+  const { roles, candidates, interviews, setStage, setDropped, sendOffer, cards } = useDemo();
   const role = roles.find((r) => r.slug === slug);
   const cand = candidates.find((c) => c.id === id);
   if (!role || !cand) notFound();
   const p = byName(cand.independent);
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [link, setLink] = useState("https://meet.google.com/yxw-vuts-rqp");
   /** TB-106 — the revision note is required before the request can be sent. */
   const [revisionNote, setRevisionNote] = useState("");
   const [toast, setToast] = useToast();
@@ -74,24 +72,11 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
   const declined = cand.status?.label === "Declined to propose";
   /** TB-106 — a revision was requested and the independent hasn't resubmitted yet. */
   const awaitingRevision = cand.status?.label === "Revision requested";
-  const [when = "01/06/2026", at = "06:00 AM (EST)"] = (cand.status?.meta ?? "").split(" · ");
+  // Date, time and link all come off the booking itself, so they survive a reload together.
+  const booked = interviews.find((i) => i.independent === cand.independent);
+  const [when = "—", at = "—"] = booked?.when.split(", ") ?? [];
+  const link = booked?.link;
   const pipeline = `/team/hire/roles/${role.slug}`;
-
-  const sendInvite = () => {
-    if (!date || !time) return;
-    setStage(cand.id, "invited", { label: "Awaiting reply", tone: "neutral", meta: `${date} · ${time}` });
-    // TB-040 — the invitation is also an interview, so it belongs on the Interviews page.
-    addInterview({
-      id: `iv${Date.now()}`,
-      independent: cand.independent,
-      role: role.title,
-      when: `${date}, ${time}`,
-      format: link.includes("zoom") ? "Zoom" : "Google Meet",
-      status: { label: "Awaiting reply", tone: "neutral" },
-    });
-    setDialog(null);
-    setToast(`Interview invitation sent to ${first}`);
-  };
 
   /** CTA pair per Figma frame (primary, secondary). */
   const cta = (() => {
@@ -124,14 +109,15 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         </>
       );
     switch (cand.stage) {
+      // TB-037 — a candidate or a match gets interviewed first; the proposal comes after it.
       case "applied":
       case "matched":
         return (
           <>
-            {request}
-            <Button size="lg" className="w-full" onClick={() => setDialog("invite")}>
+            <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("invite")}>
               Invite to interview
             </Button>
+            {message}
           </>
         );
       case "invited":
@@ -223,13 +209,17 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
                   <dt className="font-semibold">Time:</dt>
                   <dd>{at}</dd>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <dt className="font-semibold">Meeting link</dt>
-                  <dd className="flex h-11 items-center truncate rounded-lg bg-[#e5e5e5] px-4 text-ink-2 outline -outline-offset-1 outline-border">{link}</dd>
-                </div>
-                <button type="button" onClick={() => { navigator.clipboard?.writeText(link); setToast("Meeting link copied"); }} className="flex items-center gap-1 self-start font-medium text-accent-ink">
-                  Copy link
-                </button>
+                {link && (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <dt className="font-semibold">Meeting link</dt>
+                      <dd className="flex h-11 items-center truncate rounded-lg bg-[#e5e5e5] px-4 text-ink-2 outline -outline-offset-1 outline-border">{link}</dd>
+                    </div>
+                    <button type="button" onClick={() => { navigator.clipboard?.writeText(link); setToast("Meeting link copied"); }} className="flex items-center gap-1 self-start font-medium text-accent-ink">
+                      Copy link
+                    </button>
+                  </>
+                )}
               </dl>
             )}
             <PipelineTracker stage={cand.stage} labels={EMPLOYER_STAGE_LABELS} mode="milestone" />
@@ -249,40 +239,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         </div>
       </div>
 
-      {/* Invite to interview — Figma "Interviews / Invite to interview · empty / error / filled / confirm" */}
-      <Modal
-        open={dialog === "invite"}
-        onClose={() => setDialog(null)}
-        title={`Invite ${first} to interview`}
-        description="Pick a slot from your availability. They get the invite by email and in-app and can accept or ask to reschedule."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setDialog(null)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" disabled={!date || !time} onClick={sendInvite}>
-              Send invitation
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <Field label="Date" className="flex-1" hint={!date ? "Required" : undefined}>
-              <Input value={date} onChange={(e) => setDate(e.target.value)} placeholder="01/06/2026" />
-            </Field>
-            <Field label="Time" className="flex-1">
-              <Select options={["", "06:00 AM (EST)", "09:30 AM (EST)", "02:00 PM (EST)"]} value={time} onChange={(e) => setTime(e.target.value)} />
-            </Field>
-          </div>
-          <Field label="Meeting link">
-            <Input value={link} onChange={(e) => setLink(e.target.value)} />
-          </Field>
-          <Field label="Note (optional)">
-            <Textarea rows={3} className="h-[78px]" placeholder="Anything they should prepare" />
-          </Field>
-        </div>
-      </Modal>
+      <InterviewDialog candidate={dialog === "invite" ? cand : null} roleTitle={role.title} onClose={() => setDialog(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
 
       <Modal
         open={dialog === "drop"}

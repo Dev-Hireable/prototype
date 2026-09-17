@@ -21,7 +21,7 @@ export default function MyApplications() {
   const [toast, setToast] = useToast();
 
   return (
-    <Page title="My Applications" heading="default" padded={false}>
+    <Page title="My Applications" padded={false}>
       {/* The gutter is on this wrapper, NOT on the scroller: padding inside a scroll container is
           scrolled through, so the scrollport would clip cards flush against the panel border. */}
       <div className="flex h-full min-h-0 p-2">
@@ -35,11 +35,7 @@ export default function MyApplications() {
                 <section key={col.key} className="flex h-full min-h-0 w-[360px] shrink-0 flex-col gap-3">
                   <header
                     className="flex items-center justify-between rounded px-3 py-2 text-[14px] leading-[1.2] font-medium tracking-[0.2px]"
-                    style={{
-                      background: col.bg,
-                      color: col.text,
-                      boxShadow: `inset 0 0 0 0.5px ${col.border}`,
-                    }}
+                    style={{ background: col.bg, color: col.text }}
                   >
                     {col.label}
                     <span className="w-9 rounded p-1 text-center" style={{ background: col.count }}>

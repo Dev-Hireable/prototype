@@ -5,7 +5,7 @@ import { ICONS } from "@/components/admin/icons";
 import { CallDialog } from "@/components/portal/CallDialog";
 import { Highlight, Page, SearchBox, StatusDot } from "@/components/independent/ui";
 import { Avatar } from "@/components/team/ui";
-import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, sendChat, sendFile, startCall, unreadChat, useLive } from "@/lib/demo/live";
+import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, sendChat, sendFile, readBy, startCall, unreadChat, useLive } from "@/lib/demo/live";
 import { conversationsFor } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 
@@ -22,9 +22,10 @@ const Download = ICONS.download;
 export default function Messages() {
   const live = useLive();
   const [tab, setTab] = useState<"conversations" | "candidates">("conversations");
-  const { contracts, candidates } = useDemo();
+  const { contracts, canChat } = useDemo();
   const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
-  const conversations = conversationsFor({ hired: contracts.length > 0, inPipeline: candidates.some((c) => !c.dropped) });
+  // TB-006 — a candidate thread opens when they are invited to interview, not when they apply.
+  const conversations = conversationsFor({ hired: contracts.length > 0, inPipeline: canChat });
   const [q, setQ] = useState("");
   const [active, setActive] = useState(conversations[0]?.id ?? "");
   const [draft, setDraft] = useState("");
@@ -84,7 +85,7 @@ export default function Messages() {
           </div>
           {list.length === 0 && (
             <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">
-              {q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : tab === "candidates" ? "Nobody in the pipeline yet." : "No active contracts yet."}
+              {q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : tab === "candidates" ? "No candidate threads yet — one opens when you invite someone to interview." : "No active contracts yet."}
             </p>
           )}
           <ul className="flex flex-col gap-0.5 px-2 pt-2">
@@ -101,7 +102,8 @@ export default function Messages() {
                       </span>
                       <span className={`text-[11px] ${on ? "text-[#5b6b7a]" : "text-muted"}`}>{c.sub}</span>
                       <span className="flex items-center gap-[5px]">
-                        <DoneAll size={16} aria-hidden className={on ? "text-primary" : "text-muted"} />
+                        {/* Only on a message we sent, and blue only once they have read it. */}
+                        {last?.from === "team" && <DoneAll size={16} aria-hidden className={readBy(live, "independent", live.chat.length - 1) ? "text-primary" : "text-muted"} />}
                         <span className={`min-w-0 flex-1 truncate text-[12px] ${on ? "text-[#3d4a57]" : "text-muted"}`}><Highlight text={last?.text ?? last?.file?.name ?? ""} query={q} /></span>
                         {unread > 0 && <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>}
                       </span>
@@ -117,7 +119,7 @@ export default function Messages() {
         {!conv ? (
           <section className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
             <p className="text-[15px] leading-[1.4] font-semibold text-ink">No conversations yet</p>
-            <p className="max-w-[360px] text-[13px] leading-[1.45] text-muted">Once someone applies to one of your roles, or a trial starts, your thread with them opens here.</p>
+            <p className="max-w-[360px] text-[13px] leading-[1.45] text-muted">Invite a candidate to interview, or start a trial, and your thread with them opens here.</p>
           </section>
         ) : (
         <section className="flex min-w-0 flex-1 flex-col">
@@ -151,7 +153,7 @@ export default function Messages() {
               <span className="h-3 w-px bg-line" />
               10:02 AM
             </p>
-            {live.chat.map((m) => {
+            {live.chat.map((m, i) => {
               const me = m.from === "team";
               return (
                 <div key={m.id} className={`flex items-end gap-2 ${me ? "justify-end" : ""}`}>
@@ -193,7 +195,7 @@ export default function Messages() {
                     <div className={`flex w-[420px] flex-col gap-1 px-3.5 py-2.5 text-[13px] leading-[1.45] ${me ? "rounded-tl-xl rounded-tr-xl rounded-br rounded-bl-xl bg-primary text-white" : "rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white text-ink-deep outline -outline-offset-1 outline-line"}`}>
                       <Highlight text={m.text ?? ""} query={q} />
                       <p className={`flex items-center gap-1 text-[10.5px] ${me ? "text-[#d9e8ff]" : "text-muted"}`}>
-                        {me && <DoneAll size={16} aria-hidden />}
+                        {me && <DoneAll size={16} aria-hidden className={readBy(live, "independent", i) ? "text-primary" : "text-white/70"} />}
                         {m.time}
                       </p>
                     </div>

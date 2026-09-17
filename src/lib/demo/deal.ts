@@ -75,6 +75,24 @@ export type Posting = {
   workStyle: number[];
 };
 
+/**
+ * TB-018 — at or above this, an application is a match: the Team Builder's tracker files it
+ * under Matched rather than Candidates, on both sides and for records made before the rule.
+ */
+export const MATCH_THRESHOLD = 80;
+
+/** The stage to show for a deal — a strong enough application reads as a match. */
+export const stageOf = (deal: Deal): Stage => (deal.stage === "applied" && deal.match >= MATCH_THRESHOLD ? "matched" : deal.stage);
+
+/** The stages from which there is a thread: an interview is on the table. */
+const CHATTABLE: Stage[] = ["invited", "invite_accepted", "interviewed", "proposal_requested", "proposal_sent", "offer_received", "offer_accepted", "hired"];
+
+/**
+ * IN-006 — the talent can only message a company once it has invited them to interview. Before
+ * that there is no thread to open, on either side.
+ */
+export const canMessage = (deal: Deal | null) => !!deal && CHATTABLE.includes(stageOf(deal));
+
 type State = { deal: Deal | null; postings: Posting[] };
 
 const KEY = "hireable.demo.deal";

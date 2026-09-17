@@ -53,7 +53,7 @@ function EditForm({ profile, save, back }: { profile: ReturnType<typeof useDemo>
   const valid = Object.values(errors).every((e) => !e);
 
   return (
-    <Page title="Edit profile" heading="default">
+    <Page title="Edit profile">
       <Card className="mx-auto flex w-[760px] flex-col gap-4 p-6">
         <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
           Edit profile

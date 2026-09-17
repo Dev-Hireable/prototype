@@ -130,14 +130,14 @@ export const candidates: Candidate[] = [];
  * TB-037 candidate tracker — the seven Kanban columns, in order. "Dropped" isn't a stage: a
  * dropped candidate keeps the stage they were dropped from, so it's matched on the flag.
  */
-export const TRACKER_COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; border: string; text: string; count: string }[] = [
-  { key: "candidates", label: "Candidates", stages: ["applied"], bg: "#e5e5e5", border: "#c3c3c3", text: "#4a4a4a", count: "#d8d8d8" },
-  { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", border: "#007acc", text: "#004675", count: "#c9eeff" },
-  { key: "interview", label: "Interview", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", border: "#ff8112", text: "#8a4200", count: "#ffe0c4" },
-  { key: "proposal", label: "Proposal Requested", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", border: "#6e0e52", text: "#6e0e52", count: "#ffdbf3" },
-  { key: "offer", label: "Offer Sent", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", border: "#f2c94c", text: "#7a5e0a", count: "#fff0b6" },
-  { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", border: "#27ae60", text: "#1b6b3a", count: "#c6ffd2" },
-  { key: "dropped", label: "Dropped", stages: [], bg: "#fdecec", border: "#d97070", text: "#a62121", count: "#f9d5d5" },
+export const TRACKER_COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; text: string; count: string }[] = [
+  { key: "candidates", label: "Candidates", stages: ["applied"], bg: "#e5e5e5", text: "#4a4a4a", count: "#d8d8d8" },
+  { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", text: "#004675", count: "#c9eeff" },
+  { key: "interview", label: "Interview", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", text: "#8a4200", count: "#ffe0c4" },
+  { key: "proposal", label: "Proposal Requested", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", text: "#6e0e52", count: "#ffdbf3" },
+  { key: "offer", label: "Offer Sent", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", text: "#7a5e0a", count: "#fff0b6" },
+  { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", text: "#1b6b3a", count: "#c6ffd2" },
+  { key: "dropped", label: "Dropped", stages: [], bg: "#fdecec", text: "#a62121", count: "#f9d5d5" },
 ];
 
 /** Employer-side wording for the shared pipeline tracker. */
@@ -150,7 +150,7 @@ export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
 
 /* ------------------------------------------------------------- interviews */
 
-export type Interview = { id: string; independent: string; role: string; when: string; format: string; status: { label: string; tone: Tone }; past?: boolean };
+export type Interview = { id: string; independent: string; role: string; when: string; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean };
 
 export const interviews: Interview[] = [];
 
@@ -335,6 +335,9 @@ export const INDUSTRIES = [
   "Software and IT",
   "Telecommunications",
 ];
+
+/** Headcount bands, same as the industry field: a pick, not a typed number. */
+export const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-500", "501-1,000", "1,000+"];
 
 /** The fields that have to be filled for the profile to count as complete (TB-001 / TB-097). */
 export const COMPANY_FIELDS = ["name", "description", "url", "industry", "location", "size"] as const;

@@ -53,7 +53,7 @@ export function roleFromPosting(p: Posting): Role {
     company: p.company,
     initials: p.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
     type: p.type,
-    match: 80,
+    match: BASE_MATCH,
     location: p.location,
     rate: p.rate,
     rateRange: p.rateRange,
@@ -92,13 +92,13 @@ export type Application = {
 export const applications: Application[] = [];
 
 /** Kanban column headers — colours lifted from the Figma "My Applications" frame. */
-export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; border: string; text: string; count: string }[] = [
-  { key: "applications", label: "Applications", stages: ["applied"], bg: "#e5e5e5", border: "#c3c3c3", text: "#616161", count: "#d8d8d8" },
-  { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", border: "#007acc", text: "#004675", count: "#c9eeff" },
-  { key: "interviews", label: "Interviews", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", border: "#ff8112", text: "#a6520d", count: "#ffe0c4" },
-  { key: "proposals", label: "Proposals", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", border: "#6e0e52", text: "#6e0e52", count: "#ffdbf3" },
-  { key: "offers", label: "Offers", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", border: "#f2c94c", text: "#8e6f12", count: "#fff0b6" },
-  { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", border: "#27ae60", text: "#1d6f3f", count: "#c6ffd2" },
+export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; text: string; count: string }[] = [
+  { key: "applications", label: "Applications", stages: ["applied"], bg: "#e5e5e5", text: "#616161", count: "#d8d8d8" },
+  { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", text: "#004675", count: "#c9eeff" },
+  { key: "interviews", label: "Interviews", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", text: "#a6520d", count: "#ffe0c4" },
+  { key: "proposals", label: "Proposals", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", text: "#6e0e52", count: "#ffdbf3" },
+  { key: "offers", label: "Offers", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", text: "#8e6f12", count: "#fff0b6" },
+  { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", text: "#1d6f3f", count: "#c6ffd2" },
 ];
 
 /** The "Marketing Specialist" posting every application detail screen shows. */
@@ -435,14 +435,31 @@ const TAGS_BY_TRAIT: [string, string][] = [
   ["Concise", "Communicative"],
 ];
 
+/**
+ * IN-063 — each earned tag with the trait it came from, so a badge can colour itself by trait
+ * rather than being handed a colour at every call site.
+ */
+export function traitTagsFor(answers: number[]) {
+  return answers.map((a, i) => (a >= 4 ? { label: TAGS_BY_TRAIT[i][1], trait: i } : a <= 2 ? { label: TAGS_BY_TRAIT[i][0], trait: i } : null)).filter((t): t is { label: string; trait: number } => !!t);
+}
+
 /** IN-063 — tags are derived, never typed in: the quiz is the only thing that can change them. */
 export function tagsFor(answers: number[]) {
-  const tags = answers.map((a, i) => (a >= 4 ? TAGS_BY_TRAIT[i][1] : a <= 2 ? TAGS_BY_TRAIT[i][0] : null)).filter((t): t is string => !!t);
+  const tags = traitTagsFor(answers).map((t) => t.label);
   return tags.length ? tags : ["Balanced"];
 }
 
 /** How closely two work-style vectors sit, 0–100. */
 const similarity = (a: number[], b: number[]) => Math.round(100 - (a.reduce((n, v, i) => n + Math.abs(v - (b[i] ?? 3)), 0) / (a.length * 4)) * 100);
+
+/**
+ * TB-018 — at or above this, an applicant is a match rather than a plain application, so the
+ * Team Builder's tracker files them straight into Matched instead of the Candidates column.
+ */
+export const MATCH_THRESHOLD = 80;
+
+/** The pair's fit before the quiz moves it (Figma shows 80% for this company and this talent). */
+const BASE_MATCH = 80;
 
 /**
  * IN-064 — the match on a role moves with the quiz. The seeded percentage is the baseline for the

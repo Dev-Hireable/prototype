@@ -32,7 +32,7 @@ export default function Profile() {
   const [toast, setToast] = useToast();
 
   return (
-    <Page title="Profile" heading="default">
+    <Page title="Profile">
       <div className="flex items-center justify-between gap-3">
         {/* IN-060 — this page is the Team Builder's view of you, not a separate internal one. */}
         <p className="text-[13px] leading-[1.4] text-ink-2">This is exactly how your profile appears to Team Builders.</p>

@@ -7,13 +7,15 @@ import { ICONS } from "@/components/admin/icons";
 import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
 import { Row, Table, Toolbar } from "@/components/team/ui";
-import { ROLE_STATUS } from "@/lib/team/data";
+import { TRACKER_COLUMNS, ROLE_STATUS } from "@/lib/team/data";
 import type { Role, RoleStatus } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 import { draftReady } from "@/app/team/hire/new/page";
 
 /** Figma columns: Role flex · Status 110 · Candidates 100 · Matched 90 · Interviews 90 · Offers 80 · Hired 70 · Updated 120 · Actions 60. */
-const COLS = ["min-w-0 flex-1", "w-[104px]", "w-[96px]", "w-[86px]", "w-[86px]", "w-[76px]", "w-[68px]", "w-[80px]", "w-[108px]", "w-[56px]"];
+/* Every column is centred (header and cell alike): the six pipeline columns are filled blocks,
+   and left-aligned text beside them made the row read as two different tables. */
+const COLS = ["min-w-0 flex-1 text-center", "w-[104px] text-center", "w-[96px] text-center", "w-[86px] text-center", "w-[86px] text-center", "w-[76px] text-center", "w-[68px] text-center", "w-[80px] text-center", "w-[108px] text-center", "w-[56px] text-center"];
 const Edit = ICONS.edit;
 const Copy = ICONS.copy;
 const Trash = ICONS.trash;
@@ -21,13 +23,28 @@ const Check = ICONS.check;
 
 type Confirm = { role: Role; action: "close" | "reopen" | "archive" | "delete" };
 
-/** One tone per pipeline column, in table order (Candidates → Dropped). */
-const STAT_TONES = ["bg-[#eeeeee] text-ink", "bg-[#e6f4ff] text-[#005b99]", "bg-[#fff2e5] text-[#8a4200]", "bg-[#f6ecff] text-[#6b21a8]", "bg-[#e7f7ed] text-[#1b6b3a]", "bg-[#fdecec] text-[#a62121]"];
+/**
+ * One tone per pipeline column, in table order (Candidates → Dropped). Pale fill, dark text —
+ * each pair clears 4.5:1 (lowest is Matched at 6.4:1). Solid fills with white text were tried
+ * and read as a strip of traffic lights across the row.
+ */
+const STAT_TONES = [
+  "bg-[#eeeeee] text-ink",
+  "bg-[#e6f4ff] text-[#005b99]",
+  "bg-[#fff2e5] text-[#8a4200]",
+  "bg-[#f6ecff] text-[#6b21a8]",
+  "bg-[#e7f7ed] text-[#1b6b3a]",
+  "bg-[#fdecec] text-[#a62121]",
+];
 
-/** A dash reads better than a 0 badge for a draft that has no pipeline at all. */
+/**
+ * A filled cell rather than a pill: the tone covers the whole column cell, top to bottom, so a
+ * row reads as a band of pipeline colour (the monday.com board look). A dash reads better than
+ * a 0 cell for a draft that has no pipeline at all.
+ */
 function Stat({ value, tone }: { value: number | null; tone: string }) {
-  if (value === null) return <span className="text-[14px] text-ink-2">—</span>;
-  return <span className={`inline-flex h-6 min-w-7 items-center justify-center rounded-md px-2 text-[13px] leading-[1.2] font-medium ${tone}`}>{value}</span>;
+  if (value === null) return <span className="flex w-full items-center justify-center text-[14px] text-ink-2">—</span>;
+  return <span className={`flex w-full items-center justify-center text-[13px] leading-[1.2] font-medium ${tone}`}>{value}</span>;
 }
 
 /** Figma "Hire / All roles · list / · draft filter / · archived filter" + close / reopen / archive / delete confirms. */
@@ -49,8 +66,17 @@ export default function AllRoles() {
     return true;
   });
   const count = (s: RoleStatus) => roles.filter((r) => r.status === s).length;
-  /** Live, unlike the seeded stats — drops and undrops in the tracker move this number. */
-  const dropped = (r: Role) => (r.candidates === null ? null : candidates.filter((c) => c.role === r.slug && c.dropped).length);
+  /** Live, from the tracker itself: a draft has no pipeline, so its row stays em-dashed. */
+  const live = (r: Role) => (r.status === "Draft" ? null : candidates.filter((c) => c.role === r.slug));
+  const inStages = (r: Role, key: string) => {
+    const rows = live(r);
+    if (!rows) return null;
+    if (key === "dropped") return rows.filter((c) => c.dropped).length;
+    const stages = TRACKER_COLUMNS.find((col) => col.key === key)?.stages ?? [];
+    return rows.filter((c) => !c.dropped && stages.includes(c.stage)).length;
+  };
+  /** Candidates counts everyone in the pipeline, not just the first column. */
+  const counts = (r: Role) => [live(r)?.length ?? null, inStages(r, "matched"), inStages(r, "interview"), inStages(r, "offer"), inStages(r, "hired"), inStages(r, "dropped")];
 
   const duplicate = (r: Role) => {
     setMenu(null);
@@ -114,8 +140,9 @@ export default function AllRoles() {
         <Table cols={COLS} head={["Role", "Status", "Candidates", "Matched", "Interviews", "Offers", "Hired", "Dropped", "Updated", "Actions"]}>
           {list.map((r) => (
             <Row key={r.slug}>
-              <span className={`${COLS[0]} flex items-center gap-2`}>
-                <Link href={`/team/hire/roles/${r.slug}`} className="text-[14px] font-medium text-primary hover:underline">
+              <span className={`${COLS[0]} flex items-center justify-center gap-2`}>
+                {/* min-w-0 + truncate: a long title ellipsises instead of pushing the badge over Status. */}
+                <Link href={`/team/hire/roles/${r.slug}`} className="min-w-0 truncate text-[14px] font-medium text-primary hover:underline">
                   {r.title}
                 </Link>
                 <JobBadge type={r.type} />
@@ -125,14 +152,16 @@ export default function AllRoles() {
               </span>
               {/* TB-026: stats read as coloured badges while the role is live and grey once it
                   isn't, so a closed role doesn't look like it's still collecting people. */}
-              {[r.candidates, r.matched, r.interviews, r.offers, r.hired, dropped(r)].map((n, i) => (
-                <span key={i} className={COLS[2 + i]}>
+              {counts(r).map((n, i) => (
+                /* -my-3 eats the row's padding so the fill covers the cell top to bottom; the gap between
+                   columns stays, otherwise the blocks drift out from under their headers. */
+                <span key={i} className={`${COLS[2 + i]} -my-3 flex self-stretch`}>
                   <Stat value={n} tone={r.status === "Active" ? STAT_TONES[i] : "bg-[#eeeeee] text-ink-2"} />
                 </span>
               ))}
               {/* TB-026: a draft has no posted date. */}
               <span className={COLS[8]}>{r.status === "Draft" ? "—" : r.updated}</span>
-              <span className={COLS[9]}>
+              <span className={`${COLS[9]} flex justify-center`}>
                 <KebabMenu
                   label="Role actions"
                   open={menu === r.slug}

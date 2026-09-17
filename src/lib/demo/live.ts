@@ -474,6 +474,14 @@ export function openChat(side: Side) {
   write({ ...snapshot, seen: { ...snapshot.seen, [side]: snapshot.chat.length }, [side]: feed } as Live);
 }
 
+/**
+ * TB-008 / IN-008 — has `other` seen the message at `index`? Drives the read tick, which is a
+ * receipt for your own message, not decoration on every row.
+ */
+export function readBy(live: Live, other: Side, index: number) {
+  return (live.seen[other] ?? 0) > index;
+}
+
 /** Unread messages waiting for `side`. */
 export function unreadChat(live: Live, side: Side) {
   return live.chat.slice(live.seen[side] ?? 0).filter((m) => m.from !== side).length;

@@ -3,7 +3,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { DEAL_ID, dealObjectivesFrom, postingFrom } from "@/lib/team/deal-view";
-import { publishPosting, today, trialDay, unpublishPosting, updateDeal, useDeal } from "@/lib/demo/deal";
+import { canMessage, publishPosting, stageOf, today, trialDay, unpublishPosting, updateDeal, useDeal } from "@/lib/demo/deal";
 import { markRead as markLiveRead, move, PAIR, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
 import { COMPANY_PROFILE, INITIAL_SAVED, TEAM_PROFILE, candidates as seedCandidates, contracts as seedContracts, disputes as seedDisputes, interviews as seedInterviews, offers as seedOffers, paymentMethods as seedCards, roles as seedRoles } from "./data";
@@ -26,6 +26,8 @@ type Demo = {
   setRoleStatus: (slug: string, status: RoleStatus) => void;
   removeRole: (slug: string) => void;
   candidates: Candidate[];
+  /** The thread only exists from the interview onwards — the same point the talent sees it open. */
+  canChat: boolean;
   /**
    * `notify` overrides which notification fires: omitted infers it from the stage, `false`
    * stays silent, and a kind names it outright — a revision request and a first request both
@@ -34,6 +36,11 @@ type Demo = {
   setStage: (id: string, stage: Stage, status?: Candidate["status"], notify?: MoveKind | false) => void;
   setDropped: (id: string, dropped: boolean) => void;
   invite: (independent: string, role: string) => void;
+  /**
+   * TB-017 — an invite to apply only makes sense for someone who is not in the tracker yet.
+   * Once they are a candidate or a match, the next move is an interview, not another invite.
+   */
+  inPipeline: (independent: string) => boolean;
   /**
    * TB-040 — scheduling an interview from a candidate's profile has to produce a row on the
    * Interviews page and the dashboard widget, and a reschedule or cancel has to stick.
@@ -114,7 +121,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         id: DEAL_ID,
         independent: PAIR.independent.slug,
         role: deal.roleSlug,
-        stage: deal.stage,
+        stage: stageOf(deal),
         status: deal.stage === "hired" ? { label: "Hired · trial running", tone: "ok" } : deal.offer?.status === "sent" ? { label: "Offer sent", tone: "warn", meta: `Starts ${deal.offer.start}` } : deal.interview?.accepted ? { label: "Interview confirmed", tone: "ok", meta: deal.interview.when } : deal.interview ? { label: "Awaiting reply", tone: "neutral", meta: deal.interview.when } : { label: "New application", tone: "info" },
         submitted: `Applied ${deal.submitted}`,
         dropped: deal.dropped,
@@ -129,6 +136,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           role: deal.title,
           when: deal.interview.when,
           format: deal.interview.format,
+          link: deal.interview.link,
           status: deal.interview.accepted ? { label: "Confirmed", tone: "ok" } : { label: "Awaiting reply", tone: "neutral" },
           past: deal.interview.past,
         }
@@ -208,6 +216,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       unpublishPosting(slug);
     },
     candidates: allCandidates,
+    canChat: canMessage(deal),
     setStage: (id, stage, status, notify) => {
       const c = allCandidates.find((x) => x.id === id);
       const kind = notify === undefined ? STAGE_MOVE[stage as keyof typeof STAGE_MOVE] : notify || undefined;
@@ -220,6 +229,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (id === DEAL_ID) return updateDeal((d) => ({ ...d, dropped }));
       setCandidates((cs) => cs.map((c) => (c.id === id ? { ...c, dropped } : c))); // TB-044: not notified
     },
+    inPipeline: (independent) => allCandidates.some((c) => c.independent === independent && !c.dropped),
     invite: (independent, role) => {
       if (allCandidates.some((c) => c.independent === independent && c.role === role)) return;
       if (independent === PAIR.independent.slug) move("invite", roleOf(role));
@@ -228,7 +238,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     interviews: allInterviews,
     // TB-037 — booking with the pair books it on the shared engagement, so the talent is invited.
     addInterview: (i) => {
-      if (i.independent === PAIR.independent.slug && deal) return updateDeal((d) => ({ ...d, interview: { when: i.when, format: i.format } }));
+      if (i.independent === PAIR.independent.slug && deal) return updateDeal((d) => ({ ...d, interview: { when: i.when, format: i.format, link: i.link } }));
       setInterviews((is) => [i, ...is]);
     },
     setInterview: (id, patch) => {

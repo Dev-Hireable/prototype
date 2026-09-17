@@ -18,6 +18,8 @@ import { Avatar } from "@/components/team/ui";
 import { useDemo } from "@/lib/team/store";
 import { usePersisted } from "@/lib/demo/live";
 import { CONTRACT_NAMES, independents, MARKETING_BANNER, setupSteps } from "@/lib/team/data";
+import { COMPANY_WORK_STYLE } from "@/lib/team/deal-view";
+import { traitTagsFor } from "@/lib/independent/data";
 
 const NorthEast = ICONS.northEast;
 const Work = ICONS.workOutline;
@@ -50,7 +52,7 @@ export default function Dashboard() {
   const upcoming = interviews.filter((iv) => !iv.past).slice(0, 3);
 
   return (
-    <Page title="Dashboard" heading="default" padded={false}>
+    <Page title="Dashboard" padded={false}>
       <DashboardFrame>
         <DashboardBanner banner={MARKETING_BANNER} dismissed={dismissed === MARKETING_BANNER.id} onDismiss={() => setDismissed(MARKETING_BANNER.id)} />
 
@@ -67,6 +69,8 @@ export default function Dashboard() {
             description="Complete your account to start hiring."
             completionHref="/team/profile/company"
             items={steps}
+            traits={traitTagsFor(COMPANY_WORK_STYLE)}
+            completeDescription="Your account is ready. These are the work-style traits candidates are matched against."
           />
         </DashboardHero>
 

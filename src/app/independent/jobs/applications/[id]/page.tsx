@@ -37,7 +37,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   };
 
   return (
-    <Page title="My Applications" heading="default" nav={<BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>}>
+    <Page title="My Applications" nav={<BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>}>
       <div className="flex flex-col gap-10 pb-14">
         <div className="flex items-start justify-center gap-6">
           <div className="flex w-[576px] flex-col gap-4">

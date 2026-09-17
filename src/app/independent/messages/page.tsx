@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { CallDialog } from "@/components/portal/CallDialog";
 import { Highlight, Initials, Page, SearchBox, StatusDot } from "@/components/independent/ui";
-import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, sendChat, sendFile, startCall, unreadChat, useLive } from "@/lib/demo/live";
+import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, sendChat, sendFile, readBy, startCall, unreadChat, useLive } from "@/lib/demo/live";
 import { conversationsFor } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
@@ -24,8 +24,9 @@ const Download = ICONS.download;
 export default function Messages() {
   const live = useLive();
   const [tab, setTab] = useState<"conversations" | "applications">("conversations");
-  const { contracts, applications } = useDemo();
-  const conversations = conversationsFor(applications.length > 0 || contracts.length > 0);
+  const { contracts, applications, canChat } = useDemo();
+  // IN-006 — the thread opens when a company invites them to interview, not when they apply.
+  const conversations = conversationsFor(canChat || contracts.length > 0);
   const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
   const [q, setQ] = useState("");
   const [active, setActive] = useState(conversations[0]?.id ?? "");
@@ -67,7 +68,7 @@ export default function Messages() {
   };
 
   return (
-    <Page title="Messages" heading="default">
+    <Page title="Messages">
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-line">
         {/* Conversations */}
         <section className="flex w-[384px] shrink-0 flex-col border-r border-line">
@@ -88,7 +89,7 @@ export default function Messages() {
             ))}
           </div>
           {list.length === 0 && (
-            <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">{q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : "No companies in your pipeline yet."}</p>
+            <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">{q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : applications.length > 0 ? "No threads yet — one opens when a company invites you to interview." : "No companies in your pipeline yet."}</p>
           )}
           <ul className="flex flex-col gap-0.5 px-2 pt-2">
             {list.map((c) => {
@@ -109,7 +110,8 @@ export default function Messages() {
                       </span>
                       <span className={`text-[11px] ${on ? "text-[#5b6b7a]" : "text-muted"}`}>{c.sub}</span>
                       <span className="flex items-center gap-[5px]">
-                        <DoneAll size={16} aria-hidden className={on ? "text-primary" : "text-muted"} />
+                        {/* Only on a message we sent, and blue only once they have read it. */}
+                        {last?.from === "independent" && <DoneAll size={16} aria-hidden className={readBy(live, "team", live.chat.length - 1) ? "text-primary" : "text-muted"} />}
                         <span className={`min-w-0 flex-1 truncate text-[12px] ${on ? "text-[#3d4a57]" : "text-muted"}`}><Highlight text={last?.text ?? last?.file?.name ?? ""} query={q} /></span>
                         {unread > 0 && (
                           <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>
@@ -128,7 +130,7 @@ export default function Messages() {
         {!conv ? (
           <section className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
             <p className="text-[15px] leading-[1.4] font-semibold text-ink">No conversations yet</p>
-            <p className="max-w-[360px] text-[13px] leading-[1.45] text-muted">Apply to a role and your thread with that Team Builder opens here.</p>
+            <p className="max-w-[360px] text-[13px] leading-[1.45] text-muted">Your thread with a Team Builder opens once they invite you to interview.</p>
           </section>
         ) : (
         <section className="flex min-w-0 flex-1 flex-col">
@@ -166,7 +168,7 @@ export default function Messages() {
               <span className="h-3 w-px bg-line" />
               10:02 AM
             </p>
-            {live.chat.map((m) => {
+            {live.chat.map((m, i) => {
               const me = m.from === "independent";
               return (
                 <div key={m.id} className={`flex items-end gap-2 ${me ? "justify-end" : ""}`}>
@@ -214,7 +216,7 @@ export default function Messages() {
                     >
                       <Highlight text={m.text ?? ""} query={q} />
                       <p className={`flex items-center gap-1 text-[10.5px] ${me ? "text-[#d9e8ff]" : "text-muted"}`}>
-                        {me && <DoneAll size={16} aria-hidden />}
+                        {me && <DoneAll size={16} aria-hidden className={readBy(live, "team", i) ? "text-primary" : "text-white/70"} />}
                         {m.time}
                       </p>
                     </div>

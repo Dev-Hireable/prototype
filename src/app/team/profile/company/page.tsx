@@ -2,11 +2,13 @@
 
 import { useRef, useState } from "react";
 import { Button, Card, Chip, Input, Modal, Page, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
-import { checkImage, COMPANY_DESC_MAX, COMPANY_FIELDS, INDUSTRIES, isUrl, readImage, WORK_STYLE_SETS } from "@/lib/team/data";
+import { checkImage, COMPANY_DESC_MAX, COMPANY_FIELDS, COMPANY_SIZES, INDUSTRIES, isUrl, readImage, WORK_STYLE_SETS } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 import type { CompanyProfile } from "@/lib/team/data";
 
-type Row = { key: keyof CompanyProfile; label: string; kind: "text" | "long" | "industry" | "url" };
+type Row = { key: keyof CompanyProfile; label: string; kind: "text" | "long" | "industry" | "size" | "url" };
+/** TB-126 — the rows that are a pick from a known list rather than free text. */
+const OPTIONS: Partial<Record<Row["kind"], string[]>> = { industry: INDUSTRIES, size: COMPANY_SIZES };
 
 /** The order the Figma card lists them in. */
 const LABELS: Record<(typeof COMPANY_FIELDS)[number], { label: string; kind: Row["kind"] }> = {
@@ -15,7 +17,7 @@ const LABELS: Record<(typeof COMPANY_FIELDS)[number], { label: string; kind: Row
   url: { label: "Website", kind: "url" },
   industry: { label: "Industry", kind: "industry" },
   location: { label: "Location", kind: "text" },
-  size: { label: "Company size", kind: "text" },
+  size: { label: "Company size", kind: "size" },
 };
 /** Same field list the dashboard checklist counts, so the two can't disagree about "complete". */
 const ROWS: Row[] = COMPANY_FIELDS.map((key) => ({ key, ...LABELS[key] }));
@@ -105,9 +107,8 @@ export default function CompanyProfile() {
                 {open ? (
                   <>
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
-                      {r.kind === "industry" ? (
-                        /* TB-126 — a pick from the known list, not a free-text field. */
-                        <Select options={INDUSTRIES} value={draft} onChange={(e) => setDraft(e.target.value)} />
+                      {OPTIONS[r.kind] ? (
+                        <Select options={OPTIONS[r.kind]!} value={draft} onChange={(e) => setDraft(e.target.value)} />
                       ) : r.kind === "long" ? (
                         <Textarea rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} />
                       ) : (

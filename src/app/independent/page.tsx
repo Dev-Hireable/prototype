@@ -5,7 +5,7 @@ import { ICONS } from "@/components/admin/icons";
 import { Initials, JobBadge, Page } from "@/components/independent/ui";
 import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardSummaryCard, DashboardSummaryGrid } from "@/components/portal/dashboard";
 import { usePersisted } from "@/lib/demo/live";
-import { daysLeft, interviews, MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
+import { daysLeft, interviews, MARKETING_BANNER, ME, setupSteps, traitTagsFor } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
 const NorthEast = ICONS.northEast;
@@ -22,7 +22,7 @@ export default function Dashboard() {
   const upcoming = interviews.filter((iv) => !iv.past);
 
   return (
-    <Page title="Dashboard" heading="default" padded={false}>
+    <Page title="Dashboard" padded={false}>
       <DashboardFrame>
         {/* IN-002 — dismissible, and the whole strip disappears when there is no active banner. */}
         <DashboardBanner banner={MARKETING_BANNER} dismissed={dismissed === MARKETING_BANNER.id} onDismiss={() => setDismissed(MARKETING_BANNER.id)} />
@@ -39,6 +39,8 @@ export default function Dashboard() {
             description="Complete your profile to boost role matches."
             completionHref="/independent/profile/edit"
             items={setupSteps({ payouts, applications, workStyle, bio: profile.bio })}
+            traits={traitTagsFor(workStyle)}
+            completeDescription="Your profile is live. These are the work-style traits companies match you on."
           />
         </DashboardHero>
 
