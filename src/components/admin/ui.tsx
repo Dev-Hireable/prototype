@@ -41,13 +41,8 @@ export function AdminPage({
   );
 }
 
-export function BackLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <Link href={href} className="-mb-2 inline-block text-[12px] leading-[1.45] text-accent">
-      &larr; {children}
-    </Link>
-  );
-}
+/** Shared with the portal shells so a back link is the same size everywhere in the app. */
+export { BackLink } from "@/components/portal/nav";
 
 /* -------------------------------------------------------------- surfaces -- */
 

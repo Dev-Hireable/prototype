@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Modal } from "@/components/independent/ui";
+import { signOut } from "@/lib/demo/auth";
+import { unreadChat, useLive } from "@/lib/demo/live";
 import { menuItemFor, sectionFor } from "@/lib/portal/nav";
 import type { Section } from "@/lib/portal/nav";
 
@@ -48,6 +50,18 @@ export function PortalShell({
   const [logout, setLogout] = useState<string | null>(null);
   const router = useRouter();
 
+  /* Live unread counts on the Messages and Notifications nav items (TB-007/008, IN-007/008). */
+  const live = useLive();
+  const side = pathname.startsWith("/team") ? "team" : "independent";
+  const root = `/${side === "team" ? "team" : "independent"}`;
+  const badges: Record<string, number> = {
+    [`${root}/messages`]: unreadChat(live, side),
+    [`${root}/notifications`]: live[side].filter((n) => n.unread).length,
+    /* TB-008 / IN-008 — the rail carries a section's total too, so unread messages are visible
+       from every section, not only the one whose submenu happens to list Messages. */
+    [root]: unreadChat(live, side),
+  };
+
   return (
     // min-h keeps the rail + avatar intact on short viewports (the page scrolls instead of squashing)
     <div className="flex h-dvh min-h-[700px] gap-1 bg-surface-2 p-1 font-sans text-ink">
@@ -62,15 +76,21 @@ export function PortalShell({
           <ul className="flex flex-col pl-2">
             {rail.map((s, i) => {
               const active = i === activeIndex;
+              const badge = badges[s.href] ?? 0;
               return (
                 <li key={s.href} className="relative z-20">
                   <Link
                     href={s.href}
                     aria-current={active ? "page" : undefined}
-                    className={`flex h-[68px] w-full flex-col items-center gap-1 px-2 py-4 text-[10px] leading-[1.2] tracking-[0.2px] whitespace-nowrap
+                    className={`relative flex h-[68px] w-full flex-col items-center gap-1 px-2 py-4 text-[10px] leading-[1.2] tracking-[0.2px] whitespace-nowrap
                       ${active ? "font-semibold text-accent-ink" : "font-normal text-ink-2"}`}
                   >
                     <RailGlyph icon={s.icon} active={active} />
+                    {badge > 0 && (
+                      <span aria-label={`${badge} unread`} className="pointer-events-none absolute top-2.5 right-[22px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white">
+                        {badge > 9 ? "9+" : badge}
+                      </span>
+                    )}
                     {s.label}
                   </Link>
                 </li>
@@ -153,8 +173,18 @@ export function PortalShell({
                   </span>
                 </>
               );
+              const badge = badges[item.href] ?? 0;
               return (
-                <li key={item.href}>
+                <li key={item.href} className="relative">
+                  {badge > 0 && (
+                    <span
+                      aria-label={`${badge} unread`}
+                      className={`pointer-events-none absolute z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white ${EASE} transition-[left,top]`}
+                      style={collapsed ? { left: 24, top: 2 } : { left: 178, top: 8 }}
+                    >
+                      {badge > 9 ? "9+" : badge}
+                    </span>
+                  )}
                   {item.action === "logout" ? (
                     <button type="button" onClick={() => setLogout(item.href)} aria-label={collapsed ? item.label : undefined} className={cls} style={style}>
                       {body}
@@ -192,7 +222,7 @@ export function PortalShell({
             <Button size="lg" onClick={() => setLogout(null)}>
               Cancel
             </Button>
-            <Button size="lg" variant="danger" onClick={() => logout && router.push(logout)}>
+            <Button size="lg" variant="danger" onClick={() => { signOut(); if (logout) router.push(logout); }}>
               Log out
             </Button>
           </>

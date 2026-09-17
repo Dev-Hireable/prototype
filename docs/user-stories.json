@@ -1,0 +1,1262 @@
+[
+ {
+  "id": "OB-001",
+  "title": "Login",
+  "story": "As a user, I want to log in to my account so I can access my dashboard and continue where I left off.",
+  "ac": "- Login form requires email address and password - Password field includes a show/hide toggle - Incorrect credentials show a clear error message - Successful login redirects to the correct dashboard based on account type — Team Builder goes to the Team Builder dashboard, Independent goes to the Independent dashboard - 'Forgot Password?' link available on login page - 'New to Hireable? Sign up' link available on login page - Session persists until user logs out"
+ },
+ {
+  "id": "OB-002",
+  "title": "Sign Up as Team Builder",
+  "story": "As an employer, I want to create an account so I can post jobs, review talent, and manage my hiring needs.",
+  "ac": "- Sign up form requires: full name, email, password, company name - Email must be unique — duplicate emails show an error - Password must meet minimum requirements (8+ chars, 1 uppercase, 1 number) - After submitting, user receives a verification email - Work Style Quiz is presented as a required step before accessing the dashboard - Completing the quiz generates workplace tags and work style profile - After quiz completion, user is redirected to the Team Builder dashboard - Account Setup Checklist is shown on first login"
+ },
+ {
+  "id": "OB-003",
+  "title": "Sign Up as Independent Contractor",
+  "story": "As a remote talent, I want to register on the platform so I can find jobs, join Trial Drives, and connect with employers.",
+  "ac": "- Sign up form requires: full name, email, password, job title - Email must be unique — duplicate emails show an error - Password must meet minimum requirements (8+ chars, 1 uppercase, 1 number) - After submitting, user receives a verification email - Work Style Quiz is presented as a required step before accessing the dashboard - Quiz asks 6 questions about work style, communication, and decision-making approach - Multiple choice answers available per question plus a free-text 'Something else' option - Completing the quiz generates workplace tags/badges visible on the talent's profile - After quiz completion, user is redirected to the Independent dashboard - Account Setup Checklist shown on first login"
+ },
+ {
+  "id": "OB-004",
+  "title": "Reset Account Password",
+  "story": "As a user, I want to reset my password so I can securely regain access to my account if I forget it.",
+  "ac": "- 'Forgot Password' link available on login page - Entering a registered email sends a password reset link - Unregistered email shows an error - Reset link expires after 24 hours - New password must meet minimum requirements - Success message shown after password is successfully reset - User is redirected to login page after reset"
+ },
+ {
+  "id": "TB-001",
+  "title": "View Dashboard",
+  "story": "As an employer, I want to see a personalized dashboard when I log in, so that I can quickly get an overview of my account activity and know what to do next.",
+  "ac": "\\* Dashboard loads upon login showing all key widgets \\* Displays personalized greeting with employer's first name (e.g."
+ },
+ {
+  "id": "TB-006",
+  "title": "Send Message",
+  "story": "As an employer, I want to send a message to a talent or candidate, so that I can communicate directly within the platform without using external tools.",
+  "ac": "- Employer can compose and send a message to any talent they have an active connection with - Message is delivered in real time - Sent messages appear in the conversation thread immediately - Empty message cannot be sent"
+ },
+ {
+  "id": "TB-007",
+  "title": "Receive Message",
+  "story": "As an employer, I want to receive messages from talents and candidates, so that I can stay updated on their responses and keep communication in one place.",
+  "ac": "- Employer receives messages from talents in real time - New messages trigger a notification - Messages appear in the correct conversation thread - Unread count updates automatically"
+ },
+ {
+  "id": "TB-008",
+  "title": "Show Unread Indicator",
+  "story": "As an employer, I want to see an unread message indicator on conversations, so that I can quickly identify which chats have new messages I haven't read yet.",
+  "ac": "- Unread message count is displayed on the Messages nav icon - Count updates in real time when new messages arrive - Count clears when the conversation is opened"
+ },
+ {
+  "id": "TB-009",
+  "title": "Search Messages",
+  "story": "As an employer, I want to search through my messages, so that I can quickly find a specific conversation or message without scrolling through the entire list.",
+  "ac": "- Search bar is accessible from the Messages page - Search by sender name or keyword - Results update dynamically as the user types - Search matches against conversation names and message content - Matching keywords are highlighted in the results - Empty state shown when no results match the search query - Clearing the search bar restores the full conversation list"
+ },
+ {
+  "id": "TB-010",
+  "title": "Attach Files in Messages",
+  "story": "As an employer, I want to attach files to a message, so that I can share documents, contracts, or references directly in the conversation.",
+  "ac": "- File attachment button available in the message composer - Supported file types: PDF, DOC, DOCX, PNG, JPG (max 10MB) - Attached file previewed before sending - Recipient can download the attachment from the thread"
+ },
+ {
+  "id": "TB-011",
+  "title": "Start / Join Call",
+  "story": "As an employer, I want to attach or share a meeting link in a conversation, so that I can easily schedule or start a call with a talent or candidate without leaving the platform.",
+  "ac": "- Call button available within an active conversation - Clicking initiates or joins a call session - Notification sent to the other party when call starts"
+ },
+ {
+  "id": "TB-012",
+  "title": "Browse Independents",
+  "story": "As an employer, I want to browse a list of available independent talents, so that I can find candidates that fit my role and requirements.",
+  "ac": "\\* Discover page displays a list of available Independent Contractor profiles \\* Each card shows: photo, name, role, rate, experience level, location, skills, and match percentage \\* Results load with pagination at the bottom \\* Pagination shows: Previous, page numbers, and Next \\* Current page number is visually highlighted \\* Empty state shown if no profiles are available \\* Search bar available on Discover Independents page — searches by name, role, or skills \\* Results update dynamically as Team Builder types \\* Search shows a clear (X) button when active — clicking restores the full list \\* Empty state shown when no results match \\* Filter panel accessible from the Discover page \\* Filter options: Experience Level, Skills, Salary Range \\* Multiple filters can be applied simultaneously \\* Apply Filters button confirms the selection \\* Reset Filters button clears all active filters \\* Active filters are visually indicated \\* Match percentage displayed as a badge on each talent card \\* Color coded: green (high), yellow (medium), grey (low) \\* Phase 1 (Work Style only) shown before any job post exists \\* Phase 2 (+ Job Post & Profile) shown when a job post is active \\* Phase 3 (+ Trial Performance) updates during trial \\* Phase 4 (+ Evaluation) final score after evaluation is submitted \\* Tooltip explains what the score is based on \\* Clicking a talent card opens their full profile \\* Profile shows: photo, name, role, rate, experience level, location, website, LinkedIn, bio, workplace tags, skills, and performance history \\* Match percentage prominently displayed on profile \\* Invite to Propose and Save buttons available on the profile \\* Read-only view"
+ },
+ {
+  "id": "TB-017",
+  "title": "Invite Independent to Apply",
+  "story": "As an employer, I want to invite an independent to apply for one of my jobs, so that I can proactively reach out to strong candidates who haven't applied yet.",
+  "ac": "Invite to Propose button available on talent profile and discover card Modal shown to select which active job post to invite them to Talent receives a notification of the invitation Expectations from the selected job post are unlocked and visible to the talent upon invitation Confirmation shown after invite is sent"
+ },
+ {
+  "id": "TB-018",
+  "title": "Save Independent",
+  "story": "As an employer, I want to save an independent by clicking the bookmark icon, so that I can revisit them later without searching again.",
+  "ac": "Save button available on talent profile and discover card Saved talent appears in Saved Independents list immediately Button toggles to Saved state after clicking Unsaving removes them from the list Talent is NOT notified when saved or unsaved"
+ },
+ {
+  "id": "TB-019",
+  "title": "View Saved Independents",
+  "story": "As an employer, I want to see all the independents I've saved in one place, so that I can easily revisit and compare my shortlisted candidates.",
+  "ac": "\\* Saved Independents page shows all Independent Contractor profiles the Team Builder has saved \\* Each card shows: photo, name, role, rate, experience level, skills, and match percentage \\* Match percentage color coded: green (high), yellow (medium), grey (low) \\* Score updates dynamically as phases progress \\* Tooltip explains what each phase score is based on \\* Results load with pagination at the bottom \\* Pagination shows: Previous, page numbers, and Next \\* Filter panel accessible from Saved Independents page \\* Filter options: Experience Level, Skills, Salary Range \\* Multiple filters can be applied simultaneously \\* Apply Filters button confirms the selection \\* Reset Filters clears all active filters \\* Active filters are visually indicated \\* Empty state shown if no Independent Contractors have been saved"
+ },
+ {
+  "id": "TB-022",
+  "title": "Remove from Saved",
+  "story": "As an employer, I want to remove an independent from my saved list, so that I can keep my shortlist clean and relevant.",
+  "ac": "\\* Remove button available on each saved Independent Contractor card \\* Confirmation prompt shown before removing \\* Removing takes effect immediately \\* Independent Contractor is NOT notified when removed"
+ },
+ {
+  "id": "TB-023",
+  "title": "Invite Saved Independent to Apply",
+  "story": "As an employer, I want to invite a saved independent to apply directly from the saved list, so that I can act without navigating back to discover.",
+  "ac": "\\* Invite to Propose button available on saved Independent Contractor cards \\* Modal shown to select which active job post to invite them to \\* Independent Contractor receives a notification of the invitation \\* Expectations from the selected job post are unlocked and visible to the Independent Contractor upon invitation \\* Confirmation shown after invite is sent"
+ },
+ {
+  "id": "TB-025",
+  "title": "Create Trial Job Post",
+  "story": "As an employer, I want to create a trial role so I can evaluate a talent's real-world performance before committing to a full-time hire.",
+  "ac": "\\* Employer selects"
+ },
+ {
+  "id": "TB-024",
+  "title": "Create Full-Time Job Post",
+  "story": "As an employer, I want to create a full-time role so I can attract and hire the right talent for a long-term engagement.",
+  "ac": "\\* Employer selects"
+ },
+ {
+  "id": "TB-026",
+  "title": "View Posted Roles",
+  "story": "As an employer, I want to see all my posted jobs in one list, so that I can monitor and manage all my active, closed, and draft listings in one place.",
+  "ac": "\\* All Roles page lists all job posts created by the employer \\* Each card shows: job title, type badge (Test / Full-Time), status (Active / Closed / Draft), date posted, and pipeline stats (Candidates, Matched, Offer Sent, Hired, Dropped) \\* Active roles show colored pipeline stat badges \\* Closed roles show greyed out pipeline stat badges \\* Draft roles show -- on all pipeline stats and no date posted \\* Search bar available — searches by job title and updates dynamically \\* Filter by Status: Active, Closed, Draft \\* Filter by Type: Test, Full-Time \\* Both filters can be applied simultaneously \\* Clearing filters restores the full list \\* Three-dot menu available on each card for additional actions \\* Post a Job button available at the top right and navigates to Create Role \\* Empty state shown if no roles exist"
+ },
+ {
+  "id": "TB-032",
+  "title": "Duplicate a Job Post",
+  "story": "As an employer, I want to duplicate an existing job post, so that I can reuse the details for a similar role without filling out the form from scratch.",
+  "ac": "- Duplicate button available on any job post - Creates an identical copy saved as Draft - Duplicated post appears in Posted Jobs list with Draft status - All fields are editable before publishing"
+ },
+ {
+  "id": "TB-031",
+  "title": "Close Active Job Post",
+  "story": "As an employer, I want to close an active job post, so that I can stop receiving new applications when I no longer need candidates for that role.",
+  "ac": "- Close button available on Active job posts only - Confirmation prompt shown before closing - Closed post status changes to Closed and is no longer visible to talents - Existing applicants remain in the pipeline"
+ },
+ {
+  "id": "TB-034",
+  "title": "Delete a Job Post",
+  "story": "As an employer, I want to delete a closed or draft job post, so that I can keep my list clean and remove roles I no longer need.",
+  "ac": "- Delete button available on Draft job posts only - Confirmation prompt shown before deleting - Deleted post is permanently removed - Active or Closed posts cannot be deleted"
+ },
+ {
+  "id": "TB-033",
+  "title": "Reopen a Closed Job Post",
+  "story": "As an employer, I want to reopen a closed job post, so that I can resume receiving applications if my hiring needs change.",
+  "ac": "- Reopen button available on Closed job posts only - Confirmation prompt shown before reopening - Status changes back to Active - Post becomes visible to talents again"
+ },
+ {
+  "id": "TB-035",
+  "title": "Edit a Draft Job Post",
+  "story": "As an employer, I want to edit a draft job post, so that I can update or complete the details before publishing it.",
+  "ac": "\\* Edit option available in the three-dot menu on Draft job post cards only \\* Clicking the Draft card or selecting Edit from the three-dot menu triggers the same behavior \\* If draft was created from scratch — employer is redirected to the exact step where they left off with all previously filled fields retained \\* If draft was duplicated from an existing job post — employer is redirected directly to the Review Job Post page with all fields pre-filled \\* All fields are editable regardless of how the draft was created \\* Save as Draft button available to save changes without publishing \\* Publish option available in the three-dot menu on Draft cards — all required fields must be completed before publishing \\* Clicking Publish changes the status from Draft to Active immediately \\* Published role appears in All Roles with Active status and becomes visible to Independent Contractors \\* If required fields are incomplete, publish is blocked and employer is prompted to complete missing fields"
+ },
+ {
+  "id": "TB-037",
+  "title": "View Candidate Tracker",
+  "story": "As a Team Builder, I want to view all candidates in a pipeline so that I can track where each candidate is in the hiring process.",
+  "ac": "\\* Applicant tracker opens showing a Kanban-style pipeline with 7 columns: Candidates, Matched, Interview, Proposal Requested, Offer Sent, Hired, Dropped \\* Each column shows a total count of candidates at the top \\* Each card shows: candidate photo, name, role, rate, experience level, match percentage, status badge, and timestamp \\* Candidates column shows all Independent Contractors who applied to the job post \\* Matched column shows candidates automatically matched by the system based on fit score \\* Match percentage is color coded: green (high), yellow (medium), grey (low) \\* Message icon visible on each card — unread messages show a red notification badge \\* Clicking the message icon opens the messaging interface with that candidate pre-selected \\* Unread messages show a red notification badge on the message icon \\* Back to jobs link available at the top to return to All Roles \\* Two tabs available at the top: Candidates and Job Details \\* Job Details tab shows: job title, type (Test / Full-Time), status, role description, required skills, experience level, and budget \\* Job Details tab is read-only — no editing available \\* Team Builder can switch between Candidates and Job Details tabs without losing pipeline state \\* When an Independent Contractor applies, the system automatically calculates their match percentage and places them in the Candidates column \\* High fit score candidates are automatically moved to the Matched column \\* Interview column shows status badges: Awaiting confirmation, Interview confirmed, Interview completed \\* Proposal Requested column shows status badges: Awaiting proposal, Revision requested, Proposal submitted \\* Offer Sent column shows status badges: Awaiting response, Offer declined \\* Review Sent Offer button appears on cards in the Offer Sent column \\* Clicking Review Sent Offer opens the full offer details: job role, trial duration, budget, objectives, and current status \\* Offer details are read-only — offer cannot be edited after sending \\* If offer is declined, card status updates to Offer declined and Team Builder is notified \\* Hired column shows all Independent Contractors who accepted the trial offer \\* Each hired card shows: candidate photo, name, role, match percentage, Hired status badge, and trial start date \\* Clicking a hired card navigates to the Trial Dashboard for that Independent Contractor \\* Hired candidates cannot be dropped from the pipeline \\* Dropped column shows all dropped candidates with greyed out cards"
+ },
+ {
+  "id": "TB-040",
+  "title": "Invite Candidate for Interview",
+  "story": "As a Team Builder, I want to view a candidate's full profile so that I can review their background, skills, and match percentage before taking action.",
+  "ac": "\\* Clicking a candidate card opens their full profile \\* Profile shows: photo, name, role, rate, experience level, location, bio, workplace tags, skills, and performance history \\* Match percentage prominently displayed \\* Read-only view from the pipeline \\* Invite for Interview and Request Proposal buttons available depending on pipeline stage"
+ },
+ {
+  "id": "TB-041",
+  "title": "",
+  "story": "As a Team Builder, I want to invite a matched candidate for an interview so that I can assess them further before requesting a proposal.",
+  "ac": "\\* Clicking a candidate card opens their full profile \\* Profile shows: photo, name, role, rate, experience level, location, bio, workplace tags, skills, and performance history \\* Match percentage prominently displayed \\* Read-only view from the pipeline \\* Invite for Interview and Request Proposal buttons available depending on pipeline stage"
+ },
+ {
+  "id": "TB-103",
+  "title": "Request Proposal from Candidate",
+  "story": "As a Team Builder, I want to request a proposal from a candidate so that I can review their proposed objectives, rate, and timeline before sending a trial offer.",
+  "ac": "\\* Request Proposal button available on cards in the Matched and Interview columns \\* Clicking sends a proposal request to the Independent Contractor \\* Candidate moves to the Proposal Requested column \\* Card status updates to Awaiting proposal \\* Trial expectations from the job post are revealed to the Independent Contractor upon proposal request \\* Independent Contractor receives a notification to submit a proposal \\* Confirmation shown to Team Builder after request is sent"
+ },
+ {
+  "id": "TB-104",
+  "title": "View Proposal",
+  "story": "As a Team Builder, I want to view a proposal submitted by a candidate so that I can review their proposed objectives, rate, and timeline before making a decision.",
+  "ac": "\\* Review Proposal button appears on cards with Proposal submitted status in the Proposal Requested column \\* Clicking opens the full proposal submitted by the Independent Contractor \\* Proposal shows: proposed objectives, rate, timeline, and any proposal notes \\* Team Builder can Accept, Request Changes, or Decline from this view"
+ },
+ {
+  "id": "TB-106",
+  "title": "Request Changes to Proposal",
+  "story": "As a Team Builder, I want to request changes to a proposal so that I can negotiate the terms before committing to a trial.",
+  "ac": "\\* Request Changes button available when viewing a submitted proposal \\* Team Builder must provide feedback or specify what needs to be revised \\* Independent Contractor receives a notification of the revision request \\* Card status updates to Revision requested in the Proposal Requested column \\* Review Proposal button remains visible for Team Builder to track resubmission \\* Independent Contractor can revise and resubmit — card status updates to Proposal submitted upon resubmission"
+ },
+ {
+  "id": "TB-107",
+  "title": "Decline Proposal",
+  "story": "As a Team Builder, I want to decline a proposal so that I can remove a candidate from consideration.",
+  "ac": "\\* Decline button available when viewing a submitted proposal \\* Confirmation prompt shown before declining \\* Independent Contractor receives a notification that their proposal was declined \\* Candidate moves to the Dropped column upon decline \\* Card is visually greyed out in the Dropped column"
+ },
+ {
+  "id": "TB-105",
+  "title": "Send Offer",
+  "story": "As a Team Builder, I want to accept a candidate's proposal and send a trial offer so that I can move forward with hiring them.",
+  "ac": "\\* Accept & send offer button available when viewing a submitted proposal \\* Clicking opens the Send Offer flow with a 4-step progress stepper: Offer Letter → Start & End Dates → Deposit Payment → Review & Sign \\* Step 1 shows: candidate profile, match percentage, experience level, location, rate, skills, cover letter, and committed objectives with their types (Default / Automatic / Manual) \\* Step 2 requires Team Builder to set a trial start date and end date \\* End date is auto-calculated based on the trial duration from the proposal (e.g. 30 days) \\* Info note shown:"
+ },
+ {
+  "id": "TB-044",
+  "title": "Drop / Undrop Candidate",
+  "story": "As a Team Builder, I want to drop or undrop a candidate from the pipeline so that I can control which candidates continue in the hiring process.",
+  "ac": "\\* Drop option available on any candidate card at any pipeline stage \\* Dropped candidate moves to the Dropped column and card is visually greyed out \\* Independent Contractor is NOT notified when dropped \\* Undrop button available on Dropped cards to restore the candidate to their previous stage \\* Candidate is NOT notified when undropped"
+ },
+ {
+  "id": "TB-051",
+  "title": "View All Independents",
+  "story": "As a Team Builder, I want to see all my Independent Contractors in one list so that I can monitor everyone I am currently or previously working with.",
+  "ac": "\\* All Independents page lists all Independent Contractors with an active or past contract \\* Each card shows: photo, name, role, contract type (Trial / Full-Time), objectives summary, and contract status \\* Default view shows active contracts only \\* Search bar available — searches by name or role and updates dynamically as Team Builder types \\* Search shows a clear (X) button when active — clicking restores the full list \\* Empty state shown when no results match with options to Adjust filters or Clear search \\* Filter dropdown available with options: All, Full-Time, Trial \\* Filter applies immediately and active filter is visually indicated \\* Empty state shown if no Independent Contractors exist with options to Discover Independents or Create Job Post \\* Info note shown on empty state:"
+ },
+ {
+  "id": "TB-054",
+  "title": "Show / Hide Inactive Talents",
+  "story": "As a Team Builder, I want to toggle inactive Independent Contractors on or off so that I can view ended contracts when needed without cluttering my active list.",
+  "ac": "\\* Show Inactive toggle available at the top of the All Independents page \\* Default state is OFF — only active contracts are shown \\* Toggling ON shows both active and inactive contracts \\* Inactive cards are visually greyed out to differentiate from active ones \\* Inactive cards show: ended date instead of days remaining or start date \\* Toggling OFF hides inactive contracts and restores active-only view"
+ },
+ {
+  "id": "TB-057",
+  "title": "Open Talent Dashboard",
+  "story": "As a Team Builder, I want to see a summary card for each Independent Contractor showing their objectives, contract type, TFS score, and contract status so that I can quickly assess their performance at a glance.",
+  "ac": "\\* Each card shows: photo, name, role, and message icon \\* Objectives summary shows: Assigned count, In progress count, Off-track count, and Completed count \\* In progress count is highlighted in blue, Off-track in red, Completed in green \\* Contract type badge shown: TRIAL (orange) or FULL-TIME (blue) \\* Trial cards show: TFS badge with percentage, and days remaining \\* Full-Time cards show: contract start date — no TFS badge \\* When 7 days or fewer remain on a trial, days remaining text turns orange as a warning \\* When trial ends, card shows"
+ },
+ {
+  "id": "TB-108",
+  "title": "Evaluate Independent from Card",
+  "story": "As a Team Builder, I want to evaluate an Independent Contractor directly from their card when their trial ends so that I can quickly submit my assessment without navigating to their full dashboard.",
+  "ac": "\\* Evaluate now button appears on Trial cards only when the trial end date has passed \\* Clicking Evaluate now navigates to the post-trial evaluation form for that Independent Contractor \\* Button is not visible during an active trial — only shown when trial has ended \\* After evaluation is submitted, the Evaluate now button is replaced with the evaluation result"
+ },
+ {
+  "id": "TB-058",
+  "title": "View Trial Dashboard",
+  "story": "As a Team Builder, I want to view the trial dashboard of an Independent Contractor so that I can monitor their overall trial performance, activity, and fit score in one place.",
+  "ac": "Header \\* Dashboard header shows: Independent Contractor name, role, and contract status badges (Trial, Active) \\* Send Message button is visible in the header at all times \\* File a Dispute button is visible in the header at all times \\* Navigation tabs visible: Objectives, Contract & Payment, Evaluation Summary Stats Bar \\* Shows: Committed Objectives count, Completed Objectives count, and Days Left with trial date range (e.g. Jan 01 – Feb 03, 2026) Trial Fit Score (TFP) \\* TFP widget shows overall score as a percentage \\* Score is broken down into: Performance, Profile, and Work Style — each with a progress bar and percentage \\* Tooltip explains how the score is calculated and when the final score becomes available \\* Phase weights update automatically based on current phase: \\* On Trial (Phase 3): Work Style 20%, Profile 30%, Performance 50% — Evaluation excluded \\* Post Trial (Phase 4): Work Style 15%, Profile 20%, Performance 40%, Evaluation 25% Objectives Tab \\* Objectives tab is the default view when the dashboard loads \\* Shows all objectives agreed upon at the time of the offer \\* Objectives are LOCKED — no new objectives can be added, modified, or removed during the trial \\* Each objective card displays: title, type badge (Manual / Automatic / Default), progress percentage, status pill, due date, number of key results connected, and last update date \\* Status pills per objective type: \\* Default: No Update → Pending Approval → Revision Requested → Achieved / Missed \\* Manual: No Update → On Track → Off Track → Pending Approval → Revision Requested → Achieved / Missed \\* Automatic: No Update → On Track → Off Track → Pending Approval → Revision Requested → Achieved / Missed \\* System automatically updates any active objective to Off Track when: \\* ≤ 7 days remaining AND \\* Default: not yet marked done by Independent Contractor \\* Manual: progress is below 70% of target \\* Automatic: fewer than 70% of Key Results are complete \\* Off Track is triggered automatically — no manual action required from Team Builder or Independent Contractor \\* Clicking an objective card opens the relevant objective dashboard Activity Log \\* Activity Log is visible showing a GitHub-style Mon–Fri daily grid \\* Weekends are not shown in the grid \\* Each tile reflects one of three states: \\* ð© Green — all active objectives logged that day \\* ð¢ Light Green — some but not all objectives logged that day \\* ⬜ Gray — nothing logged that day \\* Independent Contractor's current streak count is displayed (e.g."
+ },
+ {
+  "id": "TB-063",
+  "title": "View Default Objective Dashboard",
+  "story": "As a Team Builder, I want to open a default objective and see its current status, remaining days, discussions, and recent activity so that I can track qualitative or binary objectives during the trial.",
+  "ac": "\\* Dashboard shows: objective title, type badge (Default), current status, remaining days, and start and end dates \\* Status flow: No Update → Pending Approval → Achieved / Missed \\* Status is updated by the Independent Contractor marking it as done — not by the Team Builder \\* Discussions section shows threaded comments \\* Recent Activity log shows all status changes with timestamps"
+ },
+ {
+  "id": "TB-062",
+  "title": "View Automatic Objective Dashboard",
+  "story": "As a Team Builder, I want to open an automatic objective and see progress calculated from connected key results, a breakdown of key result types, discussions, and recent activity so that I can understand how the Independent Contractor's key result completions are driving overall objective progress.",
+  "ac": "\\* Dashboard shows: objective title, type badge (Automatic), overall progress percentage, and Key Result completion count (e.g. 1/3 KRs) \\* Progress is calculated automatically based on: Completed KRs / Total KRs (e.g. 2/3 = 67%) \\* Donut chart shows breakdown of connected Key Result types: Manual, Automatic, Default \\* Connected Key Results are listed with: title, type, progress, and status \\* Discussions section shows threaded comments \\* Recent Activity log shows all Key Result updates with timestamps \\* Team Builder cannot manually update progress — driven by Key Result completion only"
+ },
+ {
+  "id": "TB-061",
+  "title": "View Manual Objective Dashboard",
+  "story": "As a Team Builder, I want to open a manual objective and see the Independent Contractor's current value, progress, trend chart, performance heatmap, discussions, and recent activity so that I can track their numerical progress against a measurable target.",
+  "ac": "\\* Dashboard shows: objective title, type badge (Manual), current value, daily target, overall progress percentage, and update cadence \\* Input format is displayed based on KPI type: \\* Increase: +X (e.g. +5 calls) \\* Maintain: X/Y (e.g. 12/100) \\* Decrease: current value (e.g. 16) \\* Progress is calculated as: Current Value / Target × 100 = Progress % \\* Trend chart displays progress over time per update cadence \\* Performance heatmap shows daily performance states: Overachieved, Achieved, At Risk, Missed, No Changes, N/A \\* Discussions section shows threaded comments between Team Builder and Independent Contractor \\* Recent Activity log shows all progress updates with timestamps \\* Team Builder can view but cannot manually edit the Independent Contractor's logged values"
+ },
+ {
+  "id": "TB-064",
+  "title": "View Key Result Dashboard",
+  "story": "As a Team Builder, I want to open a specific key result connected to an automatic objective and view its progress and update method so that I can drill down into what is driving the objective's completion.",
+  "ac": "\\* Dashboard shows: Key Result title, type (Manual / Automatic / Default), progress percentage, remaining days, start and end dates \\* Progress visualization matches the Key Result type \\* Connected tasks are listed if the Key Result is Automatic \\* Discussions section shows threaded comments \\* Recent Activity log shows all updates with timestamps"
+ },
+ {
+  "id": "TB-065",
+  "title": "View Task Dashboard",
+  "story": "As a Team Builder, I want to view the task dashboard under an automatic key result so that I can see all individual tasks and their completion status that are driving the key result's progress.",
+  "ac": "\\* Task Dashboard shows all tasks connected to an Automatic Key Result \\* Each task shows: title, type, and completion status \\* Tasks marked done by the Independent Contractor are reflected in real time \\* Completing a task updates Key Result progress and Objective progress automatically \\* Team Builder can view task completion but cannot modify or mark tasks"
+ },
+ {
+  "id": "TB-109",
+  "title": "Approve Completed Objective",
+  "story": "As a Team Builder, I want to approve an objective that the Independent Contractor has marked as done so that it can be officially retired from the activity tracker and counted as completed.",
+  "ac": "\\* Approve button is available when an objective status is Pending Approval \\* A dashboard banner notifies the Team Builder when an Independent Contractor marks an objective as done \\* Clicking Approve changes the objective status to Achieved \\* Approved objective is retired from the activity tracker — no longer feeds the daily grid \\* Independent Contractor is notified when their objective is approved \\* Streak continues uninterrupted after Team Builder approves the objective \\* If all objectives are approved and retired, tracker shows completed state and displays the final streak count \\* Objective still feeds the activity tracker while awaiting approval — pending does not pause the streak"
+ },
+ {
+  "id": "TB-110",
+  "title": "Reject Completed Objective",
+  "story": "As a Team Builder, I want to reject an objective submission with a reason so that the Independent Contractor can address the revision and resubmit for approval.",
+  "ac": "\\* Reject button is available when an objective status is Pending Approval \\* Team Builder must provide a reason before rejecting \\* Rejecting changes the objective status back to Active — objective continues feeding the activity tracker \\* Independent Contractor is notified of the rejection and the reason provided \\* Independent Contractor can revise and resubmit — status returns to Pending Approval upon resubmission"
+ },
+ {
+  "id": "TB-111",
+  "title": "Request Objective Revision",
+  "story": "As a Team Builder, I want to flag an Independent Contractor's progress submission as needing revision with a reason code and supporting note so that I can formally request a correction without escalating to a full dispute.",
+  "ac": "\\* Request Revision button is available on any submitted objective or progress update during an active trial \\* Team Builder must select a reason code before submitting: Missing Deliverable, Out-of-Scope Output, Missed Deadline, or No Report Submitted \\* A supporting note field is required alongside the reason code \\* Submission is marked as Revision Requested in the objective dashboard \\* Independent Contractor is notified immediately when a revision is requested \\* Only 1 revision request is allowed per reporting period \\* If Team Builder does not respond within 24 hours of the Independent Contractor's revised submission, the period auto-approves and becomes earned"
+ },
+ {
+  "id": "TB-066",
+  "title": "View Contract & Payment Tab",
+  "story": "As a Team Builder, I want to view the contract terms and payment history for an Independent Contractor in the Contract & Payment tab so that I can review what was agreed upon and track financial activity during the trial.",
+  "ac": "\\* Tab shows: agreed job role, trial duration, start and end dates, agreed budget, payment schedule, and escrow status \\* Payment history shows all transactions with: date, amount, type, and status \\* Payment is held in escrow during the trial \\* Tab is read-only — no editing available from this view"
+ },
+ {
+  "id": "TB-068",
+  "title": "View Evaluation History",
+  "story": "As a Team Builder, I want to view all submitted evaluations in the Evaluation tab so that I can reference past assessments for the Independent Contractor.",
+  "ac": "\\* Evaluation tab shows all evaluations submitted for the Independent Contractor \\* Each entry shows: date submitted, star rating, and written feedback \\* Finalized TFP score is shown after evaluation is submitted \\* View is read-only — evaluations cannot be edited after submission \\* Empty state shown if no evaluation has been submitted yet"
+ },
+ {
+  "id": "TB-067",
+  "title": "Send Evaluation",
+  "story": "As a Team Builder, I want to submit a post-trial evaluation for an Independent Contractor after the trial ends so that I can formally assess their performance and finalize their Trial Fit Score.",
+  "ac": "\\* Send Evaluation button is ONLY active after the trial end date has passed \\* Button is greyed out and disabled during an active trial \\* Evaluation form includes: star rating, written feedback, and overall recommendation \\* Team Builder cannot submit the evaluation without completing all required fields \\* Submitted evaluation is sent to the Independent Contractor as a notification \\* TFP Phase 4 score updates after evaluation is submitted — Evaluation weight becomes 25% \\* End Contract and Hire for Full-Time buttons unlock after evaluation is submitted \\* Past evaluations are viewable in the Evaluation tab"
+ },
+ {
+  "id": "TB-071",
+  "title": "End Contract",
+  "story": "As a Team Builder, I want to formally end the trial contract after submitting my evaluation so that I can close the engagement and release the escrowed payment to the Independent Contractor.",
+  "ac": "\\* End Contract button is ONLY available after the evaluation has been submitted \\* Button is greyed out and disabled if evaluation has not been submitted \\* Confirmation prompt is shown before ending the contract \\* Upon confirmation: contract status changes to Ended, escrowed payment is released to the Independent Contractor, and the Independent Contractor is notified \\* File a Dispute remains available as an alternative to ending the contract \\* Ended contract moves to inactive state on the All Independents list"
+ },
+ {
+  "id": "TB-072",
+  "title": "Hire for Full-Time",
+  "story": "As a Team Builder, I want to convert a trial Independent Contractor into a full-time hire after submitting my evaluation so that I can transition them into a permanent role when I'm satisfied with their trial performance.",
+  "ac": "\\* Hire for Full-Time button is ONLY available after the evaluation has been submitted \\* Button is greyed out and disabled if evaluation has not been submitted \\* Clicking opens the Full-Time offer form pre-filled with the Independent Contractor's details \\* Team Builder sets: salary, exclusive benefits, and start date \\* Submitted offer appears in Sent Offers \\* Independent Contractor is notified of the full-time offer"
+ },
+ {
+  "id": "TB-073",
+  "title": "File a Dispute",
+  "story": "As a Team Builder, I want to file a dispute as soon as the trial ends so that I can raise concerns about payment or performance before closing the engagement.",
+  "ac": "\\* File a Dispute button is available immediately when the trial ends — no evaluation required \\* Dispute form requires: reason, description, amount in question, and supporting evidence (optional) \\* Team Builder cannot submit the dispute without completing all required fields \\* Submitted dispute is sent to admin for review \\* Independent Contractor is notified that a dispute has been filed \\* Dispute appears in Sent Disputes with Pending status"
+ },
+ {
+  "id": "TB-069",
+  "title": "Send Message to Independent Contractor",
+  "story": "As a Team Builder, I want to send a message to an Independent Contractor directly from their trial dashboard so that I can communicate with them without leaving their profile.",
+  "ac": "\\* Send Message button is visible in the dashboard header at all times during an active trial \\* Clicking Send Message opens the messaging interface with the Independent Contractor pre-selected \\* Team Builder can compose and send a message without leaving the trial dashboard \\* Empty message cannot be sent"
+ },
+ {
+  "id": "TB-074",
+  "title": "View Full-Time Dashboard",
+  "story": "As a Team Builder, I want to view the full-time dashboard of an Independent Contractor so that I can monitor their ongoing performance, objectives, and contract details in one place.",
+  "ac": "- Dashboard header shows: Independent Contractor name, role, and contract status badge (Full-Time, Active) - Summary stats bar shows: Assigned Objectives count and Completed Objectives count - Trial Fit Score widget is visible showing the final TFP score from the completed trial — read-only, does not update - Navigation tabs visible: Objectives, Contract & Payment, Evaluation - Send Message button is visible in the header at all times - File a Dispute button is visible in the header at all times - Objectives tab is the default view when the dashboard loads - Clicking Contract & Payment tab shows contract terms and payment history - Clicking Evaluation tab shows all submitted evaluations"
+ },
+ {
+  "id": "TB-076",
+  "title": "View Objectives List",
+  "story": "As a Team Builder, I want to view all objectives assigned to a full-time Independent Contractor so that I can monitor their ongoing work performance.",
+  "ac": "- Objectives list shows all objectives for the full-time engagement - Each objective card displays: title, type badge (Manual / Automatic / Default), progress percentage, status pill, due date, and last update date - Objectives are NOT locked — new objectives can be created and assigned at any time - New objectives assigned by the Team Builder appear in the list immediately - Clicking an objective card opens the relevant objective dashboard"
+ },
+ {
+  "id": "TB-075",
+  "title": "Create Objective",
+  "story": "As a Team Builder, I want to freely create and assign new objectives to a full-time Independent Contractor at any time so that I can set and evolve performance goals throughout the ongoing engagement.",
+  "ac": "- Create Objective button is always available on the Full-Time Dashboard — no locking - Form requires: title, description, type (Manual / Automatic / Default), and type-specific settings - Manual type requires: KPI type (Increase / Maintain / Decrease), target value, and update cadence - Automatic type requires: connected Key Results - Default type requires: no additional input — binary completion - Created objective appears in the Objectives List immediately - Independent Contractor is notified when a new objective is assigned"
+ },
+ {
+  "id": "TB-077",
+  "title": "View Manual Objective Dashboard",
+  "story": "As a Team Builder, I want to open a manual objective for a full-time Independent Contractor and see current value, trend chart, performance heatmap, discussions, and recent activity so that I can track measurable performance over the contract period.",
+  "ac": "- Dashboard shows: objective title, type badge (Manual), current value, daily target, overall progress percentage, and update cadence - Input format displayed based on KPI type: Increase (+X), Maintain (X/Y), Decrease (current value) - Progress calculated as: Current Value / Target × 100 = Progress % - Trend chart displays progress over time per update cadence - Performance heatmap shows daily performance states: Overachieved, Achieved, At Risk, Missed, No Changes, N/A - Discussions section shows threaded comments between Team Builder and Independent Contractor - Recent Activity log shows all progress updates with timestamps - Team Builder can view but cannot manually edit the Independent Contractor's logged values"
+ },
+ {
+  "id": "TB-078",
+  "title": "View Automatic Objective Dashboard",
+  "story": "As a Team Builder, I want to open an automatic objective for a full-time Independent Contractor and see KR-based progress, connected key results, discussions, and recent activity so that I can monitor completion-driven goals.",
+  "ac": "- Dashboard shows: objective title, type badge (Automatic), overall progress percentage, and Key Result completion count - Progress calculated automatically based on: Completed KRs / Total KRs - Donut chart shows breakdown of connected Key Result types: Manual, Automatic, Default - Connected Key Results listed with: title, type, progress, and status - Discussions section shows threaded comments - Recent Activity log shows all Key Result updates with timestamps - Team Builder cannot manually update progress — driven by Key Result completion only"
+ },
+ {
+  "id": "TB-079",
+  "title": "View Default Objective Dashboard",
+  "story": "As a Team Builder, I want to open a default objective for a full-time Independent Contractor and see its current status, remaining days, discussions, and recent activity so that I can track qualitative or binary work goals.",
+  "ac": "- Dashboard shows: objective title, type badge (Default), current status, remaining days, start and end dates - Status flow: No Update → Pending Approval → Achieved / Missed - Status is updated by the Independent Contractor marking it as done — not by the Team Builder - Discussions section shows threaded comments - Recent Activity log shows all status changes with timestamps"
+ },
+ {
+  "id": "TB-112",
+  "title": "View Key Result Dashboard",
+  "story": "As a Team Builder, I want to open a specific key result connected to an automatic objective and view its progress and update method so that I can drill down into what is driving the objective's completion.",
+  "ac": "- Dashboard shows: Key Result title, type (Manual / Automatic / Default), progress percentage, remaining days, start and end dates - Progress visualization matches the Key Result type - Connected tasks are listed if the Key Result is Automatic - Discussions section shows threaded comments - Recent Activity log shows all updates with timestamps"
+ },
+ {
+  "id": "TB-113",
+  "title": "View Task Dashboard",
+  "story": "As a Team Builder, I want to view the task dashboard under an automatic key result so that I can see all individual tasks and their completion status that are driving the key result's progress.",
+  "ac": "- Task Dashboard shows all tasks connected to an Automatic Key Result - Each task shows: title, type, and completion status - Tasks marked done by the Independent Contractor are reflected in real time - Completing a task updates Key Result progress and Objective progress automatically - Team Builder can view task completion but cannot modify or mark tasks"
+ },
+ {
+  "id": "TB-114",
+  "title": "Approve Completed Objective",
+  "story": "As a Team Builder, I want to approve an objective that the Independent Contractor has marked as done so that it can be officially counted as completed.",
+  "ac": "- Approve button is available when an objective status is Pending Approval - A dashboard banner notifies the Team Builder when an Independent Contractor marks an objective as done - Clicking Approve changes the objective status to Achieved - Independent Contractor is notified when their objective is approved - Approved objective is retired from the active tracker - New objectives can be created and assigned to replace completed ones at any time"
+ },
+ {
+  "id": "TB-115",
+  "title": "Reject Completed Objective",
+  "story": "As a Team Builder, I want to reject an objective submission with a reason so that the Independent Contractor can address the revision and resubmit for approval.",
+  "ac": "- Reject button is available when an objective status is Pending Approval - Team Builder must provide a reason before rejecting - Rejecting changes the objective status back to Active - Independent Contractor is notified of the rejection and the reason provided - Independent Contractor can revise and resubmit — status returns to Pending Approval upon resubmission"
+ },
+ {
+  "id": "TB-116",
+  "title": "Request Objective Revision",
+  "story": "As a Team Builder, I want to flag an Independent Contractor's progress submission as needing revision with a reason code and supporting note so that I can formally request a correction without escalating to a full dispute.",
+  "ac": "- Request Revision button is available on any submitted objective or progress update during an active full-time contract - Team Builder must select a reason code: Missing Deliverable, Out-of-Scope Output, Missed Deadline, or No Report Submitted - A supporting note field is required alongside the reason code - Submission is marked as Revision Requested in the objective dashboard - Independent Contractor is notified immediately when a revision is requested - Only 1 revision request is allowed per reporting period - If Team Builder does not respond within 24 hours of the Independent Contractor's revised submission, the period auto-approves"
+ },
+ {
+  "id": "TB-080",
+  "title": "View Contract & Payment Tab",
+  "story": "As a Team Builder, I want to view the full-time contract terms, salary, exclusive benefits, and payment history so that I can keep track of the full financial engagement.",
+  "ac": "- Tab shows: agreed job role, contract start date, base salary, exclusive benefits breakdown, and payment schedule - Exclusive benefits listed separately: Health Insurance, Government Contribution, Internet Allowance, Learning & Development Allowance - Payment history shows all transactions with: date, amount, type, and status - Tab is read-only — no editing available from this view"
+ },
+ {
+  "id": "TB-117",
+  "title": "Send Evaluation",
+  "story": "As a Team Builder, I want to submit a performance evaluation for a full-time Independent Contractor at any time so that I can provide ongoing feedback throughout the engagement.",
+  "ac": "- Send Evaluation button is available at any time during an active full-time contract — not gated by an end date - Evaluation form includes: star rating, written feedback, and overall recommendation - Team Builder cannot submit the evaluation without completing all required fields - Submitted evaluation is sent to the Independent Contractor as a notification - Submitted evaluation appears in the Evaluation tab immediately"
+ },
+ {
+  "id": "TB-081",
+  "title": "View Evaluation History",
+  "story": "As a Team Builder, I want to view all submitted evaluations in the Evaluation tab so that I can reference past assessments for the Independent Contractor.",
+  "ac": "- Evaluation tab shows all evaluations submitted for the Independent Contractor during the full-time engagement - Each entry shows: date submitted, star rating, and written feedback - Entries are sorted by most recent - View is read-only — evaluations cannot be edited after submission - Empty state shown if no evaluation has been submitted yet"
+ },
+ {
+  "id": "TB-118",
+  "title": "File a Dispute",
+  "story": "As a Team Builder, I want to file a dispute at any point during the full-time engagement so that I can raise concerns about payment or performance.",
+  "ac": "- File a Dispute button is available at any time during an active full-time contract - Dispute form requires: reason, description, amount in question, and supporting evidence (optional) - Team Builder cannot submit the dispute without completing all required fields - Submitted dispute is sent to admin for review - Independent Contractor is notified that a dispute has been filed - Dispute appears in Sent Disputes with Pending status"
+ },
+ {
+  "id": "TB-082",
+  "title": "Send Message to Independent Contractor",
+  "story": "As a Team Builder, I want to send a message to an Independent Contractor directly from their full-time dashboard so that I can communicate with them without leaving their profile.",
+  "ac": "- Send Message button is visible in the dashboard header at all times - Clicking Send Message opens the messaging interface with the Independent Contractor pre-selected - Team Builder can compose and send a message without leaving the full-time dashboard - Empty message cannot be sent"
+ },
+ {
+  "id": "TB-119",
+  "title": "View Payments Overview",
+  "story": "As a Team Builder, I want to see a summary of my total spending across all contracts so that I can quickly understand my overall payment activity on the platform.",
+  "ac": "- Payments page shows a summary card with: total amount spent across all contracts - Summary is updated in real time as new transactions are recorded - Clicking a transaction navigates to the transaction detail view"
+ },
+ {
+  "id": "TB-084",
+  "title": "View Transaction History",
+  "story": "As a Team Builder, I want to see a full list of all payment transactions across all my contracts so that I can track my complete spending history in one place.",
+  "ac": "- Transaction History shows all recorded payment activity across all contracts - Each row shows: date, contract name, Independent Contractor name, transaction type, amount, and status - Transaction types: Payment Deposited, Payment Released, Payment Refunded - Default sort by most recent - Pagination applied - Empty state shown if no transactions exist"
+ },
+ {
+  "id": "TB-087",
+  "title": "Filter Transactions",
+  "story": "As a Team Builder, I want to filter my transactions by contract, status, and date range so that I can narrow down records to find what I am looking for.",
+  "ac": "- Filter options: by contract name, by status (Deposited, Released, Refunded), by date range - Filters can be combined - Active filters are visually indicated - Clearing filters restores the full list"
+ },
+ {
+  "id": "TB-086",
+  "title": "Search Transactions",
+  "story": "As a Team Builder, I want to search my transactions so that I can quickly locate a specific payment record.",
+  "ac": "- Search bar available on Payments page - Searches by contract name or Independent Contractor name - Results update dynamically as Team Builder types - Empty state shown when no results match"
+ },
+ {
+  "id": "TB-088",
+  "title": "View Transaction Detail",
+  "story": "As a Team Builder, I want to open a specific transaction to view its full details so that I can review the breakdown of a specific payment.",
+  "ac": "- Clicking a transaction opens the detail view - Shows: date, contract name, Independent Contractor name, transaction type, amount, and status - Read-only view"
+ },
+ {
+  "id": "TB-091",
+  "title": "View Sent Disputes",
+  "story": "As a Team Builder, I want to see all disputes I have filed across all contracts in one list so that I can monitor the status of each dispute.",
+  "ac": "- Sent Disputes page shows all disputes filed by the Team Builder across all contracts - Each row shows: date filed, contract name, Independent Contractor name, reason, and status (Pending / Resolved / Closed) - Default sort by most recent - Empty state shown if no disputes have been filed"
+ },
+ {
+  "id": "TB-092",
+  "title": "View Dispute Detail",
+  "story": "As a Team Builder, I want to open a specific dispute to view its full details and status updates so that I can stay informed on the process check outcome.",
+  "ac": "- Clicking a dispute opens the full detail view - Shows: date filed, contract name, Independent Contractor name, reason, description, amount in question, supporting evidence, and current status - If resolved, shows: admin resolution notes and outcome - Read-only view"
+ },
+ {
+  "id": "TB-093",
+  "title": "Withdraw Dispute",
+  "story": "As a Team Builder, I want to withdraw a pending dispute so that I can cancel it if the issue has been resolved or I have changed my mind.",
+  "ac": "- Withdraw button is available on Pending disputes only - Confirmation prompt shown before withdrawing - Dispute status changes to Withdrawn - Hireable admin is notified of the withdrawal - Independent Contractor is notified that the dispute has been withdrawn - Once withdrawn, a new dispute cannot be filed for the same contract"
+ },
+ {
+  "id": "TB-094",
+  "title": "View Personal Profile",
+  "story": "As a Team Builder, I want to view my personal profile so that I can see how my identity and details appear across the platform.",
+  "ac": "- Profile shows: profile photo, full name, job title, and member since date - Read-only view"
+ },
+ {
+  "id": "TB-120",
+  "title": "Edit Profile Photo",
+  "story": "As a Team Builder, I want to update my profile photo so that I can ensure my identity is clearly represented across the platform.",
+  "ac": "- Edit photo button available on personal profile - Supported formats: JPG, PNG (max 5MB) - Photo previewed before saving - Changes saved immediately - Updated photo reflects across the platform"
+ },
+ {
+  "id": "TB-121",
+  "title": "Edit Full Name",
+  "story": "As a Team Builder, I want to edit my full name so that I can keep my personal details accurate.",
+  "ac": "- Edit name field available on personal profile - Changes saved immediately - Updated name reflects across the platform"
+ },
+ {
+  "id": "TB-122",
+  "title": "Edit Position",
+  "story": "As a Team Builder, I want to edit my job title so that Independent Contractors know my role within the company.",
+  "ac": "- Edit job title field available on personal profile - Free text input - Changes saved immediately - Updated job title reflects across the platform"
+ },
+ {
+  "id": "TB-097",
+  "title": "View Company Profile",
+  "story": "As a Team Builder, I want to view my company profile so that I can see exactly how my company appears to Independent Contractors.",
+  "ac": "- Company Profile shows: company logo, company name, description, industry, location, company URL, and work style badges - Public-facing — visible to Independent Contractors on job posts and Discover page - Read-only view"
+ },
+ {
+  "id": "TB-123",
+  "title": "Edit Company Logo",
+  "story": "As a Team Builder, I want to upload or update my company logo so that my brand is accurately represented to Independent Contractors.",
+  "ac": "- Edit logo button available on Company Profile - Supported formats: JPG, PNG (max 5MB) - Logo previewed before saving - Changes saved immediately - Updated logo reflects on all active job posts"
+ },
+ {
+  "id": "TB-124",
+  "title": "Edit Company Name",
+  "story": "As a Team Builder, I want to edit my company name so that Independent Contractors see the correct company they are engaging with.",
+  "ac": "- Edit company name field available on Company Profile - Changes saved immediately - Updated name reflects on all active job posts"
+ },
+ {
+  "id": "TB-125",
+  "title": "Edit Company Description",
+  "story": "As a Team Builder, I want to edit my company description so that I can give Independent Contractors a clear picture of what my company does.",
+  "ac": "- Edit description field available on Company Profile - Character limit applies - Changes saved immediately - Updated description reflects on all active job posts"
+ },
+ {
+  "id": "TB-126",
+  "title": "Edit Industry",
+  "story": "As a Team Builder, I want to edit my company's industry so that Independent Contractors can assess whether my business is a good fit for their skills.",
+  "ac": "- Edit industry field available on Company Profile - Searchable dropdown with predefined industry options - Changes saved immediately - Updated industry reflects on all active job posts"
+ },
+ {
+  "id": "TB-127",
+  "title": "Edit Location",
+  "story": "As a Team Builder, I want to edit my company's location so that Independent Contractors know where the company is based.",
+  "ac": "- Edit location field available on Company Profile - Free text or searchable location input - Changes saved immediately - Updated location reflects on all active job posts"
+ },
+ {
+  "id": "TB-128",
+  "title": "Edit Company URL",
+  "story": "As a Team Builder, I want to edit my company URL so that Independent Contractors can visit our website to learn more.",
+  "ac": "- Edit company URL field available on Company Profile - URL format validation applied - Changes saved immediately - Updated URL reflects on all active job posts"
+ },
+ {
+  "id": "TB-096",
+  "title": "Retake Work Style Quiz",
+  "story": "As a Team Builder, I want to retake the work style quiz from the Company Profile so that I can update my work style badges if my working preferences have changed.",
+  "ac": "- Retake Quiz button available on Company Profile - Team Builder prompted to confirm before restarting - Completing quiz updates work style badges on Company Profile - New badges replace old ones immediately - Updated badges reflect publicly on Company Profile and affect matching compatibility with Independent Contractors"
+ },
+ {
+  "id": "TB-099",
+  "title": "View / Edit Account",
+  "story": "As a Team Builder, I want to view and edit my account information so that I can keep my basic account details current.",
+  "ac": "- Account page shows: name, email, account type - Team Builder can edit name and email - Email change requires re-verification - Changes saved immediately"
+ },
+ {
+  "id": "TB-100",
+  "title": "Change Password",
+  "story": "As a Team Builder, I want to change my account password from the Security settings so that I can keep my account secure.",
+  "ac": "- Form requires: current password, new password, confirm new password - New password must meet minimum requirements (8+ chars, 1 uppercase, 1 number) - Incorrect current password shows an error - Success message shown after change"
+ },
+ {
+  "id": "TB-101",
+  "title": "View Subscription Plan",
+  "story": "As a Team Builder, I want to view my current subscription plan and available upgrade options so that I can manage my membership and access the features I need.",
+  "ac": "- Shows current plan name, billing cycle, renewal date, and features included - Read-only view - CTA to upgrade or manage plan if applicable"
+ },
+ {
+  "id": "TB-102",
+  "title": "Manage Payment Method",
+  "story": "As a Team Builder, I want to add, update, or remove my payment method so that I can control how I am billed for my subscription and contracts on the platform.",
+  "ac": "- Shows all saved payment methods - Team Builder can add new method, set default, or remove existing - Removal confirmation prompt shown - At least one payment method must remain active"
+ },
+ {
+  "id": "TB-129",
+  "title": "TBD",
+  "story": "TBD",
+  "ac": "TBD"
+ },
+ {
+  "id": "IN-001",
+  "title": "View Dashboard Overview",
+  "story": "As an Independent Contractor, I want to see a personalized dashboard when I log in, so that I can quickly get an overview of my account activity and know what to do next.",
+  "ac": "- Dashboard loads upon login showing all key widgets - Displays active contracts, recent messages, and account setup progress - All widgets are clickable and navigate to relevant sections - Personalized greeting shown with Independent Contractor's name"
+ },
+ {
+  "id": "IN-002",
+  "title": "View Marketing Banner",
+  "story": "As an Independent Contractor, I want to see a marketing banner on my dashboard, so that I can stay informed about platform updates, promotions, or featured opportunities.",
+  "ac": "- Marketing banner displayed prominently on dashboard - Banner can contain text, image, and CTA link - Banner is dismissible - Hidden if no active banner exists"
+ },
+ {
+  "id": "IN-003",
+  "title": "Account Setup Checklist",
+  "story": "As an Independent Contractor, I want to see a checklist showing my account setup progress (Verify Email, Answer Work Style Quiz, Setup Profile, Setup Payment Method, Apply to Role), so that I can complete my profile and become fully ready to be hired.",
+  "ac": "- Checklist shows 5 steps: Verify Email, Answer Work Style Quiz, Setup Profile, Setup Payment Method, Apply to Role - Completed steps marked with checkmark - Each step is clickable and navigates to the relevant section - Checklist disappears or collapses once all steps are completed"
+ },
+ {
+  "id": "IN-004",
+  "title": "View Active Contracts",
+  "story": "As an Independent Contractor, I want to see my active contracts on my dashboard showing the company, contract type, and role, so that I can quickly access my ongoing engagements.",
+  "ac": "- Active contracts widget shows all ongoing Trial and Full-Time engagements - Each card shows company name, role, contract type, and days remaining or start date - Clicking a contract navigates to the relevant contract dashboard - Empty state shown if no active contracts"
+ },
+ {
+  "id": "IN-005",
+  "title": "Quick Action Shortcuts",
+  "story": "As an Independent Contractor, I want to see two quick action cards — Find Your Next Role (→ Roles) and Complete Your Profile (→ Profile) — so that I can navigate to the most important next steps directly from my dashboard.",
+  "ac": "- Two quick action cards shown: Find Your Next Role (→ Roles) and Complete Your Profile (→ Profile) - Each card shows title, short description, and CTA button - Cards always visible on dashboard"
+ },
+ {
+  "id": "IN-006",
+  "title": "Send Message",
+  "story": "As an Independent Contractor, I want to send messages to Team Builders, so that I can communicate about role opportunities, contracts, and objectives.",
+  "ac": "- Independent Contractor can compose and send messages to Team Builders they have an active connection with - Message delivered in real time - Sent messages appear in conversation thread immediately - Empty message cannot be sent"
+ },
+ {
+  "id": "IN-007",
+  "title": "Receive Message",
+  "story": "As an Independent Contractor, I want to receive messages from Team Builders, so that I can stay informed and respond to any communication related to my applications or contracts.",
+  "ac": "- Independent Contractor receives messages from Team Builders in real time - New messages trigger a notification - Messages appear in correct conversation thread - Unread count updates automatically"
+ },
+ {
+  "id": "IN-008",
+  "title": "Show Unread Indicator",
+  "story": "As an Independent Contractor, I want to see an unread message indicator on my inbox, so that I know when I have new messages that need my attention.",
+  "ac": "- Unread message count displayed on Messages nav icon - Count updates in real time - Count clears when conversation is opened"
+ },
+ {
+  "id": "IN-009",
+  "title": "Search Messages",
+  "story": "As an Independent Contractor, I want to search through my messages, so that I can quickly find a specific conversation without scrolling through my entire inbox.",
+  "ac": "- Search bar available within Messages module - Filters conversations by Team Builder name or keyword - Results update as user types - Empty state shown when no results match"
+ },
+ {
+  "id": "IN-010",
+  "title": "Attach Files in Messages",
+  "story": "As an Independent Contractor, I want to attach files in my messages, so that I can share documents, portfolios, or deliverables with Team Builders directly in the chat.",
+  "ac": "- File attachment button available in message composer - Supported types: PDF, DOC, DOCX, PNG, JPG (max 10MB) - Attached file previewed before sending - Recipient can download from message thread"
+ },
+ {
+  "id": "IN-011",
+  "title": "Start / Join Call",
+  "story": "As an Independent Contractor, I want to start or join a call from within the messaging interface, so that I can communicate with Team Builders in real time without leaving the platform.",
+  "ac": "- Call button available within an active conversation - Clicking initiates or joins a call session - Call interface includes mute, camera toggle, and end call - Notification sent to other party when call starts"
+ },
+ {
+  "id": "IN-012",
+  "title": "Browse Roles",
+  "story": "As an Independent Contractor, I want to browse all available role listings, so that I can explore opportunities that match my skills and interests.",
+  "ac": "\\* Roles page displays all available and active role listings \\* Each card shows: company logo, role title, type (Trial / Full-Time), budget/salary, experience level, and match percentage \\* Results load with pagination at the bottom \\* Pagination shows: Previous, page numbers, and Next \\* Empty state shown if no listings are available \\* Search bar available on Roles page — searches by role title, company name, or skills \\* Results update dynamically as Independent Contractor types \\* Clearing the search bar restores the full list \\* Filter options: role type (Trial / Full-Time), experience level, budget/salary range \\* Multiple filters can be applied simultaneously \\* Active filters are visually indicated \\* Clearing filters restores the full list \\* Match percentage displayed on each role listing card \\* Color coded: green (high), yellow (medium), red (low) \\* Phase 1 (Work Style only) shown before trial \\* Phase 2 (+ Role & Profile) updates when profile is complete \\* Tooltip explains what the score is based on \\* Clicking a role card opens the full role details \\* Role details show: company info, role title, type, description, required skills, experience level, budget/salary, and trial duration (if Trial) \\* Apply button visible on role details page \\* Match percentage prominently shown on role details page"
+ },
+ {
+  "id": "IN-017",
+  "title": "Apply to Role",
+  "story": "As an Independent Contractor, I want to apply to a role listing, so that I can formally express my interest and be considered for the role by the Team Builder.",
+  "ac": "\\* Apply button available on role listing card and role details page \\* Application submitted immediately upon clicking \\* Independent Contractor cannot apply to the same role twice \\* Team Builder is notified of the application \\* Application appears in My Applications with Applied status"
+ },
+ {
+  "id": "IN-018",
+  "title": "View All Applications",
+  "story": "As an Independent Contractor, I want to see all the roles I've applied to in one list so that I can track where I am in the hiring process for each application.",
+  "ac": "\\* My Applications page shows all roles the Independent Contractor has applied to \\* Each row shows: company logo, role title, type (Trial / Full-Time), date applied, current stage, and current status \\* Pipeline stages and statuses per stage: \\* Application Sent — no status \\* Matched — no status \\* Interview Requested — Awaiting Confirmation, Interview Confirmed, Interview Completed \\* Proposal Requested — Awaiting Proposal, Proposal Submitted, Requested Revision by TB \\* Offer Received — Awaiting Response, Offer Accepted, Declined \\* Hired — Waiting to Start, Started, Contract Completed, Contract Terminated \\* Clicking a row opens the full application detail view \\* If an offer has been received, a Review Offer button is visible on the card \\* Default sort by most recent \\* Empty state shown if no applications exist"
+ },
+ {
+  "id": "IN-070",
+  "title": "Accept Interview Invitation",
+  "story": "As an Independent Contractor, I want to accept an interview invitation from a Team Builder so that I can confirm my availability and move forward in the hiring process.",
+  "ac": "\\* Accept button is available when application stage is Interview Requested and status is Awaiting Confirmation \\* Clicking Accept changes the status to Interview Confirmed \\* Team Builder is notified that the interview has been accepted \\* A meeting link is shown to the Independent Contractor after accepting \\* Accept button is hidden once status moves past Awaiting Confirmation"
+ },
+ {
+  "id": "IN-071",
+  "title": "Join Interview Call",
+  "story": "As an Independent Contractor, I want to join the interview call directly from my application so that I can attend the interview without leaving the platform.",
+  "ac": "\\* Join Call button is visible when application status is Interview Confirmed \\* Clicking Join Call redirects the Independent Contractor to the meeting link in a new tab \\* Button is only visible when interview has been confirmed — not before or after \\* If the meeting link is unavailable, an error message is shown"
+ },
+ {
+  "id": "IN-072",
+  "title": "Submit Proposal",
+  "story": "As an Independent Contractor, I want to submit my proposal to the Team Builder so that they can review my proposed objectives, rate, and timeline and decide whether to proceed with a trial offer.",
+  "ac": "\\* Submit Proposal button is available when application stage is Proposal Requested and status is Awaiting Proposal \\* Proposal form requires: proposed objectives, rate, timeline, and optional proposal notes \\* Independent Contractor cannot submit without completing all required fields \\* Submitted proposal changes status to Proposal Submitted \\* Team Builder is notified that a proposal has been submitted \\* Submit button is hidden once proposal has been submitted"
+ },
+ {
+  "id": "IN-073",
+  "title": "Revise Proposal",
+  "story": "As an Independent Contractor, I want to revise my proposal based on the Team Builder's feedback so that I can address their concerns and move closer to an agreement.",
+  "ac": "\\* Revise Proposal button is available when application status is Requested Revision by TB \\* Independent Contractor can view the Team Builder's revision notes before editing \\* Proposal form is pre-filled with the previously submitted proposal details \\* Independent Contractor updates the relevant fields and resubmits \\* Resubmitting changes status back to Proposal Submitted \\* Team Builder is notified of the resubmission"
+ },
+ {
+  "id": "IN-021",
+  "title": "View Offer",
+  "story": "As an Independent Contractor, I want to view the full details of an offer sent to me by a Team Builder, so that I can review the terms before deciding to accept or decline.",
+  "ac": "- Clicking View Offer opens the full offer details sent by the Team Builder - Shows: role, description, start date, duration/salary, objectives (if trial), exclusive benefits (if full-time) - Independent Contractor can accept or decline the offer from this view - Accepting moves the engagement to active contract status"
+ },
+ {
+  "id": "IN-074",
+  "title": "Accept Offer",
+  "story": "As an Independent Contractor, I want to accept a trial offer from a Team Builder so that I can formally commit to the engagement and begin the trial.",
+  "ac": "\\* Accept Offer button is available when application stage is Offer Received and status is Awaiting Response \\* Independent Contractor can review the full offer details before accepting — role, rate, trial duration, start date, and committed objectives \\* Confirmation prompt shown before accepting \\* Accepting the offer changes status to Offer Accepted and card transfers to Hired stage with status Waiting to Start \\* Team Builder is notified that the offer has been accepted \\* Contract is created and visible in the Contracts section \\* Accept button is hidden once offer has been accepted or declined"
+ },
+ {
+  "id": "IN-075",
+  "title": "Decline Offer",
+  "story": "As an Independent Contractor, I want to decline a trial offer so that I can remove myself from consideration if the terms are not a good fit.",
+  "ac": "\\* Decline button is available when application stage is Offer Received and status is Awaiting Response \\* Independent Contractor can optionally provide a reason for declining \\* Confirmation prompt shown before declining \\* Declining changes status to Declined \\* Team Builder is notified that the offer has been declined \\* Card remains visible in My Applications with Declined status and a Review Offer button still accessible \\* Decline button is hidden once offer has been accepted or declined"
+ },
+ {
+  "id": "IN-022",
+  "title": "Message Team Builder",
+  "story": "As an Independent Contractor, I want to message a Team Builder directly from my application so that I can ask questions or discuss the opportunity without leaving the platform.",
+  "ac": "\\* Message button is available on each application card across all pipeline stages \\* Clicking opens the messaging interface with that Team Builder pre-selected \\* Independent Contractor can compose and send a message without leaving My Applications \\* Empty message cannot be sent"
+ },
+ {
+  "id": "IN-023",
+  "title": "View All Contracts",
+  "story": "As an Independent Contractor, I want to see a list of all my active and past contracts in one place so that I can quickly overview all my ongoing and completed engagements.",
+  "ac": "- All contracts listed with: company name, role, contract type (Trial/Full-Time), status (Active/Ended), and days remaining or end date - Default sort by most recent - Empty state shown if no contracts exist"
+ },
+ {
+  "id": "IN-024",
+  "title": "Filter Contracts",
+  "story": "As an Independent Contractor, I want to filter my contracts by type and status so that I can focus on specific engagements.",
+  "ac": "- Filter by type: Trial, Full-Time - Filter by status: Active, Ended - Filters can be combined - Active filters visually indicated"
+ },
+ {
+  "id": "IN-025",
+  "title": "Open Contract Dashboard",
+  "story": "As an Independent Contractor, I want to click on a contract card to open the full contract dashboard so that I can access my objectives, performance data, and contract details for that engagement.",
+  "ac": "- Clicking a Trial contract opens Trial Contract Dashboard - Clicking a Full-Time contract opens Full-Time Contract Dashboard - Back button returns to All Contracts list"
+ },
+ {
+  "id": "IN-076",
+  "title": "View Trial Dashboard",
+  "story": "As an Independent Contractor, I want to view my trial dashboard so that I can monitor my overall trial performance, objectives, activity, and fit score in one place.",
+  "ac": "- Dashboard header shows: Team Builder company name, role, and contract status badges (Trial, Active) - Summary stats bar shows: Committed Objectives count, Completed Objectives count, and Days Left with trial date range - TFP widget shows overall score as a percentage broken down into: Performance, Profile, and Work Style — each with a progress bar and percentage - Tooltip explains how the TFP score is calculated and when the final score becomes available - Phase weights update automatically based on current phase: On Trial (Phase 3): Work Style 20%, Profile 30%, Performance 50% — Evaluation excluded Post Trial (Phase 4): Work Style 15%, Profile 20%, Performance 40%, Evaluation 25% - Objectives tab is the default view when the dashboard loads - Objectives list shows all objectives agreed upon at the time of the offer - Objectives are LOCKED — no new objectives can be added, modified, or removed during the trial - Each objective card displays: title, type badge (Manual / Automatic / Default), progress percentage, status pill, due date, and last update date - Status pills per objective type: Default: No Update → Pending Approval → Revision Requested → Achieved / Missed Manual: No Update → On Track → Off Track → Pending Approval → Revision Requested → Achieved / Missed Automatic: No Update → On Track → Off Track → Pending Approval → Revision Requested → Achieved / Missed - System automatically updates any active objective to Off Track when ≤ 7 days remain and progress is below 70% - Clicking an objective card opens the relevant objective dashboard - Activity Log visible showing a GitHub-style Mon–Fri daily grid - Each tile reflects: Green (all logged), Light Green (partial), Gray (nothing logged) - Current streak count and status label (Thriving / Idle / Unresponsive) displayed - Navigation tabs visible: Objectives, Contract & Payment, Evaluation - Send Message button visible in the header at all times - File a Dispute button visible in the header — available only after trial ends"
+ },
+ {
+  "id": "IN-077",
+  "title": "View Default Objective Dashboard",
+  "story": "As an Independent Contractor, I want to open a default objective and see its current status, remaining days, discussions, and recent activity so that I can track my binary objectives during the trial and know what I need to complete.",
+  "ac": "Dashboard shows: objective title, type badge (Default), current status, remaining days, start and end dates Status flow: No Update → Pending Approval → Achieved / Missed Mark as Done button available to signal completion to Team Builder Discussions section shows threaded comments with Team Builder Recent Activity log shows all status changes with timestamps Team Builder approval is required before objective is marked as Achieved Read-only once status is Pending Approval — cannot be undone by Independent Contractor"
+ },
+ {
+  "id": "IN-028",
+  "title": "View Automatic Objective Dashboard",
+  "story": "As an Independent Contractor, I want to open an automatic objective and see progress calculated from my connected key results, a breakdown of key result types, discussions, and recent activity so that I can understand how my key result completions are driving overall objective progress.",
+  "ac": "Dashboard shows: objective title, type badge (Automatic), overall progress percentage, and Key Result completion count (e.g. 1/3 KRs) Progress is calculated automatically based on: Completed KRs / Total KRs (e.g. 2/3 = 67%) Donut chart shows breakdown of connected Key Result types: Manual, Automatic, Default Connected Key Results are listed with: title, type, progress, and status Clicking a Key Result navigates to the Key Result Dashboard Discussions section shows threaded comments with Team Builder Recent Activity log shows all Key Result updates with timestamps Independent Contractor cannot manually update progress — driven by Key Result completion only"
+ },
+ {
+  "id": "IN-026",
+  "title": "View Manual Objective Dashboard",
+  "story": "As an Independent Contractor, I want to open a manual objective and see my current value, progress, trend chart, performance heatmap, discussions, and recent activity so that I can track my numerical progress against the target.",
+  "ac": "- Dashboard shows: objective title, type badge (Manual), current value, daily target, overall progress percentage, and update cadence - Input format displayed based on KPI type: Increase (+X), Maintain (X/Y), Decrease (current value) - Progress calculated as: Current Value / Target × 100 = Progress % - Trend chart displays progress over time per update cadence - Performance heatmap shows daily states: Overachieved, Achieved, At Risk, Missed, No Changes, N/A - Discussions section shows threaded comments with Team Builder - Recent Activity log shows all progress updates with timestamps - Update Progress button available to log a new value"
+ },
+ {
+  "id": "IN-029",
+  "title": "View Key Result Dashboard",
+  "story": "As an Independent Contractor, I want to open a specific key result connected to an automatic objective and view its progress so that I can understand what is driving the objective's completion.",
+  "ac": "- Dashboard shows: Key Result title, type (Manual / Automatic / Default), progress percentage, remaining days, start and end dates - Progress visualization matches the Key Result type - Connected tasks listed if the Key Result is Automatic - Discussions section shows threaded comments - Recent Activity log shows all updates with timestamps"
+ },
+ {
+  "id": "IN-030",
+  "title": "View Task Dashboard",
+  "story": "As an Independent Contractor, I want to view the task dashboard under an automatic key result so that I can see and complete all individual tasks driving the key result's progress.",
+  "ac": "- Task Dashboard shows all tasks connected to an Automatic Key Result - Each task shows: title, type, and completion status - Independent Contractor can mark tasks as done directly from this view - Marking a task done updates Key Result progress and Objective progress automatically"
+ },
+ {
+  "id": "IN-032",
+  "title": "View Contract & Payment Tab",
+  "story": "As an Independent Contractor, I want to view my contract terms and payment history in the Contract & Payment tab so that I can review what was agreed and track my payment activity.",
+  "ac": "- Tab shows: agreed role, trial duration, start and end dates, agreed budget, and payment schedule - Payment history shows all recorded transactions for this contract with: date, transaction type, amount, and status - Transaction types: Payment Deposited, Payment Released, Payment Refunded - If a dispute has been filed for this contract, it is visible in this tab with: date filed, reason, and current status - Only 1 dispute can be filed per contract — File a Dispute button is hidden once a dispute has been submitted - Tab is read-only — no editing available from this view"
+ },
+ {
+  "id": "IN-034",
+  "title": "View Evaluation",
+  "story": "As an Independent Contractor, I want to view the evaluation submitted by my Team Builder after the trial so that I can understand their assessment of my performance and see my finalized Trial Fit Score.",
+  "ac": "- Evaluation tab shows the full evaluation submitted by the Team Builder - Shows: overall star rating, written feedback, and overall recommendation - Finalized TFP score shown after evaluation - Read-only view"
+ },
+ {
+  "id": "IN-037",
+  "title": "Send Message to Team Builder",
+  "story": "As an Independent Contractor, I want to send a message to my Team Builder directly from the trial dashboard so that I can communicate without leaving my contract view.",
+  "ac": "- Send Message button is visible in the dashboard header at all times - Clicking opens the messaging interface with the Team Builder pre-selected - Independent Contractor can compose and send a message without leaving the dashboard - Empty message cannot be sent"
+ },
+ {
+  "id": "IN-038",
+  "title": "View Full-Time Contract Overview",
+  "story": "As an Independent Contractor, I want to view my full-time contract dashboard so that I can monitor my ongoing performance, objectives, and contract details in one place.",
+  "ac": "- Dashboard header shows: Team Builder company name, role, and contract status badge (Full-Time, Active) - Summary stats bar shows: Assigned Objectives count and Completed Objectives count - Trial Fit Score widget shows the final TFP from the completed trial — read-only, does not update - Objectives tab is the default view when the dashboard loads - Objectives list shows all objectives for the full-time engagement - Objectives are NOT locked — new objectives assigned by Team Builder appear in the list automatically - Each objective card displays: title, type badge (Manual / Automatic / Default), progress percentage, status pill, due date, and last update date - Clicking an objective card opens the relevant objective dashboard - Navigation tabs visible: Objectives, Contract & Payment, Evaluation - Send Message button visible in the header at all times - File a Dispute button visible in the header — available at any time during an active full-time contract"
+ },
+ {
+  "id": "IN-040",
+  "title": "View Manual Objective Dashboard",
+  "story": "As an Independent Contractor, I want to open a manual objective in my full-time contract and see my current value, trend chart, performance heatmap, discussions, and recent activity so that I can track my measurable progress over time.",
+  "ac": "- Same functionality as Trial Manual Objective Dashboard - Dashboard shows: current value, daily target, progress %, trend chart, heatmap, discussions, recent activity - Update Progress button available to log a new value"
+ },
+ {
+  "id": "IN-041",
+  "title": "Update Progress",
+  "story": "As an Independent Contractor, I want to update my progress on a manual objective in my full-time contract by entering a new value so that my Team Builder can see my latest performance.",
+  "ac": "- Update Progress modal shows: objective title, type tag, daily target, current value, new value input - Independent Contractor enters new value and submits - Progress updates immediately in the dashboard and trend chart - Team Builder is notified of the update - Recent Activity log records the update with timestamp - Empty submission is not allowed"
+ },
+ {
+  "id": "IN-043",
+  "title": "View Key Result Dashboard",
+  "story": "As an Independent Contractor, I want to open a key result connected to an automatic objective in my full-time contract and view its progress so that I can understand what is driving the objective's completion.",
+  "ac": "- Dashboard shows: Key Result title, type, progress percentage, remaining days, start and end dates - Connected tasks listed if the Key Result is Automatic - Discussions and Recent Activity visible"
+ },
+ {
+  "id": "IN-044",
+  "title": "View Task Dashboard",
+  "story": "As an Independent Contractor, I want to view and complete tasks under an automatic key result in my full-time contract so that I can drive my key result's progress forward.",
+  "ac": "- Task Dashboard shows all tasks connected to an Automatic Key Result - Independent Contractor can mark tasks as done directly from this view - Marking done updates Key Result progress and Objective progress automatically"
+ },
+ {
+  "id": "IN-045",
+  "title": "Mark as Done",
+  "story": "As an Independent Contractor, I want to mark a default objective or task as done in my full-time contract so that I can signal completion to my Team Builder and request approval.",
+  "ac": "- Mark as Done available on Default objectives and Default tasks in full-time contract - Confirmation prompt shown before marking - Status changes to Pending Approval immediately - Team Builder is notified of the completion - Cannot be undone by Independent Contractor"
+ },
+ {
+  "id": "IN-046",
+  "title": "View Contract & Payment Tab",
+  "story": "As an Independent Contractor, I want to view my full-time contract terms, salary, exclusive benefits, and payment history so that I can keep track of my compensation and financial activity.",
+  "ac": "- Tab shows: agreed role, contract start date, base salary, exclusive benefits breakdown, and payment schedule - Exclusive benefits listed separately: Health Insurance, Government Contribution, Internet Allowance, Learning & Development Allowance - Payment history shows all recorded transactions with: date, transaction type, amount, and status - If a dispute has been filed for this contract, it is visible in this tab with: date filed, reason, and current status - Only 1 dispute can be filed per contract — File a Dispute button is hidden once a dispute has been submitted - Tab is read-only"
+ },
+ {
+  "id": "IN-047",
+  "title": "View Evaluation Tab",
+  "story": "As an Independent Contractor, I want to view all evaluations submitted by my Team Builder in the Evaluation tab so that I can track ongoing feedback and understand how I am being assessed.",
+  "ac": "- Evaluation tab shows all evaluations submitted by the Team Builder during the full-time engagement - Each entry shows: date submitted, star rating, and written feedback - Read-only view"
+ },
+ {
+  "id": "IN-048",
+  "title": "View Trial Fit Score",
+  "story": "As an Independent Contractor, I want to view my Trial Fit Score from my full-time contract dashboard so that I can reference the score that led to my full-time conversion.",
+  "ac": "- TFP widget visible on Full-Time Contract Dashboard for reference - Shows the final score from the completed trial that led to full-time conversion - Read-only — score does not change after full-time contract begins"
+ },
+ {
+  "id": "IN-049",
+  "title": "View Team Builder Company Profile",
+  "story": "As an Independent Contractor, I want to view the Team Builder's company profile from my full-time contract dashboard so that I can stay informed about the company I work for.",
+  "ac": "- Company profile shows: company logo, company name, description, industry, location, company URL, and work style badges - Read-only view from the contract dashboard"
+ },
+ {
+  "id": "IN-050",
+  "title": "Send Message to Team Builder",
+  "story": "As an Independent Contractor, I want to send a message to my Team Builder directly from the full-time contract dashboard so that I can communicate without leaving my contract view.",
+  "ac": "- Send Message button visible in the dashboard header at all times - Clicking opens the messaging interface with the Team Builder pre-selected - Empty message cannot be sent"
+ },
+ {
+  "id": "IN-051",
+  "title": "Receive Payment",
+  "story": "As an Independent Contractor, I want to receive confirmation when my salary payment is recorded on schedule so that I know my earnings have been processed.",
+  "ac": "- Independent Contractor receives in-app and email notification when salary payment is recorded - Notification includes: contract name, amount, and payment schedule period - Payment appears in Earnings → Transaction History immediately - Amount matches the agreed salary from the contract"
+ },
+ {
+  "id": "IN-059",
+  "title": "File a Dispute",
+  "story": "As an Independent Contractor, I want to file a dispute at any point during my full-time engagement so that I can raise concerns about payment or the engagement.",
+  "ac": "- File a Dispute button is available at any time during an active full-time contract - Only 1 dispute can be filed per contract — button is hidden after a dispute has been submitted - Dispute form requires: reason, description, amount in question, and supporting evidence (optional) - Allowed reason codes: Missing Deliverable, Out-of-Scope Output, Missed Deadline, No Report Submitted - Independent Contractor cannot submit without completing all required fields - Submitted dispute sent to Hireable admin for process check only - Team Builder is notified that a dispute has been filed - Filed dispute appears in the Contract & Payment tab of this contract - Filed dispute appears in Earnings → Sent Disputes with Pending status"
+ },
+ {
+  "id": "IN-052",
+  "title": "View Earnings Overview",
+  "story": "As an Independent Contractor, I want to see a summary of my total earnings across all contracts so that I can quickly understand my overall payment activity on the platform.",
+  "ac": "- Earnings page shows a summary card with: total amount received across all contracts - Summary is updated in real time as new transactions are recorded"
+ },
+ {
+  "id": "IN-053",
+  "title": "View Transaction History",
+  "story": "As an Independent Contractor, I want to see a full list of all payment transactions across all my contracts so that I can track my complete earnings history in one place.",
+  "ac": "- Transaction History shows all recorded payment activity across all contracts - Each row shows: date, contract name, Team Builder company name, transaction type, amount, and status - Transaction types: Payment Received, Payment Refunded - Default sort by most recent - Pagination applied - Empty state shown if no transactions exist"
+ },
+ {
+  "id": "IN-078",
+  "title": "Filter Transactions",
+  "story": "As an Independent Contractor, I want to filter my transactions by contract, status, and date range so that I can narrow down records to find what I am looking for.",
+  "ac": "- Filter options: by contract name, by status (Received, Refunded), by date range - Filters can be combined - Active filters are visually indicated - Clearing filters restores the full list"
+ },
+ {
+  "id": "IN-079",
+  "title": "Search Transactions",
+  "story": "As an Independent Contractor, I want to search my transactions so that I can quickly locate a specific payment record.",
+  "ac": "- Search bar available on Earnings page - Searches by contract name or Team Builder company name - Results update dynamically as Independent Contractor types - Empty state shown when no results match"
+ },
+ {
+  "id": "IN-054",
+  "title": "View Transaction Detail",
+  "story": "As an Independent Contractor, I want to open a specific transaction to view its full details so that I can verify the payment amount, source, and date.",
+  "ac": "- Clicking a transaction opens the detail view - Shows: date, contract name, Team Builder company name, transaction type, amount, and status - Read-only view"
+ },
+ {
+  "id": "IN-080",
+  "title": "View Sent Disputes",
+  "story": "As an Independent Contractor, I want to see all disputes I have filed across all contracts in one list so that I can monitor the status of each dispute.",
+  "ac": "- Sent Disputes page shows all disputes filed by the Independent Contractor across all contracts - Each row shows: date filed, contract name, Team Builder company name, reason, and status (Pending / Resolved / Closed) - Default sort by most recent - Empty state shown if no disputes have been filed"
+ },
+ {
+  "id": "IN-081",
+  "title": "View Dispute Detail",
+  "story": "As an Independent Contractor, I want to open a specific dispute to view its full details and status updates so that I can stay informed on the process check outcome.",
+  "ac": "- Clicking a dispute opens the full detail view - Shows: date filed, contract name, Team Builder company name, reason, description, amount in question, supporting evidence, and current status - If resolved, shows: admin resolution notes and outcome - Read-only view"
+ },
+ {
+  "id": "IN-082",
+  "title": "Withdraw Dispute",
+  "story": "As an Independent Contractor, I want to withdraw a pending dispute so that I can cancel it if the issue has been resolved or I have changed my mind.",
+  "ac": "- Withdraw button is available on Pending disputes only - Confirmation prompt shown before withdrawing - Dispute status changes to Withdrawn - Hireable admin is notified of the withdrawal - Team Builder is notified that the dispute has been withdrawn - Once withdrawn, a new dispute cannot be filed for the same contract"
+ },
+ {
+  "id": "IN-060",
+  "title": "View Profile",
+  "story": "As an Independent Contractor, I want to view my full profile so that I can see exactly how I appear to Team Builders.",
+  "ac": "- Profile shows: photo, name, role, rate, experience level, location, website, LinkedIn, bio, workplace tags, skills, and performance history - Displays exactly how the profile appears to Team Builders - Edit and Retake Quiz buttons available"
+ },
+ {
+  "id": "IN-061",
+  "title": "Edit Profile",
+  "story": "As an Independent Contractor, I want to edit my profile details such as photo, name, role, rate, experience level, location, website, and LinkedIn so that I can keep my professional information accurate and up to date.",
+  "ac": "- Edit Profile form allows updating: photo, name, role, rate, experience level, location, website, LinkedIn - All changes saved immediately - Validation applied to required fields - Updated profile reflects immediately on Team Builder-facing view"
+ },
+ {
+  "id": "IN-062",
+  "title": "Edit Bio",
+  "story": "As an Independent Contractor, I want to write and update my bio so that I can describe my background and value proposition to potential Team Builders.",
+  "ac": "- Bio section shows current bio text - Edit Bio opens a text editor - Character limit applies (500 characters) - Changes saved immediately"
+ },
+ {
+  "id": "IN-063",
+  "title": "View Workplace Tags",
+  "story": "As an Independent Contractor, I want to view my workplace tags derived from my work style quiz so that I can see the personality and work style badges that Team Builders see on my profile.",
+  "ac": "- Workplace Tags section shows current tags derived from work style quiz - Tags are display-only and cannot be manually edited - Retake Quiz button available to update them"
+ },
+ {
+  "id": "IN-064",
+  "title": "Retake Work Style Quiz",
+  "story": "As an Independent Contractor, I want to retake the work style quiz from my profile so that I can update my workplace tags if my working style or preferences have changed.",
+  "ac": "- Retake Quiz button available on Profile page - Independent Contractor prompted to confirm before restarting - Completing quiz updates workplace tags/badges - New badges replace old ones immediately - Match % recalculates based on new work style results"
+ },
+ {
+  "id": "IN-065",
+  "title": "Edit Skills",
+  "story": "As an Independent Contractor, I want to add or remove skills on my profile so that my skill set accurately reflects my current capabilities.",
+  "ac": "- Edit Skills section shows current skills as tags - Independent Contractor can add new skills by typing and selecting from suggestions - Independent Contractor can remove skills by clicking the remove icon - Changes saved immediately - Updated skills reflect on Team Builder-facing profile"
+ },
+ {
+  "id": "IN-066",
+  "title": "View Performance History",
+  "story": "As an Independent Contractor, I want to view my performance history showing past evaluations, star ratings, and Team Builder feedback per contract so that I can track my professional growth.",
+  "ac": "- Performance History section shows all past evaluations received - Each entry shows: company name, role, contract type (Trial / Full-Time), date, star rating, and written feedback - Visible to Team Builders viewing the profile - Read-only — Independent Contractor cannot edit or remove entries"
+ },
+ {
+  "id": "IN-067",
+  "title": "View / Edit Account",
+  "story": "As an Independent Contractor, I want to view and edit my account information so that I can keep my basic account details current.",
+  "ac": "- Account page shows: name, email, account type (Independent Contractor) - Independent Contractor can edit name and email - Email change requires re-verification - Changes saved immediately"
+ },
+ {
+  "id": "IN-068",
+  "title": "Change Password",
+  "story": "As an Independent Contractor, I want to change my account password from the Security settings so that I can keep my account secure.",
+  "ac": "- Form requires: current password, new password, confirm new password - New password must meet minimum requirements (8+ chars, 1 uppercase, 1 number) - Incorrect current password shows an error - Success message shown after change"
+ },
+ {
+  "id": "IN-069",
+  "title": "Add / Manage Payment Method",
+  "story": "As an Independent Contractor, I want to add or manage my payment method so that I have a verified destination for receiving payments from the platform.",
+  "ac": "- Payment Method page shows all saved payment methods - Independent Contractor can add new method, set default, or remove existing - Removal confirmation prompt shown - At least one payment method must remain active"
+ },
+ {
+  "id": "IN-083",
+  "title": "TBD",
+  "story": "TBD",
+  "ac": "TBD"
+ },
+ {
+  "id": "AD-001",
+  "title": "View Admin Dashboard Overview",
+  "story": "As an admin, I want to see a high-level dashboard overview when I log in so that I can quickly assess the overall health and activity of the platform.",
+  "ac": "- Dashboard loads upon admin login showing platform-wide health metrics - Displays key stat widgets: total users, active contracts, open disputes, revenue - All widgets are clickable and navigate to relevant modules - Data refreshes in real time or on page load"
+ },
+ {
+  "id": "AD-002",
+  "title": "View Platform Stats",
+  "story": "As an admin, I want to view key platform statistics including total users, active contracts, roles, and revenue so that I can monitor platform performance at a glance.",
+  "ac": "- Platform Stats page shows: total registered users (broken down by Team Builder and Independent Contractor), total active contracts, total roles, total disputes, and total platform revenue - Stats are shown with period comparison (e.g. vs last month) - Visual charts/graphs used where appropriate"
+ },
+ {
+  "id": "AD-003",
+  "title": "View All Team Builders",
+  "story": "As an admin, I want to see a table of all Team Builder accounts on the platform showing name, email, status, and date joined so that I can manage and monitor all Team Builder accounts in one place.",
+  "ac": "- Team Builders table shows: name, email, company, status, date joined, and total roles - Default sort by most recent - Pagination applied - Empty state shown if no Team Builders exist"
+ },
+ {
+  "id": "AD-004",
+  "title": "Search Team Builders",
+  "story": "As an admin, I want to search Team Builders by name or email so that I can quickly locate a specific Team Builder account.",
+  "ac": "- Search by name or email - Results update dynamically as admin types - Empty state shown when no results match"
+ },
+ {
+  "id": "AD-005",
+  "title": "Filter Team Builders by Status",
+  "story": "As an admin, I want to filter Team Builders by status (Active, Suspended, Inactive, Pending Verification) so that I can focus on specific groups that need attention.",
+  "ac": "- Filter options: Active, Suspended, Inactive, Pending Verification - Filter applies immediately - Active filter visually indicated - Clearing filter restores full list"
+ },
+ {
+  "id": "AD-006",
+  "title": "View / Update Team Builder Status",
+  "story": "As an admin, I want to view and update the status of a Team Builder account directly from the table so that I can quickly act on accounts that require status changes.",
+  "ac": "- Status badge visible on each table row - Admin can click to update status directly from the table or from the profile - Status change triggers notification to the user - Confirmation prompt shown before changing status"
+ },
+ {
+  "id": "AD-007",
+  "title": "View Team Builder Profile Details",
+  "story": "As an admin, I want to open a Team Builder's profile to view their personal details, company profile, and account information so that I can review their account thoroughly when needed.",
+  "ac": "- Clicking a Team Builder row opens their profile - Profile shows: name, email, company name, company profile, account creation date, subscription plan, and status - Read-only view with action buttons (Suspend, Delete)"
+ },
+ {
+  "id": "AD-008",
+  "title": "View Team Builder Role History",
+  "story": "As an admin, I want to view all roles created by a Team Builder so that I can audit their hiring activity and identify any policy violations.",
+  "ac": "- Role History tab shows all roles created by this Team Builder - Each row shows: title, type, status, date posted, and applicant count - Clicking a role navigates to the role detail view"
+ },
+ {
+  "id": "AD-009",
+  "title": "View Team Builder Hiring Activity",
+  "story": "As an admin, I want to view a Team Builder's hiring activity including trials started, offers sent, and full-time hires made so that I can understand how actively they are using the platform.",
+  "ac": "- Hiring Activity tab shows: total trials started, total offers sent, total full-time hires, and trial-to-hire conversion rate - Individual contract records listed with Independent Contractor name, role, type, and status"
+ },
+ {
+  "id": "AD-010",
+  "title": "View Team Builder Evaluation History",
+  "story": "As an admin, I want to view all evaluations a Team Builder has submitted for Independent Contractors so that I can monitor the quality and fairness of their assessments.",
+  "ac": "- Evaluation History tab shows all evaluations submitted by this Team Builder - Each entry shows: Independent Contractor name, date, star rating, and written feedback - Read-only view"
+ },
+ {
+  "id": "AD-011",
+  "title": "View Team Builder Dispute History",
+  "story": "As an admin, I want to view all disputes filed by or against a Team Builder so that I can assess their dispute track record when resolving issues.",
+  "ac": "- Dispute History tab shows all disputes filed by or against this Team Builder - Each row shows: date, opposing party, amount, reason, and status - Clicking a dispute navigates to dispute detail"
+ },
+ {
+  "id": "AD-012",
+  "title": "View Team Builder Payment History",
+  "story": "As an admin, I want to view all payment transactions associated with a Team Builder so that I can audit their financial activity on the platform.",
+  "ac": "- Payment History tab shows all financial transactions associated with this Team Builder - Each row shows: date, type, amount, and status - Read-only view"
+ },
+ {
+  "id": "AD-013",
+  "title": "Suspend / Reactivate Team Builder",
+  "story": "As an admin, I want to suspend or reactivate a Team Builder account so that I can enforce platform policies and restore access when appropriate.",
+  "ac": "- Suspend button changes account status to Suspended - Suspended account cannot log in or use the platform - Reactivate button restores Active status - Team Builder notified of both actions - Confirmation prompt shown before both actions"
+ },
+ {
+  "id": "AD-014",
+  "title": "Delete Team Builder",
+  "story": "As an admin, I want to permanently delete a Team Builder account so that I can remove accounts that violate platform terms or are no longer needed.",
+  "ac": "- Delete button permanently removes the Team Builder account and all associated data - Cannot be undone - Double confirmation prompt shown - Team Builder notified of deletion"
+ },
+ {
+  "id": "AD-015",
+  "title": "View All Independents",
+  "story": "As an admin, I want to see a table of all Independent Contractor accounts on the platform showing name, email, status, and date joined so that I can manage and monitor all Independent Contractor accounts in one place.",
+  "ac": "- Independents table shows: name, email, role, status, date joined, and total contracts - Default sort by most recent - Pagination applied"
+ },
+ {
+  "id": "AD-016",
+  "title": "Search Independents",
+  "story": "As an admin, I want to search Independent Contractors by name or email so that I can quickly locate a specific account.",
+  "ac": "- Search by name or email - Results update dynamically - Empty state shown when no results match"
+ },
+ {
+  "id": "AD-017",
+  "title": "Filter Independents by Status",
+  "story": "As an admin, I want to filter Independent Contractors by status (Active, Suspended, Inactive, Pending Verification) so that I can focus on specific groups that need attention.",
+  "ac": "- Filter options: Active, Suspended, Inactive, Pending Verification - Filter applies immediately - Active filter visually indicated"
+ },
+ {
+  "id": "AD-018",
+  "title": "View / Update Independent Status",
+  "story": "As an admin, I want to view and update the status of an Independent Contractor account directly from the table so that I can quickly act on accounts that require status changes.",
+  "ac": "- Status badge visible on each table row - Admin can update status directly from table or profile - Status change triggers notification to user - Confirmation prompt shown"
+ },
+ {
+  "id": "AD-019",
+  "title": "View Independent Profile Details",
+  "story": "As an admin, I want to open an Independent Contractor's profile to view their personal details, skills, work style badges, and account information so that I can review their account thoroughly.",
+  "ac": "- Clicking an Independent Contractor row opens their profile - Profile shows: photo, name, email, role, rate, experience level, workplace tags, skills, account creation date, and status - Action buttons available: Suspend, Delete"
+ },
+ {
+  "id": "AD-020",
+  "title": "View Independent Contract History",
+  "story": "As an admin, I want to view all contracts an Independent Contractor has been part of including trial and full-time engagements so that I can audit their work history on the platform.",
+  "ac": "- Contract History tab shows all contracts (Trial and Full-Time) the Independent Contractor has been part of - Each row shows: company name, role, type, status, start date, and end date - Clicking a contract shows contract details"
+ },
+ {
+  "id": "AD-021",
+  "title": "View Independent Performance Data",
+  "story": "As an admin, I want to view a full log of an Independent Contractor's performance data including objectives, key results, task completions, TFP scores, evaluation results, and activity logs so that I can store and analyze performance data for future platform improvements.",
+  "ac": "- Performance Data tab stores and displays: all objectives (title, type, progress values), key result data, task completion records, TFP score history (all phases), evaluation results, and recent activity logs - Data is stored for internal use and future insights - Not publicly displayed to Team Builders or Independent Contractors - Admin can view all historical performance data per Independent Contractor"
+ },
+ {
+  "id": "AD-022",
+  "title": "View Independent Dispute History",
+  "story": "As an admin, I want to view all disputes filed by or against an Independent Contractor so that I can assess their dispute track record when resolving issues.",
+  "ac": "- Dispute History tab shows all disputes filed by or against this Independent Contractor - Each row shows: date, opposing party, amount, reason, and status - Read-only view"
+ },
+ {
+  "id": "AD-023",
+  "title": "View Independent Payment History",
+  "story": "As an admin, I want to view all payment transactions associated with an Independent Contractor so that I can audit their earnings activity.",
+  "ac": "- Payment History tab shows all payment transactions for this Independent Contractor: received payments and pending amounts - Each row shows: date, type, amount, and status"
+ },
+ {
+  "id": "AD-024",
+  "title": "Suspend / Reactivate Independent",
+  "story": "As an admin, I want to suspend or reactivate an Independent Contractor account so that I can enforce platform policies and restore access when appropriate.",
+  "ac": "- Suspend changes account to Suspended — Independent Contractor cannot log in or use platform - Reactivate restores Active status - User notified of both actions - Confirmation prompt shown"
+ },
+ {
+  "id": "AD-025",
+  "title": "Delete Independent",
+  "story": "As an admin, I want to permanently delete an Independent Contractor account so that I can remove accounts that violate platform terms or are no longer needed.",
+  "ac": "- Delete permanently removes the Independent Contractor account and all data - Cannot be undone - Double confirmation prompt shown - User notified of deletion"
+ },
+ {
+  "id": "AD-026",
+  "title": "View All Roles",
+  "story": "As an admin, I want to see a table of all roles on the platform showing title, Team Builder, type, status, and date posted so that I can monitor all listings in one place.",
+  "ac": "- Roles table shows: title, Team Builder name, type (Full-Time/Trial), status (Active/Closed/Draft/Flagged), date posted, and applicant count - Default sort by most recent - Pagination applied"
+ },
+ {
+  "id": "AD-027",
+  "title": "Search & Filter Roles",
+  "story": "As an admin, I want to search and filter roles by title, type, and status so that I can quickly find specific listings that need review or action.",
+  "ac": "- Search by role title or Team Builder name - Filter by type (Full-Time/Trial), status (Active/Closed/Draft/Flagged) - Filters can be combined - Results update dynamically"
+ },
+ {
+  "id": "AD-028",
+  "title": "View Role Details",
+  "story": "As an admin, I want to open a specific role to view its full details so that I can review the content and assess whether it meets platform guidelines.",
+  "ac": "- Clicking a role row opens full details - Shows all fields: title, description, requirements, budget/salary, duration, objectives (if trial) - Approve and Flag action buttons available"
+ },
+ {
+  "id": "AD-029",
+  "title": "Approve / Flag Role",
+  "story": "As an admin, I want to approve or flag a role so that I can ensure only appropriate and policy-compliant listings are visible to Independent Contractors on the platform.",
+  "ac": "- Approve button marks role as approved and visible to Independent Contractors - Flag button marks role for policy violation review and hides it from Independent Contractors - Flagged roles are visually differentiated in the table - Team Builder notified when their role is flagged"
+ },
+ {
+  "id": "AD-030",
+  "title": "Remove Role",
+  "story": "As an admin, I want to remove a role that violates platform policies so that I can maintain the quality and safety of the platform.",
+  "ac": "- Remove button permanently removes the role from the platform - Confirmation prompt shown - Team Builder notified of removal - Cannot be undone"
+ },
+ {
+  "id": "AD-031",
+  "title": "View Active Contract Payments",
+  "story": "As an admin, I want to see all active contract payments currently held by PayMongo so that I can monitor the total amount held across all active contracts.",
+  "ac": "- Active Contract Payments table shows all contracts with funds currently held by PayMongo - Each row shows: contract ID, Team Builder name, Independent Contractor name, amount held, and hold start date - Total amount held by PayMongo shown as a summary card at top"
+ },
+ {
+  "id": "AD-032",
+  "title": "View All Disputes",
+  "story": "As an admin, I want to see a table of all disputes filed on the platform showing the parties involved, amount in question, and current status so that I can prioritize and manage dispute resolution.",
+  "ac": "- Disputes table shows all disputes with: date filed, filing party, opposing party, amount in question, reason, and status (Pending/Resolved/Rejected/Withdrawn) - Filter by status - Default sort by most recent"
+ },
+ {
+  "id": "AD-033",
+  "title": "View Dispute Details",
+  "story": "As an admin, I want to open a specific dispute to view its full details including the reason, supporting evidence, and timeline so that I can make an informed process compliance ruling.",
+  "ac": "- Clicking a dispute opens full details: reason, description, amount, evidence files, timeline of events, and messages between parties - Resolve and Reject action buttons available"
+ },
+ {
+  "id": "AD-034",
+  "title": "Resolve Dispute",
+  "story": "As an admin, I want to resolve a dispute by making a process compliance ruling in favor of either the Team Builder or the Independent Contractor so that I can formally close the case and coordinate the appropriate payment action with PayMongo.",
+  "ac": "- Admin selects resolution: rule in favor of Team Builder or Independent Contractor - Entering resolution notes is required - Both Team Builder and Independent Contractor notified of the resolution outcome - Dispute status changes to Resolved - Triggers appropriate payment coordination with PayMongo (release or reverse)"
+ },
+ {
+  "id": "AD-035",
+  "title": "Request Payment Release",
+  "story": "As an admin, I want to request a payment release to the Independent Contractor so that I can coordinate the payment when a dispute is resolved in the Independent Contractor's favor.",
+  "ac": "- Request Payment Release button available on disputes resolved in Independent Contractor's favor - Confirmation prompt shown - Payment release coordinated with PayMongo immediately - Both parties notified"
+ },
+ {
+  "id": "AD-036",
+  "title": "Reverse Payment",
+  "story": "As an admin, I want to reverse a payment that was incorrectly processed so that I can correct financial errors and protect both parties on the platform.",
+  "ac": "- Reverse Payment button available when a payment needs to be corrected - Reason for reversal required - Confirmation prompt shown - Affected parties notified - Transaction record updated to show reversal"
+ },
+ {
+  "id": "AD-037",
+  "title": "View All Subscriptions",
+  "story": "As an admin, I want to see a table of all active and inactive subscriptions on the platform so that I can monitor subscription activity and revenue.",
+  "ac": "- Subscriptions table shows: user name, plan name, billing cycle, status (Active/Cancelled/Past Due), renewal date - Filter by status - Default sort by renewal date"
+ },
+ {
+  "id": "AD-038",
+  "title": "View Subscription Details",
+  "story": "As an admin, I want to open a specific subscription record to view the plan details, billing history, and account holder so that I can assist with subscription-related issues.",
+  "ac": "- Clicking a subscription opens full details: plan features, billing history, payment method on file, and account holder info - Read-only view"
+ },
+ {
+  "id": "AD-039",
+  "title": "Update Subscription Plan",
+  "story": "As an admin, I want to manually update a user's subscription plan so that I can resolve billing issues or apply special arrangements when needed.",
+  "ac": "- Admin can manually change a user's subscription plan - Reason for change required - Change applies immediately - User notified of the plan update"
+ },
+ {
+  "id": "AD-040",
+  "title": "View All Transactions",
+  "story": "As an admin, I want to see a full list of all financial transactions on the platform so that I can monitor overall payment activity and identify any irregularities.",
+  "ac": "- Transactions table shows all platform financial activity - Each row shows: date, type, parties involved, amount, status - Filter by type, status, and date range - Default sort by most recent - Pagination applied"
+ },
+ {
+  "id": "AD-041",
+  "title": "View Transaction Details",
+  "story": "As an admin, I want to open a specific transaction to view its full breakdown including amount, parties, date, and status so that I can investigate and audit individual payments.",
+  "ac": "- Clicking a transaction opens full breakdown: transaction ID, date, amount, parties, payment method, and status - Read-only view"
+ },
+ {
+  "id": "AD-042",
+  "title": "Issue Refund",
+  "story": "As an admin, I want to issue a refund for a specific transaction so that I can resolve payment disputes or correct billing errors on behalf of users.",
+  "ac": "- Issue Refund available on completed transactions - Reason for refund required - Confirmation prompt shown - Refund processed and both parties notified - Transaction record updated to reflect refund"
+ },
+ {
+  "id": "AD-043",
+  "title": "Manage Marketing Banners",
+  "story": "As an admin, I want to create, edit, and remove marketing banners that appear on both the Team Builder and Independent Contractor dashboards so that I can control platform-wide announcements, promotions, and featured content.",
+  "ac": "- Admin can create, edit, and remove marketing banners - Banner fields: image/text content, CTA link, target audience (Team Builder / Independent Contractor / Both), active dates - Active banners appear on relevant dashboards immediately - Inactive or expired banners are hidden automatically - Preview available before publishing"
+ },
+ {
+  "id": "AD-044",
+  "title": "View Signup & Growth Stats",
+  "story": "As an admin, I want to view signup and growth statistics including new user registrations over time so that I can track platform growth and identify trends.",
+  "ac": "- Shows total signups over time with a line/bar chart - Breakdown by user type (Team Builder vs Independent Contractor) - Filter by date range (7 days, 30 days, 90 days, custom) - Growth rate % shown vs previous period"
+ },
+ {
+  "id": "AD-045",
+  "title": "View Active Contracts Overview",
+  "story": "As an admin, I want to see an overview of all active contracts on the platform broken down by type (Trial, Full-Time) so that I can monitor engagement levels and platform utilization.",
+  "ac": "- Shows total active contracts broken down by type (Trial, Full-Time) - Chart showing contract volume over time - Filter by date range"
+ },
+ {
+  "id": "AD-046",
+  "title": "View Trial Conversion Rate",
+  "story": "As an admin, I want to view the trial-to-full-time conversion rate so that I can measure how effectively the platform is facilitating permanent hires and assess product success.",
+  "ac": "- Conversion rate shown as % of trials that resulted in full-time hires - Trend over time shown as a chart - Filter by date range - Comparison vs platform target (80%) shown"
+ },
+ {
+  "id": "AD-047",
+  "title": "View Platform Revenue Summary",
+  "story": "As an admin, I want to view a summary of platform revenue including subscription income and transaction fees so that I can monitor financial performance and report on business health.",
+  "ac": "- Revenue summary shows: total subscription revenue, total transaction fees, total refunds issued, net revenue - Breakdown by period (monthly, quarterly, annual) - Filter by date range - Exportable report"
+ },
+ {
+  "id": "AD-048",
+  "title": "Manage Admin Accounts",
+  "story": "As an admin, I want to create, edit, and deactivate admin accounts so that I can control who has access to the admin panel and manage the admin team.",
+  "ac": "- Admin Accounts table shows all admin users: name, email, role, and status - Admin can create new admin accounts with assigned roles - Admin can deactivate existing admin accounts - Cannot delete own account - Confirmation prompt shown for deactivation"
+ },
+ {
+  "id": "AD-049",
+  "title": "View Audit Logs",
+  "story": "As an admin, I want to view a full audit log of all actions performed by admin accounts so that I can maintain accountability and investigate any unauthorized or suspicious activity.",
+  "ac": "- Audit Log shows all admin actions with: timestamp, admin name, action type, and affected record - Filter by admin, action type, and date range - Default sort by most recent - Read-only — logs cannot be deleted or edited"
+ }
+]

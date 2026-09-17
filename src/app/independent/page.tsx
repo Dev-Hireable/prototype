@@ -2,53 +2,66 @@
 
 import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
-import { Button, JobBadge, LinkButton, Page } from "@/components/independent/ui";
-import { DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardSetupCard, DashboardSummaryCard, DashboardSummaryGrid } from "@/components/portal/dashboard";
-import { ME } from "@/lib/independent/data";
+import { Initials, JobBadge, Page } from "@/components/independent/ui";
+import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardSummaryCard, DashboardSummaryGrid } from "@/components/portal/dashboard";
+import { usePersisted } from "@/lib/demo/live";
+import { daysLeft, interviews, MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
+import { useDemo } from "@/lib/independent/store";
 
 const NorthEast = ICONS.northEast;
 const Work = ICONS.work;
+const Search = ICONS.search;
+const Account = ICONS.account;
 
 /** Figma "Home / Dashboard": p 40, gap 40; greeting DM Sans 40; three #f2f2f2 summary cards. */
 export default function Dashboard() {
+  const { payouts, applications, contracts, profile, workStyle } = useDemo();
+  const [dismissed, setDismissed] = usePersisted("ind.bannerDismissed", "");
+  /** IN-004 — every ongoing engagement, not a hardcoded card. */
+  const active = contracts.filter((c) => c.status.label !== "Ended" && c.status.label !== "Contract complete");
+  const upcoming = interviews.filter((iv) => !iv.past);
+
   return (
     <Page title="Dashboard" heading="default" padded={false}>
       <DashboardFrame>
+        {/* IN-002 — dismissible, and the whole strip disappears when there is no active banner. */}
+        <DashboardBanner banner={MARKETING_BANNER} dismissed={dismissed === MARKETING_BANNER.id} onDismiss={() => setDismissed(MARKETING_BANNER.id)} />
+
         <DashboardHero>
           <DashboardGreeting name={ME.first}>
-            <LinkButton href="/independent/jobs" variant="primary">
-              Find your next role
-            </LinkButton>
-            <LinkButton href="/independent/profile/edit">Complete your profile</LinkButton>
+            <DashboardQuickAction title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
+            <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile/edit" icon={<Account size={20} aria-hidden />} />
           </DashboardGreeting>
 
           <DashboardSetupCard
-            avatarSrc={ME.avatar}
+            avatarSrc={profile.photo}
             title="Finish setting up your profile"
             description="Complete your profile to boost role matches."
-            completion="40%"
             completionHref="/independent/profile/edit"
-            items={[
-              { label: "Email", done: true },
-              { label: "Work style", done: true },
-              { label: "Profile", done: false },
-              { label: "Payment", done: false },
-              { label: "Apply to role", done: false },
-            ]}
+            items={setupSteps({ payouts, applications, workStyle, bio: profile.bio })}
           />
         </DashboardHero>
 
         <DashboardSummaryGrid>
+          {/* The next interviews actually on the books, not one fixed row. */}
           <DashboardSummaryCard title="Interviews" href="/independent/jobs/interviews">
-            <div className="flex items-center gap-4 rounded-lg bg-white p-3">
-              <div className="flex flex-1 flex-col gap-1 tracking-[0.2px]">
-                <p className="text-[14px] font-semibold text-ink">Social Media Manager</p>
-                <p className="text-[10px] text-ink-2">July 9 ⋅ 9:15 – 10:00pm</p>
-              </div>
-              <Button variant="primary" size="xs">
-                Join
-              </Button>
-            </div>
+            {upcoming.length === 0 ? (
+              <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No interviews scheduled. Apply to a role and a Team Builder can invite you.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {upcoming.slice(0, 3).map((iv) => (
+                  <li key={iv.id} className="flex items-center gap-4 rounded-lg bg-white p-3">
+                    <div className="flex min-w-0 flex-1 flex-col gap-1 tracking-[0.2px]">
+                      <p className="truncate text-[14px] font-semibold text-ink">{iv.role}</p>
+                      <p className="truncate text-[12px] text-ink-2">{iv.when}</p>
+                    </div>
+                    <Link href="/independent/jobs/interviews" className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
+                      Join
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </DashboardSummaryCard>
 
           <DashboardSummaryCard title="Applications" href="/independent/jobs/applications">
@@ -57,30 +70,55 @@ export default function Dashboard() {
                 <Work size={20} aria-hidden />
               </span>
               <div className="flex-1">
-                <p className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">16</p>
-                <p className="text-[12px] tracking-[0.2px] text-ink-2">Applications sent</p>
+                {/* Counted from the applications you've actually sent. */}
+                <p className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{applications.length}</p>
+                <p className="text-[13px] tracking-[0.2px] text-ink-2">{applications.length === 1 ? "Application sent" : "Applications sent"}</p>
               </div>
               <Link href="/independent/jobs/applications" aria-label="Open applications" className="rounded-full bg-white p-1 text-ink">
                 <NorthEast size={24} aria-hidden />
               </Link>
             </div>
+            {/* Split by where they've actually got to, rather than two fixed bars. */}
             <DashboardBarChart
               bars={[
-                { value: "8", label: "Active", background: "bg-[#e5e5e5]", height: "h-12" },
-                { value: "4", label: "Matched", background: "bg-gradient-to-b from-primary via-[#64bceb] to-[#c8dbe4]", height: "h-8" },
+                { value: applications.filter((a) => a.stage !== "hired" && a.stage !== "offer_accepted").length, label: "In progress", background: "bg-[#c9ccd0]" },
+                { value: applications.filter((a) => a.stage === "hired" || a.stage === "offer_accepted").length, label: "Hired", background: "bg-gradient-to-b from-primary to-[#64bceb]" },
               ]}
             />
           </DashboardSummaryCard>
 
-          <DashboardSummaryCard title="Contracts" href="/independent/contracts">
-            <Link href="/independent/contracts/sales-manager" className="flex items-center gap-4 rounded-lg bg-white p-3">
-              <div className="flex flex-1 flex-col gap-1 tracking-[0.2px]">
-                <p className="text-[14px] font-semibold text-ink">Content Strategist</p>
-                <p className="text-[10px] text-ink-2">Marketing Specialist</p>
-              </div>
-              <JobBadge type="trial" />
-            </Link>
+          {/* IN-004 — every ongoing engagement with the company, role, type and where it's up to. */}
+          <DashboardSummaryCard title="Active contracts" href="/independent/contracts">
+            {active.length === 0 ? (
+              <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No active contracts yet. Apply to a role and your engagements appear here.</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {active.slice(0, 3).map((c) => {
+                  const left = daysLeft(c.day);
+                  return (
+                    <li key={c.slug}>
+                      <Link href={`/independent/contracts/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-white p-3 hover:bg-surface-alt">
+                        <Initials text={c.initials} className="size-8 shrink-0 text-[11px]" />
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.2] tracking-[0.2px]">
+                          <span className="truncate text-[14px] font-semibold text-ink">{c.company}</span>
+                          <span className="truncate text-[12px] text-ink-2">
+                            {c.title} · {left === null ? `since ${c.started}` : `${left} days left`}
+                          </span>
+                        </span>
+                        <JobBadge type={c.type} />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {active.length > 3 && (
+              <Link href="/independent/contracts" className="mt-2 text-center text-[13px] leading-[1.2] font-medium tracking-[0.2px] text-primary hover:underline">
+                View all {active.length} contracts
+              </Link>
+            )}
           </DashboardSummaryCard>
+
         </DashboardSummaryGrid>
       </DashboardFrame>
     </Page>

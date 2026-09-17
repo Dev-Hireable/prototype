@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { EmptyState, LinkButton, Page, Pills } from "@/components/independent/ui";
 import { Avatar } from "@/components/team/ui";
+import { resetDemo } from "@/lib/demo/live";
 import { useDemo } from "@/lib/team/store";
 
 type Filter = "all" | "unread" | "hiring" | "independents" | "payments";
@@ -29,9 +30,14 @@ export default function Notifications() {
             { value: "payments", label: "Payments" },
           ]}
         />
-        <button type="button" onClick={() => markRead()} disabled={!unread} className="text-[13px] leading-[1.4] font-medium text-primary disabled:text-ink-2">
-          Mark all as read
-        </button>
+        <div className="flex items-center gap-4">
+          <button type="button" onClick={() => markRead()} disabled={!unread} className="text-[13px] leading-[1.4] font-medium text-primary disabled:text-ink-2">
+            Mark all as read
+          </button>
+          <button type="button" onClick={resetDemo} className="text-[12.5px] leading-[1.4] font-medium text-ink-2 underline underline-offset-2">
+            Reset demo
+          </button>
+        </div>
       </div>
       {list.length === 0 && <EmptyState title="You’re all caught up" body="New applications, interview replies and payment events land here." />}
       {groups.map((g) => {

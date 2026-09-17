@@ -1,21 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { ICONS } from "@/components/admin/icons";
 import { RoleCard } from "@/components/independent/RoleCard";
+import { Pagination } from "@/components/team/ui";
 import { Button, Checkbox, EmptyState, Page, SearchBox } from "@/components/independent/ui";
 import { EXPERIENCE_LEVELS, MarketplaceFilterPanel, SKILL_OPTIONS } from "@/components/portal/filters";
 import { roles } from "@/lib/independent/data";
 
+const PER_PAGE = 8;
+
 const DEFAULT = { trial: true, fullTime: true, levels: new Set(EXPERIENCE_LEVELS), min: "", max: "" };
 const INITIAL_DRAFT = { ...DEFAULT, levels: new Set(EXPERIENCE_LEVELS.slice(1, 3)) };
-
-const Prev = ICONS.chevronLeft;
-const Next = ICONS.chevronRight;
 
 /** Figma "Job Board / Discover roles · browse / · no results": results (gap 16) + 280px filter column, content gap 24. */
 export default function Discover() {
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
   const [draft, setDraft] = useState(INITIAL_DRAFT);
   const [applied, setApplied] = useState(DEFAULT);
 
@@ -31,6 +31,11 @@ export default function Discover() {
     if (applied.max && v > Number(applied.max)) return false;
     return true;
   });
+
+  /** A screenful of role cards; below this the pager disappears. */
+  const pages = Math.max(1, Math.ceil(results.length / PER_PAGE));
+  const current = Math.min(page, pages);
+  const shown = results.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
   const reset = () => {
     setDraft(DEFAULT);
@@ -50,7 +55,8 @@ export default function Discover() {
       <div className="flex items-start gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <SearchBox value={q} onChange={setQ} placeholder="Search by title, company or skill" />
-          <p className="text-[14px] leading-[1.4] text-ink-2">{results.length ? `${results.length + 37} open roles` : "0 roles match"}</p>
+          {/* The real count. It used to add a flat 37 to whatever was on screen. */}
+          <p className="text-[14px] leading-[1.4] text-ink-2">{results.length === 1 ? "1 open role" : `${results.length} open roles`}</p>
           {results.length === 0 ? (
             <EmptyState
               title="No roles match these filters"
@@ -60,28 +66,14 @@ export default function Discover() {
           ) : (
             <>
               <div className="flex flex-col gap-3">
-                {results.map((r) => (
+                {shown.map((r) => (
                   <RoleCard key={r.slug} role={r} />
                 ))}
               </div>
-              <nav aria-label="Pagination" className="flex items-center justify-center gap-2 text-[14px] leading-[1.4] font-medium text-ink">
-                <button type="button" className="flex items-center gap-1 font-normal text-ink-2">
-                  <Prev size={18} aria-hidden /> Previous
-                </button>
-                {["1", "2", "3", "…", "9"].map((p, i) => (
-                  <button
-                    key={p}
-                    type="button"
-                    aria-current={i === 0 ? "page" : undefined}
-                    className={`rounded-md px-2.5 py-1.5 ${i === 0 ? "bg-primary text-white" : "hover:bg-surface-alt"}`}
-                  >
-                    {p}
-                  </button>
-                ))}
-                <button type="button" className="flex items-center gap-1 font-normal text-ink-2">
-                  Next <Next size={18} aria-hidden />
-                </button>
-              </nav>
+              {/* The real control: page numbers come from the result count, and it hides itself
+                  when everything fits. This was a hardcoded "1 2 3 … 9" over five roles, with
+                  buttons that did nothing and every result rendered above it regardless. */}
+              <Pagination page={current} pages={pages} onChange={setPage} />
             </>
           )}
         </div>

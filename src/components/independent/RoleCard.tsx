@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "./ui";
+import { MATCH_TOOLTIP, matchFor } from "@/lib/independent/data";
 import type { Role } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
@@ -11,7 +12,7 @@ const Bookmarked = ICONS.bookmark;
 
 /** Figma "Role card": p 20, gap 12, 1px #c3c3c3 — Discover (Save + View role) and Saved roles (Remove + Apply) variants. */
 export function RoleCard({ role, variant = "discover" }: { role: Role; variant?: "discover" | "saved" }) {
-  const { saved, toggleSaved } = useDemo();
+  const { saved, toggleSaved, workStyle } = useDemo();
   const isSaved = saved.includes(role.slug);
   const meta =
     variant === "saved"
@@ -29,7 +30,9 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
               {role.title}
             </Link>
             <JobBadge type={role.type} />
-            <MatchPill pct={role.match} />
+            {/* IN-012 — colour coded by band with the tooltip that explains the score. It was the
+                plain gradient, which looked identical at 88% and 58%. */}
+            <MatchPill pct={matchFor(role, workStyle)} coded title={MATCH_TOOLTIP} />
           </div>
           <p className="text-[14px] leading-[1.4] text-ink-2">
             {role.company} · {role.location}

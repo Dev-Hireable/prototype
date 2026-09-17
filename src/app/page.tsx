@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -68,7 +69,7 @@ export default function PortalSelection() {
           </div>
         </fieldset>
 
-        {/* ponytail: only Admin is built; the other two portals stay disabled until their screens exist */}
+        {/* Straight into a portal for the demo; the front door with accounts behind it is /login. */}
         <button
           type="button"
           disabled={!target}
@@ -78,6 +79,14 @@ export default function PortalSelection() {
         >
           Continue
         </button>
+
+        <p className="mt-6 text-sm text-ink-2">
+          Or{" "}
+          <Link href="/login" className="font-semibold text-ink underline underline-offset-4 hover:text-black">
+            sign in with an account
+          </Link>{" "}
+          to land on the matching dashboard.
+        </p>
       </div>
     </main>
   );

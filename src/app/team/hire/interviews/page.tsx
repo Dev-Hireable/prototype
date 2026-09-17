@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { Button, Checkbox, Field, Input, Modal, Page, Pills, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { Person, Row, Table } from "@/components/team/ui";
-import { byName, interviews as seed } from "@/lib/team/data";
+import { byName } from "@/lib/team/data";
+import { useDemo } from "@/lib/team/store";
 import type { Interview } from "@/lib/team/data";
 
 /** Figma columns: Candidate flex · Role 165 · Date and time 205 · Format 90 · Status 135 · Actions 210. */
@@ -13,7 +14,8 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 /** Figma "Interviews / Scheduled list · Reschedule interview · modal · Cancel interview · confirm · Interview availability · setup". */
 export default function Interviews() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
-  const [items, setItems] = useState(seed);
+  /* From the store, so an interview scheduled from a candidate profile appears here. */
+  const { interviews: items, setInterview } = useDemo();
   const [rescheduling, setRescheduling] = useState<Interview | null>(null);
   const [cancelling, setCancelling] = useState<Interview | null>(null);
   const [availability, setAvailability] = useState(false);
@@ -84,7 +86,7 @@ export default function Interviews() {
             <Button size="lg" onClick={() => setRescheduling(null)}>
               Cancel
             </Button>
-            <Button size="lg" variant="primary" onClick={() => { setItems((all) => all.map((i) => (i.id === rescheduling?.id ? { ...i, when: "Thu 17 Sep 2026, 2:00 PM PHT", status: { label: "Awaiting reply", tone: "neutral" } } : i))); setRescheduling(null); setToast("New time sent"); }}>
+            <Button size="lg" variant="primary" onClick={() => { if (rescheduling) setInterview(rescheduling.id, { when: "Thu 17 Sep 2026, 2:00 PM PHT", status: { label: "Awaiting reply", tone: "neutral" } }); setRescheduling(null); setToast("New time sent"); }}>
               Send new time
             </Button>
           </>
@@ -110,7 +112,7 @@ export default function Interviews() {
             <Button size="lg" onClick={() => setCancelling(null)}>
               Keep it
             </Button>
-            <Button size="lg" variant="danger" onClick={() => { setItems((all) => all.map((i) => (i.id === cancelling?.id ? { ...i, status: { label: "Cancelled", tone: "danger" }, past: true } : i))); setCancelling(null); setToast("Interview cancelled"); }}>
+            <Button size="lg" variant="danger" onClick={() => { if (cancelling) setInterview(cancelling.id, { status: { label: "Cancelled", tone: "danger" }, past: true }); setCancelling(null); setToast("Interview cancelled"); }}>
               Cancel interview
             </Button>
           </>

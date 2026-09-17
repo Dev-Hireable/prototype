@@ -82,7 +82,7 @@ export const SECTIONS: Section[] = [
     hidden: true,
     menu: [
       { href: "/admin/profile", label: "My profile", icon: "account" },
-      { href: "/", label: "Log out", icon: "logout", action: "logout" },
+      { href: "/login", label: "Log out", icon: "logout", action: "logout" },
     ],
   },
 ];

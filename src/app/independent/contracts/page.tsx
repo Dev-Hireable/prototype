@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { EmptyState, Initials, JobBadge, LinkButton, Page, Progress, SearchBox, Select, StatusDot } from "@/components/independent/ui";
-import { contracts } from "@/lib/independent/data";
+import { useDemo } from "@/lib/independent/store";
 
 /** Figma "Contracts / All contracts · list / · empty": toolbar (search 360, status 170, type 150) + 2-column cards p 20 / gap 12. */
 export default function Contracts() {
+  const { contracts } = useDemo();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("Status: All");
   const [type, setType] = useState("Type: All");
@@ -29,7 +30,7 @@ export default function Contracts() {
           />
           <Select options={["Type: All", "Type: Trial", "Type: Full-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[150px]" />
         </div>
-        <span className="text-[14px] leading-[1.4] text-ink-2">{list.length} contracts</span>
+        <span className="text-[14px] leading-[1.4] text-ink-2">{list.length === 1 ? "1 contract" : `${list.length} contracts`}</span>
       </div>
       {list.length === 0 ? (
         <EmptyState title="No contracts yet" body="When you accept an offer, the contract and its trial tracker appear here." />

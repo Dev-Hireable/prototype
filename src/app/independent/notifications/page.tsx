@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Page } from "@/components/independent/ui";
+import { resetDemo } from "@/lib/demo/live";
 import { useDemo } from "@/lib/independent/store";
 
 type Filter = "all" | "unread" | "contracts" | "offers" | "payments";
@@ -41,6 +42,9 @@ export default function Notifications() {
         <Button size="sm" onClick={() => markRead()} disabled={!notifications.some((n) => n.unread)}>
           Mark all as read
         </Button>
+        <button type="button" onClick={resetDemo} className="ml-auto text-[12.5px] leading-[1.45] font-medium text-muted underline underline-offset-2">
+          Reset demo
+        </button>
       </div>
       <div className="overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-line">
         {groups.map((g) => {

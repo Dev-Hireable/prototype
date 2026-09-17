@@ -1,32 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Initials, Page, SearchBox, StatusDot } from "@/components/independent/ui";
-import { conversations, thread as seed } from "@/lib/independent/data";
+import { CallDialog } from "@/components/portal/CallDialog";
+import { Highlight, Initials, Page, SearchBox, StatusDot } from "@/components/independent/ui";
+import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, sendChat, sendFile, startCall, unreadChat, useLive } from "@/lib/demo/live";
+import { conversations } from "@/lib/independent/data";
 
 const DoneAll = ICONS.doneAll;
 const Call = ICONS.call;
 const Video = ICONS.video;
 const Attach = ICONS.attach;
+const Pdf = ICONS.pdf;
+const Download = ICONS.download;
 
 /**
- * Figma "Home / Messages": one #e3e8ed-stroked panel; 384px conversation list (search 44, 12.5px tabs, rows p 12 / gap 12)
- * and the thread (head px 18 / py 12, body p 20 / gap 12, 420px bubbles, composer px 18 / py 14).
+ * Figma "Home / Messages": one #e3e8ed-stroked panel; 384px conversation list (search 44, 12.5px tabs,
+ * rows p 12 / gap 12) and the thread (head px 18 / py 12, body p 20 / gap 12, 420px bubbles, composer
+ * px 18 / py 14). The thread is the shared one from @/lib/demo/live, so sending here lands in the Team
+ * Builder portal (IN-006 send, IN-007 receive, IN-008 unread).
  */
 export default function Messages() {
+  const live = useLive();
   const [tab, setTab] = useState<"conversations" | "applications">("conversations");
   const [q, setQ] = useState("");
   const [active, setActive] = useState(conversations[0].id);
-  const [thread, setThread] = useState(seed);
   const [draft, setDraft] = useState("");
+  const [pending, setPending] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [callLink, setCallLink] = useState<string | null>(null);
+  const [inCall, setInCall] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const conv = conversations.find((c) => c.id === active)!;
-  const list = conversations.filter((c) => (c.name + c.sub).toLowerCase().includes(q.toLowerCase()));
+  const unread = unreadChat(live, "independent");
+  const last = live.chat[live.chat.length - 1];
+
+  // IN-008: the count clears when the conversation is opened.
+  useEffect(() => {
+    openChat("independent");
+  }, [live.chat.length]);
+
+  // IN-009: match the Team Builder name AND the message content.
+  const hay = (c: (typeof conversations)[number]) => [c.name, c.sub, ...live.chat.map((m) => m.text ?? m.file?.name ?? "")].join(" ").toLowerCase();
+  const list = conversations.filter((c) => hay(c).includes(q.trim().toLowerCase()));
 
   const send = () => {
-    if (!draft.trim()) return;
-    setThread((t) => [...t, { me: true, text: draft.trim(), time: "Now" }]);
+    // IN-010: an attachment queued in the composer goes with this send.
+    if (pending) {
+      sendFile("independent", pending);
+      setPending(null);
+    }
+    sendChat("independent", draft); // IN-006: empty message cannot be sent
     setDraft("");
+  };
+
+  /** IN-010 — validate type and size, then hold the file for preview before sending. */
+  const pick = (file: File | undefined) => {
+    if (!file) return;
+    const problem = checkFile(file);
+    setFileError(problem);
+    setPending(problem ? null : file);
   };
 
   return (
@@ -50,6 +83,9 @@ export default function Messages() {
               </button>
             ))}
           </div>
+          {list.length === 0 && (
+            <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">No conversations match “{q.trim()}”. Clear the search to see everyone.</p>
+          )}
           <ul className="flex flex-col gap-0.5 px-2 pt-2">
             {list.map((c) => {
               const on = c.id === active;
@@ -64,15 +100,15 @@ export default function Messages() {
                     <Initials text={c.initials} className="size-[38px] rounded-full text-[12px]" />
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span className="flex items-start gap-2">
-                        <span className={`min-w-0 flex-1 text-[13px] font-semibold ${on ? "text-accent-ink" : "text-ink-deep"}`}>{c.name}</span>
-                        <span className={`text-[11px] ${on ? "text-[#6b7480]" : "text-muted"}`}>{c.time}</span>
+                        <span className={`min-w-0 flex-1 text-[13px] font-semibold ${on ? "text-accent-ink" : "text-ink-deep"}`}><Highlight text={c.name} query={q} /></span>
+                        <span className={`text-[11px] ${on ? "text-[#6b7480]" : "text-muted"}`}>{last?.time}</span>
                       </span>
                       <span className={`text-[11px] ${on ? "text-[#5b6b7a]" : "text-muted"}`}>{c.sub}</span>
                       <span className="flex items-center gap-[5px]">
                         <DoneAll size={16} aria-hidden className={on ? "text-primary" : "text-muted"} />
-                        <span className={`min-w-0 flex-1 truncate text-[12px] ${on ? "text-[#3d4a57]" : "text-muted"}`}>{c.preview}</span>
-                        {c.unread > 0 && (
-                          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white">{c.unread}</span>
+                        <span className={`min-w-0 flex-1 truncate text-[12px] ${on ? "text-[#3d4a57]" : "text-muted"}`}><Highlight text={last?.text ?? last?.file?.name ?? ""} query={q} /></span>
+                        {unread > 0 && (
+                          <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>
                         )}
                       </span>
                     </span>
@@ -92,13 +128,26 @@ export default function Messages() {
               <p className="text-[11.5px] text-muted">{conv.sub}</p>
             </div>
             <StatusDot tone="trial">TRIAL · Day 18 of 30</StatusDot>
-            <button type="button" aria-label="Call" className="flex size-9 items-center justify-center rounded-lg border border-border text-ink">
+            {/* IN-011: starts a call session and notifies the other party. */}
+            <button type="button" aria-label="Start call" onClick={() => { setCallLink(startCall("independent")); setInCall(true); }} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
               <Call size={20} aria-hidden />
             </button>
-            <button type="button" aria-label="Video call" className="flex size-9 items-center justify-center rounded-lg border border-border text-ink">
+            <button type="button" aria-label="Start video call" onClick={() => { setCallLink(startCall("independent")); setInCall(true); }} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
               <Video size={20} aria-hidden />
             </button>
           </header>
+          {callLink && (
+            <p className="flex items-center gap-2 border-b border-line bg-[#f0f7ff] px-[18px] py-2.5 text-[12.5px] leading-[1.45] text-ink-deep">
+              Call started — {conv.name} has been notified.
+              {/* IN-011 / TB-011 — opens the in-call surface with mute, camera and end call. */}
+              <button type="button" onClick={() => setInCall(true)} className="font-semibold text-primary underline underline-offset-2">
+                Join call
+              </button>
+              <button type="button" onClick={() => setCallLink(null)} className="ml-auto text-muted hover:text-ink">
+                Dismiss
+              </button>
+            </p>
+          )}
 
           <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
             <p className="flex items-center justify-center gap-2 text-[10.5px] leading-[1.45] text-muted">
@@ -106,48 +155,102 @@ export default function Messages() {
               <span className="h-3 w-px bg-line" />
               10:02 AM
             </p>
-            {thread.map((m, i) => (
-              <div key={i} className={`flex items-end gap-2 ${m.me ? "justify-end" : ""}`}>
-                {!m.me && <Initials text={conv.initials} className="size-[30px] rounded-full text-[10px]" />}
-                <div
-                  className={`flex w-[420px] flex-col gap-1 px-3.5 py-2.5 text-[13px] leading-[1.45] ${
-                    m.me
-                      ? "rounded-tl-xl rounded-tr-xl rounded-br rounded-bl-xl bg-primary text-white"
-                      : "rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white text-ink-deep outline -outline-offset-1 outline-line"
-                  }`}
-                >
-                  {m.text}
-                  <p className={`flex items-center gap-1 text-[10.5px] ${m.me ? "text-[#d9e8ff]" : "text-muted"}`}>
-                    {m.me && <DoneAll size={16} aria-hidden />}
-                    {m.time}
-                  </p>
+            {live.chat.map((m) => {
+              const me = m.from === "independent";
+              return (
+                <div key={m.id} className={`flex items-end gap-2 ${me ? "justify-end" : ""}`}>
+                  {!me && <Initials text={conv.initials} className="size-[30px] rounded-full text-[10px]" />}
+                  {m.call ? (
+                    <div className="flex w-[420px] items-center gap-3 rounded-xl bg-white px-3.5 py-2.5 outline -outline-offset-1 outline-line">
+                      <span className="flex size-9 items-center justify-center rounded-lg bg-[#eef6ff] text-primary">
+                        <Call size={20} aria-hidden />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col leading-[1.45]">
+                        <span className="text-[13px] font-semibold text-ink-deep">{me ? "You started a call" : `${conv.name} started a call`}</span>
+                        <span className="truncate text-[10.5px] text-muted">{m.call.link}</span>
+                      </span>
+                      <button type="button" onClick={() => { setCallLink(m.call!.link); setInCall(true); }} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[12px] leading-none font-semibold text-white">
+                        Join
+                      </button>
+                    </div>
+                  ) : m.file ? (
+                    <div className="flex w-[420px] items-center gap-3 rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white px-3.5 py-2.5 outline -outline-offset-1 outline-line">
+                      <span className="flex size-9 items-center justify-center rounded-lg bg-[#fdf2f2] text-danger">
+                        <Pdf size={20} aria-hidden />
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col leading-[1.45]">
+                        <span className="truncate text-[13px] font-semibold text-ink-deep">{m.file.name}</span>
+                        <span className="text-[10.5px] text-muted">{m.file.meta}</span>
+                      </span>
+                      {/* IN-010: the recipient downloads the attachment straight from the thread. */}
+                      <a
+                        href={fileUrl(m.id) ?? undefined}
+                        download={m.file.name}
+                        aria-label={`Download ${m.file.name}`}
+                        aria-disabled={fileUrl(m.id) ? undefined : "true"}
+                        className={`flex size-8 items-center justify-center rounded-full border border-border ${fileUrl(m.id) ? "text-ink hover:bg-surface-alt" : "pointer-events-none text-ink-2 opacity-50"}`}
+                      >
+                        <Download size={18} aria-hidden />
+                      </a>
+                    </div>
+                  ) : (
+                    <div
+                      className={`flex w-[420px] flex-col gap-1 px-3.5 py-2.5 text-[13px] leading-[1.45] ${
+                        me
+                          ? "rounded-tl-xl rounded-tr-xl rounded-br rounded-bl-xl bg-primary text-white"
+                          : "rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white text-ink-deep outline -outline-offset-1 outline-line"
+                      }`}
+                    >
+                      <Highlight text={m.text ?? ""} query={q} />
+                      <p className={`flex items-center gap-1 text-[10.5px] ${me ? "text-[#d9e8ff]" : "text-muted"}`}>
+                        {me && <DoneAll size={16} aria-hidden />}
+                        {m.time}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <form
-            className="flex items-center gap-2.5 border-t border-line px-[18px] py-3.5"
+            className="flex flex-col gap-2 border-t border-line px-[18px] py-3.5"
             onSubmit={(e) => {
               e.preventDefault();
               send();
             }}
           >
-            <button type="button" aria-label="Attach file" className="flex size-11 items-center justify-center rounded-full border border-border text-ink">
-              <Attach size={20} aria-hidden />
-            </button>
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Send a message…"
-              className="h-11 min-w-0 flex-1 rounded-lg border border-border px-4 text-[14px] tracking-[0.2px] outline-none placeholder:text-ink-2 focus:border-primary"
-            />
-            <button type="submit" aria-label="Send" className="flex size-9 items-center justify-center rounded-full bg-primary text-[16px] leading-[1.45] font-semibold text-white">
-              ↑
-            </button>
+            {/* IN-010: the attachment is previewed here before it is sent. */}
+            {pending && (
+              <div className="flex items-center gap-2.5 self-start rounded-lg bg-surface-alt px-3 py-2 text-[12px] leading-[1.45]">
+                <Pdf size={16} aria-hidden className="text-danger" />
+                <span className="font-semibold text-ink-deep">{pending.name}</span>
+                <span className="text-muted">{fileMeta(pending)}</span>
+                <button type="button" aria-label="Remove attachment" onClick={() => setPending(null)} className="text-muted hover:text-ink">
+                  ✕
+                </button>
+              </div>
+            )}
+            {fileError && <p className="self-start text-[12px] leading-[1.45] text-danger">{fileError}</p>}
+            <div className="flex items-center gap-2.5">
+              <input ref={fileInput} type="file" accept={ACCEPTED_FILES} className="hidden" onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ""; }} />
+              <button type="button" aria-label="Attach file" onClick={() => fileInput.current?.click()} className="flex size-11 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
+                <Attach size={20} aria-hidden />
+              </button>
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Send a message…"
+                className="h-11 min-w-0 flex-1 rounded-lg border border-border px-4 text-[14px] tracking-[0.2px] outline-none placeholder:text-ink-2 focus:border-primary"
+              />
+              <button type="submit" aria-label="Send" disabled={!draft.trim() && !pending} className="flex size-9 items-center justify-center rounded-full bg-primary text-[16px] leading-[1.45] font-semibold text-white disabled:bg-ink-2">
+                ↑
+              </button>
+            </div>
           </form>
         </section>
       </div>
+      <CallDialog open={inCall} link={callLink} withWhom={conv.name} onEnd={() => setInCall(false)} />
     </Page>
   );
 }

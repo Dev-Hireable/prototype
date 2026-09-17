@@ -31,14 +31,14 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   const offerUpdated = app.status?.label === "Offer updated";
 
   const accept = () => {
-    setStage(app.id, "invite_accepted", { label: "Incoming interview", tone: "info", meta: "Jan 06 · 6:00AM" });
+    // IN-070 names this status "Interview confirmed".
+    setStage(app.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: "Jan 06 · 6:00AM" });
     setToast("Invitation accepted");
   };
 
   return (
-    <Page title="My Applications" heading="default">
+    <Page title="My Applications" heading="default" nav={<BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>}>
       <div className="flex flex-col gap-10 pb-14">
-        <BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>
         <div className="flex items-start justify-center gap-6">
           <div className="flex w-[576px] flex-col gap-4">
             <Card className="flex h-[223px] flex-col gap-4 p-4">
@@ -90,14 +90,8 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                       </Button>
                     </>
                   ) : (
-                    <>
-                      <Button size="lg" disabled>
-                        Accepted
-                      </Button>
-                      <Button size="lg" disabled>
-                        Decline
-                      </Button>
-                    </>
+                    // IN-070: hidden once the status moves past Awaiting Confirmation.
+                    <p className="rounded-lg bg-surface-2 px-4 py-3 text-[13px] leading-[1.45] text-ink-2">Interview confirmed. The meeting link is below.</p>
                   )}
                 </div>
                 <dl className="flex flex-col gap-3 text-[14px] leading-[1.2] tracking-[0.2px]">
@@ -109,11 +103,32 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                     <dt className="font-semibold text-ink">Time:</dt>
                     <dd className="text-ink">{job.interview.time}</dd>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <dt className="font-semibold text-ink">Meeting link</dt>
-                    <dd className="truncate rounded-lg bg-surface-2 px-4 py-3 text-ink-2">{job.interview.link}</dd>
-                  </div>
+                  {/* IN-070 — the link only appears once the invitation has been accepted. */}
+                  {app.stage === "invite_accepted" ? (
+                    <div className="flex flex-col gap-2">
+                      <dt className="font-semibold text-ink">Meeting link</dt>
+                      <dd className="truncate rounded-lg bg-surface-2 px-4 py-3 text-ink-2">{job.interview.link}</dd>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <dt className="font-semibold text-ink">Meeting link</dt>
+                      <dd className="rounded-lg bg-surface-2 px-4 py-3 text-ink-2">Shared once you accept the invitation.</dd>
+                    </div>
+                  )}
                 </dl>
+                {/* IN-071 — only on a confirmed interview, and it opens the meeting itself. */}
+                {app.stage === "invite_accepted" && (
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    onClick={() => {
+                      if (!job.interview.link) return setToast("No meeting link yet — ask the Team Builder to share one.");
+                      window.open(job.interview.link, "_blank", "noopener");
+                    }}
+                  >
+                    Join call
+                  </Button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

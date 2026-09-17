@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { Button, Card, Checkbox, InfoBanner, Modal, ObjectiveRow, Page } from "@/components/independent/ui";
+import { Button, Card, Checkbox, Field, InfoBanner, Modal, ObjectiveRow, Page, Textarea } from "@/components/independent/ui";
 import { AGREEMENT, ME, marketingSpecialist as job } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
@@ -24,6 +24,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
   const [accepted, setAccepted] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [declined, setDeclined] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
   const o = job.offer;
   const rate = updated ? o.updatedRate : o.rate;
   const total = updated ? o.updatedTotal : o.total;
@@ -154,7 +155,10 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
             size="lg"
             variant="primary"
             onClick={() => {
-              setStage(app.id, "offer_accepted", { label: "Offer accepted", tone: "ok" });
+              // IN-074 — accepting moves the card into Hired as "Waiting to start", which is also
+              // the stage the store notifies the Team Builder on. It used to sit in Offers as
+              // "Offer accepted", so the Team Builder heard nothing.
+              setStage(app.id, "hired", { label: "Waiting to start", tone: "ok" });
               router.push("/independent/contracts/sales-manager");
             }}
           >
@@ -167,7 +171,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
         onClose={() => setDeclining(false)}
         tone="danger"
         title="Decline this offer?"
-        description="Are you sure you want to decline this offer? The team builder will be notified and this action cannot be undone."
+        description={`${job.builder.contact} is told you have declined. The offer stays in My Applications so you can look back at the terms, but you cannot accept it afterwards.`}
         footer={
           <>
             <Button size="lg" onClick={() => setDeclining(false)}>
@@ -179,14 +183,20 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
               onClick={() => {
                 setDeclining(false);
                 setDeclined(true);
-                setStage(app.id, "offer_received", { label: "Offer declined", tone: "danger" });
+                // IN-075 — the stage doesn't move, so the notification has to be named outright.
+                setStage(app.id, "offer_received", { label: "Declined", tone: "danger", meta: declineReason.trim() || undefined }, "offer_declined");
               }}
             >
               Decline
             </Button>
           </>
         }
-      />
+      >
+        {/* IN-075 — a reason is optional; declining without one is fine. */}
+        <Field label="Reason (optional)">
+          <Textarea rows={3} value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} placeholder="Anything you want the Team Builder to know — rate, timing, or scope." />
+        </Field>
+      </Modal>
     </Page>
   );
 }

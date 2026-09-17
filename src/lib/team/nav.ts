@@ -60,6 +60,7 @@ export const SECTIONS: Section[] = [
       { href: "/team/settings", label: "Account", icon: "account" },
       { href: "/team/settings/security", label: "Security", icon: "security" },
       { href: "/team/settings/payment", label: "Payment method", icon: "card" },
+      { href: "/team/settings/subscription", label: "Subscription", icon: "billing" },
       { href: "/team/settings/notifications", label: "Notifications", icon: "bell" },
     ],
   },
@@ -79,6 +80,8 @@ export const SECTIONS: Section[] = [
     menu: [
       { href: "/team/profile", label: "Personal profile", icon: "person" },
       { href: "/team/profile/company", label: "Company profile", icon: "business" },
+      // OB-001 — the session ends here, the same way it does in the other two portals.
+      { href: "/login", label: "Log out", icon: "logout", action: "logout" },
     ],
   },
 ];

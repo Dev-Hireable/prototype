@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
-import { MdChevronLeft } from "react-icons/md";
-import { Button, Field, Modal, Page, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { BackLink, Button, Field, Modal, Page, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { IntroCard, ProfileColumn } from "@/components/team/ui";
 import { independents } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
@@ -21,11 +19,8 @@ export default function IndependentProfile({ params }: { params: Promise<{ slug:
   const isSaved = saved.includes(person.slug);
 
   return (
-    <Page title="Discover independents">
+    <Page title="Discover independents" nav={<BackLink href="/team/discover">Back to independents</BackLink>}>
       <div className="flex flex-col gap-10 pb-14">
-        <Link href="/team/discover" className="flex h-5 items-center gap-1 self-start text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
-          <MdChevronLeft size={16} aria-hidden /> Back to independents
-        </Link>
         <div className="flex items-start justify-center gap-6">
           <div className="flex w-[384px] shrink-0 flex-col gap-4">
             <IntroCard person={person} onPlay={() => setToast("Intro video plays here")} />

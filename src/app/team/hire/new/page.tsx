@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { MdAdd, MdAttachMoney, MdBorderColor, MdOutlineCalendarToday, MdRemove } from "react-icons/md";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Page, Select, Steps, Textarea } from "@/components/independent/ui";
@@ -14,12 +14,19 @@ const Back = ICONS.chevronLeft;
 const LEVELS = ["Select experience level", "Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
 const CHIP_TONES = ["text-ok", "text-primary", "text-[#e91e63]"];
 
+/** TB-024 "Exclusive Benefits" — optional, full-time only, each with its own monthly amount. */
+const BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"] as const;
+const BENEFITS_DISCLAIMER =
+  "Exclusive benefits apply to full-time hired freelancers only. These benefits are reimbursable, proof of payment (receipts) must be submitted to receive reimbursement.";
+
 /** Copy per path — Figma "Path A · Test Independents (trial)" and "Path B · Build Team (full-time)". */
 const PATH = {
   trial: {
     title: "Create a Trial",
     intro: "See how you work together with a paid trial before committing full-time. Fund escrow after they accept, before the trial starts.",
     steps: ["Role Details", "Trial Expectations", "Budget & Duration", "Review", "Publish"],
+    /** Which card each step slot renders — the two paths don't share an order (TB-024 / TB-025). */
+    sequence: ["details", "expectations", "budget", "review", "published"],
     next: ["Next: Trial Expectations", "Add budget & duration", "Review job post"],
     descPlaceholder: "What will they be doing during this trial?",
     note: "Trial expectations are only shared with Independents you invite or match with, they won't appear on your public role listing",
@@ -40,10 +47,11 @@ const PATH = {
     publishedBody: "Your job is now live. Next, review applicants and invite the best matches to a work trial.",
   },
   "full-time": {
-    title: "Build a Team",
-    intro: "Hire for a long-term role with defined responsibilities and room for growth. The contract starts once they accept your offer.",
-    steps: ["Role Details", "Responsibilities", "Salary & Start", "Review", "Publish"],
-    next: ["Next: Responsibilities", "Add salary & start date", "Review role"],
+    title: "Build Team",
+    intro: "Hire for a long-term role with defined responsibilities, strong collaboration, and room for growth.",
+    steps: ["Job Details", "Budget", "Exclusive Benefits", "Review", "Published"],
+    sequence: ["details", "budget", "benefits", "review", "published"],
+    next: ["Add budget", "Add benefits", "Review job post"],
     descPlaceholder: "What will they be doing in this role?",
     note: "Responsibilities appear on your public role listing so candidates know what the job involves.",
     h2: "What will this person own in the role?",
@@ -64,6 +72,25 @@ const PATH = {
   },
 } as const;
 
+/** Whether a saved draft has enough to publish — the same bar the Next buttons enforce. */
+export function draftReady(r: Role) {
+  const hasBudget = /[1-9]/.test(r.budget);
+  const base = r.title.trim().length > 1 && r.description.trim().length > 0 && r.skills.length > 0 && r.experience !== "Any level" && hasBudget;
+  return r.type === "trial" ? base && r.expectation.trim().length > 0 : base;
+}
+
+/** First step slot whose required fields aren't filled yet — "where they left off" (TB-035). */
+function resumeStep(r: Role, sequence: readonly string[]) {
+  const done: Record<string, boolean> = {
+    details: r.title.trim().length > 1 && r.description.trim().length > 0 && r.skills.length > 0 && r.experience !== "Any level",
+    expectations: r.expectation.trim().length > 0,
+    budget: /[1-9]/.test(r.budget),
+    benefits: true,
+  };
+  const at = sequence.findIndex((k) => done[k] === false);
+  return at === -1 ? sequence.indexOf("review") : at;
+}
+
 export default function CreateRoleWizardPage() {
   return (
     <Suspense>
@@ -75,9 +102,13 @@ export default function CreateRoleWizardPage() {
 /** Figma "Hire / Create job post · job details → trial expectations → budget and duration → review → published" and the "Build team" twin. */
 function CreateRoleWizard() {
   const router = useRouter();
-  const type = useSearchParams().get("type") === "full-time" ? "full-time" : "trial";
+  const search = useSearchParams();
+  const editSlug = search.get("edit");
+  const { addRole, roles } = useDemo();
+  const editing = editSlug ? roles.find((r) => r.slug === editSlug) : undefined;
+  // An edited draft carries its own type; the query param only matters for a brand new post.
+  const type = (editing?.type ?? (search.get("type") === "full-time" ? "full-time" : "trial")) as "trial" | "full-time";
   const t = PATH[type];
-  const { addRole } = useDemo();
   const [step, setStep] = useState(0);
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -90,9 +121,49 @@ function CreateRoleWizard() {
   const [min, setMin] = useState("");
   const [max, setMax] = useState("");
   const [chip, setChip] = useState(0);
-  const slug = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "new-role";
-  const can = [title.trim().length > 1, expectation.trim().length > 0, min.length > 0 && max.length > 0][step] ?? true;
+  /** Benefit label → monthly amount; absent means the checkbox is off. */
+  const [benefits, setBenefits] = useState<Record<string, string>>({});
+  /** Keep the draft's slug when editing, so publishing replaces it instead of leaving it behind. */
+  const slug = editing?.slug ?? (title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "new-role");
+
+  /**
+   * TB-035 — open a draft with everything it already had. Drafts persist in localStorage, which
+   * hydrates after mount, so this fills in when the role turns up rather than at first render.
+   * A duplicated draft lands straight on Review (every field is already populated); one built
+   * from scratch resumes at the first step still missing something.
+   */
+  const [prefilled, setPrefilled] = useState(false);
+  // oxlint-disable-next-line react/set-state-in-effect
+  useEffect(() => {
+    if (!editing || prefilled) return;
+    setPrefilled(true);
+    setTitle(editing.title);
+    setDesc(editing.description);
+    setLevel(LEVELS.includes(editing.experience) ? editing.experience : LEVELS[0]);
+    setSkills(editing.skills);
+    setExpectation(editing.expectation);
+    setAttachment(editing.attachment);
+    // "$1,500.00 - $3,500.00 /mo" → 1500 / 3500. Split on the dash first, then take the whole
+    // part of each side; stripping punctuation up front turned "1,500.00" into "1 500 00".
+    const [lo, hi] = editing.budget.split(/[–-]/);
+    const whole = (s?: string) => (s?.match(/[\d,]+/)?.[0] ?? "").replace(/,/g, "");
+    setMin(whole(lo));
+    setMax(whole(hi));
+    setBenefits(Object.fromEntries((editing.benefits ?? []).map((b) => [b.label, b.amount])));
+    const reviewStep = t.sequence.indexOf("review");
+    setStep(editing.duplicatedFrom ? reviewStep : resumeStep(editing, t.sequence));
+  }, [editing, prefilled, t.sequence]);
+  /**
+   * TB-024 / TB-025 — Next stays disabled until every required field on the step is filled.
+   * Step 1 asks for role, description, at least one skill, an experience level and a headcount,
+   * not just the title.
+   */
+  const detailsDone = title.trim().length > 1 && desc.trim().length > 0 && skills.length > 0 && level !== LEVELS[0] && hires >= 1;
   const money = `$${min || "0"} – $${max || "0"} /month`;
+  /** Which card this slot shows — the two paths order their steps differently. */
+  const kind = t.sequence[step];
+  // Keyed off the card, not the slot index: budget is step 2 on one path and step 3 on the other.
+  const can = kind === "details" ? detailsDone : kind === "expectations" ? expectation.trim().length > 0 : kind === "budget" ? min.length > 0 && max.length > 0 : true;
 
   const addSkill = () => {
     const s = skill.trim();
@@ -119,13 +190,14 @@ function CreateRoleWizard() {
       skills,
       expectation,
       attachment,
+      benefits: Object.entries(benefits).map(([label, amount]) => ({ label, amount: amount || "0" })),
     };
     addRole(r);
     setStep(4);
   };
   const back = () => (step === 0 ? router.push("/team/hire") : setStep(step - 1));
 
-  if (step === 4)
+  if (kind === "published")
     return (
       <Page title="Create Role" padded={false}>
         <div className="flex h-full flex-col items-center justify-center gap-6 px-10 py-20">
@@ -159,21 +231,21 @@ function CreateRoleWizard() {
           </button>
         </div>
         <div className="flex w-[720px] flex-col gap-2 tracking-[0.2px]">
-          {step === 3 ? (
+          {kind === "review" ? (
             <h2 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{t.reviewTitle}</h2>
           ) : (
             <h2 className="font-display text-[24px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
               {t.title}
             </h2>
           )}
-          <p className="text-[14px] leading-[1.2] text-ink-2">{step === 3 ? "This is how your role will appear to Independents." : t.intro}</p>
+          <p className="text-[14px] leading-[1.2] text-ink-2">{kind === "review" ? "This is how your role will appear to Independents." : t.intro}</p>
         </div>
         <div className="w-[720px] px-4 py-10">
           <Steps steps={[...t.steps]} current={step} />
         </div>
 
         {/* Step 1 — Role Details */}
-        {step === 0 && (
+        {kind === "details" && (
           <StepCard title="Role Details" body="This is what Independents will see when they receive your offer.">
             <div className="flex flex-col gap-6">
               <Block label="Role">
@@ -210,12 +282,12 @@ function CreateRoleWizard() {
                 </div>
               </div>
             </div>
-            <Cta next={t.next[0]} disabled={!can} onNext={() => setStep(1)} onDraft={() => router.push("/team/hire/roles")} />
+            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
           </StepCard>
         )}
 
         {/* Step 2 — Trial expectations / Responsibilities */}
-        {step === 1 && (
+        {kind === "expectations" && (
           <>
             <div className="w-[720px]">
               <InfoBanner>{t.note}</InfoBanner>
@@ -231,13 +303,13 @@ function CreateRoleWizard() {
                   <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{t.hint2}</span>
                 </label>
               </div>
-              <Cta next={t.next[1]} disabled={!can} onNext={() => setStep(2)} onDraft={() => router.push("/team/hire/roles")} />
+              <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
             </StepCard>
           </>
         )}
 
         {/* Step 3 — Budget & Duration / Salary & Start */}
-        {step === 2 && (
+        {kind === "budget" && (
           <StepCard title={t.h3} body={t.sub3} bodySize={16}>
             <div className="flex flex-col gap-10">
               <div className="flex flex-col gap-4">
@@ -247,7 +319,12 @@ function CreateRoleWizard() {
                   <Money label="Maximum" value={max} onChange={setMax} />
                   <span className="flex h-12 w-[51px] items-center justify-center text-[16px] leading-[1.5] tracking-[0.2px] text-ink">/month</span>
                 </div>
-                <p className="w-[533px] text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{t.hint3}</p>
+                <p className="flex w-[533px] items-center gap-1 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
+                  {t.hint3}
+                  <Link href="/team/hire/roles" className="font-medium text-primary underline underline-offset-2">
+                    See source
+                  </Link>
+                </p>
               </div>
               <div className="flex flex-col gap-6">
                 <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{t.label3}</p>
@@ -260,12 +337,47 @@ function CreateRoleWizard() {
                 </div>
               </div>
             </div>
-            <Cta next={t.next[2]} disabled={!can} onNext={() => setStep(3)} onDraft={() => router.push("/team/hire/roles")} />
+            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
+          </StepCard>
+        )}
+
+        {/* Exclusive Benefits — full-time only, optional, skippable (TB-024) */}
+        {kind === "benefits" && (
+          <StepCard title="Exclusive Benefits" body="Optional. Add what you cover on top of salary — you can skip this and add it later." bodySize={16}>
+            <div className="flex flex-col gap-6">
+              {BENEFITS.map((b) => {
+                const on = b in benefits;
+                return (
+                  <div key={b} className="flex w-[533px] items-center gap-4">
+                    <label className="flex flex-1 items-center gap-3 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        onChange={() =>
+                          setBenefits((prev) => {
+                            const next = { ...prev };
+                            if (on) delete next[b];
+                            else next[b] = "";
+                            return next;
+                          })
+                        }
+                        className="size-5 shrink-0 accent-primary"
+                      />
+                      {b}
+                    </label>
+                    <Money label="" value={benefits[b] ?? ""} onChange={(v) => setBenefits((prev) => ({ ...prev, [b]: v }))} disabled={!on} />
+                    <span className="flex h-12 w-[51px] items-center text-[14px] leading-[1.5] tracking-[0.2px] text-ink-2">/month</span>
+                  </div>
+                );
+              })}
+              <InfoBanner tone="warn">{BENEFITS_DISCLAIMER}</InfoBanner>
+            </div>
+            <Cta next={t.next[step]} disabled={false} onNext={() => setStep(step + 1)} onDraft={() => router.push("/team/hire/roles")} />
           </StepCard>
         )}
 
         {/* Step 4 — Review */}
-        {step === 3 && (
+        {kind === "review" && (
           <div className="flex w-[720px] flex-col gap-6">
             <InfoBanner>{t.reviewNote}</InfoBanner>
             <Card className="flex flex-col gap-10 rounded-2xl p-10">
@@ -301,22 +413,43 @@ function CreateRoleWizard() {
               <Line label="Experience Level:" value={level === LEVELS[0] ? "Any level" : level} onEdit={() => setStep(0)} />
               <Line label="How many to hire:" value={String(hires)} onEdit={() => setStep(0)} />
             </Card>
-            <Card className="flex flex-col gap-10 rounded-2xl p-10">
-              <div className="flex flex-col gap-4">
-                <Line label={t.field2} onEdit={() => setStep(1)} />
-                <p className="min-h-[131px] rounded-lg border border-border px-4 py-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{expectation}</p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments</span>
-                {attachment ? (
-                  <Link href={attachment} target="_blank" className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-primary">
-                    {attachment}
-                  </Link>
+            {/* The two paths carry different extras: a trial has expectations + attachments,
+                a full-time post has its exclusive benefits breakdown (TB-024). */}
+            {type === "trial" ? (
+              <Card className="flex flex-col gap-10 rounded-2xl p-10">
+                <div className="flex flex-col gap-4">
+                  <Line label={t.field2} onEdit={() => setStep(1)} />
+                  <p className="min-h-[131px] rounded-lg border border-border px-4 py-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{expectation}</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments</span>
+                  {attachment ? (
+                    <Link href={attachment} target="_blank" className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-primary">
+                      {attachment}
+                    </Link>
+                  ) : (
+                    <span className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] text-ink-2">None</span>
+                  )}
+                </div>
+              </Card>
+            ) : (
+              <Card className="flex flex-col gap-6 rounded-2xl p-10">
+                <Line label="Exclusive Benefits" onEdit={() => setStep(2)} />
+                {Object.keys(benefits).length === 0 ? (
+                  <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">None added.</p>
                 ) : (
-                  <span className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] text-ink-2">None</span>
+                  <ul className="flex flex-col gap-3">
+                    {Object.entries(benefits).map(([label, amount]) => (
+                      <li key={label} className="flex items-center justify-between gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
+                        <span>{label}</span>
+                        <span className="font-semibold">${amount || "0"} /month</span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </div>
-            </Card>
+                <InfoBanner tone="warn">{BENEFITS_DISCLAIMER}</InfoBanner>
+              </Card>
+            )}
             <div className="flex justify-end gap-3">
               <Button size="lg" className="!px-5" onClick={() => router.push("/team/hire/roles")}>
                 Save as draft
@@ -363,13 +496,13 @@ function Block({ label, helper, children }: { label: string; helper?: [string, s
   );
 }
 
-function Money({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function Money({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
   return (
     <label className="flex flex-1 flex-col gap-2">
-      <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>
+      {label && <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>}
       <span className="relative block">
         <MdAttachMoney size={16} aria-hidden className="pointer-events-none absolute top-3.5 left-4 text-ink" />
-        <Input value={value} onChange={(e) => onChange(e.target.value.replace(/[^0-9,.]/g, ""))} placeholder="0.00" inputMode="decimal" className="!pl-10" />
+        <Input value={value} onChange={(e) => onChange(e.target.value.replace(/[^0-9,.]/g, ""))} placeholder="0.00" inputMode="decimal" disabled={disabled} className="!pl-10" />
       </span>
     </label>
   );

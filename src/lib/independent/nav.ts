@@ -36,7 +36,10 @@ export const SECTIONS: Section[] = [
     label: "Earnings",
     title: "Earnings",
     icon: "wallet",
-    menu: [{ href: "/independent/wallet", label: "Transaction history", icon: "billing" }],
+    menu: [
+      { href: "/independent/wallet", label: "Transaction history", icon: "billing" },
+      { href: "/independent/wallet/disputes", label: "Sent disputes", icon: "disputes" },
+    ],
   },
   {
     href: "/independent/settings",
@@ -65,7 +68,7 @@ export const SECTIONS: Section[] = [
     hidden: true,
     menu: [
       { href: "/independent/profile", label: "My profile", icon: "account" },
-      { href: "/", label: "Log out", icon: "logout", action: "logout" },
+      { href: "/login", label: "Log out", icon: "logout", action: "logout" },
     ],
   },
 ];

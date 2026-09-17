@@ -5,6 +5,7 @@ import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from
 import { createPortal } from "react-dom";
 import { ICONS, type IconName } from "@/components/admin/icons";
 import { PortalContent } from "@/components/portal/layout";
+import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
 import { FORM_CONTROL } from "@/components/portal/styles";
 
@@ -19,6 +20,8 @@ export function Page({
   onClose,
   tabs,
   badge,
+  nav,
+  navActions,
   children,
   padded = true,
   heading = "display",
@@ -27,6 +30,10 @@ export function Page({
   onClose?: () => void;
   tabs?: ReactNode;
   badge?: ReactNode;
+  /** A `Breadcrumb` or `BackLink`. It gets its own row under the header rather than sitting in `children`. */
+  nav?: ReactNode;
+  /** Page-level actions that share the nav row, so they don't cost the page a second row. */
+  navActions?: ReactNode;
   children: ReactNode;
   padded?: boolean;
   /** One header strip for every page: 24 DM Sans by default; "modal" is the 20 Inter close-button variant (offer / edit screens). */
@@ -57,47 +64,45 @@ export function Page({
             </button>
           )}
         </div>
-        {tabs && <div className="pb-1">{tabs}</div>}
+        {/* No bottom padding: the active tab's 2px underline has to sit on the header's own rule, not float above it. */}
+        {tabs && <div>{tabs}</div>}
       </header>
       {/* The gutter is on this wrapper, not the scroller, so nothing scrolls through it; ScrollFade
           hugs the scroller so its ramps land on the scrollport edges. The width cap goes on the inner
-          column, matching AdminPage. `padded={false}` pages set their own (wizards, the kanban). */}
-      <div className={`flex min-h-0 flex-1 ${padded ? "p-4" : ""}`}>
+          column, matching AdminPage. 40px matches DashboardFrame's own gutter, so every portal page
+          sits the same distance from the shell. `padded={false}` pages set their own (wizards, the
+          kanban, the dashboards). */}
+      <div className={`flex min-h-0 flex-1 ${padded ? "p-10" : ""}`}>
         <ScrollFade className="flex w-full min-w-0">
-          <div className="w-full overflow-y-auto">{padded ? <PortalContent className="min-h-full">{children}</PortalContent> : children}</div>
+          {/* The nav row sits inside the scroller so it lines up with the content exactly — a row
+              outside it misses the scrollbar's width and ends up a few px to the right. */}
+          <div className={`w-full overflow-y-auto ${!padded && nav ? "flex flex-col" : ""}`}>
+            {padded ? (
+              <PortalContent className="min-h-full">
+                {nav && <PageNav actions={navActions}>{nav}</PageNav>}
+                {children}
+              </PortalContent>
+            ) : (
+              <>
+                {/* Flex column above: the nav row takes its height off the top, so a full-height
+                    child below it (the kanban board) grows into what's left instead of overflowing. */}
+                {nav && (
+                  <div className="shrink-0 px-4 pt-4 pb-3">
+                    <PageNav actions={navActions}>{nav}</PageNav>
+                  </div>
+                )}
+                {children}
+              </>
+            )}
+          </div>
         </ScrollFade>
       </div>
     </>
   );
 }
 
-export function Breadcrumb({ items }: { items: (string | { label: string; href: string })[] }) {
-  return (
-    <p className="text-[13px] leading-[1.4] whitespace-pre text-ink-2">
-      {items.map((it, i) => (
-        <span key={i}>
-          {i > 0 && "   ›   "}
-          {typeof it === "string" ? (
-            it
-          ) : (
-            <Link href={it.href} className="hover:text-accent">
-              {it.label}
-            </Link>
-          )}
-        </span>
-      ))}
-    </p>
-  );
-}
-
-export function BackLink({ href, children }: { href: string; children: ReactNode }) {
-  const L = ICONS.chevronLeft;
-  return (
-    <Link href={href} className="inline-flex items-center gap-1.5 text-[13px] leading-[1.4] font-medium text-ink-2 hover:text-accent">
-      <L size={18} aria-hidden /> {children}
-    </Link>
-  );
-}
+/** Both live in portal/nav so the admin shell renders them at exactly the same size. */
+export { BackLink, Breadcrumb } from "@/components/portal/nav";
 
 /* ------------------------------------------------------------- buttons ---- */
 
@@ -113,12 +118,14 @@ const BTN: Record<Variant, string> = {
 
 /**
  * Figma "Buttons": 36 / 40 / 44 / 48 tall, Inter Medium 12 / 14 / 14 / 16.
- * `xs` is the pill from Hireable — Draft 11321:3070 ("Join"): p 8, gap 4, Inter Regular 10, r 100.
- * Radius, weight and gap live here rather than on the shared base so `xs` can differ without
+ * Radius, weight and gap live here rather than on the shared base so a size can differ without
  * `!important` — Tailwind can't resolve two same-property utilities by class order.
+ *
+ * There was an `xs` (28px, 10px regular, pill) for the Figma "Join" chip. It was the only text
+ * on the dashboards under 12px and its target was well below 44px, so the two Join buttons moved
+ * up to 40px and it has no callers left.
  */
 const BTN_SIZE = {
-  xs: "h-7 gap-1 rounded-full px-2 text-[10px] font-normal",
   sm: "h-9 gap-2 rounded-lg px-3 text-[12px] font-medium",
   md: "h-10 gap-2 rounded-lg px-4 text-[14px] font-medium",
   lg: "h-11 gap-2 rounded-lg px-5 text-[14px] font-medium",
@@ -131,14 +138,17 @@ export function Button({
   size = "md",
   onClick,
   disabled,
+  title,
   type = "button",
   className = "",
 }: {
   children: ReactNode;
   variant?: Variant;
-  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl";
   onClick?: () => void;
   disabled?: boolean;
+  /** Why a disabled button is disabled — the only affordance a greyed-out control has. */
+  title?: string;
   type?: "button" | "submit";
   className?: string;
 }) {
@@ -148,6 +158,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={`inline-flex items-center justify-center whitespace-nowrap transition disabled:cursor-not-allowed ${sz} ${BTN[variant]} ${className}`}
     >
       {children}
@@ -165,7 +176,7 @@ export function LinkButton({
   href: string;
   children: ReactNode;
   variant?: Variant;
-  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const sz = BTN_SIZE[size];
@@ -245,10 +256,13 @@ export function InfoBanner({ children, tone = "info" }: { children: ReactNode; t
 /* --------------------------------------------------------------- badges --- */
 
 export function JobBadge({ type }: { type: "trial" | "full-time" }) {
+  // Darker ink than the Figma swatch: brand-orange on #fff5ec measured 2.32:1 and the primary
+  // blue 4.16:1, both under the 4.5:1 WCAG AA minimum for text this size. Same hues, same
+  // backgrounds — only the text is taken down far enough to read.
   return (
     <span
-      className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap uppercase ${
-        type === "trial" ? "bg-[#fff5ec] text-brand-orange" : "bg-[#ebf8fe] text-primary"
+      className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap uppercase ${
+        type === "trial" ? "bg-[#fff5ec] text-[#8a4200]" : "bg-[#ebf8fe] text-[#005b99]"
       }`}
     >
       {type}
@@ -256,18 +270,27 @@ export function JobBadge({ type }: { type: "trial" | "full-time" }) {
   );
 }
 
-export function MatchPill({ pct }: { pct: number }) {
-  // Figma "Match pill": one gradient for every score; 0 = grey placeholder
+/**
+ * Figma "Match pill": one gradient for every score; 0 = grey placeholder.
+ * `coded` switches to the TB-012 traffic light — green (high), yellow (medium), grey (low) —
+ * used on the Discover talent cards where the AC asks for it. `title` carries the tooltip
+ * explaining what the score is based on.
+ */
+export function MatchPill({ pct, coded = false, title }: { pct: number; coded?: boolean; title?: string }) {
+  const tone = pct >= 80 ? "bg-[#27ae60] text-white" : pct >= 60 ? "bg-[#f2c94c] text-[#5c4708]" : "bg-[#e5e5e5] text-[#616161]";
+  const base = "inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap";
+  if (coded && pct) {
+    return (
+      <span className={`${base} ${tone}`} title={title}>
+        {pct}% match
+      </span>
+    );
+  }
   return (
     <span
-      className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${pct ? "text-white" : "bg-[#e5e5e5] text-[#c3c3c3]"}`}
-      style={
-        pct
-          ? {
-              backgroundImage: "linear-gradient(101.96deg, #afd845 0%, #27ae60 60.58%, #098be2 121.16%)",
-            }
-          : undefined
-      }
+      className={`${base} ${pct ? "text-white" : "bg-[#e5e5e5] text-[#c3c3c3]"}`}
+      title={title}
+      style={pct ? { backgroundImage: "linear-gradient(101.96deg, #afd845 0%, #27ae60 60.58%, #098be2 121.16%)" } : undefined}
     >
       {pct}% match
     </span>
@@ -317,12 +340,18 @@ export function Initials({ text, className = "size-11 text-[14px]" }: { text: st
 
 /* ------------------------------------------------------------- controls --- */
 
-export function Field({ label, hint, children, className = "" }: { label: ReactNode; hint?: string; children: ReactNode; className?: string }) {
+export function Field({ label, hint, error, children, className = "" }: { label: ReactNode; hint?: string; /** A validation message — it replaces the hint and is announced as an error. */ error?: string; children: ReactNode; className?: string }) {
   return (
     <label className={`flex flex-col gap-2 ${className}`}>
       <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>
       {children}
-      {hint && <span className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{hint}</span>}
+      {error ? (
+        <span role="alert" className="text-[13px] leading-[1.2] tracking-[0.2px] text-danger">
+          {error}
+        </span>
+      ) : (
+        hint && <span className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{hint}</span>
+      )}
     </label>
   );
 }
@@ -339,18 +368,50 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
   return <textarea {...props} className={`${FORM_CONTROL} h-auto min-h-16 py-[13.5px] ${props.className ?? ""}`} />;
 }
 
+/**
+ * Marks every case-insensitive occurrence of `query` inside `text` (TB-009: "matching keywords
+ * are highlighted in the results"). An empty query renders the text untouched.
+ */
+export function Highlight({ text, query }: { text: string; query: string }) {
+  const q = query.trim();
+  // A span, not a fragment: callers render this inside flex containers, where loose text nodes
+  // and <mark> would each become their own flex item and stack instead of flowing inline.
+  if (!q) return <span>{text}</span>;
+  const parts = text.split(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "ig"));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === q.toLowerCase() ? (
+          <mark key={i} className="rounded-[3px] bg-[#fff2c2] text-inherit">
+            {part}
+          </mark>
+        ) : (
+          part
+        ),
+      )}
+    </span>
+  );
+}
+
 export function SearchBox({ value, onChange, placeholder, className = "" }: { value: string; onChange: (v: string) => void; placeholder: string; className?: string }) {
   const S = ICONS.search;
+  const X = ICONS.close;
   return (
     <label className={`flex h-11 items-center gap-2 rounded-lg border border-border bg-white px-4 text-ink-2 ${className}`}>
       <S size={16} aria-hidden />
       <input
-        type="search"
+        type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className="min-w-0 flex-1 bg-transparent text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2"
       />
+      {/* TB-012: an explicit clear button while a search is active — restores the full list. */}
+      {value && (
+        <button type="button" aria-label="Clear search" onClick={() => onChange("")} className="flex size-5 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-alt hover:text-ink">
+          <X size={16} aria-hidden />
+        </button>
+      )}
     </label>
   );
 }
@@ -442,6 +503,7 @@ export function Modal({
   footer,
   tone = "default",
   width = 512,
+  bare = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -451,6 +513,9 @@ export function Modal({
   footer?: ReactNode;
   tone?: "default" | "danger";
   width?: number;
+  /** Hand the whole panel to `children`: no padding, no title row, no footer row. For designs
+   * that own their chrome — a header bar, panes that reach the edges, a footer of their own. */
+  bare?: boolean;
 }) {
   const id = useId();
   const X = ICONS.close;
@@ -472,9 +537,18 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={id}
         onClick={(e) => e.stopPropagation()}
-        className="relative flex max-h-[90vh] w-full flex-col gap-5 overflow-y-auto rounded-xl bg-white p-6"
+        className={`relative flex max-h-[90vh] w-full flex-col rounded-xl bg-white ${bare ? "overflow-hidden" : "gap-5 overflow-y-auto p-6"}`}
         style={{ maxWidth: width }}
       >
+        {bare ? (
+          <>
+            <h2 id={id} className="sr-only">
+              {title}
+            </h2>
+            {children}
+          </>
+        ) : (
+          <>
         <div className="flex items-start gap-3">
           {tone === "danger" && (
             <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[#fcf2f2] text-danger">
@@ -495,6 +569,8 @@ export function Modal({
         </div>
         {children}
         {footer && <div className="flex justify-end gap-3">{footer}</div>}
+          </>
+        )}
       </div>
     </div>,
     document.body,

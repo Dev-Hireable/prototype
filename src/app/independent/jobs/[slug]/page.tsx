@@ -19,7 +19,7 @@ import {
   WorkStyleChart,
   useToast,
 } from "@/components/independent/ui";
-import { roles } from "@/lib/independent/data";
+import { matchFor, roles } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
 /** Figma "Job Board / Role detail" + "Apply to role · confirm" modal. */
@@ -28,7 +28,9 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   const role = roles.find((r) => r.slug === slug);
   if (!role) notFound();
   const search = useSearchParams();
-  const { saved, toggleSaved, apply, applications, withdrawnRoleSlugs } = useDemo();
+  const { saved, toggleSaved, apply, applications, withdrawnRoleSlugs, workStyle } = useDemo();
+  /** IN-064 — recalculated from the quiz answers on file, not read off the seed. */
+  const match = matchFor(role, workStyle);
   const applied = applications.some((a) => a.roleSlug === role.slug);
   const withdrawn = withdrawnRoleSlugs.includes(role.slug);
   const [open, setOpen] = useState(search.get("apply") === "1" && !applied && !withdrawn);
@@ -38,14 +40,13 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   const isSaved = saved.includes(role.slug);
 
   const send = () => {
-    apply(role.slug, role.title, role.company, role.match);
+    apply(role.slug, role.title, role.company, match);
     setOpen(false);
     setToast(`Application sent to ${role.company}`);
   };
 
   return (
-    <Page title="Discover roles" heading="default">
-      <BackLink href="/independent/jobs">Back to roles</BackLink>
+    <Page title="Discover roles" heading="default" nav={<BackLink href="/independent/jobs">Back to roles</BackLink>}>
       <div className="flex items-start gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <div className="flex flex-wrap items-center gap-3">
@@ -53,7 +54,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
               {role.title}
             </h2>
             <JobBadge type={role.type} />
-            <MatchPill pct={role.match} />
+            <MatchPill pct={match} />
           </div>
           <p className="text-[14px] leading-[1.4] font-medium text-ink">Rate: {role.rateRange} · 30-day trial · Starts within 2 weeks of acceptance</p>
           <section className="flex flex-col gap-2 text-[14px] leading-[1.4]">
@@ -72,7 +73,8 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
               ))}
             </div>
           </section>
-          <WorkStyleChart builder={role.workStyle.builder} independent={role.workStyle.independent} match={role.match} />
+          {/* The independent's own side of the chart is their quiz answers, not a copy stored per role. */}
+          <WorkStyleChart builder={role.workStyle.builder} independent={workStyle} match={match} />
           <section className="flex flex-col gap-2">
             <h3 className="text-[14px] leading-[1.4] font-semibold text-ink">Trial objectives</h3>
             {role.objectives.map((o, i) => (

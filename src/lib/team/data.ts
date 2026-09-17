@@ -4,6 +4,41 @@ import type { Stage } from "@/components/independent/ui";
 
 export const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", company: "Nairobi Solutions Inc.", avatar: "/team/alex.jpg" };
 
+
+/**
+ * TB-001 account setup checklist — the 5 steps named in the acceptance criteria, each with the
+ * shortcut link that completes it. Flip `done` to watch the percentage and progress bar move;
+ * with all 5 done the whole card disappears.
+ */
+/**
+ * TB-001 account setup checklist — the 5 steps named in the acceptance criteria, each with the
+ * shortcut link that completes it.
+ *
+ * `done` is computed from the actual state, never stored: the checklist used to carry hardcoded
+ * flags, so filling in your company profile or adding a card moved nothing, and the card sat at
+ * 40% forever while the company page claimed the same step was finished.
+ */
+export function setupSteps({ company, cards, roles }: { company: CompanyProfile; cards: PaymentMethod[]; roles: Role[] }) {
+  const companyDone = COMPANY_FIELDS.every((k) => String(company[k]).trim() !== "");
+  return [
+    // Nothing in the demo tracks email confirmation, so this one is simply already true.
+    { label: "Verify email", done: true, href: "/team/settings", hint: "Confirm the address we send hiring updates to." },
+    { label: "Work Style Quiz", done: company.tags.length > 0, href: "/team/profile/company", hint: "Generates the workplace tags we match candidates against." },
+    { label: "Company profile", done: companyDone, href: "/team/profile/company", hint: "Logo, industry and size — candidates see this on every role." },
+    { label: "Payment method", done: cards.length > 0, href: "/team/settings/payment", hint: "Funds the escrow that pays an independent at each cycle." },
+    // Can't post a role without a company to post it under or a card to fund the escrow.
+    { label: "Create your first role", done: roles.length > 0, href: "/team/hire", hint: "Post a job and start collecting applications.", requires: ["Company profile", "Payment method"] },
+  ];
+}
+
+/** TB-001 marketing banner. Set to null to exercise the "no active banner" branch. */
+export const MARKETING_BANNER = {
+  id: "trial-drive-2026",
+  title: "Trial Drives now run 30 days with escrow built in",
+  body: "Test a hire on real work before you commit. Payment is held securely and released only when the objectives you set are met.",
+  cta: { label: "Create a Role", href: "/team/hire" },
+};
+
 export type Tone = "ok" | "warn" | "danger" | "info" | "neutral" | "trial";
 
 export type Independent = {
@@ -39,48 +74,9 @@ export const independents: Independent[] = [
     bio: "Sales leader with eight years in B2B SaaS, most recently running a six-person outbound team for a US fintech. I own pipeline from first touch to signed contract, coach reps on discovery calls, and keep the CRM honest.",
     workStyle: WS,
   },
-  {
-    slug: "maria-santos",
-    name: "Maria Santos",
-    role: "Customer Success Lead",
-    avatar: "/team/maria.jpg",
-    match: 72,
-    rate: "$1,400 /month",
-    level: "Intermediate (2–5 years)",
-    location: "Cebu City, Philippines",
-    skills: ["Onboarding", "Account management", "HubSpot", "Churn analysis"],
-    bio: "Customer success lead for outpatient health platforms. I run onboarding and renewals for 60 clinic accounts and keep churn under 6%.",
-    workStyle: { builder: [5, 4, 3, 3, 2, 4], independent: [4, 4, 3, 2, 2, 4] },
-  },
-  {
-    slug: "paolo-reyes",
-    name: "Paolo Reyes",
-    role: "Business Development Representative",
-    avatar: "/team/paolo.jpg",
-    match: 65,
-    rate: "$1,200 /month",
-    level: "Intermediate (2–5 years)",
-    location: "Quezon City, Philippines",
-    skills: ["Outbound email", "Cold calling", "Apollo", "Pipeline hygiene"],
-    bio: "BDR booking qualified meetings for two account executives through cold calls and email sequences. Apollo and Salesforce certified.",
-    workStyle: { builder: [5, 5, 2, 3, 2, 5], independent: [3, 4, 2, 3, 3, 2] },
-  },
-  {
-    slug: "andrea-lim",
-    name: "Andrea Lim",
-    role: "Account Executive",
-    avatar: "/team/andrea.jpg",
-    match: 88,
-    rate: "$1,800 /month",
-    level: "Expert (8+ years)",
-    location: "Makati, Philippines",
-    skills: ["Enterprise sales", "Negotiation", "Demo delivery", "Salesforce", "Forecasting"],
-    bio: "Account executive closing inbound and partner-sourced deals for payments platforms. I run demos, negotiate contracts and hand off cleanly to onboarding.",
-    workStyle: { builder: [5, 5, 2, 3, 2, 5], independent: [5, 5, 2, 3, 2, 4] },
-  },
 ];
 
-export const INITIAL_SAVED = ["juan-dela-cruz", "andrea-lim"];
+export const INITIAL_SAVED = ["juan-dela-cruz"];
 
 /* ------------------------------------------------------------------ roles */
 
@@ -103,6 +99,10 @@ export type Role = {
   skills: string[];
   expectation: string;
   attachment: string;
+  /** TB-024 exclusive benefits — full-time posts only, optional. */
+  benefits?: { label: string; amount: string }[];
+  /** Slug this draft was cloned from (TB-032); drafts made from scratch leave it unset. */
+  duplicatedFrom?: string;
 };
 
 const DESC =
@@ -126,11 +126,10 @@ const ROLE = (r: Partial<Role> & Pick<Role, "slug" | "title" | "type" | "status"
 });
 
 export const roles: Role[] = [
-  ROLE({ slug: "sales-manager", title: "Sales Manager", type: "trial", status: "Active", candidates: 24, matched: 8, interviews: 4, offers: 1, hired: 0, updated: "2 Sep 2026" }),
-  ROLE({ slug: "customer-success-lead", title: "Customer Success Lead", type: "full-time", status: "Active", candidates: 31, matched: 12, interviews: 6, offers: 2, hired: 1, updated: "28 Aug 2026" }),
-  ROLE({ slug: "sales-development-rep", title: "Sales Development Rep", type: "trial", status: "Active", candidates: 9, matched: 3, interviews: 1, offers: 0, hired: 0, updated: "8 Sep 2026" }),
-  ROLE({ slug: "account-executive", title: "Account Executive", type: "full-time", status: "Draft", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "9 Sep 2026" }),
-  ROLE({ slug: "marketing-specialist", title: "Marketing Specialist", type: "trial", status: "Closed", candidates: 18, matched: 6, interviews: 3, offers: 1, hired: 1, updated: "31 Aug 2026" }),
+  // The counts are what the demo actually holds: one candidate, Juan, hired onto the trial.
+  ROLE({ slug: "sales-manager", title: "Sales Manager", type: "trial", status: "Active", candidates: 1, matched: 1, interviews: 1, offers: 1, hired: 1, updated: "2 Sep 2026" }),
+  // A draft abandoned partway: no budget yet, so TB-035 reopens it on Budget rather than Review.
+  ROLE({ slug: "account-executive", title: "Account Executive", type: "full-time", status: "Draft", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "9 Sep 2026", budget: "" }),
 ];
 
 export const ROLE_STATUS: Record<RoleStatus, Tone> = { Active: "ok", Draft: "neutral", Closed: "danger", Archived: "neutral" };
@@ -148,19 +147,28 @@ export type Candidate = {
 };
 
 export const candidates: Candidate[] = [
-  { id: "c1", independent: "juan-dela-cruz", role: "sales-manager", stage: "invited", status: { label: "Awaiting reply", tone: "neutral", meta: "01/06/2026 · 06:00 AM (EST)" }, submitted: "Applied 2 Sep 2026" },
-  { id: "c2", independent: "maria-santos", role: "sales-manager", stage: "matched", status: { label: "Interested", tone: "info" }, submitted: "Applied 9 Sep 2026" },
-  { id: "c3", independent: "paolo-reyes", role: "sales-manager", stage: "interviewed", status: { label: "Interview completed", tone: "ok", meta: "10 Sep" }, submitted: "Applied 1 Sep 2026" },
-  { id: "c4", independent: "andrea-lim", role: "sales-manager", stage: "proposal_sent", status: { label: "Proposal received", tone: "info", meta: "v1 · 7 Sep" }, submitted: "Applied 28 Aug 2026" },
-  { id: "c5", independent: "maria-santos", role: "customer-success-lead", stage: "hired", status: { label: "Hired", tone: "ok", meta: "2 Mar 2026" }, submitted: "Applied 10 Feb 2026" },
-  { id: "c6", independent: "paolo-reyes", role: "sales-development-rep", stage: "offer_received", status: { label: "Offer sent", tone: "warn", meta: "Expires 16 Sep" }, submitted: "Applied 20 Aug 2026" },
+  { id: "c1", independent: "juan-dela-cruz", role: "sales-manager", stage: "hired", status: { label: "Hired · trial running", tone: "ok", meta: "Started 25 Aug 2026" }, submitted: "Applied 12 Aug 2026" },
+];
+
+/**
+ * TB-037 candidate tracker — the seven Kanban columns, in order. "Dropped" isn't a stage: a
+ * dropped candidate keeps the stage they were dropped from, so it's matched on the flag.
+ */
+export const TRACKER_COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; border: string; text: string; count: string }[] = [
+  { key: "candidates", label: "Candidates", stages: ["applied"], bg: "#e5e5e5", border: "#c3c3c3", text: "#4a4a4a", count: "#d8d8d8" },
+  { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", border: "#007acc", text: "#004675", count: "#c9eeff" },
+  { key: "interview", label: "Interview", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", border: "#ff8112", text: "#8a4200", count: "#ffe0c4" },
+  { key: "proposal", label: "Proposal Requested", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", border: "#6e0e52", text: "#6e0e52", count: "#ffdbf3" },
+  { key: "offer", label: "Offer Sent", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", border: "#f2c94c", text: "#7a5e0a", count: "#fff0b6" },
+  { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", border: "#27ae60", text: "#1b6b3a", count: "#c6ffd2" },
+  { key: "dropped", label: "Dropped", stages: [], bg: "#fdecec", border: "#d97070", text: "#a62121", count: "#f9d5d5" },
 ];
 
 /** Employer-side wording for the shared pipeline tracker. */
 export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
   applied: "Interested",
   invited: "Interview invitation sent",
-  proposal_sent: "Proposal received",
+  proposal_sent: "Proposal submitted",
   offer_received: "Offer sent",
 };
 
@@ -170,11 +178,6 @@ export type Interview = { id: string; independent: string; role: string; when: s
 
 export const interviews: Interview[] = [
   { id: "iv1", independent: "juan-dela-cruz", role: "Sales Manager", when: "Thu 10 Sep 2026, 2:00 PM PHT", format: "Google Meet", status: { label: "Starts in 12 min", tone: "info" } },
-  { id: "iv2", independent: "maria-santos", role: "Customer Success Lead", when: "Fri 11 Sep 2026, 10:00 AM PHT", format: "Zoom", status: { label: "Scheduled", tone: "info" } },
-  { id: "iv3", independent: "paolo-reyes", role: "Sales Development Rep", when: "Mon 14 Sep 2026, 9:30 AM PHT", format: "Google Meet", status: { label: "Awaiting reply", tone: "neutral" } },
-  { id: "iv4", independent: "andrea-lim", role: "Account Executive", when: "Tue 1 Sep 2026, 4:00 PM PHT", format: "Google Meet", status: { label: "Completed", tone: "neutral" }, past: true },
-  { id: "iv5", independent: "paolo-reyes", role: "BDR", when: "Thu 27 Aug 2026, 9:00 AM PHT", format: "Zoom", status: { label: "Completed", tone: "neutral" }, past: true },
-  { id: "iv6", independent: "maria-santos", role: "Customer Success Lead", when: "Mon 17 Aug 2026, 3:00 PM PHT", format: "Google Meet", status: { label: "Completed", tone: "neutral" }, past: true },
   { id: "iv7", independent: "juan-dela-cruz", role: "Sales Manager", when: "Wed 12 Aug 2026, 11:00 AM PHT", format: "Zoom", status: { label: "Cancelled", tone: "danger" }, past: true },
 ];
 
@@ -183,16 +186,42 @@ export const interviews: Interview[] = [
 export type Offer = { id: string; independent: string; role: string; sent: string; rate: string; start: string; status: { label: string; tone: Tone } };
 
 export const offers: Offer[] = [
-  { id: "o1", independent: "juan-dela-cruz", role: "Sales Manager", sent: "8 Sep 2026", rate: "$1,600 /month", start: "1 Oct 2026", status: { label: "Pending", tone: "warn" } },
-  { id: "o2", independent: "paolo-reyes", role: "Sales Development Rep", sent: "6 Sep 2026", rate: "$1,200 /month", start: "21 Sep 2026", status: { label: "Pending", tone: "warn" } },
-  { id: "o3", independent: "maria-santos", role: "Customer Success Lead", sent: "20 Feb 2026", rate: "$1,400 /month", start: "2 Mar 2026", status: { label: "Accepted", tone: "ok" } },
-  { id: "o4", independent: "andrea-lim", role: "Account Executive", sent: "18 Jul 2026", rate: "$1,800 /month", start: "1 Aug 2026", status: { label: "Accepted", tone: "ok" } },
-  { id: "o5", independent: "paolo-reyes", role: "BDR", sent: "2 Jul 2026", rate: "$1,100 /month", start: "15 Jul 2026", status: { label: "Declined", tone: "danger" } },
+  { id: "o1", independent: "juan-dela-cruz", role: "Sales Manager", sent: "20 Aug 2026", rate: "$1,600 /month", start: "25 Aug 2026", status: { label: "Accepted", tone: "ok" } },
 ];
 
 /* -------------------------------------------------------------- contracts */
 
-export type Objective = { id: string; title: string; kind: "kpi" | "okr" | "task"; progress: number; status: "pending" | "complete" | "risk" | "on"; meta: string };
+export type Objective = { id: string; title: string; kind: "kpi" | "okr" | "task"; progress: number; status: "pending" | "complete" | "risk" | "on"; meta: string; due?: string; keyResults?: number; updated?: string; /** TB-109 — an approved objective stops feeding the activity tracker. */ retired?: boolean };
+
+/** TB-058 wording for each objective kind, and the rule that decides when it falls Off Track. */
+export const OBJECTIVE_KIND: Record<Objective["kind"], string> = { kpi: "Manual", okr: "Automatic", task: "Default" };
+
+/**
+ * TB-058 — an active objective flips to Off Track automatically with 7 days or fewer left when
+ * a Manual one is under 70% of target, an Automatic one has under 70% of its key results done,
+ * or a Default one still isn't marked done. Nobody has to press anything.
+ */
+export function isOffTrack(o: { kind: Objective["kind"]; status: string; progress: number }, daysLeft: number) {
+  if (daysLeft > 7 || o.status === "complete" || o.status === "pending") return false;
+  return o.kind === "task" ? o.progress < 100 : o.progress < 70;
+}
+
+/** TB-024 / TB-072 / IN-046 — the benefits every full-time engagement includes, on top of salary. */
+export const FT_BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"];
+
+/** TB-058 Trial Fit Score — the weights differ by phase, so the breakdown states which is live. */
+export const TFP_WEIGHTS = {
+  3: { label: "On Trial", workStyle: 20, profile: 30, performance: 50, evaluation: 0 },
+  4: { label: "Post Trial", workStyle: 15, profile: 20, performance: 40, evaluation: 25 },
+} as const;
+
+/** TB-111 reason codes — one must be chosen before a revision can be requested. */
+/** TB-067/081/117 — one submitted evaluation; a contract keeps a list of them. */
+export type Evaluation = { stars: number; feedback: string; recommendation: string; date: string; /** TB-068 — the Trial Fit Score as it stood when this was submitted. */ tfp: number };
+
+export const REVISION_REASONS = ["Missing Deliverable", "Out-of-Scope Output", "Missed Deadline", "No Report Submitted"];
+
+export const TFP_TOOLTIP = "Work Style, Profile and Performance are scored continuously during the trial. Your evaluation is added once the trial ends, and the final score is available after you submit it.";
 
 export type Contract = {
   slug: string;
@@ -208,35 +237,43 @@ export type Contract = {
   rate: string;
   manager: string;
   objectives: Objective[];
+  /** TB-058 Trial Fit Score breakdown; phase decides which weights apply. */
+  tfs: { overall: number; performance: number; profile: number; workStyle: number };
+  phase: 3 | 4;
+  /** TB-058 activity log — one tile per weekday: 0 nothing, 1 some, 2 all objectives logged. */
+  activity: number[];
+  streak: number;
 };
 
 const OBJECTIVES: Objective[] = [
-  { id: "demos", title: "Book 20 qualified demos by day 30", kind: "kpi", progress: 65, status: "pending", meta: "13 of 20 booked · updated 8 Sep" },
-  { id: "sequence", title: "Rebuild the outbound email sequence", kind: "task", progress: 100, status: "complete", meta: "Approved 3 Sep" },
-  { id: "reply", title: "Lift reply rate from 4% to 8%", kind: "okr", progress: 30, status: "risk", meta: "Now 5.2% · updated 6 Sep" },
-  { id: "crm", title: "Clean the CRM pipeline stages", kind: "task", progress: 100, status: "complete", meta: "Approved 29 Aug" },
+  { id: "demos", title: "Book 20 qualified demos by day 30", kind: "kpi", progress: 65, status: "pending", meta: "13 of 20 booked · updated 8 Sep", due: "24 Sep 2026", keyResults: 3, updated: "8 Sep 2026" },
+  { id: "sequence", title: "Rebuild the outbound email sequence", kind: "task", progress: 100, status: "complete", meta: "Approved 3 Sep", due: "5 Sep 2026", keyResults: 0, updated: "3 Sep 2026" },
+  { id: "reply", title: "Lift reply rate from 4% to 8%", kind: "okr", progress: 33, status: "on", meta: "Now 5.2% · 1 of 3 key results approved", due: "24 Sep 2026", keyResults: 3, updated: "6 Sep 2026" },
+  { id: "crm", title: "Clean the CRM pipeline stages", kind: "task", progress: 100, status: "complete", meta: "Approved 29 Aug", due: "29 Aug 2026", keyResults: 0, updated: "29 Aug 2026" },
 ];
 
 export const contracts: Contract[] = [
-  { slug: "juan-dela-cruz", independent: "juan-dela-cruz", role: "Sales Manager", type: "trial", status: { label: "On track", tone: "ok" }, progress: 60, progressLabel: "Trial progress", started: "25 Aug 2026", day: "Day 18 of 30", ends: "24 Sep 2026", rate: "$1,600 /month", manager: "Alex Rivera", objectives: OBJECTIVES },
-  { slug: "maria-santos", independent: "maria-santos", role: "Customer Success Lead", type: "full-time", status: { label: "Active", tone: "ok" }, progress: null, progressLabel: "Hired full-time", started: "02 Mar 2026", day: "Month 7", ends: "Ongoing", rate: "$1,400 /month", manager: "Alex Rivera", objectives: OBJECTIVES.slice(0, 3) },
-  { slug: "paolo-reyes", independent: "paolo-reyes", role: "Business Development Representative", type: "trial", status: { label: "Update pending", tone: "warn" }, progress: 35, progressLabel: "Trial progress", started: "01 Sep 2026", day: "Day 10 of 30", ends: "30 Sep 2026", rate: "$1,200 /month", manager: "Alex Rivera", objectives: OBJECTIVES.slice(0, 2) },
-  { slug: "andrea-lim", independent: "andrea-lim", role: "Account Executive", type: "trial", status: { label: "Evaluation due", tone: "info" }, progress: 100, progressLabel: "Trial progress", started: "28 Aug 2026", day: "Day 30 of 30", ends: "26 Sep 2026", rate: "$1,800 /month", manager: "Alex Rivera", objectives: OBJECTIVES },
-  { slug: "carlo-mendoza", independent: "juan-dela-cruz", role: "Sales Development Representative", type: "full-time", status: { label: "Ended", tone: "neutral" }, progress: 100, progressLabel: "Contract complete", started: "15 Jan 2026", day: "Ended 31 Aug", ends: "31 Aug 2026", rate: "$1,100 /month", manager: "Alex Rivera", objectives: OBJECTIVES.slice(1, 3) },
-  { slug: "bea-villanueva", independent: "maria-santos", role: "Sales Operations Analyst", type: "trial", status: { label: "Off track", tone: "danger" }, progress: 20, progressLabel: "Trial progress", started: "20 Aug 2026", day: "Day 22 of 30", ends: "19 Sep 2026", rate: "$1,300 /month", manager: "Alex Rivera", objectives: OBJECTIVES.slice(2) },
+  { slug: "juan-dela-cruz", independent: "juan-dela-cruz", role: "Sales Manager", type: "trial", status: { label: "On track", tone: "ok" }, progress: 60, progressLabel: "Trial progress", started: "25 Aug 2026", day: "Day 18 of 30", ends: "24 Sep 2026", rate: "$1,600 /month", manager: "Alex Rivera", objectives: OBJECTIVES , tfs: { overall: 82, performance: 86, profile: 80, workStyle: 76 }, phase: 3, activity: [2,2,1,2,2,2,0,2,1,2,2,2,2,1,2,2,0,2], streak: 6 },
 ];
 
-/** Display names for the two contracts whose seed avatar is reused. */
-export const CONTRACT_NAMES: Record<string, string> = { "carlo-mendoza": "Carlo Mendoza", "bea-villanueva": "Bea Villanueva" };
+/** Display names for contracts whose slug is not the independent’s own. */
+export const CONTRACT_NAMES: Record<string, string> = {};
 
 /* ----------------------------------------------------------------- money */
+
+/** TB-084 names three transaction types; `desc` keeps the human sentence alongside them. */
+export type TxnType = "Payment Deposited" | "Payment Released" | "Payment Refunded";
 
 export type Transaction = {
   id: string;
   date: string;
+  /** TB-084/086/087 — the contract this belongs to, so it can be searched and filtered by name. */
+  contract: string;
+  /** Sortable stamp behind the display date (TB-084 defaults to most recent). */
+  at: number;
   desc: string;
   independent: string;
-  type: "Escrow deposit" | "Full-time salary" | "Trial payout" | "Refund";
+  type: TxnType;
   amount: string;
   status: { label: string; tone: Tone };
   /** Figma "Payments / Transaction · detail drawer" */
@@ -245,37 +282,39 @@ export type Transaction = {
 
 export const transactions: Transaction[] = [
   {
-    id: "t1", date: "8 Sep 2026", desc: "Escrow deposit · Sales Manager trial", independent: "Juan Dela Cruz", type: "Escrow deposit", amount: "$1,600.00", status: { label: "Held", tone: "warn" },
+    id: "t1", date: "8 Sep 2026", contract: "Sales Manager — trial", at: 20260908, desc: "Escrow deposit · Sales Manager trial", independent: "Juan Dela Cruz", type: "Payment Deposited", amount: "$1,600.00", status: { label: "Held", tone: "warn" },
     detail: { time: "8 Sep 2026, 3:42 PM PHT", drawerStatus: "Held in escrow", rows: [["Reference", "TXN-2026-09-08-0412"], ["Independent", "Juan Dela Cruz"], ["Role", "Sales Manager · 30-day trial"], ["Payment method", "Visa ending 4242"], ["Releases on", "30 Sep 2026, when the trial ends"]], breakdown: [["Trial rate", "$1,600.00"], ["Platform fee", "Included"]], total: "$1,600.00", timeline: [{ title: "Deposit charged to Visa ending 4242", date: "8 Sep 2026", done: true }, { title: "Funds held in escrow", date: "8 Sep 2026", done: true }, { title: "Released to Juan Dela Cruz after the trial", date: "30 Sep 2026", done: false }] },
-  },
-  {
-    id: "t2", date: "1 Sep 2026", desc: "Salary · Customer Success Lead · Sep 2026", independent: "Maria Santos", type: "Full-time salary", amount: "$1,400.00", status: { label: "Paid", tone: "ok" },
-    detail: { time: "1 Sep 2026, 9:00 AM PHT", drawerStatus: "Paid", rows: [["Reference", "TXN-2026-09-01-0188"], ["Independent", "Maria Santos"], ["Role", "Customer Success Lead · full-time"], ["Payment method", "Visa ending 4242"], ["Period", "Sep 2026"]], breakdown: [["Monthly salary", "$1,400.00"], ["Platform fee", "Included"]], total: "$1,400.00", timeline: [{ title: "Salary charged to Visa ending 4242", date: "1 Sep 2026", done: true }, { title: "Paid to Maria Santos", date: "1 Sep 2026", done: true }] },
-  },
-  {
-    id: "t3", date: "31 Aug 2026", desc: "Trial payout · Account Executive", independent: "Andrea Lim", type: "Trial payout", amount: "$1,800.00", status: { label: "Paid", tone: "ok" },
-    detail: { time: "31 Aug 2026, 6:10 PM PHT", drawerStatus: "Paid", rows: [["Reference", "TXN-2026-08-31-0973"], ["Independent", "Andrea Lim"], ["Role", "Account Executive · 30-day trial"], ["Payment method", "Escrow release"], ["Released on", "31 Aug 2026, after your evaluation"]], breakdown: [["Trial rate", "$1,800.00"], ["Platform fee", "Included"]], total: "$1,800.00", timeline: [{ title: "Deposit charged to Visa ending 4242", date: "1 Aug 2026", done: true }, { title: "Funds held in escrow", date: "1 Aug 2026", done: true }, { title: "Released to Andrea Lim after the trial", date: "31 Aug 2026", done: true }] },
-  },
-  {
-    id: "t4", date: "19 Aug 2026", desc: "Escrow deposit · Sales Development Rep", independent: "Paolo Reyes", type: "Escrow deposit", amount: "$1,200.00", status: { label: "Pending release", tone: "neutral" },
-    detail: { time: "19 Aug 2026, 11:24 AM PHT", drawerStatus: "Pending release", rows: [["Reference", "TXN-2026-08-19-0551"], ["Independent", "Paolo Reyes"], ["Role", "Sales Development Rep · 30-day trial"], ["Payment method", "Visa ending 4242"], ["Releases on", "30 Sep 2026, when the trial ends"]], breakdown: [["Trial rate", "$1,200.00"], ["Platform fee", "Included"]], total: "$1,200.00", timeline: [{ title: "Deposit charged to Visa ending 4242", date: "19 Aug 2026", done: true }, { title: "Funds held in escrow", date: "19 Aug 2026", done: true }, { title: "Released to Paolo Reyes after the trial", date: "30 Sep 2026", done: false }] },
-  },
-  {
-    id: "t5", date: "1 Aug 2026", desc: "Salary · Customer Success Lead · Aug 2026", independent: "Maria Santos", type: "Full-time salary", amount: "$1,400.00", status: { label: "Paid", tone: "ok" },
-    detail: { time: "1 Aug 2026, 9:00 AM PHT", drawerStatus: "Paid", rows: [["Reference", "TXN-2026-08-01-0142"], ["Independent", "Maria Santos"], ["Role", "Customer Success Lead · full-time"], ["Payment method", "Visa ending 4242"], ["Period", "Aug 2026"]], breakdown: [["Monthly salary", "$1,400.00"], ["Platform fee", "Included"]], total: "$1,400.00", timeline: [{ title: "Salary charged to Visa ending 4242", date: "1 Aug 2026", done: true }, { title: "Paid to Maria Santos", date: "1 Aug 2026", done: true }] },
-  },
-  {
-    id: "t6", date: "12 Jul 2026", desc: "Refund · cancelled trial", independent: "Carlo Mendoza", type: "Refund", amount: "$900.00", status: { label: "Refunded", tone: "info" },
-    detail: { time: "12 Jul 2026, 2:05 PM PHT", drawerStatus: "Refunded", rows: [["Reference", "TXN-2026-07-12-0316"], ["Independent", "Carlo Mendoza"], ["Role", "Sales Development Rep · 30-day trial"], ["Payment method", "Visa ending 4242"], ["Refunded on", "12 Jul 2026, 3 to 5 working days to your card"]], breakdown: [["Escrow deposit", "$900.00"], ["Platform fee", "Waived"]], total: "$900.00", timeline: [{ title: "Trial cancelled by mutual agreement", date: "10 Jul 2026", done: true }, { title: "Escrow released back to you", date: "12 Jul 2026", done: true }, { title: "Refund posted to Visa ending 4242", date: "12 Jul 2026", done: true }] },
   },
 ];
 
-export type Dispute = { id: string; name: string; role: string; avatar: string; contract: string; filed: string; amount: string; reason: string; status: { label: string; tone: Tone }; open: boolean };
+export type Dispute = {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  contract: string;
+  filed: string;
+  amount: string;
+  reason: string;
+  /** TB-092 — the detail view shows what was actually written when the dispute was filed. */
+  description: string;
+  evidence?: string;
+  /** TB-092 — only once an admin has ruled on it. */
+  resolution?: { outcome: string; notes: string };
+  status: { label: string; tone: Tone };
+  open: boolean;
+};
 
 export const disputes: Dispute[] = [
-  { id: "d1", name: "Hanna Aquino", role: "Sales Ops Analyst", avatar: "/team/hanna.jpg", contract: "Sales Ops Analyst — trial", filed: "5 Sep 2026", amount: "$1,200.00", reason: "Not delivered", status: { label: "Pending review", tone: "warn" }, open: true },
-  { id: "d2", name: "Leo Ramos", role: "BDR", avatar: "/team/maria.jpg", contract: "BDR — full-time", filed: "28 Aug 2026", amount: "$900.00", reason: "No evidence", status: { label: "In review", tone: "warn" }, open: false },
-  { id: "d3", name: "Kris Tan", role: "Account Executive", avatar: "/team/paolo.jpg", contract: "Account Executive — trial", filed: "12 Aug 2026", amount: "$800.00", reason: "Ended early", status: { label: "Resolved", tone: "ok" }, open: false },
+];
+
+/** TB-101 — the plan on this account, and the ladder it sits on. */
+export const PLAN = { name: "Growth", cycle: "Monthly", renews: "1 Oct 2026", billedTo: "Visa ending 4242" };
+
+export const PLANS = [
+  { name: "Starter", price: "$0", next: "Growth", features: ["1 active role at a time", "Trial Drives with escrow", "Standard matching"] },
+  { name: "Growth", price: "$149", next: "Scale", features: ["Up to 10 active roles", "Trial Drives with escrow", "Priority matching and Work Style fit", "Objective tracking and Trial Fit Score", "Dispute review within 5 working days"] },
+  { name: "Scale", price: "$399", next: null as string | null, features: ["Unlimited active roles", "Everything in Growth", "Dedicated hiring support", "Custom contracts and invoicing"] },
 ];
 
 export type PaymentMethod = { id: string; brand: "Visa" | "Mastercard"; last4: string; expires: string; isDefault: boolean };
@@ -302,30 +341,104 @@ export type Notification = {
 
 export const notifications: Notification[] = [
   { id: "n1", group: "Today", title: "Juan Dela Cruz submitted an objective update", crumb: "Independents › Juan Dela Cruz", body: "Book 20 qualified demos: 13 of 20. Waiting for your approval.", time: "2 hours ago", unread: true, kind: "independents", avatar: "/team/juan.jpg", action: { label: "Review update", href: "/team/independents/juan-dela-cruz", primary: true } },
-  { id: "n2", group: "Today", title: "New application for Sales Manager", crumb: "Hire › All roles", body: "Maria Santos applied with a 72% match. 4 applications so far.", time: "5 hours ago", unread: true, kind: "hiring", avatar: "/team/maria.jpg", action: { label: "Open tracker", href: "/team/hire/roles/sales-manager" } },
-  { id: "n3", group: "Last 7 days", title: "Paolo Reyes accepted your interview invite", crumb: "Hire › Candidate tracker", body: "Interview set for Fri 12 Sep 2026, 10:00 AM PHT.", time: "2 days ago", unread: false, kind: "hiring", avatar: "/team/paolo.jpg" },
-  { id: "n4", group: "Last 7 days", title: "Trial ended for Andrea Lim", crumb: "Independents › Evaluations", body: "Send your evaluation to unlock the full-time decision.", time: "4 days ago", unread: false, kind: "independents", avatar: "/team/andrea.jpg", action: { label: "Send evaluation", href: "/team/independents/andrea-lim?tab=evaluation" } },
-  { id: "n5", group: "Last 7 days", title: "Escrow deposit confirmed", crumb: "Payments › Transactions", body: "$1,600.00 held for Sales Manager, trial starting 1 Sep 2026.", time: "6 days ago", unread: false, kind: "payments", avatar: "/team/juan.jpg" },
+  { id: "n5", group: "Last 7 days", title: "Escrow deposit confirmed", crumb: "Payments › Transactions", body: "$1,600.00 held for Sales Manager, trial started 25 Aug 2026.", time: "6 days ago", unread: false, kind: "payments", avatar: "/team/juan.jpg" },
 ];
 
 /* ---------------------------------------------------------------- messages */
 
+/** Messages: only the live pair (see @/lib/demo/live) — preview, time and unread come from the shared thread. */
 export const conversations = [
-  { id: "juan", name: "Juan Dela Cruz", sub: "Sales Manager · Trial", avatar: "/team/juan.jpg", time: "09:41", preview: "Sent the revised KPI targets for week 3.", unread: 2 },
-  { id: "hanna", name: "Hanna Aquino", sub: "Sales Ops Analyst · Trial", avatar: "/team/hanna.jpg", time: "Yesterday", preview: "Thanks — logged today’s calls.", unread: 0 },
-  { id: "leo", name: "Leo Ramos", sub: "BDR · Full-time", avatar: "/team/paolo.jpg", time: "Tue", preview: "Can we move the 1:1 to Thursday?", unread: 0 },
-  { id: "mia", name: "Mia Santos", sub: "Customer Success · Candidate", avatar: "/team/paolo.jpg", time: "Mon", preview: "Confirmed for the interview on the 15th.", unread: 9 },
-  { id: "paolo", name: "Paolo Reyes", sub: "SDR · Candidate", avatar: "/team/paolo.jpg", time: "8 Sep", preview: "Proposal resubmitted with the changes.", unread: 0 },
-];
-
-export const thread: { me?: boolean; text?: string; time: string; file?: { name: string; meta: string } }[] = [
-  { text: "Morning! I logged 14 calls yesterday, 3 booked. Two of them look like strong fits for the Q4 pipeline.", time: "09:12" },
-  { me: true, text: "Nice. Can you add the two booked ones to the CRM board before the 1:1?", time: "09:20" },
-  { text: "Done — both added with notes. Also attached the revised KPI targets for week 3.", time: "09:41" },
-  { file: { name: "Week-3-KPI-targets.pdf", meta: "PDF · 84 KB · 09:41" }, time: "09:41" },
+  // Conversations tab = talent under an active contract; Candidates tab = offer sent or interview
+  // scheduled. Juan is both (Sales Manager trial, and candidate c1 awaiting an interview reply).
+  { id: "juan", name: "Juan Dela Cruz", sub: "Sales Manager · Trial", avatar: "/team/juan.jpg", kind: "conversations" },
+  { id: "juan-candidate", name: "Juan Dela Cruz", sub: "Sales Manager · Candidate", avatar: "/team/juan.jpg", kind: "candidates" },
 ];
 
 /* ---------------------------------------------------------------- profile */
+
+/** TB-126 — the industry field is a pick from this list, not free text. */
+export const INDUSTRIES = [
+  "Advertising and media",
+  "Construction",
+  "Education",
+  "Financial services",
+  "Government",
+  "Healthcare",
+  "Hospitality and travel",
+  "Legal services",
+  "Logistics and supply chain",
+  "Manufacturing",
+  "Non-profit",
+  "Real estate",
+  "Retail and e-commerce",
+  "Sales and marketing services",
+  "Software and IT",
+  "Telecommunications",
+];
+
+/** The fields that have to be filled for the profile to count as complete (TB-001 / TB-097). */
+export const COMPANY_FIELDS = ["name", "description", "url", "industry", "location", "size"] as const;
+
+/** TB-125 — the description is public on every job post, so it is capped. */
+export const COMPANY_DESC_MAX = 600;
+
+/** TB-120 / TB-123 — what an upload has to be before it is allowed to replace a photo or logo. */
+export const IMAGE_TYPES = ["image/jpeg", "image/png"];
+export const IMAGE_MAX_MB = 5;
+/**
+ * Reads the file as a data URL rather than an object URL: the profile is persisted to
+ * localStorage, and a `blob:` URL is dead the moment the page reloads.
+ */
+export const readImage = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+/** Returns the reason an upload was rejected, or null when it is fine. */
+export function checkImage(file: File) {
+  if (!IMAGE_TYPES.includes(file.type)) return "That file has to be a JPG or a PNG.";
+  if (file.size > IMAGE_MAX_MB * 1024 * 1024) return `That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is ${IMAGE_MAX_MB}MB.`;
+  return null;
+}
+
+/** TB-128 — accepts a bare domain as well as a full URL, rejects anything that isn't one. */
+export const isUrl = (v: string) => /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v.trim());
+
+/** TB-094 / TB-097 — the editable profile, seeded here and persisted in the store from then on. */
+export type TeamProfile = { name: string; title: string; photo: string; memberSince: string; email: string; phone: string; timezone: string; about: string };
+export type CompanyProfile = { name: string; description: string; url: string; industry: string; location: string; size: string; logo: string | null; tags: string[] };
+
+export const TEAM_PROFILE: TeamProfile = {
+  name: ME.name,
+  title: ME.title,
+  photo: ME.avatar,
+  memberSince: "14 Aug 2025",
+  email: "alex@nairobisolutions.com",
+  phone: "+63 917 555 0142",
+  timezone: "(GMT+8) Manila",
+  about: "I hire and coach outbound sales teams for US fintechs. I run 30-day trials with three objectives and weekly check-ins.",
+};
+
+export const COMPANY_PROFILE: CompanyProfile = {
+  name: "Nairobi Solutions Inc.",
+  description: "B2B SaaS agency based in New York. We build outbound teams for early-stage fintechs and keep them accountable with weekly metrics.",
+  url: "www.nairobisolutions.com",
+  industry: "Sales and marketing services",
+  location: "New York, USA · remote team",
+  size: "",
+  logo: null,
+  tags: ["Direct", "Data-driven", "Async first", "Weekly check-ins", "Coaching"],
+};
+
+/** TB-096 — a retake shuffles to a different set; the badges have to visibly change. */
+export const WORK_STYLE_SETS = [
+  ["Direct", "Data-driven", "Async first", "Weekly check-ins", "Coaching"],
+  ["Structured", "Outcome-led", "Daily stand-ups", "Hands-on", "Fast feedback"],
+  ["Collaborative", "Documentation-first", "Flexible hours", "Autonomy", "Monthly reviews"],
+];
 
 export const profile = {
   fields: [
@@ -348,3 +461,125 @@ export const profile = {
 };
 
 export const byName = (slug: string) => independents.find((i) => i.slug === slug) ?? independents[0];
+
+/* --------------------------------------------- objective dashboards (TB-061…065) */
+
+/** TB-061 — how a Manual KPI is written down depends on which direction it tracks. */
+export type KpiType = "increase" | "maintain" | "decrease";
+
+export function kpiValue(type: KpiType, current: number, target: number) {
+  return type === "increase" ? `+${current}` : type === "maintain" ? `${current}/${target}` : String(current);
+}
+
+/** TB-061 progress: current ÷ target × 100, capped so an overachiever doesn't break the bar. */
+export const kpiProgress = (current: number, target: number) => Math.min(100, Math.round((current / target) * 100));
+
+/** TB-061 heatmap states, worst to best, with the colour each tile uses. */
+export const HEAT: Record<string, { label: string; cls: string }> = {
+  over: { label: "Overachieved", cls: "bg-[#1b6b3a]" },
+  hit: { label: "Achieved", cls: "bg-[#27ae60]" },
+  risk: { label: "At Risk", cls: "bg-[#f2c94c]" },
+  miss: { label: "Missed", cls: "bg-[#eb5757]" },
+  none: { label: "No Changes", cls: "bg-[#e0e0e0]" },
+  na: { label: "N/A", cls: "bg-transparent outline outline-1 -outline-offset-1 outline-[#e0e0e0]" },
+};
+
+/** The Manual objective's measurable side — everything the Team Builder can read but not edit. */
+export const MANUAL_METRIC = {
+  kpiType: "increase" as KpiType,
+  current: 13,
+  target: 20,
+  dailyTarget: 2,
+  cadence: "Daily",
+  unit: "demos",
+  /** Cumulative progress per update, oldest first — drives the trend chart. */
+  trend: [5, 10, 20, 30, 35, 45, 50, 60, 65],
+  /** One tile per weekday since the trial started. */
+  heatmap: ["hit", "over", "risk", "hit", "miss", "hit", "hit", "none", "over", "hit", "risk", "hit", "hit", "over", "miss", "hit", "na", "na"],
+};
+
+export type Task = { id: string; title: string; done: boolean };
+
+export type KeyResult = {
+  id: string;
+  title: string;
+  kind: "manual" | "automatic" | "default";
+  progress: number;
+  status: { label: string; tone: Tone };
+  started: string;
+  due: string;
+  /** Automatic key results are driven by their tasks (TB-065). */
+  tasks?: Task[];
+  /** TB-112 — every status change on the key result, newest first, with its timestamp. */
+  activity: { at: string; text: string }[];
+};
+
+/** The three key results behind the Automatic objective (TB-062 / TB-064 / TB-065). */
+export const KEY_RESULTS: KeyResult[] = [
+  {
+    id: "kr-calls",
+    title: "Book 12 discovery calls per week",
+    kind: "manual",
+    progress: 72,
+    status: { label: "On track", tone: "ok" },
+    started: "25 Aug 2026",
+    due: "24 Sep 2026",
+    activity: [
+      { at: "11 Sep 2026, 4:20 PM PHT", text: "9 of 12 calls logged this week — 72%" },
+      { at: "09 Sep 2026, 5:05 PM PHT", text: "Flagged off track, 2 calls behind pace" },
+      { at: "25 Aug 2026, 9:00 AM PHT", text: "Key result agreed and started" },
+    ],
+  },
+  {
+    id: "kr-qualify",
+    title: "Qualify 8 opportunities over $10k",
+    kind: "automatic",
+    // Derived from the tasks below (TB-113): three of four done. One is left open so IN-030 has
+    // something to tick, and so the task → key result → objective chain is visible in the demo.
+    progress: 75,
+    status: { label: "On track", tone: "ok" },
+    started: "25 Aug 2026",
+    due: "18 Sep 2026",
+    tasks: [
+      { id: "t1", title: "Build the ICP scoring sheet", done: true },
+      { id: "t2", title: "Qualify 4 inbound opportunities", done: true },
+      { id: "t3", title: "Qualify 4 outbound opportunities", done: true },
+      { id: "t4", title: "Hand the shortlist to the sales lead", done: false },
+    ],
+    activity: [
+      { at: "15 Sep 2026, 11:45 AM PHT", text: "One task left open: hand the shortlist to the sales lead" },
+      { at: "15 Sep 2026, 11:40 AM PHT", text: "Task “Qualify 4 outbound opportunities” marked done — 75%" },
+      { at: "08 Sep 2026, 10:15 AM PHT", text: "Tasks “ICP scoring sheet” and “4 inbound opportunities” marked done — 50%" },
+      { at: "25 Aug 2026, 9:00 AM PHT", text: "Key result agreed with 4 connected tasks" },
+    ],
+  },
+  {
+    id: "kr-handover",
+    title: "Hand over pipeline doc to sales lead",
+    kind: "default",
+    progress: 100,
+    status: { label: "Achieved", tone: "ok" },
+    started: "25 Aug 2026",
+    due: "24 Sep 2026",
+    activity: [
+      { at: "11 Sep 2026, 9:20 AM PHT", text: "Approved — key result achieved" },
+      { at: "10 Sep 2026, 6:45 PM PHT", text: "Marked as done — waiting on approval" },
+      { at: "25 Aug 2026, 9:00 AM PHT", text: "Key result agreed and started" },
+    ],
+  },
+];
+
+/** TB-065 — an automatic key result's own progress is completed tasks ÷ total. */
+export const taskProgress = (tasks: Task[]) => (tasks.length ? Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100) : 0);
+
+/**
+ * TB-113 — an automatic key result's percentage is derived from its tasks, never read from a
+ * stored number, so ticking a task really does move the key result and the objective above it.
+ */
+export const krValue = (kr: KeyResult) => (kr.tasks ? taskProgress(kr.tasks) : kr.progress);
+
+/** TB-062 — progress is completed KRs ÷ total, never typed in by hand. */
+export const krProgress = (krs: KeyResult[]) => {
+  const done = krs.filter((k) => krValue(k) === 100).length;
+  return { done, total: krs.length, percent: krs.length ? Math.round((done / krs.length) * 100) : 0 };
+};

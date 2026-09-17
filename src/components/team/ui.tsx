@@ -61,7 +61,27 @@ export function Toolbar({ children, right }: { children: ReactNode; right?: Reac
 }
 
 /** Figma "Independent card" (Discover / Saved): p 20, gap 12, 48px avatar, name 14 medium primary, title 18 semibold + match pill. */
-export function IndependentCard({ person, variant = "discover", onInvite, onOpen }: { person: Independent; variant?: "discover" | "saved"; onInvite: () => void; onOpen?: (p: Independent) => void }) {
+/**
+ * TB-012 — what the match score is based on. Before a job post exists it is Work Style only
+ * (Phase 1); a live job post adds Profile fit (Phase 2), the trial adds Performance (Phase 3),
+ * and the post-trial evaluation finalises it (Phase 4).
+ */
+export const MATCH_TOOLTIP = "Work Style fit against your quiz answers, plus profile fit once you have a live job post. Trial performance and your evaluation fold in later.";
+
+export function IndependentCard({
+  person,
+  variant = "discover",
+  onInvite,
+  onOpen,
+  onRemove,
+}: {
+  person: Independent;
+  variant?: "discover" | "saved";
+  onInvite: () => void;
+  onOpen?: (p: Independent) => void;
+  /** Saved list only — TB-022 routes this through a confirmation prompt. */
+  onRemove?: () => void;
+}) {
   const { saved, toggleSaved } = useDemo();
   const isSaved = saved.includes(person.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
@@ -81,12 +101,12 @@ export function IndependentCard({ person, variant = "discover", onInvite, onOpen
           )}
           <div className="flex items-center gap-2">
             <span className="text-[18px] leading-[1.4] font-semibold text-ink">{person.role}</span>
-            <MatchPill pct={person.match} />
+            <MatchPill pct={person.match} coded title={MATCH_TOOLTIP} />
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {variant === "saved" ? (
-            <Button size="sm" onClick={() => toggleSaved(person.slug)}>
+            <Button size="sm" onClick={() => (onRemove ? onRemove() : toggleSaved(person.slug))}>
               Remove
             </Button>
           ) : (
@@ -118,20 +138,37 @@ export function IndependentCard({ person, variant = "discover", onInvite, onOpen
 }
 
 /** Figma "Pagination": Previous / 1 2 3 … n / Next (14px, active page primary). */
-export function Pagination({ last }: { last: string }) {
+/**
+ * Figma "Pagination": Previous / 1 2 3 … n / Next (14px, active page primary).
+ * TB-012 — the page numbers come from the real result count and Previous/Next actually move.
+ */
+export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
   const Prev = ICONS.chevronLeft;
   const Next = ICONS.chevronRight;
+  if (pages <= 1) return null;
+
+  // Up to 3 numbers around the current page, with an ellipsis before the last when they don't meet.
+  const start = Math.max(1, Math.min(page - 1, pages - 2));
+  const window = [start, start + 1, start + 2].filter((p) => p >= 1 && p <= pages);
+  const items: (number | "…")[] = window.includes(pages) ? window : [...window, ...(window.at(-1)! < pages - 1 ? (["…"] as const) : []), pages];
+
   return (
     <nav aria-label="Pagination" className="flex items-center justify-center gap-2 text-[14px] leading-[1.4] font-medium text-ink">
-      <button type="button" className="flex items-center gap-1 font-normal text-ink-2">
+      <button type="button" onClick={() => onChange(page - 1)} disabled={page === 1} className="flex items-center gap-1 font-normal text-ink-2 disabled:text-[#c3c3c3]">
         <Prev size={18} aria-hidden /> Previous
       </button>
-      {["1", "2", "3", "…", last].map((p, i) => (
-        <button key={p} type="button" aria-current={i === 0 ? "page" : undefined} className={`rounded-md px-2.5 py-1.5 ${i === 0 ? "bg-primary text-white" : "hover:bg-surface-alt"}`}>
-          {p}
-        </button>
-      ))}
-      <button type="button" className="flex items-center gap-1 font-normal text-ink-2">
+      {items.map((p, i) =>
+        p === "…" ? (
+          <span key={`gap${i}`} className="px-1 text-ink-2">
+            …
+          </span>
+        ) : (
+          <button key={p} type="button" onClick={() => onChange(p)} aria-current={p === page ? "page" : undefined} className={`rounded-md px-2.5 py-1.5 ${p === page ? "bg-primary text-white" : "hover:bg-surface-alt"}`}>
+            {p}
+          </button>
+        ),
+      )}
+      <button type="button" onClick={() => onChange(page + 1)} disabled={page === pages} className="flex items-center gap-1 font-normal text-ink-2 disabled:text-[#c3c3c3]">
         Next <Next size={18} aria-hidden />
       </button>
     </nav>

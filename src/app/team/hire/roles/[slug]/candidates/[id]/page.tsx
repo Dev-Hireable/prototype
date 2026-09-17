@@ -1,15 +1,53 @@
 "use client";
 
-import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { MdChevronLeft, MdOutlineFlag } from "react-icons/md";
-import { Button, Field, Input, JobBadge, KeyValue, LinkButton, Modal, ObjectiveRow, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { MdOutlineFlag, MdOutlineThumbDown } from "react-icons/md";
+import { BackLink, Button, Field, Input, JobBadge, LinkButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { IntroCard, ProfileColumn } from "@/components/team/ui";
+import { SendOfferDialog } from "@/components/team/SendOfferDialog";
+import { ProposalReview } from "@/components/team/ProposalReview";
+import type { Proposal } from "@/components/team/ProposalReview";
 import { EMPLOYER_STAGE_LABELS, byName } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 
-const PROPOSAL = { rate: "$1,500.00/mo", objectives: ["Drive Qualified Pipeline Through Outreach", "Increase Click-Through Rate", "Deliver Client-Ready Brand Awareness Campaign Assets"], letter: "I am a results-driven specialist with over 5 years of experience in digital marketing, brand awareness, and campaign management. My approach combines data-driven strategy with creative execution to deliver measurable results." };
+/** Figma node 11338-10129 — the proposal as submitted, with each objective's key results. */
+const PROPOSAL: Proposal = {
+  version: 1,
+  sent: "7 Sep 2026",
+  rate: "$1,500.00/mo",
+  letter:
+    "I am a results-driven specialist with over 5 years of experience in digital marketing, brand awareness, and campaign management. My approach combines data-driven strategy with creative execution to deliver measurable results.",
+  objectives: [
+    {
+      title: "Drive Qualified Pipeline Through Outreach",
+      kind: "okr",
+      description: "Demonstrate the ability to identify, engage, and convert qualified prospects through a structured outreach process — proving readiness for a full-time marketing role.",
+      keyResults: [
+        { title: "Send Targeted Outreach Messages", description: "Reach out to at least 500 qualified prospects through email or LinkedIn to build a consistent top-of-funnel pipeline.", target: "500" },
+        { title: "Book Discovery Calls", description: "Convert outreach into at least 12 booked discovery calls with decision makers in the target segment.", target: "12" },
+        { title: "Build Outreach Playbook", description: "Document the sequences, templates and objection handling that worked, so the next rep can run it.", target: "1 playbook" },
+      ],
+    },
+    {
+      title: "Increase Click-Through Rate",
+      kind: "kpi",
+      description: "Lift email and paid click-through rates against the current baseline by testing subject lines, creative and audience segments each week.",
+      keyResults: [
+        { title: "Raise email CTR from 2.1% to 4%", description: "Run a weekly A/B test on subject line and preview text, keeping the winning variant each cycle.", target: "4%" },
+        { title: "Report on every test", description: "A short weekly note on what was tested, what won, and what happens next.", target: "Weekly" },
+      ],
+    },
+    {
+      title: "Deliver Client-Ready Brand Awareness Campaign Assets",
+      kind: "task",
+      description: "Produce a complete campaign pack the team can ship without rework: copy, creative and a one-page results summary.",
+      keyResults: [{ title: "Hand over the campaign pack", description: "Copy, creative and the results summary in the shared drive, reviewed and signed off.", target: "1 pack" }],
+    },
+  ],
+};
+
+const ThumbDown = MdOutlineThumbDown;
 
 type Dialog = null | "invite" | "drop" | "flag" | "request" | "proposal" | "decline" | "revision" | "offer";
 
@@ -20,7 +58,7 @@ type Dialog = null | "invite" | "drop" | "flag" | "request" | "proposal" | "decl
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
   const router = useRouter();
-  const { roles, candidates, setStage, setDropped, setOffer } = useDemo();
+  const { roles, candidates, setStage, setDropped, setOffer, cards, addInterview } = useDemo();
   const role = roles.find((r) => r.slug === slug);
   const cand = candidates.find((c) => c.id === id);
   if (!role || !cand) notFound();
@@ -29,16 +67,28 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [link, setLink] = useState("https://meet.google.com/yxw-vuts-rqp");
-  const [rate, setRate] = useState("1,600");
+  /** TB-106 — the revision note is required before the request can be sent. */
+  const [revisionNote, setRevisionNote] = useState("");
   const [toast, setToast] = useToast();
   const first = p.name.split(" ")[0];
   const declined = cand.status?.label === "Declined to propose";
+  /** TB-106 — a revision was requested and the independent hasn't resubmitted yet. */
+  const awaitingRevision = cand.status?.label === "Revision requested";
   const [when = "01/06/2026", at = "06:00 AM (EST)"] = (cand.status?.meta ?? "").split(" · ");
   const pipeline = `/team/hire/roles/${role.slug}`;
 
   const sendInvite = () => {
     if (!date || !time) return;
     setStage(cand.id, "invited", { label: "Awaiting reply", tone: "neutral", meta: `${date} · ${time}` });
+    // TB-040 — the invitation is also an interview, so it belongs on the Interviews page.
+    addInterview({
+      id: `iv${Date.now()}`,
+      independent: cand.independent,
+      role: role.title,
+      when: `${date}, ${time}`,
+      format: link.includes("zoom") ? "Zoom" : "Google Meet",
+      status: { label: "Awaiting reply", tone: "neutral" },
+    });
     setDialog(null);
     setToast(`Interview invitation sent to ${first}`);
   };
@@ -96,7 +146,10 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       case "proposal_requested":
         return (
           <>
-            <Button size="lg" variant="primary" className="w-full" disabled>
+            {/* TB-106 — once a revision has been asked for there is a submitted proposal to track,
+                so the button stays live and opens it read-only. Before the first submission there
+                is nothing to open, and it stays disabled. */}
+            <Button size="lg" variant="primary" className="w-full" disabled={!awaitingRevision} onClick={() => setDialog("proposal")}>
               Review proposal
             </Button>
             {message}
@@ -152,11 +205,9 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
           ]}
         />
       }
+      nav={<BackLink href={pipeline}>Back to pipeline</BackLink>}
     >
       <div className="flex flex-col gap-10 pb-14">
-        <Link href={pipeline} className="flex h-5 items-center gap-1 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
-          <MdChevronLeft size={16} aria-hidden /> Back to pipeline
-        </Link>
         <div className="flex items-start justify-center gap-6">
           {/* Left column */}
           <div className="flex w-[384px] shrink-0 flex-col gap-4">
@@ -238,7 +289,8 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         onClose={() => setDialog(null)}
         tone={cand.dropped ? "default" : "danger"}
         title={cand.dropped ? `Undrop ${first}?` : `Drop ${first} from this role?`}
-        description={cand.dropped ? "They return to their previous stage in the tracker and are told the role is open to them again." : "They are told the role moved on without them. You can undrop within 30 days; after that the application is closed."}
+        // TB-044 is explicit that neither dropping nor undropping notifies them, so the copy can't imply it does.
+        description={cand.dropped ? "They return to their previous stage in the tracker. They are not notified either way." : "They move to the Dropped column and are not notified. You can undrop within 30 days; after that the application is closed."}
         footer={
           <>
             <Button size="lg" onClick={() => setDialog(null)}>
@@ -287,7 +339,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
             <Button size="lg" onClick={() => setDialog(null)}>
               Cancel
             </Button>
-            <Button size="lg" variant="primary" onClick={() => { setStage(cand.id, "proposal_requested", { label: "Proposal requested", tone: "neutral", meta: "Sent today" }); setDialog(null); setToast(`Proposal requested from ${first}`); }}>
+            <Button size="lg" variant="primary" onClick={() => { setStage(cand.id, "proposal_requested", { label: "Awaiting proposal", tone: "warn", meta: "Sent today" }); setDialog(null); setToast(`Proposal requested from ${first}`); }}>
               Send request
             </Button>
           </>
@@ -298,41 +350,29 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         </Field>
       </Modal>
 
-      {/* Review proposal — Figma "Proposals and offers / Review proposal · objectives" */}
-      <Modal
-        open={dialog === "proposal"}
-        onClose={() => setDialog(null)}
-        title="Proposal v1"
-        description={`${first}’s proposal for ${role.title}. Send an offer, ask for a revision, or decline.`}
-        footer={
-          <>
-            <Button size="lg" variant="ghost" onClick={() => setDialog("decline")}>
-              Decline
-            </Button>
-            <Button size="lg" onClick={() => setDialog("revision")}>
-              Request revision
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => setDialog("offer")}>
-              Send offer
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex gap-2">
-            <KeyValue label="Rate" value={PROPOSAL.rate} />
-            <KeyValue label="Contract" value={role.type === "trial" ? "Trial" : "Full-time"} />
-            <KeyValue label="Duration" value={role.duration} />
-          </div>
-          <div className="flex flex-col gap-2">
-            {PROPOSAL.objectives.map((o, i) => (
-              <ObjectiveRow key={o} index={i}>
-                {o}
-              </ObjectiveRow>
-            ))}
-          </div>
-          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{PROPOSAL.letter}</p>
-        </div>
+      {/* Review proposal — Figma node 11338-10290: the dialog owns its header, panes and action bar. */}
+      <Modal open={dialog === "proposal"} onClose={() => setDialog(null)} title={`${first}'s proposal for ${role.title}`} width={1100} bare>
+        <ProposalReview
+          person={p}
+          role={role}
+          proposal={PROPOSAL}
+          onClose={() => setDialog(null)}
+          actions={
+            <>
+              <Button size="xl" variant="primary" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("offer")}>
+                Send offer
+              </Button>
+              {/* Only one revision request per round — asking again is what the resubmission is for. */}
+              <Button size="xl" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("revision")}>
+                Request revision
+              </Button>
+              <Button size="xl" className="!px-0 w-12" disabled={awaitingRevision} onClick={() => setDialog("decline")}>
+                <ThumbDown size={20} aria-hidden />
+                <span className="sr-only">Decline proposal</span>
+              </Button>
+            </>
+          }
+        />
       </Modal>
 
       <Modal
@@ -345,14 +385,27 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
             <Button size="lg" onClick={() => setDialog(null)}>
               Cancel
             </Button>
-            <Button size="lg" variant="primary" onClick={() => { setStage(cand.id, "proposal_requested", { label: "Revision requested", tone: "warn", meta: "v1 · today" }); setDialog(null); setToast("Revision requested"); }}>
+            <Button
+              size="lg"
+              variant="primary"
+              disabled={!revisionNote.trim()}
+              onClick={() => {
+                // Revision and a first request land on the same stage, so the notification is
+                // named explicitly rather than inferred from it (TB-106 vs TB-103).
+                setStage(cand.id, "proposal_requested", { label: "Revision requested", tone: "warn", meta: "v1 · today" }, "proposal_revision");
+                setRevisionNote("");
+                setDialog(null);
+                setToast("Revision requested");
+              }}
+            >
               Send request
             </Button>
           </>
         }
       >
+        {/* TB-106: feedback is mandatory — "please revise" with no note isn't actionable. */}
         <Field label="What should change?">
-          <Textarea rows={3} className="h-[78px]" placeholder="e.g. Please update the lead generation target from 50 to 75." />
+          <Textarea rows={3} className="h-[78px]" value={revisionNote} onChange={(e) => setRevisionNote(e.target.value)} placeholder="e.g. Please update the lead generation target from 50 to 75." />
         </Field>
       </Modal>
 
@@ -361,13 +414,24 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         onClose={() => setDialog(null)}
         tone="danger"
         title="Decline this proposal?"
-        description={`${first} is told the proposal was declined. They stay in the tracker so you can request a new one later.`}
+        description={`${first} is told the proposal was declined and moves to the Dropped column. You can undrop them later if things change.`}
         footer={
           <>
             <Button size="lg" onClick={() => setDialog(null)}>
               Cancel
             </Button>
-            <Button size="lg" variant="danger" onClick={() => { setStage(cand.id, "interviewed", { label: "Proposal declined", tone: "danger" }); setDialog(null); setToast("Proposal declined"); }}>
+            <Button
+              size="lg"
+              variant="danger"
+              onClick={() => {
+                // TB-107: a declined proposal belongs in Dropped, not back in the interview
+                // column where it looked like they were still in the running.
+                setStage(cand.id, cand.stage, { label: "Proposal declined", tone: "danger" }, "proposal_declined");
+                setDropped(cand.id, true);
+                setDialog(null);
+                setToast("Proposal declined");
+              }}
+            >
               Decline proposal
             </Button>
           </>
@@ -378,42 +442,20 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         </Field>
       </Modal>
 
-      {/* Send offer — Figma "Proposals and offers / Send offer · unsigned / dates / cadence / Offer sent confirm" */}
-      <Modal
+      {/* TB-105 — four-step send offer: letter → dates → deposit → sign. */}
+      <SendOfferDialog
         open={dialog === "offer"}
         onClose={() => setDialog(null)}
-        title={`Send an offer to ${first}`}
-        description="Escrow for the trial is charged to your default payment method once they accept. The offer expires in 7 days."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setDialog(null)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => { setStage(cand.id, "offer_received", { label: "Offer sent", tone: "warn", meta: "Expires in 7 days" }); setOffer("o1", { status: { label: "Pending", tone: "warn" } }); setDialog(null); setToast(`Offer sent to ${first}`); }}>
-              Send offer
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-3">
-            <Field label="Rate (USD / month)" className="flex-1">
-              <Input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="numeric" />
-            </Field>
-            <Field label="Payment cadence" className="flex-1">
-              <Select options={["One-time at end of trial", "Every 2 weeks", "Monthly"]} />
-            </Field>
-          </div>
-          <div className="flex gap-3">
-            <Field label="Start date" className="flex-1">
-              <Input placeholder="1 Oct 2026" />
-            </Field>
-            <Field label="End date" className="flex-1">
-              <Input placeholder="30 Oct 2026" />
-            </Field>
-          </div>
-        </div>
-      </Modal>
+        person={p}
+        role={role}
+        proposal={PROPOSAL}
+        card={cards.find((c) => c.isDefault) ?? cards[0]}
+        onSend={() => {
+          setStage(cand.id, "offer_received", { label: "Awaiting response", tone: "warn", meta: "Expires in 7 days" });
+          setOffer("o1", { status: { label: "Pending", tone: "warn" } });
+          setToast("Offer sent to candidate");
+        }}
+      />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

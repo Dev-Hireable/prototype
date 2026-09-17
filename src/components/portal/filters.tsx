@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import { Button, Checkbox, Input, Select } from "@/components/independent/ui";
 
 export const EXPERIENCE_LEVELS = ["Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
-export const SKILL_OPTIONS = ["Select skills", "Outbound sales", "HubSpot", "Negotiation", "Cold calling"] as const;
+/** First entry is the "no skill filter" placeholder; the rest exist on the seeded profiles so the filter visibly bites. */
+export const SKILL_OPTIONS = ["Select skills", "Cold calling", "HubSpot", "Negotiation", "Enterprise sales", "Lead generation"] as const;
 
 export function MarketplaceFilterPanel({
   levels,
@@ -13,6 +14,9 @@ export function MarketplaceFilterPanel({
   onMinChange,
   onMaxChange,
   skillOptions,
+  skill,
+  onSkillChange,
+  activeCount = 0,
   roleTypeSlot,
   onApply,
   onReset,
@@ -25,14 +29,22 @@ export function MarketplaceFilterPanel({
   onMinChange: (value: string) => void;
   onMaxChange: (value: string) => void;
   skillOptions: readonly string[];
+  skill?: string;
+  onSkillChange?: (value: string) => void;
+  /** How many filters are currently applied — shown next to the heading (TB-012). */
+  activeCount?: number;
   roleTypeSlot?: ReactNode;
   onApply: () => void;
   onReset: () => void;
 }) {
   return (
     <aside className="flex w-[280px] shrink-0 flex-col gap-5">
-      <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+      <h2 className="flex items-center gap-2 font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
         Filter
+        {/* TB-012: active filters are visually indicated. */}
+        {activeCount > 0 && (
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] leading-none font-semibold text-white">{activeCount}</span>
+        )}
       </h2>
       {roleTypeSlot}
       <fieldset className="flex flex-col gap-2">
@@ -45,7 +57,7 @@ export function MarketplaceFilterPanel({
       </fieldset>
       <label className="flex flex-col gap-2 text-[14px] leading-[1.4] font-medium text-ink">
         Skills
-        <Select options={skillOptions} />
+        <Select options={skillOptions} value={skill} onChange={(event) => onSkillChange?.(event.target.value)} />
       </label>
       <div className="flex flex-col gap-2 text-[14px] leading-[1.4] font-medium text-ink">
         Monthly rate (USD)

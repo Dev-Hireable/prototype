@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, JobBadge, KebabMenu, MatchPill, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Field, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { sendChat } from "@/lib/demo/live";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/ScrollFade";
-import { COLUMNS } from "@/lib/independent/data";
+import { COLUMNS, MATCH_TOOLTIP, roles } from "@/lib/independent/data";
 import type { Application } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
@@ -14,6 +15,9 @@ export default function MyApplications() {
   const { applications, withdraw } = useDemo();
   const [menu, setMenu] = useState<string | null>(null);
   const [target, setTarget] = useState<Application | null>(null);
+  /** IN-022 — compose to the Team Builder without leaving the pipeline. */
+  const [messaging, setMessaging] = useState<Application | null>(null);
+  const [msg, setMsg] = useState("");
   const [toast, setToast] = useToast();
 
   return (
@@ -43,16 +47,26 @@ export default function MyApplications() {
                     </span>
                   </header>
                   <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-                    {cards.map((a) => (
+                    {cards.map((a) => {
+                      // IN-018 wants the company and the real contract type on the card; the type
+                      // was hardcoded to "trial" for every application regardless of the role.
+                      const role = roles.find((r) => r.slug === a.roleSlug);
+                      return (
                       <li key={a.id} className="relative flex flex-col gap-3 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border">
-                        <div className="flex items-start justify-between gap-2">
-                          <Link href={`/independent/jobs/applications/${a.id}`} className="w-[208px] text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink hover:text-primary">
-                            {a.title}
+                        <div className="flex items-start gap-2">
+                          <Initials text={role?.initials ?? a.company.slice(0, 2).toUpperCase()} className="size-8 shrink-0 text-[11px]" />
+                          <Link href={`/independent/jobs/applications/${a.id}`} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] hover:text-primary">
+                            <span className="truncate text-[14px] font-semibold tracking-[0.2px] text-ink">{a.title}</span>
+                            <span className="truncate text-[12px] text-ink-2">{a.company}</span>
                           </Link>
-                          <KebabMenu label="Application actions" open={menu === a.id} onOpenChange={(open) => setMenu(open ? a.id : null)} itemCount={2} iconSize={16} buttonClassName="!size-6 !rounded-full">
+                          <KebabMenu label="Application actions" open={menu === a.id} onOpenChange={(open) => setMenu(open ? a.id : null)} itemCount={3} iconSize={16} buttonClassName="!size-6 !rounded-full">
                             <MenuLink density="compact" href={`/independent/jobs/applications/${a.id}`}>
                               View application
                             </MenuLink>
+                            {/* IN-022 — on every card, at every stage. */}
+                            <MenuAction density="compact" onClick={() => { setMessaging(a); setMsg(""); setMenu(null); }}>
+                              Message Team Builder
+                            </MenuAction>
                             <MenuAction density="compact" destructive onClick={() => { setTarget(a); setMenu(null); }}>
                               Withdraw application
                             </MenuAction>
@@ -60,8 +74,8 @@ export default function MyApplications() {
                         </div>
                         <div className="flex items-center justify-between text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
                           <span className="flex items-center gap-1">
-                            <JobBadge type="trial" />
-                            <MatchPill pct={a.match} />
+                            <JobBadge type={role?.type ?? "trial"} />
+                            <MatchPill pct={a.match} coded title={MATCH_TOOLTIP} />
                           </span>
                           <span>{a.submitted}</span>
                         </div>
@@ -74,8 +88,15 @@ export default function MyApplications() {
                             </div>
                           </>
                         )}
+                        {/* IN-018 — an offer on the table gets its own way in. */}
+                        {a.stage === "offer_received" && (
+                          <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}/offer`} className="justify-center">
+                            Review offer
+                          </LinkButton>
+                        )}
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </section>
               );
@@ -109,6 +130,37 @@ export default function MyApplications() {
           </>
         }
       />
+      <Modal
+        open={!!messaging}
+        onClose={() => setMessaging(null)}
+        title={`Message ${messaging?.company ?? ""}`}
+        description={`About your ${messaging?.title ?? ""} application. Goes straight to your thread in Messages.`}
+        footer={
+          <>
+            <Button size="lg" onClick={() => setMessaging(null)}>
+              Cancel
+            </Button>
+            {/* IN-022 — an empty message cannot be sent. */}
+            <Button
+              size="lg"
+              variant="primary"
+              disabled={!msg.trim()}
+              onClick={() => {
+                sendChat("independent", msg);
+                setMessaging(null);
+                setMsg("");
+                setToast("Message sent");
+              }}
+            >
+              Send message
+            </Button>
+          </>
+        }
+      >
+        <Field label="Message">
+          <Textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Ask a question about the role, timing or next steps." />
+        </Field>
+      </Modal>
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

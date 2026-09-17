@@ -4,10 +4,10 @@ import Image from "next/image";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
-import { Button, Card, Chip, InfoBanner, KebabMenu, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { MenuAction } from "@/components/portal/controls";
-import { transactions } from "@/lib/independent/data";
-import type { PayoutMethod } from "@/lib/independent/data";
+import { contracts, EARNINGS_LABEL, EARNINGS_TYPES } from "@/lib/independent/data";
+import type { PayoutMethod, Transaction } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
 const Verified = ICONS.checkCircle;
@@ -23,20 +23,63 @@ const BRAND: Partial<Record<PayoutMethod["brand"], { src: string; w: number; cls
   GCash: { src: "/brands/gcash.png", w: 110, cls: "h-[26px] w-[110px]" },
 };
 
-/** Figma table columns: Date 110 · Description flex · Counterparty 150 · Type 130 · Amount 110 · Status 120 · Actions 80. */
-const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[130px]", "w-[110px]", "w-[120px]", "w-[80px]"];
+/** Figma table columns: Date 110 · Contract flex · Company 150 · Type 150 · Amount 110 · Status 120 · Actions 80. */
+const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[150px]", "w-[110px]", "w-[120px]", "w-[80px]"];
+/** IN-078 date ranges, measured from the newest row rather than the wall clock. */
+const RANGES = { "All time": Infinity, "Last 30 days": 30, "Last 90 days": 90 } as const;
+/** A screenful of rows; the pager hides itself when everything fits. */
+const PER_PAGE = 8;
+const daysBetween = (a: number, b: number) => {
+  const d = (n: number) => new Date(Math.floor(n / 10000), (Math.floor(n / 100) % 100) - 1, n % 100).getTime();
+  return Math.round((d(a) - d(b)) / 86400000);
+};
+/** The seed carries formatted strings, and the summary has to add them up. */
+const amountOf = (s: string) => Number(s.replace(/[^0-9.]/g, "")) || 0;
 
 /** Figma "Wallet / Independent": DM Sans 24 header; balances; payout cards (190 tall, radius 16) with ⋮ menu; transactions table. */
 export default function Wallet() {
-  const { payouts, setDefaultPayout, removePayout, available, withdrawFunds } = useDemo();
+  const { payouts, setDefaultPayout, removePayout, available, withdrawFunds, transactions, disputes } = useDemo();
   const [menu, setMenu] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<PayoutMethod | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
   const [q, setQ] = useState("");
+  const [type, setType] = useState("All types");
+  /** IN-078 — contract and date range filter alongside the type, and they combine. */
+  const [contract, setContract] = useState("All contracts");
+  const [range, setRange] = useState<keyof typeof RANGES>("All time");
+  const [page, setPage] = useState(1);
+  /** IN-054 — one transaction, read-only. */
+  const [detail, setDetail] = useState<Transaction | null>(null);
   const [toast, setToast] = useToast();
-  const rows = transactions.filter((t) => `${t.desc} ${t.party}`.toLowerCase().includes(q.toLowerCase()));
-  const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+  const money = (n: number) => `${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+  /** IN-053 — newest first, before anything is filtered out of it. */
+  const all = [...transactions].sort((a, b) => b.at - a.at);
+  const newest = Math.max(...all.map((t) => t.at), 0);
+  const contractName = (t: (typeof all)[number]) => contracts.find((c) => c.slug === t.contract)?.title ?? "—";
+  // IN-078: the filters combine, and each one used to be decorative — the list never changed.
+  const rows = all.filter(
+    (t) =>
+      (type === "All types" || EARNINGS_LABEL[t.type] === type) &&
+      (contract === "All contracts" || contractName(t) === contract) &&
+      daysBetween(newest, t.at) <= RANGES[range] &&
+      `${contractName(t)} ${t.desc} ${t.party}`.toLowerCase().includes(q.trim().toLowerCase()),
+  );
+  const filtering = q.trim() !== "" || type !== "All types" || contract !== "All contracts" || range !== "All time";
+  const clearAll = () => {
+    setQ("");
+    setType("All types");
+    setContract("All contracts");
+    setRange("All time");
+    setPage(1);
+  };
+  const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
+  const current = Math.min(page, pages);
+  const shown = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
+  /** IN-052 — every figure is added up from the ledger, so a recorded payment moves it at once. */
+  const received = all.filter((t) => t.type === "Payment Released").reduce((n, t) => n + amountOf(t.amount), 0);
+  const held = all.filter((t) => t.type === "Payment Deposited" && t.status.label === "Held").reduce((n, t) => n + amountOf(t.amount), 0);
+  const withdrawn = all.filter((t) => t.type === "Payout").reduce((n, t) => n + amountOf(t.amount), 0);
   const defaultPayout = payouts.find((p) => p.isDefault);
   const canWithdraw = available > 0 && !!defaultPayout?.verified.startsWith("Verified");
 
@@ -45,9 +88,10 @@ export default function Wallet() {
       <div className="flex flex-col gap-6" onClick={() => setMenu(null)}>
         <div className="flex gap-4 whitespace-nowrap">
           {[
-            [money(available), "Available to withdraw", available ? "from 1 released payment" : "withdrawn today"],
-            ["$1,600.00", "Held in escrow", "Sales Manager trial · releases 30 Sep"],
-            [money(6200 + (available ? 0 : 1400)), "Paid out, all time", `${available ? 5 : 6} payouts since June`],
+            [money(received), "Received, all time", `${all.filter((t) => t.type === "Payment Released").length} payments received from ${new Set(all.filter((t) => t.type === "Payment Released").map((t) => t.contract)).size} contracts`],
+            [money(available), "Available to withdraw", available ? "released and not yet withdrawn" : received ? "withdrawn already" : "nothing released yet"],
+            [money(held), "Held in escrow", `${all.filter((t) => t.type === "Payment Deposited" && t.status.label === "Held").length} trials funded and not yet released`],
+            [money(withdrawn), "Withdrawn to payout method", `${all.filter((t) => t.type === "Payout").length === 1 ? "one payout" : `${all.filter((t) => t.type === "Payout").length} payouts`} so far`],
           ].map(([v, l, s]) => (
             <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4">
               <p className="font-display text-[22px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
@@ -135,44 +179,143 @@ export default function Wallet() {
           </div>
         </Card>
 
-        <div className="flex items-center gap-3">
-          <SearchBox value={q} onChange={setQ} placeholder="Search by contract or reference" className="w-[340px]" />
-          <Select options={["All types", "Released", "Escrow", "Payout"]} className="!w-[160px]" />
-          <Select options={["Last 90 days", "Last 30 days", "All time"]} className="!w-[160px]" />
-          <Button variant="primary" size="lg" className="ml-auto" disabled={!canWithdraw} onClick={() => setWithdrawing(true)}>
-            Withdraw {money(available)}
-          </Button>
+        {/* IN-078 — contract, type and date range, combinable, with the active ones spelled out. */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <SearchBox value={q} onChange={setQ} placeholder="Search by contract or company" className="w-[280px]" />
+            <Select options={["All contracts", ...contracts.map((c) => c.title)]} value={contract} onChange={(e) => { setContract(e.target.value); setPage(1); }} className="!w-[230px]" />
+            <Select options={["All types", ...EARNINGS_TYPES]} value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} className="!w-[190px]" />
+            <Select options={Object.keys(RANGES)} value={range} onChange={(e) => { setRange(e.target.value as keyof typeof RANGES); setPage(1); }} className="!w-[160px]" />
+            <Button variant="primary" size="lg" className="ml-auto" disabled={!canWithdraw} onClick={() => setWithdrawing(true)}>
+              Withdraw {money(available)}
+            </Button>
+          </div>
+          {filtering && (
+            <div className="flex flex-wrap items-center gap-2 text-[13px] leading-[1.4] text-ink-2">
+              <span>
+                Showing {rows.length} of {all.length} transactions
+              </span>
+              {q.trim() && <Chip>Search: {q.trim()}</Chip>}
+              {contract !== "All contracts" && <Chip>{contract}</Chip>}
+              {type !== "All types" && <Chip>{type}</Chip>}
+              {range !== "All time" && <Chip>{range}</Chip>}
+              <Button size="sm" onClick={clearAll}>
+                Clear filters
+              </Button>
+            </div>
+          )}
         </div>
 
-        <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
-          <div className="flex items-center gap-4 bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2">
-            {["Date", "Description", "Counterparty", "Type", "Amount", "Status", "Actions"].map((h, i) => (
-              <span key={h} className={COLS[i]}>
-                {h}
-              </span>
-            ))}
-          </div>
-          {rows.map((t) => (
-            <div key={t.date + t.desc} className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">
-              <span className={COLS[0]}>{t.date}</span>
-              <span className={`${COLS[1]} truncate text-[14px]`}>{t.desc}</span>
-              <span className={COLS[2]}>{t.party}</span>
-              <span className={COLS[3]}>
-                <Chip>{t.type}</Chip>
-              </span>
-              <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
-              <span className={COLS[5]}>
-                <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
-              </span>
-              <span className={COLS[6]}>
-                <Button size="sm" onClick={() => setToast(`Receipt for ${t.desc}`)}>
-                  View
-                </Button>
-              </span>
+        {/* IN-053 — every row across every contract, newest first, paginated. */}
+        {all.length === 0 ? (
+          <EmptyState title="No transactions yet" body="Escrow deposits, released payments and withdrawals appear here as soon as a contract starts." />
+        ) : rows.length === 0 ? (
+          <EmptyState
+            title="No transactions match"
+            body="Try a different contract, type or date range."
+            action={
+              <Button size="lg" variant="primary" onClick={clearAll}>
+                Clear filters
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
+              <div className="flex items-center gap-4 bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2">
+                {["Date", "Contract", "Company", "Type", "Amount", "Status", "Actions"].map((h, i) => (
+                  <span key={h} className={COLS[i]}>
+                    {h}
+                  </span>
+                ))}
+              </div>
+              {shown.map((t) => (
+                <div key={t.date + t.desc} className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">
+                  <span className={COLS[0]}>{t.date}</span>
+                  <span className={`${COLS[1]} truncate text-[14px]`}>{contractName(t)}</span>
+                  <span className={COLS[2]}>{t.party}</span>
+                  <span className={COLS[3]}>
+                    <Chip>{EARNINGS_LABEL[t.type] ?? t.type}</Chip>
+                  </span>
+                  <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
+                  <span className={COLS[5]}>
+                    <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
+                  </span>
+                  <span className={COLS[6]}>
+                    <Button size="sm" onClick={() => setDetail(t)}>
+                      View
+                    </Button>
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            {pages > 1 && (
+              <div className="flex items-center justify-end gap-2">
+                <Button size="sm" disabled={current === 1} onClick={() => setPage(current - 1)}>
+                  Previous
+                </Button>
+                <span className="text-[13px] leading-[1.4] text-ink-2">
+                  Page {current} of {pages}
+                </span>
+                <Button size="sm" disabled={current === pages} onClick={() => setPage(current + 1)}>
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* IN-059 / IN-080 — filed disputes have their own page; this is the pointer to it. */}
+        {disputes.length > 0 && (
+          <p className="text-[13px] leading-[1.4] text-ink-2">
+            {disputes.filter((d) => d.status.label === "Pending review").length > 0
+              ? `${disputes.filter((d) => d.status.label === "Pending review").length} dispute under review. `
+              : ""}
+            <LinkButton size="sm" href="/independent/wallet/disputes">
+              View sent disputes
+            </LinkButton>
+          </p>
+        )}
       </div>
+
+      {/* IN-054 — date, contract, company, type, amount and status. Nothing here is editable. */}
+      <Modal
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        title="Transaction"
+        description={detail ? `${detail.date} · ${EARNINGS_LABEL[detail.type] ?? detail.type}` : undefined}
+        footer={
+          <>
+            <Button size="lg" onClick={() => setToast("Receipt downloaded")}>
+              Download receipt
+            </Button>
+            <Button size="lg" variant="primary" onClick={() => setDetail(null)}>
+              Close
+            </Button>
+          </>
+        }
+      >
+        {detail && (
+          <dl className="flex flex-col gap-2 rounded-lg bg-[#fafafa] p-4 text-[13px] leading-[1.45] outline -outline-offset-1 outline-border">
+            {(
+              [
+                ["Date", detail.date],
+                ["Contract", contractName(detail)],
+                ["Company", detail.party],
+                ["Type", EARNINGS_LABEL[detail.type] ?? detail.type],
+                ["Amount", detail.amount],
+                ["Status", detail.status.label],
+                ["Reference", detail.desc],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k} className="flex gap-4">
+                <span className="w-[130px] shrink-0 text-ink-2">{k}</span>
+                <span className="min-w-0 flex-1 text-ink">{v}</span>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Modal>
 
       <AddPayoutModal open={adding} onClose={() => setAdding(false)} onAdded={(m) => setToast(`${m.brand} ····${m.last4} added${m.isDefault ? " and set as default" : ""}`)} />
       <Modal

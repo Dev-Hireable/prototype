@@ -1,322 +1,418 @@
 "use client";
 
-import { notFound } from "next/navigation";
-import { use, useState } from "react";
+import { notFound, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Breadcrumb, Button, Chip, JobBadge, ObjectiveRow, Page, Progress, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
-import { contracts } from "@/lib/independent/data";
+import { Breadcrumb, Button, Chip, Field, Input, JobBadge, Modal, ObjectiveRow, Page, Progress, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { AutomaticBreakdown, DefaultTimeline, ManualMetrics, TaskList } from "@/components/team/ObjectiveViews";
+import { move, PAIR } from "@/lib/demo/live";
+import { daysLeft, ME, objectiveStatus } from "@/lib/independent/data";
+import { useDemo } from "@/lib/independent/store";
+import { krProgress, krValue, MANUAL_METRIC, OBJECTIVE_KIND } from "@/lib/team/data";
 
 const Attach = ICONS.attach;
 
+/** IN-041 — every recorded submission carries the time it happened, in the same shape as the seeds. */
+const stamp = () => {
+  const now = new Date();
+  return `${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}, ${now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} PHT`;
+};
+
+/**
+ * IN-026 / IN-028 / IN-077 — one dashboard per objective type. The panels themselves are the
+ * same components the Team Builder reviews from, so the two sides of a trial cannot drift; only
+ * the actions differ, because logging progress is the independent's job and ruling on it is theirs.
+ */
 const KIND = {
   kpi: {
-    title: "KPI Dashboard",
-    label: "KPI",
-    cadence: "Daily · due 30 Sep 2026",
-    target: "Target 12 calls this week · 9 logged so far",
-    about: "Juan owns outbound for the US mid-market segment. A call counts once it is logged in HubSpot with an outcome. Target is 12 per week, logged daily.",
-    update: { date: "11 Sep 2026", text: "Logged 3 calls today — 9 this week. The afternoon calling block is landing better with the US west coast; two more are booked for Thursday.", file: "call-log-week-3.csv", progress: ["Progress reported:", "72%"] },
-    history: [
-      { date: "11 Sep 2026", text: "+3 calls logged — 9 of 12 this week", status: { label: "Approved", tone: "ok" as const } },
-      { date: "10 Sep 2026", text: "+4 calls logged", status: { label: "Approved", tone: "ok" as const } },
-      { date: "09 Sep 2026", text: "+2 calls logged — flagged off track", status: { label: "Off track", tone: "danger" as const } },
+    title: "Manual Objective Dashboard",
+    label: OBJECTIVE_KIND.kpi,
+    cadence: "Daily updates",
+    about: "Progress is the value you log against the target. Update it at the agreed cadence — your Team Builder reviews each update and can approve it or ask for a revision.",
+    update: { date: "11 Sep 2026", text: "Logged this week’s numbers and attached the working file. The afternoon block is landing better with the US west coast, so the pace should hold.", file: "weekly-log.csv", progress: ["Progress reported:", "72%"] },
+    activity: [
+      { at: "11 Sep 2026, 4:20 PM PHT", text: "Progress update sent for review", status: { label: "Pending approval", tone: "warn" as const } },
+      { at: "10 Sep 2026, 5:40 PM PHT", text: "Progress update approved", status: { label: "Approved", tone: "ok" as const } },
+      { at: "09 Sep 2026, 5:05 PM PHT", text: "Flagged off track — behind the agreed pace", status: { label: "Off track", tone: "danger" as const } },
     ],
-    discussion: [
-      { who: "Alex Rivera", when: "2 days ago", text: "Nice jump on Wednesday — what changed?" },
-      { who: "Juan Dela Cruz", when: "2 days ago", text: "Switched to the afternoon calling block, PHT. Better pickup from the US west coast." },
-      { who: "Alex Rivera", when: "Yesterday", text: "Keep it. Let’s aim for 10+ this week." },
-    ],
-    progress: 72,
   },
   okr: {
-    title: "OKR Dashboard",
-    label: "OKR",
-    cadence: "Due 30 Sep 2026",
-    target: "2 of 3 key results complete · progress is completed KRs ÷ total",
-    about: "Juan owns the Q4 pipeline build. This objective completes when all three key results below are approved — progress moves only when a key result is marked done and approved.",
-    update: { date: "10 Sep 2026", text: "Pipeline doc is in the shared drive and handed to the sales lead — marked that key result done. Eight opportunities qualified last week; the call target is the last one open.", file: "q4-pipeline-handover.pdf", progress: ["Progress reported:", "67%"] },
-    history: [
-      { date: "10 Sep 2026", text: "Key result “Hand over pipeline doc” marked done", status: { label: "Pending approval", tone: "warn" as const } },
-      { date: "04 Sep 2026", text: "Key result “Qualify 8 opportunities” approved", status: { label: "Approved", tone: "ok" as const } },
-      { date: "25 Aug 2026", text: "Objective and three key results agreed at offer", status: { label: "Started", tone: "ok" as const } },
+    title: "Automatic Objective Dashboard",
+    label: OBJECTIVE_KIND.okr,
+    cadence: "Driven by key results",
+    about: "Progress here is the share of connected key results that are done. It moves when a key result is completed and approved, so there is nothing to log by hand.",
+    update: { date: "10 Sep 2026", text: "Marked the hand-over key result done and attached the file. One key result is still open.", file: "handover.pdf", progress: ["Progress reported:", "33% — 1 of 3 key results approved"] },
+    activity: [
+      { at: "11 Sep 2026, 9:20 AM PHT", text: "Key result “Hand over pipeline doc” approved", status: { label: "Approved", tone: "ok" as const } },
+      { at: "10 Sep 2026, 9:15 AM PHT", text: "Key result “Hand over pipeline doc” marked done", status: { label: "Pending approval", tone: "warn" as const } },
+      { at: "25 Aug 2026, 9:00 AM PHT", text: "Objective and three key results agreed at offer", status: { label: "Started", tone: "ok" as const } },
     ],
-    discussion: [
-      { who: "Alex Rivera", when: "3 days ago", text: "Once the 8 opps are qualified, let’s review the doc together before hand-over." },
-      { who: "Juan Dela Cruz", when: "Today", text: "Doc is in the shared drive — marked the KR done." },
-      { who: "Alex Rivera", when: "Today", text: "Approved. One KR to go." },
-    ],
-    progress: 67,
   },
   task: {
-    title: "Task Dashboard",
-    label: "Task",
-    cadence: "Due 30 Sep 2026",
-    target: "",
-    about: "Juan owns the CRM setup for Q4 outreach. Done means the board is live in HubSpot with the six agreed stages, all 41 target accounts imported, and an owner on every account. A task is binary — done or not done — and needs Sam’s approval to count.",
-    update: { date: "10 Sep 2026", text: "Board is live in HubSpot with the 6 stages we agreed, 41 accounts imported and owners assigned. Screenshots and the import log are attached.", file: "crm-board.png · import-log.csv", progress: ["Marked as done ·", "awaiting approval"] },
-    history: [
-      { date: "10 Sep 2026", text: "Marked as done — board live, 41 accounts imported", status: { label: "Pending approval", tone: "warn" as const } },
-      { date: "02 Sep 2026", text: "Stage naming agreed with Alex", status: { label: "Approved", tone: "ok" as const } },
-      { date: "25 Aug 2026", text: "Task started", status: { label: "Started", tone: "ok" as const } },
+    title: "Default Objective Dashboard",
+    label: OBJECTIVE_KIND.task,
+    cadence: "Binary — done or not done",
+    about: "A binary objective: done or not done. Mark it as done when the work is delivered — it sits at Pending approval until your Team Builder confirms it.",
+    update: { date: "10 Sep 2026", text: "Delivered and attached the evidence — screenshots and the log are in the file.", file: "evidence.png · log.csv", progress: ["Marked as done ·", "awaiting approval"] },
+    activity: [
+      { at: "10 Sep 2026, 11:05 AM PHT", text: "Marked as done and sent for approval", status: { label: "Pending approval", tone: "warn" as const } },
+      { at: "02 Sep 2026, 2:00 PM PHT", text: "Scope confirmed with your Team Builder", status: { label: "Approved", tone: "ok" as const } },
+      { at: "25 Aug 2026, 9:00 AM PHT", text: "Objective started", status: { label: "Started", tone: "ok" as const } },
     ],
-    discussion: [
-      { who: "Juan Dela Cruz", when: "10 Sep", text: "Marked as done — let me know if you want a different stage naming." },
-      { who: "Alex Rivera", when: "Today", text: "Looks right. Approving now." },
-    ],
-    progress: 100,
   },
 };
 
-const KRS = [
-  { title: "Book 12 discovery calls per week", kind: "KPI", progress: 72, status: { label: "On track", tone: "ok" as const } },
-  { title: "Qualify 8 opportunities over $10k", kind: "KPI", progress: 100, status: { label: "Approved", tone: "ok" as const } },
-  { title: "Hand over pipeline doc to sales lead", kind: "Objective", progress: 100, status: { label: "Approved", tone: "ok" as const } },
-];
+export default function ObjectiveDashboardPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
+  return (
+    <Suspense>
+      <ObjectiveDashboard params={params} />
+    </Suspense>
+  );
+}
 
 /** Figma "Contracts / KPI Dashboard · OKR Dashboard · Task Dashboard · talent view": objective card (p 24, gap 16) + 340px Discussion. */
-export default function ObjectiveDashboard({ params }: { params: Promise<{ slug: string; id: string }> }) {
+function ObjectiveDashboard({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
+  const { contracts, setObjectives, keyResults, markTask } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
   const objective = contract?.objectives.find((o) => o.id === id);
   if (!contract || !objective) notFound();
   const k = KIND[objective.kind];
-  const [comments, setComments] = useState(k.discussion);
+  const first = contract.managerFirst;
+  const [comments, setComments] = useState([
+    { who: contract.manager, when: "2 days ago", text: "Good jump this week — what changed?" },
+    { who: ME.name, when: "2 days ago", text: "Moved my working block later in the day, so there is more overlap with your team." },
+    { who: contract.manager, when: "Yesterday", text: "Keep that going for the rest of the trial." },
+  ]);
   const [draft, setDraft] = useState("");
   const [toast, setToast] = useToast();
-  const [tab, setTab] = useState<"dashboard" | "evaluation">("dashboard");
-  const status = objective.kind === "task" ? { label: "Pending approval", tone: "warn" as const } : objective.status === "risk" ? { label: "At risk", tone: "trial" as const } : { label: "On track", tone: "ok" as const };
+  const [updating, setUpdating] = useState(false);
+  const [marking, setMarking] = useState(false);
+  /** IN-045 — a task is marked done through the same confirmation prompt an objective gets. */
+  const [confirmTask, setConfirmTask] = useState<string | null>(null);
+  const [value, setValue] = useState(String(objective.current ?? ""));
+  const [note, setNote] = useState("");
+  const left = daysLeft(contract.day);
+  /** A full-time contract counts down its review period, not a trial. */
+  const leftLabel = contract.type === "trial" ? "days left in the trial" : "days left this quarter";
+  const status = objectiveStatus(objective, left);
+  /** IN-077 — a Default objective is read-only once it is Pending Approval; only a verdict moves it on. */
+  const locked = objective.status === "complete" || (objective.kind === "task" && objective.status === "pending");
+
+  /**
+   * IN-029 — a key result and its tasks are the same dashboard one level down, so they ride on
+   * query params rather than two more route files. `?kr=` opens the key result, `&tasks=1` its tasks.
+   */
+  const search = useSearchParams();
+  const router = useRouter();
+  const kr = keyResults.find((x) => x.id === search.get("kr"));
+  const showTasks = !!kr?.tasks && search.get("tasks") === "1";
+  const objHref = `/independent/contracts/${contract.slug}/objectives/${objective.id}`;
+  const krNow = krProgress(keyResults);
+  /** IN-040 / IN-041 — this objective’s own numbers drive the metric panels, not one fixed demo metric. */
+  const metric = {
+    ...MANUAL_METRIC,
+    current: objective.current ?? MANUAL_METRIC.current,
+    target: objective.target ?? MANUAL_METRIC.target,
+    dailyTarget: objective.dailyTarget ?? MANUAL_METRIC.dailyTarget,
+    unit: objective.unit ?? MANUAL_METRIC.unit,
+    trend: objective.trend ?? MANUAL_METRIC.trend,
+  };
+
+  const notifyTeam = (kind: "objective_update" | "objective_done") => {
+    if (contract.manager === PAIR.team.name) move(kind, { slug: contract.slug, title: contract.title });
+  };
+
+  /**
+   * IN-030 / IN-044 — ticking a task moves the key result, and the key result moves the objective,
+   * so the objective's own progress is rewritten from the key results rather than left where it was.
+   */
+  const completeTask = (taskId: string) => {
+    if (!kr) return;
+    markTask(kr.id, taskId);
+    const next = keyResults.map((x) => (x.id === kr.id && x.tasks ? { ...x, tasks: x.tasks.map((t) => (t.id === taskId ? { ...t, done: true } : t)) } : x));
+    const { done, total, percent } = krProgress(next);
+    const title = kr.tasks?.find((t) => t.id === taskId)?.title ?? "Task";
+    setObjectives(contract.slug, (os) =>
+      os.map((o) =>
+        o.id === objective.id
+          ? { ...o, progress: percent, meta: `${done} of ${total} key results approved`, updated: "Today", activity: [{ at: stamp(), text: `Task “${title}” marked done — key result at ${krValue({ ...kr, tasks: next.find((x) => x.id === kr.id)?.tasks })}%` }, ...(o.activity ?? [])] }
+          : o,
+      ),
+    );
+    setConfirmTask(null);
+    setToast("Task marked done — key result and objective updated");
+  };
+
+  /**
+   * IN-026 / IN-041 / IN-045 / IN-077 — a submission is written to the contract, so the tracker,
+   * the trend chart and a reload all agree, and it lands in Recent activity with a timestamp.
+   */
+  const submit = (done: boolean) => {
+    const percent = done ? 100 : objective.target ? Math.min(100, Math.round((Number(value) / objective.target) * 100)) : objective.progress;
+    setObjectives(contract.slug, (os) =>
+      os.map((o) =>
+        o.id === objective.id
+          ? {
+              ...o,
+              status: "pending",
+              progress: percent,
+              current: done ? o.current : Number(value),
+              meta: done ? "Marked as done · awaiting approval" : `${value} of ${o.target ?? ""} · sent for review`,
+              updated: "Today",
+              trend: done ? o.trend : [...(o.trend ?? []), percent],
+              activity: [{ at: stamp(), text: done ? "Marked as done and sent for approval" : `Logged ${value}${o.unit ? ` ${o.unit}` : ""} — ${percent}%, sent for review` }, ...(o.activity ?? [])],
+            }
+          : o,
+      ),
+    );
+    notifyTeam(done ? "objective_done" : "objective_update");
+    setUpdating(false);
+    setMarking(false);
+    setToast(done ? `Sent to ${first} for approval` : `Update sent to ${first} for review`);
+  };
+
+  /** IN-026 / IN-028 / IN-029 / IN-077 — the same discussion panel serves the objective and its key results. */
+  const discussion = (
+    <div className="flex w-[340px] shrink-0 flex-col gap-3 self-start rounded-lg bg-white p-5 outline -outline-offset-1 outline-[#e3e3e3]">
+      <p className="text-[14px] leading-[1.45] font-semibold text-ink">Discussion</p>
+      {comments.map((c, i) => (
+        <div key={i} className="flex flex-col gap-[3px] leading-[1.45]">
+          <p className="flex items-start gap-2">
+            <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-ink">{c.who}</span>
+            <span className="text-[11px] whitespace-nowrap text-ink-2">{c.when}</span>
+          </p>
+          <p className="text-[12.5px] text-ink-2">{c.text}</p>
+        </div>
+      ))}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!draft.trim()) return;
+          setComments((c) => [...c, { who: ME.name, when: "Just now", text: draft.trim() }]);
+          setDraft("");
+        }}
+      >
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Add a comment…"
+          className="h-11 w-full rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] outline-none placeholder:text-ink-2 focus:border-primary"
+        />
+      </form>
+    </div>
+  );
+
+  const recentActivity = (items: { at: string; text: string; status?: { label: string; tone: "ok" | "warn" | "danger" } }[]) => (
+    <div className="flex flex-col gap-2 rounded-lg bg-white p-6 outline -outline-offset-1 outline-[#e3e3e3]">
+      <p className="text-[14px] leading-[1.45] font-semibold text-ink">Recent activity</p>
+      {items.map((a) => (
+        <div key={a.at} className="flex items-center gap-3 border-b border-border py-2 last:border-b-0 last:pb-0">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="text-[13px] leading-[1.4] text-ink">{a.text}</span>
+            <span className="text-[11.5px] leading-[1.3] text-ink-2">{a.at}</span>
+          </span>
+          {a.status && <StatusDot tone={a.status.tone}>{a.status.label}</StatusDot>}
+        </div>
+      ))}
+    </div>
+  );
+
+  // IN-029 — the key result dashboard: its own type, progress, dates, tasks, discussion and activity.
+  if (kr)
+    return (
+      <Page
+        title={
+          <>
+            {showTasks ? "Task Dashboard" : "Key Result Dashboard"} <JobBadge type={contract.type} />
+          </>
+        }
+        nav={
+          <Breadcrumb
+            items={[
+              { label: "All contracts", href: "/independent/contracts" },
+              { label: contract.title, href: `/independent/contracts/${contract.slug}` },
+              { label: k.title, href: objHref },
+              ...(showTasks ? [{ label: "Key result", href: `${objHref}?kr=${kr.id}` }, "Tasks"] : ["Key result"]),
+            ]}
+          />
+        }
+      >
+        <div className="flex items-start gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div className="flex flex-col gap-3 rounded-lg bg-white p-6 outline -outline-offset-1 outline-[#e3e3e3]">
+              <h2 className="text-[18px] leading-[1.4] font-semibold text-ink">{kr.title}</h2>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] leading-[1.4] text-ink-2">
+                <Chip size="sm">{OBJECTIVE_KIND[kr.kind === "manual" ? "kpi" : kr.kind === "automatic" ? "okr" : "task"]}</Chip>
+                <StatusDot tone={kr.status.tone}>{kr.status.label}</StatusDot>
+                {left !== null && <span>{Math.max(0, left)} {leftLabel}</span>}
+                <span>
+                  {kr.started} – {kr.due}
+                </span>
+              </div>
+              <Progress value={krValue(kr)} label className="w-full" />
+              {kr.tasks && !showTasks && (
+                <Button size="md" className="self-start" onClick={() => router.push(`${objHref}?kr=${kr.id}&tasks=1`)}>
+                  View {kr.tasks.length} connected tasks
+                </Button>
+              )}
+            </div>
+            {showTasks && kr.tasks && <TaskList tasks={kr.tasks} onDone={setConfirmTask} />}
+            {recentActivity(kr.activity)}
+          </div>
+          {discussion}
+        </div>
+
+        {/* IN-045 — a task gets a confirmation prompt too, and cannot be undone once sent. */}
+        <Modal
+          open={!!confirmTask}
+          onClose={() => setConfirmTask(null)}
+          title={`Mark “${kr.tasks?.find((t) => t.id === confirmTask)?.title ?? ""}” as done?`}
+          description={`This moves ${kr.title} forward straight away, and the objective above it. You cannot undo it — ${first} decides what happens next.`}
+          footer={
+            <>
+              <Button size="lg" onClick={() => setConfirmTask(null)}>
+                Cancel
+              </Button>
+              <Button size="lg" variant="primary" onClick={() => confirmTask && completeTask(confirmTask)}>
+                Mark as done
+              </Button>
+            </>
+          }
+        />
+        <Toast message={toast} onClose={() => setToast(null)} />
+      </Page>
+    );
 
   return (
     <Page
-     
       title={
         <>
           {k.title} <JobBadge type={contract.type} />
         </>
       }
-      tabs={
-        <Tabs
-          className="px-4"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "dashboard", label: "Dashboard" },
-            { value: "evaluation", label: "Evaluation" },
-          ]}
-        />
-      }
+      nav={<Breadcrumb items={[{ label: "All contracts", href: "/independent/contracts" }, { label: contract.title, href: `/independent/contracts/${contract.slug}` }, "Trial tracker", k.title]} />}
     >
-      <Breadcrumb items={[{ label: "All contracts", href: "/independent/contracts" }, { label: contract.title, href: `/independent/contracts/${contract.slug}` }, "Trial tracker", k.title]} />
       <div className="flex items-start gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-4 rounded-lg bg-white p-6 outline -outline-offset-1 outline-[#e3e3e3]">
           <ObjectiveRow index={objective.kind === "kpi" ? 1 : objective.kind === "okr" ? 2 : 0}>{objective.title}</ObjectiveRow>
-          <div className="flex items-center gap-2 text-[13px] leading-[1.4] text-ink-2">
+          {/* Type, status, countdown and both dates sit on the objective itself. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px] leading-[1.4] text-ink-2">
             <StatusDot tone={status.tone}>{status.label}</StatusDot>
             <Chip size="sm">{k.label}</Chip>
-            {k.cadence}
+            <span>{k.cadence} ·</span>
+            {left !== null && <span>{Math.max(0, left)} {leftLabel} ·</span>}
+            <span>
+              {contract.started} – {objective.due ?? contract.ends}
+            </span>
           </div>
-          {objective.kind !== "task" && (
-            <div className="flex flex-col gap-1.5">
-              <Progress value={k.progress} label className="w-full" />
-              <p className="text-[13px] leading-[1.4] text-ink-2">{k.target}</p>
-            </div>
-          )}
           <p className="text-[14px] leading-[1.4] text-ink-2">{k.about}</p>
 
-          {objective.kind === "kpi" && <Trend />}
-          {objective.kind === "kpi" && <DailyPerformance />}
-          {objective.kind === "okr" && (
-            <div className="flex flex-col rounded-lg outline -outline-offset-1 outline-[#e3e3e3]">
-              <p className="px-3.5 py-2.5 text-[13px] leading-[1.45] font-semibold text-ink">Key results</p>
-              {KRS.map((kr) => (
-                <div key={kr.title} className="flex flex-col gap-1.5 border-t border-[#e3e3e3] px-3.5 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 text-[12.5px] leading-[1.45] text-ink">{kr.title}</span>
-                    <Chip size="sm">{kr.kind}</Chip>
-                    <StatusDot tone={kr.status.tone}>{kr.status.label}</StatusDot>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="block h-1.5 w-[100px] overflow-hidden rounded-[3px] bg-[#eeeeee]">
-                      <span className={`block h-full rounded-[3px] ${kr.progress === 100 ? "bg-ok" : "bg-primary"}`} style={{ width: `${kr.progress}%` }} />
-                    </span>
-                    <span className="w-9 text-[11.5px] leading-[1.45] font-semibold text-ink">{kr.progress}%</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Each objective type earns its own dashboard (IN-026 / IN-028 / IN-077). */}
+          {objective.kind === "kpi" && <ManualMetrics metric={metric} />}
+          {objective.kind === "okr" && <AutomaticBreakdown krs={keyResults} href={(x) => `${objHref}?kr=${x.id}`} />}
+          {objective.kind === "task" && <DefaultTimeline started={contract.started} due={objective.due ?? contract.ends} daysLeft={left === null ? null : Math.max(0, left)} />}
 
           {/* Figma "Latest update": #fafafa, p 16, gap 10 */}
           <div className="flex flex-col gap-2.5 rounded-lg bg-[#fafafa] p-4 leading-[1.4] outline -outline-offset-1 outline-border">
             <div className="flex items-center justify-between whitespace-nowrap">
-              <span className="text-[14px] font-medium text-ink">Update from Juan</span>
+              <span className="text-[14px] font-medium text-ink">Your last update</span>
               <span className="text-[13px] text-ink-2">{k.update.date}</span>
             </div>
             <p className="text-[14px] text-ink">{k.update.text}</p>
             <p className="flex items-center gap-1.5 text-[13px] text-primary">
               <Attach size={18} aria-hidden /> {k.update.file}
             </p>
+            {/* An automatic objective states where its key results actually stand, not a copy of where they stood. */}
             <p className="flex gap-2 text-[13px] whitespace-nowrap">
               <span className="text-ink-2">{k.update.progress[0]}</span>
-              <span className="font-medium text-ink">{k.update.progress[1]}</span>
+              <span className="font-medium text-ink">{objective.kind === "okr" ? `${krNow.percent}% — ${krNow.done} of ${krNow.total} key results approved` : k.update.progress[1]}</span>
             </p>
           </div>
 
-          <div className="flex flex-col">
-            <p className="text-[14px] leading-[1.4] font-medium text-ink">Update history</p>
-            {k.history.map((h) => (
-              <div key={h.date + h.text} className="flex items-center gap-3 border-b border-border py-2.5">
-                <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-[13px] leading-[1.4] whitespace-nowrap">
-                  <span className="font-medium text-ink">{h.date}</span>
-                  <span className="text-ink-2">{h.text}</span>
-                </span>
-                <StatusDot tone={h.status.tone}>{h.status.label}</StatusDot>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-end gap-3">
-            <Button size="lg" onClick={() => setToast("Revision request sent to Alex")}>
-              Request revision
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => setToast("Update approved")}>
-              Approve update
-            </Button>
-          </div>
+          {/* IN-041 — what this contract actually recorded comes first; the seeded history sits under it. */}
+          {recentActivity([...(objective.activity ?? []), ...k.activity])}
+
+          {/* IN-028 — an automatic objective has no button: its progress is its key results. */}
+          {objective.kind === "okr" ? (
+            <p className="rounded-lg bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] text-ink-2">Progress here is driven by key result completion only — mark a key result done to move it.</p>
+          ) : locked ? (
+            <p className="rounded-lg bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] text-ink-2">
+              {objective.status === "complete" ? `Achieved — approved by ${first}.` : `Sent to ${first} and waiting on their approval. It is read-only until they approve it or ask for a revision.`}
+            </p>
+          ) : (
+            <div className="flex justify-end">
+              {objective.kind === "task" ? (
+                <Button size="lg" variant="primary" onClick={() => setMarking(true)}>
+                  Mark as done
+                </Button>
+              ) : (
+                <Button size="lg" variant="primary" onClick={() => setUpdating(true)}>
+                  Update progress
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Figma "Discussion": 340 wide, p 20, gap 12 */}
-        <div className="flex w-[340px] shrink-0 flex-col gap-3 rounded-lg bg-white p-5 outline -outline-offset-1 outline-[#e3e3e3]">
-          <p className="text-[14px] leading-[1.45] font-semibold text-ink">Discussion</p>
-          {comments.map((c, i) => (
-            <div key={i} className="flex flex-col gap-[3px] leading-[1.45]">
-              <p className="flex items-start gap-2">
-                <span className="min-w-0 flex-1 text-[12.5px] font-semibold text-ink">{c.who}</span>
-                <span className="text-[11px] whitespace-nowrap text-ink-2">{c.when}</span>
-              </p>
-              <p className="text-[12.5px] text-ink-2">{c.text}</p>
-            </div>
-          ))}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!draft.trim()) return;
-              setComments((c) => [...c, { who: "Juan Dela Cruz", when: "Just now", text: draft.trim() }]);
-              setDraft("");
-            }}
-          >
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Add a comment…"
-              className="h-11 w-full rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] outline-none placeholder:text-ink-2 focus:border-primary"
-            />
-          </form>
-        </div>
+        {discussion}
       </div>
+
+      <Modal
+        open={updating}
+        onClose={() => setUpdating(false)}
+        title={`Update progress: ${objective.title}`}
+        description={`Tell ${first} what changed. They review the update and can approve it or ask for a revision.`}
+        footer={
+          <>
+            <Button size="lg" onClick={() => setUpdating(false)}>
+              Cancel
+            </Button>
+            {/* IN-041 — an empty or non-numeric submission is not allowed. */}
+            <Button size="lg" variant="primary" disabled={!Number.isFinite(Number(value)) || value.trim() === ""} onClick={() => submit(false)}>
+              Send update
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          {/* IN-041 — the modal states the type, the daily target and where the value stands today. */}
+          <div className="flex flex-wrap items-center gap-2 text-[13px] leading-[1.4] text-ink-2">
+            <Chip size="sm">{k.label}</Chip>
+            <span>
+              Daily target {metric.dailyTarget} {metric.dailyTarget === 1 ? metric.unit.replace(/s$/, "") : metric.unit}
+            </span>
+            <span>·</span>
+            <span>
+              Current value <span className="font-medium text-ink">{objective.current ?? 0}</span> of {objective.target ?? metric.target}
+            </span>
+          </div>
+          <Field label="New value" hint={`Target: ${objective.target ?? metric.target} ${metric.unit}`}>
+            <Input value={value} onChange={(e) => setValue(e.target.value)} inputMode="numeric" />
+          </Field>
+          <Field label="What changed since your last update?">
+            <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={marking}
+        onClose={() => setMarking(false)}
+        title={`Mark “${objective.title}” as done?`}
+        description={`This sends it to ${contract.company} for approval. It shows as Pending approval until they confirm, then moves to Achieved.`}
+        footer={
+          <>
+            <Button size="lg" onClick={() => setMarking(false)}>
+              Cancel
+            </Button>
+            <Button size="lg" variant="primary" onClick={() => submit(true)}>
+              Mark as done
+            </Button>
+          </>
+        }
+      />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
-  );
-}
-
-/** Figma "Trend — last 3 weeks": 210px plot, 12-call target line, "9 today" callout. */
-function Trend() {
-  const pts = [2, 4, 7, 9, 10, 3, 5, 6, 7, 10, 2, 5, 9];
-  const W = 698;
-  const H = 194;
-  const x = (i: number) => (i * W) / (pts.length - 1);
-  const y = (v: number) => H - 14 - (v / 12) * (H - 20);
-  const d = pts.map((v, i) => `${i ? "L" : "M"}${x(i)},${y(v)}`).join(" ");
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 text-[13px] leading-[1.45] font-semibold text-ink">Trend — last 3 weeks</span>
-        <span className="flex items-center gap-3.5 text-[11px] leading-[1.3] text-ink-2">
-          <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 bg-primary" /> Calls logged
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-0.5 w-4 border-t-2 border-dashed border-warn" /> Target · 12 / week
-          </span>
-        </span>
-      </div>
-      <div className="relative h-[210px] w-full text-[10px] leading-[1.3] text-muted-2">
-        {[
-          [0, 175],
-          [4, 118.33],
-          [8, 61.67],
-          [12, 5],
-        ].map(([v, t]) => (
-          <span key={v} className="absolute left-[22px] w-5" style={{ top: t }}>
-            {v}
-          </span>
-        ))}
-        {["Week 1", "Week 2", "Week 3"].map((w, i) => (
-          <span key={w} className="absolute top-[190px] text-[10.5px] whitespace-nowrap" style={{ left: 36 + i * 276.8 }}>
-            {w}
-          </span>
-        ))}
-        <span className="absolute top-[24.5px] left-[673.5px] rounded-[5px] bg-ink px-[7px] py-[3px] text-[10.5px] font-semibold whitespace-nowrap text-white">9 today</span>
-        <span className="absolute top-[-4px] left-[714px] text-[10px] font-semibold text-[#e0a100]">12</span>
-        <svg viewBox={`0 0 ${W} ${H}`} className="absolute top-0 left-[30px] h-[194px] w-[698px]" role="img" aria-label="Calls logged per day over three weeks against a target of 12" preserveAspectRatio="none">
-          {[0, 4, 8, 12].map((v) => (
-            <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} stroke="#edf0f2" />
-          ))}
-          <line x1={0} x2={W} y1={y(12)} y2={y(12)} stroke="#f7ba00" strokeDasharray="4 4" strokeWidth="1.5" />
-          <path d={`${d} L${x(pts.length - 1)},${H - 14} L${x(0)},${H - 14} Z`} fill="#eaf4fb" />
-          <path d={d} fill="none" stroke="#007acc" strokeWidth="2" />
-          {pts.map((v, i) => (
-            <circle key={i} cx={x(i)} cy={y(v)} r="3" fill="#fff" stroke="#007acc" strokeWidth="1.5" />
-          ))}
-        </svg>
-      </div>
-    </div>
-  );
-}
-
-/** Figma "Daily performance": 24px cells (radius 4, gap 3), 28px day labels, month labels below. */
-function DailyPerformance() {
-  const rows = [
-    [2, 0, 1, 2],
-    [2, 2, 3, 1],
-    [3, 1, 2, 3],
-    [2, 2, 2, 2],
-    [3, 2, 0],
-  ];
-  const c = ["bg-[#eb5757]", "bg-[#f7ba00]", "bg-ok", "bg-[#1b6e2a]"];
-  const months = ["Aug", "Sep", "", "", "", "", "Oct", "", "", "", "Nov", "", "", "", "Dec", "", "", "", "", "Jan", "", "", "", "Feb", "", ""];
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2.5">
-        <span className="min-w-0 flex-1 text-[13px] leading-[1.45] font-semibold text-ink">Daily performance</span>
-        {[
-          ["Overachieved", "bg-[#1b6e2a]"],
-          ["Achieved", "bg-ok"],
-          ["At risk", "bg-[#f7ba00]"],
-          ["Missed", "bg-[#eb5757]"],
-        ].map(([l, b]) => (
-          <span key={l} className="flex items-center gap-1 text-[10px] leading-[1.45] text-ink-2">
-            <span className={`size-2 rounded-[2px] ${b}`} /> {l}
-          </span>
-        ))}
-      </div>
-      <div className="flex flex-col gap-[3px]">
-        {["Mon", "Tue", "Wed", "Thu", "Fri"].map((d, r) => (
-          <div key={d} className="flex items-center gap-[3px]">
-            <span className="w-7 text-[10px] leading-[1.45] text-muted-2">{d}</span>
-            {months.map((_, i) => (
-              <span key={i} className={`size-6 rounded ${rows[r][i] !== undefined ? c[rows[r][i]] : "bg-[#e9ecef]"}`} />
-            ))}
-          </div>
-        ))}
-        <div className="flex gap-[3px] text-[10px] leading-[1.4] text-muted-2">
-          <span className="w-7" />
-          {months.map((m, i) => (
-            <span key={i} className="w-6">
-              {m}
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
   );
 }

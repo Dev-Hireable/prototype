@@ -4,63 +4,72 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Breadcrumb, Button, Card, Field, Initials, Input, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
-import { contracts, evaluation } from "@/lib/independent/data";
-import type { Objective } from "@/lib/independent/data";
+import { Breadcrumb, Button, Card, Chip, Field, Initials, Input, JobBadge, KebabMenu, LinkButton, MenuAction, Modal, ObjectiveRow, Page, Progress, Select, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { ActivityLog } from "@/components/portal/ActivityLog";
+import { PanelCard } from "@/components/portal/PanelCard";
+import { TrialFitScore } from "@/components/team/TrialWidgets";
+import { move, PAIR, sendChat } from "@/lib/demo/live";
+import { COMPANIES, contractEvaluations, daysLeft, DISPUTE_REASONS, evaluation, objectiveStatus } from "@/lib/independent/data";
+import type { Contract, ContractEvaluation } from "@/lib/independent/data";
+import { FT_BENEFITS, OBJECTIVE_KIND } from "@/lib/team/data";
+import { useDemo } from "@/lib/independent/store";
 
-const More = ICONS.moreV;
-
-const OBJ_STATUS: Record<Objective["status"], { label: string; tone: "warn" | "ok" | "trial"; bar: "primary" | "ok" | "warn" }> = {
-  pending: { label: "Update pending", tone: "warn", bar: "primary" },
-  complete: { label: "Complete", tone: "ok", bar: "ok" },
-  risk: { label: "At risk", tone: "trial", bar: "warn" },
-  on: { label: "On track", tone: "ok", bar: "primary" },
-};
+const Business = ICONS.business;
+const Messages = ICONS.messages;
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
 /** Figma "Contracts / Trial tracker · Full-time tracker · Update progress · Mark as done · Evaluation received": DM Sans 24 header + tabs. */
 export default function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const { contracts, disputes, fileDispute, transactions } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
   if (!contract) notFound();
-  const [tab, setTab] = useState<"dashboard" | "evaluation">("dashboard");
-  const [objectives, setObjectives] = useState(contract.objectives);
-  const [updating, setUpdating] = useState<Objective | null>(null);
-  const [marking, setMarking] = useState<Objective | null>(null);
-  const [value, setValue] = useState("");
-  const [note, setNote] = useState("");
+  const [tab, setTab] = useState<"objectives" | "contract" | "evaluation">("objectives");
+  const objectives = contract.objectives;
+  /** IN-037 — composing from the tracker, without leaving it. */
+  const [messaging, setMessaging] = useState(false);
+  const [message, setMessage] = useState("");
+  /** IN-059 — the dispute form: reason, description and amount are required, evidence is not. */
+  const [filing, setFiling] = useState(false);
+  const [reason, setReason] = useState(DISPUTE_REASONS[0]);
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [evidence, setEvidence] = useState("");
+  /** IN-049 — the company behind the contract, read-only. */
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const company = COMPANIES[contract.company];
   const [toast, setToast] = useToast();
   const isTrial = contract.type === "trial";
   const completed = objectives.filter((o) => o.status === "complete").length;
+  const pending = objectives.filter((o) => o.status === "pending").length;
   const evaluationReady = contract.status.label === "Evaluation received";
+  const left = daysLeft(contract.day);
+  /** IN-076 — a dispute is only available once the trial is over; a full-time contract has no gate. */
+  const ended = (left !== null && left <= 0) || contract.status.label === "Ended" || contract.status.label === "Evaluation received" || contract.status.label === "Contract complete";
+  const canDispute = !isTrial || ended;
+  /** IN-032 — this contract's own transactions and its one dispute, if it has one. */
+  const payments = transactions.filter((t) => t.contract === contract.slug);
+  const dispute = disputes.find((d) => d.contract === contract.slug);
 
-  const openUpdate = (o: Objective) => {
-    setValue(String(o.current ?? ""));
-    setNote("");
-    if (o.kind === "task" && o.status !== "complete") setMarking(o);
-    else setUpdating(o);
-  };
-  const sendUpdate = () => {
-    setObjectives((os) =>
-      os.map((o) =>
-        o.id === updating?.id
-          ? { ...o, status: "pending", current: Number(value) || o.current, progress: o.target ? Math.round(((Number(value) || 0) / o.target) * 100) : o.progress, meta: `${value} of ${o.target ?? ""} · sent just now` }
-          : o,
-      ),
-    );
-    setUpdating(null);
-    setToast(`Update sent to ${contract.managerFirst} for review`);
-  };
-  const markDone = () => {
-    setObjectives((os) => os.map((o) => (o.id === marking?.id ? { ...o, status: "pending", progress: 100, meta: "Pending approval · sent just now" } : o)));
-    setMarking(null);
-    setToast(`Sent to ${contract.company} for approval`);
-  };
+
+  const contractRows = (
+    [
+      ["Rate", contract.rate],
+      [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
+      ["Escrow", isTrial ? `${contract.rate.replace(" /month", "")} ${ended ? "released" : "held"} since ${contract.started}` : "Not used on a full-time contract"],
+      ["Payout", ended ? "Paid to Maya ····4471" : isTrial ? "Released at trial end on approval, to Maya ····4471" : "Released at the end of each month, to Maya ····4471"],
+    ] as const
+  ).map(([k, v]) => (
+    <div key={k} className="flex gap-2.5 leading-[1.45]">
+      <span className="w-14 shrink-0 text-[11.5px] text-ink-2">{k}</span>
+      <span className="min-w-0 flex-1 text-[12px] text-ink">{v}</span>
+    </div>
+  ));
 
   return (
     <Page
-     
       title={
         <>
           {contract.title} — {contract.company} <JobBadge type={contract.type} />
@@ -72,19 +81,31 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
           value={tab}
           onChange={setTab}
           options={[
-            { value: "dashboard", label: "Dashboard" },
+            { value: "objectives", label: "Objectives" },
+            { value: "contract", label: "Contract & Payment" },
             { value: "evaluation", label: "Evaluation" },
           ]}
         />
       }
+      nav={
+        <Breadcrumb
+          items={[
+            { label: "All contracts", href: "/independent/contracts" },
+            `${contract.title} — ${contract.company}`,
+            ...(tab === "evaluation" ? ["Evaluation"] : tab === "contract" ? ["Contract & Payment"] : []),
+          ]}
+        />
+      }
     >
-      <Breadcrumb items={[{ label: "All contracts", href: "/independent/contracts" }, `${contract.title} — ${contract.company}`, ...(tab === "evaluation" ? ["Evaluation"] : [])]} />
-
       {tab === "evaluation" ? (
-        <Evaluation ready={evaluationReady} company={contract.company} />
+        isTrial ? (
+          <Evaluation ready={evaluationReady} company={contract.company} contract={contract} />
+        ) : (
+          <OngoingEvaluations entries={contractEvaluations[contract.slug] ?? []} contract={contract} />
+        )
       ) : (
         <>
-          {/* Figma "Independent header": p 20, gap 12 */}
+          {/* Figma "Independent header": p 20, gap 12 — company, role and both status badges. */}
           <Card className="flex flex-col gap-3 p-5">
             <div className="flex items-center gap-4">
               <Initials text={contract.initials} className="size-14 text-[14px]" />
@@ -96,18 +117,38 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                   <JobBadge type={contract.type} />
                   <StatusDot tone={contract.status.tone}>{contract.status.label}</StatusDot>
                 </p>
-                <p className="text-[14px] leading-[1.4] text-ink-2">{contract.manager} · Hiring manager</p>
+                <p className="text-[14px] leading-[1.4] text-ink-2">
+                  {contract.title} · {contract.manager} · Hiring manager
+                </p>
               </div>
               <div className="flex items-center gap-2">
-                <LinkButton size="lg" href="/independent/messages">
+                {/* IN-037 — Send Message is here at all times and composes in place, without leaving the tracker. */}
+                <Button size="lg" onClick={() => setMessaging(true)}>
                   Message {contract.managerFirst}
-                </LinkButton>
-                <Button size="lg" variant="primary" onClick={() => openUpdate(objectives.find((o) => o.status !== "complete") ?? objectives[0])}>
-                  Update progress
                 </Button>
-                <button type="button" aria-label="More" className="text-ink">
-                  <More size={24} aria-hidden />
-                </button>
+                {/* IN-032 — hidden once a dispute exists; only one can be filed per contract. */}
+                {!dispute && (
+                  <Button
+                    size="lg"
+                    disabled={!canDispute}
+                    title={canDispute ? undefined : `Available once the trial ends on ${contract.ends}`}
+                    onClick={() => setFiling(true)}
+                  >
+                    File a dispute
+                  </Button>
+                )}
+                <LinkButton size="lg" variant="primary" href={`/independent/contracts/${contract.slug}/objectives/${(objectives.find((o) => o.status !== "complete") ?? objectives[0]).id}`}>
+                  Update progress
+                </LinkButton>
+                {/* IN-049 — this was a dead icon; it now opens the company behind the contract. */}
+                <KebabMenu label="Contract actions" open={menu} onOpenChange={setMenu} itemCount={2}>
+                  <MenuAction onClick={() => { setMenu(false); setCompanyOpen(true); }} icon={<Business size={18} aria-hidden />}>
+                    View company profile
+                  </MenuAction>
+                  <MenuAction onClick={() => { setMenu(false); setMessaging(true); }} icon={<Messages size={18} aria-hidden />}>
+                    Message {contract.managerFirst}
+                  </MenuAction>
+                </KebabMenu>
               </div>
             </div>
             <p className="flex gap-6 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">
@@ -117,195 +158,365 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
               <span>{contract.day}</span>
               <span>{isTrial ? `Ends ${contract.ends}` : "Quarter: Q3 2026 (Jul to Sep)"}</span>
               <span>{contract.rate}</span>
-              <span>Hiring manager: {contract.manager}</span>
             </p>
           </Card>
 
-          <div className="flex gap-4">
-            <Stat label={contract.progressLabel} value={`${contract.progress}%`} sub={contract.day} />
-            <Stat label="Objectives" value={String(objectives.length)} sub={`${completed} completed · ${objectives.filter((o) => o.status === "on" || o.status === "pending").length} on track · ${objectives.filter((o) => o.status === "risk").length} at risk`} />
-            <Stat label="Updates pending review" value={String(objectives.filter((o) => o.status === "pending").length)} sub={`Sent 8 Sep · awaiting ${contract.managerFirst}`} />
-            <Stat label={isTrial ? "Hours you logged this week" : "Next review"} value={isTrial ? "38h" : "Q3 2026"} sub={isTrial ? "Target 40h" : "Opens 1 Oct"} />
-          </div>
-
-          <div className="flex items-start gap-6">
-            <section className="flex min-w-0 flex-1 flex-col gap-3">
-              <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={DM}>
-                {isTrial ? "Objectives" : "My objectives"}
-              </h2>
-              {objectives.map((o, i) => {
-                const st = OBJ_STATUS[o.status];
-                return (
-                  <Card key={o.id} className="flex flex-col gap-3 p-4">
-                    <Link href={`/independent/contracts/${contract.slug}/objectives/${o.id}`} className="block hover:opacity-80">
-                      <ObjectiveRow index={i}>{o.title}</ObjectiveRow>
-                    </Link>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">
-                        <Progress value={o.progress} tone={st.bar} label />
-                        <StatusDot tone={st.tone}>{st.label}</StatusDot>
-                        <span>{o.meta}</span>
+          {tab === "contract" ? (
+            <div className="flex items-start gap-6">
+              <div className="flex min-w-0 flex-1 flex-col gap-4">
+                {/* IN-032 — what was agreed, read-only: nothing on this tab can be edited. */}
+                <PanelCard title="Agreed terms" aside={<span className="text-[12px] leading-[1.4] text-ink-2">Read-only</span>}>
+                  <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] leading-[1.4]">
+                    {(
+                      [
+                        ["Role", contract.title],
+                        ["Contract type", isTrial ? "Trial" : "Full-time"],
+                        [isTrial ? "Trial duration" : "Review period", isTrial ? `30 days · ${contract.day}` : "Quarterly"],
+                        ["Start date", contract.started],
+                        [isTrial ? "End date" : "Term ends", contract.ends],
+                        [isTrial ? "Agreed budget" : "Base salary", contract.rate],
+                        ["Payment schedule", isTrial ? "Held in escrow at the start, released in full when the trial is approved" : "Released at the end of each month"],
+                      ] as const
+                    ).map(([k, v]) => (
+                      <div key={k} className="flex flex-col gap-0.5">
+                        <dt className="text-ink-2">{k}</dt>
+                        <dd className="font-medium text-ink">{v}</dd>
                       </div>
-                      <Button size="sm" onClick={() => openUpdate(o)} disabled={o.status === "complete"}>
-                        Update
-                      </Button>
+                    ))}
+                  </dl>
+                </PanelCard>
+
+                {/* IN-046 — what a full-time engagement includes on top of the salary. */}
+                {!isTrial && (
+                  <PanelCard title="Exclusive benefits" aside={<span className="text-[12px] leading-[1.4] text-ink-2">On top of base salary</span>}>
+                    <ul className="flex flex-col gap-3 text-[13px] leading-[1.4]">
+                      {FT_BENEFITS.map((b) => (
+                        <li key={b} className="flex items-center justify-between gap-4 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                          <span className="text-ink">{b}</span>
+                          <StatusDot tone="ok">Included</StatusDot>
+                        </li>
+                      ))}
+                    </ul>
+                  </PanelCard>
+                )}
+
+                {/* IN-032 — every transaction recorded against this contract. */}
+                <PanelCard title="Payment history">
+                  {payments.length === 0 ? (
+                    <p className="text-[13px] leading-[1.4] text-ink-2">No payments recorded on this contract yet. The escrow deposit appears here once {contract.company} funds it.</p>
+                  ) : (
+                    <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
+                      <div className="flex items-center gap-4 bg-surface-2 px-4 py-2.5 text-[12.5px] leading-[1.4] font-medium text-ink-2">
+                        <span className="w-[110px] shrink-0">Date</span>
+                        <span className="w-[150px] shrink-0">Type</span>
+                        <span className="w-[110px] shrink-0">Amount</span>
+                        <span className="min-w-0 flex-1">Status</span>
+                      </div>
+                      {payments.map((t) => (
+                        <div key={t.date + t.desc} className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[13px] leading-[1.4] text-ink">
+                          <span className="w-[110px] shrink-0">{t.date}</span>
+                          <span className="w-[150px] shrink-0">
+                            <Chip size="sm">{t.type}</Chip>
+                          </span>
+                          <span className="w-[110px] shrink-0 font-medium">{t.amount}</span>
+                          <span className="min-w-0 flex-1">
+                            <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  </Card>
-                );
-              })}
-              {!isTrial && <p className="text-[13px] leading-[1.4] text-ink-2">Objectives, updates and approvals work exactly like the trial tracker. Only the trial timer and the evaluation gate are gone.</p>}
-            </section>
+                  )}
+                </PanelCard>
 
-            <aside className="flex w-[360px] shrink-0 flex-col gap-4">
-              <Card className="flex flex-col gap-3.5 p-5">
-                <h3 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={DM}>
-                  Your fit so far
-                </h3>
-                <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">
-                  From {contract.managerFirst}’s reviews of your updates. Their final evaluation opens on Day 30.
-                </p>
-                {(
-                  [
-                    ["Quality of work", 85, "primary"],
-                    ["Communication", 70, "muted"],
-                    ["Reliability", 90, "primary"],
-                  ] as const
-                ).map(([l, v, tone]) => (
-                  <div key={l} className="flex flex-col gap-1.5">
-                    <p className="text-[13px] leading-[1.4] font-medium text-ink">{l}</p>
-                    <Progress value={v} tone={tone} label className="w-full" />
-                  </div>
-                ))}
-                <div className="flex flex-col gap-2 pt-2 text-[13px] leading-[1.4]">
-                  <p className="font-medium text-ink">Recent reviews</p>
-                  <p className="text-ink-2">8 Sep · Demo update awaiting your review</p>
-                  <p className="text-ink-2">3 Sep · Email sequence approved</p>
-                  <p className="text-ink-2">29 Aug · CRM cleanup approved</p>
-                </div>
-              </Card>
-
-              <div className="flex flex-col gap-2.5 rounded-lg bg-white p-[18px] outline -outline-offset-1 outline-[#e3e3e3]">
-                <div className="flex items-center gap-2">
-                  <h3 className="flex-1 text-[14px] leading-[1.45] font-semibold text-ink">Activity</h3>
-                  <StatusDot tone="ok">8-day streak · Thriving</StatusDot>
-                </div>
-                <Heatmap />
-                <p className="text-[11px] leading-[1.45] text-ink-2">Mon–Fri, one column per week across the quarter. Green is a full log, light green a partial one, grey nothing yet. Any log keeps the streak alive; only an empty weekday breaks it.</p>
+                {/* IN-032 — a filed dispute lives on this tab; only one can exist per contract. */}
+                {dispute ? (
+                  <PanelCard title="Dispute" aside={<StatusDot tone={dispute.status.tone}>{dispute.status.label}</StatusDot>}>
+                    <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
+                      <div className="flex gap-2">
+                        <dt className="w-24 shrink-0 text-ink-2">Date filed</dt>
+                        <dd className="text-ink">{dispute.filed}</dd>
+                      </div>
+                      <div className="flex gap-2">
+                        <dt className="w-24 shrink-0 text-ink-2">Reason</dt>
+                        <dd className="text-ink">{dispute.reason}</dd>
+                      </div>
+                      <div className="flex gap-2">
+                        <dt className="w-24 shrink-0 text-ink-2">Amount</dt>
+                        <dd className="text-ink">{dispute.amount}</dd>
+                      </div>
+                    </dl>
+                    <p className="text-[13px] leading-[1.4] text-ink-2">{dispute.description}</p>
+                    {dispute.evidence && <p className="text-[12.5px] leading-[1.4] text-primary">Evidence: {dispute.evidence}</p>}
+                    {dispute.resolution && (
+                      <div className="flex flex-col gap-1 rounded-lg bg-surface-2 px-4 py-3 leading-[1.4]">
+                        <p className="text-[13px] font-semibold text-ink">{dispute.resolution.outcome}</p>
+                        <p className="text-[12.5px] text-ink-2">{dispute.resolution.notes}</p>
+                      </div>
+                    )}
+                    <p className="text-[12.5px] leading-[1.4] text-ink-2">One dispute can be filed per contract, so there is nothing more to raise here.</p>
+                  </PanelCard>
+                ) : (
+                  <PanelCard title="Something wrong with a payment?">
+                    <p className="text-[13px] leading-[1.4] text-ink-2">
+                      {canDispute
+                        ? "Hireable support reviews the contract, the approved objectives and the escrow record. You can file one dispute per contract."
+                        : `A dispute can be filed once the trial ends on ${contract.ends}. Until then, raise anything unexpected with ${contract.managerFirst} in Messages.`}
+                    </p>
+                    <Button size="lg" className="self-start" variant="primary" disabled={!canDispute} title={canDispute ? undefined : `Available once the trial ends on ${contract.ends}`} onClick={() => setFiling(true)}>
+                      File a dispute
+                    </Button>
+                  </PanelCard>
+                )}
+              </div>
+              <aside className="flex w-[360px] shrink-0 flex-col gap-4">
+                <TrialFitScore contract={contract} final={!isTrial} />
+                <PanelCard title="Escrow &amp; payout">
+                  <div className="flex flex-col gap-2">{contractRows}</div>
+                </PanelCard>
+              </aside>
+            </div>
+          ) : (
+            <>
+              {/* IN-076 summary bar: what was committed, what is done, and how long is left. */}
+              <div className="flex gap-4">
+                {/* IN-038 — a full-time engagement is assigned objectives rather than committing to a locked set. */}
+                <Stat label={isTrial ? "Committed objectives" : "Assigned objectives"} value={String(objectives.length)} sub={isTrial ? "Locked at the offer" : `Assigned by ${contract.managerFirst}`} />
+                <Stat label="Completed objectives" value={String(completed)} sub={`${objectives.length - completed} still open`} />
+                {isTrial ? <Stat label="Days left" value={String(Math.max(0, left ?? 0))} sub={`${contract.started} – ${contract.ends}`} /> : <Stat label={contract.progressLabel} value={`${contract.progress}%`} sub={contract.day} />}
+                <Stat label="Updates pending review" value={String(pending)} sub={pending ? `Awaiting ${contract.managerFirst}` : "Nothing waiting"} />
               </div>
 
-              <div className="flex flex-col gap-2 rounded-lg bg-white p-[18px] outline -outline-offset-1 outline-[#e3e3e3]">
-                <h3 className="text-[14px] leading-[1.45] font-semibold text-ink">Contract &amp; payment</h3>
-                {(
-                  [
-                    ["Rate", contract.rate],
-                    [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
-                    ["Escrow", `$1,600 held since ${contract.started}`],
-                    ["Payout", "Released at trial end on approval, to Maya ····4471"],
-                  ] as const
-                ).map(([k, v]) => (
-                  <div key={k} className="flex gap-2.5 leading-[1.45]">
-                    <span className="w-14 shrink-0 text-[11.5px] text-ink-2">{k}</span>
-                    <span className="min-w-0 flex-1 text-[12px] text-ink">{v}</span>
+              <div className="flex items-start gap-6">
+                <section className="flex min-w-0 flex-1 flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={DM}>
+                      Objectives
+                    </h2>
+                    {/* IN-076 locked for the trial; IN-038 a full-time list grows as objectives are assigned. */}
+                    <span className="text-[12.5px] leading-[1.4] text-ink-2">
+                      {isTrial ? `Locked at the offer — agreed with ${contract.managerFirst}` : `New objectives ${contract.managerFirst} assigns appear here automatically`}
+                    </span>
                   </div>
-                ))}
-                <Button size="sm" className="self-start" onClick={() => setToast("Dispute form opens in Messages with Hireable support")}>
-                  Raise a payment dispute
-                </Button>
+                  {objectives.map((o, i) => {
+                    const st = objectiveStatus(o, left);
+                    /** IN-028 — an automatic objective moves on its key results, never by hand. */
+                    const manualUpdate = o.kind !== "okr";
+                    return (
+                      <Card key={o.id} className="flex flex-col gap-3 p-4">
+                        <Link href={`/independent/contracts/${contract.slug}/objectives/${o.id}`} className="block hover:opacity-80">
+                          <ObjectiveRow index={i}>{o.title}</ObjectiveRow>
+                        </Link>
+                        {/* Type, progress, status, due date and last update (IN-076). */}
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] leading-[1.4] text-ink-2">
+                          <Chip size="sm">{OBJECTIVE_KIND[o.kind]}</Chip>
+                          <Progress value={o.progress} tone={st.bar} label />
+                          <StatusDot tone={st.tone}>{st.label}</StatusDot>
+                          {o.due && <span>Due {o.due}</span>}
+                          {!!o.keyResults && <span>{o.keyResults} key results</span>}
+                          {o.updated && <span>Updated {o.updated}</span>}
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="min-w-0 text-[12.5px] leading-[1.4] text-ink-2">{o.meta}</span>
+                          {/* Logging progress lives on the objective's own dashboard — one implementation, not two. */}
+                          <LinkButton size="sm" href={`/independent/contracts/${contract.slug}/objectives/${o.id}`}>
+                            {o.status === "complete" ? "View" : manualUpdate ? (o.kind === "task" ? "Mark as done" : "Update progress") : "View key results"}
+                          </LinkButton>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                  {!isTrial && <p className="text-[13px] leading-[1.4] text-ink-2">Objectives, updates and approvals work exactly like the trial tracker. Only the trial timer and the evaluation gate are gone.</p>}
+                </section>
+
+                <aside className="flex w-[360px] shrink-0 flex-col gap-4">
+                  {/* IN-076 — the same Trial Fit Score the Team Builder sees, weighted by phase. */}
+                  <TrialFitScore contract={contract} final={!isTrial} />
+                  <ActivityLog activity={contract.activity} streak={contract.streak} />
+                </aside>
               </div>
-            </aside>
-          </div>
+            </>
+          )}
         </>
       )}
 
+
+      {/* IN-037 — the Team Builder is already the recipient; an empty message cannot be sent. */}
       <Modal
-        open={!!updating}
-        onClose={() => setUpdating(null)}
-        title={`Update progress: ${updating?.title ?? ""}`}
-        description={`Tell ${contract.managerFirst} what changed. They review the update and can approve it or ask for a revision.`}
+        open={messaging}
+        onClose={() => setMessaging(false)}
+        title={`Message ${contract.manager}`}
+        description={`${contract.company} · about your ${contract.title} contract. It lands in your conversation with ${contract.managerFirst}.`}
         footer={
           <>
-            <Button size="lg" onClick={() => setUpdating(null)}>
+            <LinkButton size="lg" href="/independent/messages">
+              Open full conversation
+            </LinkButton>
+            <Button
+              size="lg"
+              variant="primary"
+              disabled={!message.trim()}
+              onClick={() => {
+                // Only the demo pair has a live thread; anyone else just gets the confirmation.
+                if (contract.manager === PAIR.team.name) sendChat("independent", message);
+                setMessage("");
+                setMessaging(false);
+                setToast(`Message sent to ${contract.managerFirst}`);
+              }}
+            >
+              Send
+            </Button>
+          </>
+        }
+      >
+        <Field label="Message">
+          <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={`Ask ${contract.managerFirst} about an objective, a payment or the trial itself.`} />
+        </Field>
+      </Modal>
+
+      {/* IN-049 — the company behind the contract: logo, name, description, industry, location,
+          URL and its work-style badges. Read-only; nothing here is the independent's to change. */}
+      <Modal open={companyOpen} onClose={() => setCompanyOpen(false)} title={company?.name ?? contract.company} description="Read-only — how this company describes itself and how it likes to work.">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start gap-3">
+            <Initials text={contract.initials} className="size-12 shrink-0 text-[14px]" />
+            <p className="min-w-0 flex-1 text-[14px] leading-[1.5] text-ink">{company?.description ?? "No company description on file."}</p>
+          </div>
+          <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
+            {(
+              [
+                ["Industry", company?.industry],
+                ["Location", company?.location],
+                ["Website", company?.url],
+                ["Hiring manager", contract.manager],
+              ] as const
+            ).map(([k, v]) => (
+              <div key={k} className="flex gap-2">
+                <dt className="w-28 shrink-0 text-ink-2">{k}</dt>
+                <dd className="min-w-0 flex-1 text-ink">{v ?? "—"}</dd>
+              </div>
+            ))}
+          </dl>
+          {!!company?.tags.length && (
+            <div className="flex flex-col gap-2">
+              <p className="text-[13px] leading-[1.4] font-medium text-ink">Work style</p>
+              <div className="flex flex-wrap gap-2">
+                {company.tags.map((t) => (
+                  <Chip key={t}>{t}</Chip>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* IN-059 — reason, description and amount are required; evidence is optional. Filing sends
+          it to Hireable for a process check, tells the Team Builder, and closes the button for good. */}
+      <Modal
+        open={filing}
+        onClose={() => setFiling(false)}
+        title="File a dispute"
+        description={`Hireable support checks the process on the ${contract.title} contract — the approved objectives, the escrow record and the dates. You can file one dispute per contract.`}
+        footer={
+          <>
+            <Button size="lg" onClick={() => setFiling(false)}>
               Cancel
             </Button>
-            <Button size="lg" variant="primary" onClick={sendUpdate}>
-              Send update
+            <Button
+              size="lg"
+              variant="danger"
+              disabled={!description.trim() || !amount.trim()}
+              onClick={() => {
+                fileDispute({
+                  id: `d-${Date.now()}`,
+                  contract: contract.slug,
+                  filed: "Today",
+                  reason,
+                  description: description.trim(),
+                  amount: `$${Number(amount.replace(/[^0-9.]/g, "")).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+                  evidence: evidence.trim() || undefined,
+                  status: { label: "Pending review", tone: "warn" },
+                });
+                if (contract.manager === PAIR.team.name) move("dispute_raised", { slug: contract.slug, title: contract.title });
+                setFiling(false);
+                setDescription("");
+                setAmount("");
+                setEvidence("");
+                setTab("contract");
+                setToast("Dispute filed — Hireable support is reviewing it");
+              }}
+            >
+              File dispute
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
-          {updating?.target && (
-            <Field label="Current value" hint={`Target: ${updating.target} ${updating.title.toLowerCase().includes("demo") ? "qualified demos by day 30" : ""}`}>
-              <Input value={value} onChange={(e) => setValue(e.target.value)} inputMode="numeric" />
-            </Field>
-          )}
-          <Field label="What changed since your last update?">
-            <Textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+          <Field label="Reason">
+            <Select options={DISPUTE_REASONS} value={reason} onChange={(e) => setReason(e.target.value)} />
           </Field>
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={() => setToast("File picker opens here")}>
-              Attach a file
-            </Button>
-            <span className="text-[12px] leading-[1.4] text-ink-2">Optional: a report, a screenshot or a link</span>
-          </div>
+          <Field label="What happened?">
+            <Textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Dates, what was agreed and what was delivered. Support reads this first." />
+          </Field>
+          <Field label="Amount in question" hint={`The contract is ${contract.rate}`}>
+            <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" />
+          </Field>
+          <Field label="Supporting evidence (optional)">
+            <Input value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="File name or link — a report, a thread, a screenshot" />
+          </Field>
+          {(!description.trim() || !amount.trim()) && <p className="text-[12.5px] leading-[1.4] text-ink-2">Add a description and the amount in question before filing.</p>}
         </div>
       </Modal>
 
-      <Modal
-        open={!!marking}
-        onClose={() => setMarking(null)}
-        title={`Mark “${marking?.title ?? ""}” as done?`}
-        description={`This sends the task to ${contract.company} for approval. It shows as Pending approval until they confirm, then moves to Completed.`}
-        footer={
-          <>
-            <Button size="lg" onClick={() => setMarking(null)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" onClick={markDone}>
-              Mark as done
-            </Button>
-          </>
-        }
-      />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
 
-/** Figma "Activity" grid: 18px cells, 3px gaps, 28px day labels, 9px week numbers. */
-function Heatmap() {
-  const cells = [
-    [2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [2, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  ];
-  const c = ["bg-[#eeeeee]", "bg-[#a3dfb5]", "bg-ok"];
+/**
+ * IN-047 — a full-time engagement collects evaluations as it runs, so the tab is the whole run of
+ * them, newest first, each with its date, stars and written feedback. Read-only.
+ * IN-048 — the trial score that led to the conversion sits beside them and never moves again.
+ */
+function OngoingEvaluations({ entries, contract }: { entries: ContractEvaluation[]; contract: Contract }) {
   return (
-    <div className="flex flex-col gap-[3px]">
-      {["Mon", "Tue", "Wed", "Thu", "Fri"].map((d, r) => (
-        <div key={d} className="flex items-center gap-[3px]">
-          <span className="w-7 text-[10px] leading-[1.45] text-ink-2">{d}</span>
-          {cells[r].map((v, i) => (
-            <span key={i} className={`size-[18px] rounded-[3px] ${c[v]}`} />
-          ))}
+    <div className="flex items-start gap-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="font-display text-[20px] leading-[1.5] font-semibold text-ink" style={DM}>
+            Evaluations from {contract.company}
+          </h2>
+          <p className="text-[14px] leading-[1.4] text-ink-2">
+            {entries.length === 0 ? `${contract.manager} has not submitted one yet.` : `${entries.length} submitted since you went full-time. Each is read-only once sent.`}
+          </p>
         </div>
-      ))}
-      <div className="flex gap-[3px] text-[9px] text-ink-2">
-        <span className="w-7" />
-        {[...Array(14)].map((_, i) => (
-          <span key={i} className="w-[18px]">
-            {i % 4 === 0 ? i + 1 : ""}
-          </span>
-        ))}
+        {entries.length === 0 ? (
+          <Card className="p-10 text-center text-[13px] leading-[1.4] text-ink-2">Feedback appears here after each review period.</Card>
+        ) : (
+          entries.map((e) => (
+            <Card key={e.date} className="flex flex-col gap-3 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[13px] leading-[1.4] text-ink-2">Submitted {e.date}</span>
+                <span className="flex items-center gap-1 text-[16px] leading-[1.2] text-[#f2994a]" aria-label={`${e.stars} out of 5 stars`}>
+                  {"★".repeat(e.stars)}
+                  <span className="text-ink-2">{"★".repeat(5 - e.stars)}</span>
+                </span>
+              </div>
+              <p className="text-[14px] leading-[1.5] text-ink">{e.feedback}</p>
+              <p className="text-[12.5px] leading-[1.4] text-ink-2">Recommendation: {e.recommendation}</p>
+            </Card>
+          ))
+        )}
       </div>
+      <aside className="flex w-[360px] shrink-0 flex-col gap-3">
+        <TrialFitScore contract={contract} final />
+        <p className="text-[12.5px] leading-[1.4] text-ink-2">The final score from your trial — the one this full-time contract came out of. It is read-only and does not move again.</p>
+      </aside>
     </div>
   );
 }
 
 /** Figma "Contracts / Evaluation received · view". */
-function Evaluation({ ready, company }: { ready: boolean; company: string }) {
+function Evaluation({ ready, company, contract }: { ready: boolean; company: string; contract: Contract }) {
   if (!ready) {
     return (
       <Card className="p-10 text-center">
@@ -323,6 +534,17 @@ function Evaluation({ ready, company }: { ready: boolean; company: string }) {
           </h2>
           <p className="text-[14px] leading-[1.4] text-ink-2">{evaluation.submitted}</p>
         </div>
+        {/* IN-034 — the overall star rating the Team Builder submitted, above the per-criterion scores. */}
+        <Card className="flex items-center gap-4 p-5">
+          <span className="flex items-center gap-1 text-[24px] leading-[1.2] text-[#f2994a]" aria-label={`${evaluation.stars} out of 5 stars`}>
+            {"★".repeat(evaluation.stars)}
+            <span className="text-ink-2">{"★".repeat(5 - evaluation.stars)}</span>
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="text-[16px] leading-[1.4] font-semibold text-ink">{evaluation.stars}.0 out of 5 overall</p>
+            <p className="text-[13px] leading-[1.4] text-ink-2">{evaluation.average} · submitted once, and read-only for both of you.</p>
+          </div>
+        </Card>
         <Card className="flex flex-col gap-4 p-5">
           {evaluation.scores.map((s) => (
             <div key={s.label} className="flex items-center justify-between">
@@ -359,22 +581,12 @@ function Evaluation({ ready, company }: { ready: boolean; company: string }) {
           </div>
         </Card>
       </div>
-      <div className="flex w-[320px] shrink-0 flex-col gap-3 rounded-lg bg-[#f3faf6] p-5 outline -outline-offset-1 outline-[#bfe3cc]">
-        <p className="text-[14px] leading-[1.4] font-medium text-ink-2">Trial fit score · final</p>
-        <p className="font-display text-[40px] leading-[1.5] font-semibold text-ink" style={DM}>
-          {evaluation.fit.score}
-        </p>
-        <p className="max-w-[280px] text-[13px] leading-[1.4] text-ink-2">{evaluation.fit.locked}</p>
-        {evaluation.fit.parts.map(([k, v]) => (
-          <div key={k} className="flex flex-col gap-1.5 rounded-md bg-white p-3">
-            <p className="text-[13px] leading-[1.4] font-medium text-ink">{k}</p>
-            <span className="block h-1.5 w-full overflow-hidden rounded-[3px] bg-[#e6e6e6]">
-              <span className="block h-full rounded-[3px] bg-[#2e9e5b]" style={{ width: `${parseInt(v, 10)}%` }} />
-            </span>
-            <p className="text-[12px] leading-[1.4] text-ink-2">{v}</p>
-          </div>
-        ))}
-      </div>
+      {/* IN-034 — the finalised score, from the contract rather than a second set of numbers that
+          disagreed with it. Same widget the Team Builder reads, so both sides see one score. */}
+      <aside className="flex w-[360px] shrink-0 flex-col gap-3">
+        <TrialFitScore contract={contract} final />
+        <p className="text-[12.5px] leading-[1.4] text-ink-2">{evaluation.fit.locked}</p>
+      </aside>
     </div>
   );
 }

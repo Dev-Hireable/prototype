@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, type ChangeEvent, type ReactNode } from "react";
+import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { Button, Card, Checkbox, Field, Input, Select, Toast, useToast } from "@/components/independent/ui";
+import { DEMO_PASSWORD, PASSWORD_RULES as AUTH_RULES } from "@/lib/demo/auth";
+import { checkImage, IMAGE_TYPES, readImage } from "@/lib/team/data";
 
 function SettingsHeading({ children }: { children: ReactNode }) {
   return (
@@ -19,16 +21,29 @@ export function AccountSettingsCard({
   emailLabel,
   timeZoneOptions,
   languageOptions,
+  accountType,
+  onSave,
+  onPhoto,
 }: {
   initial: AccountSettingsValues;
   avatar: ReactNode;
   emailLabel: string;
   timeZoneOptions: readonly string[];
   languageOptions: readonly string[];
+  /** TB-099 — shown read-only beside the editable fields. */
+  accountType?: string;
+  /** Lets the page push the saved name somewhere the rest of the app reads. */
+  onSave?: (values: AccountSettingsValues) => void;
+  /** TB-099 / IN-067 — given a handler, Change photo picks a real file instead of toasting. */
+  onPhoto?: (dataUrl: string) => void;
 }) {
   const [form, setForm] = useState(initial);
+  /** TB-099 — the new address only takes effect once the code that went to it is entered. */
+  const [pending, setPending] = useState<string | null>(null);
+  const [code, setCode] = useState("");
   const [toast, setToast] = useToast();
   const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const file = useRef<HTMLInputElement>(null);
 
   return (
     <>
@@ -40,7 +55,22 @@ export function AccountSettingsCard({
             <p className="text-[13px] font-medium text-ink">Profile photo</p>
             <p className="text-[12px] text-ink-2">PNG or JPG, up to 5 MB.</p>
           </div>
-          <Button size="sm" onClick={() => setToast("File picker opens here")}>
+          <input
+            ref={file}
+            type="file"
+            accept={IMAGE_TYPES.join(",")}
+            className="hidden"
+            onChange={async (event) => {
+              const picked = event.target.files?.[0];
+              event.target.value = "";
+              if (!picked || !onPhoto) return;
+              const problem = checkImage(picked);
+              if (problem) return setToast(problem);
+              onPhoto(await readImage(picked));
+              setToast("Photo updated");
+            }}
+          />
+          <Button size="sm" onClick={() => (onPhoto ? file.current?.click() : setToast("File picker opens here"))}>
             Change photo
           </Button>
         </div>
@@ -52,14 +82,56 @@ export function AccountSettingsCard({
             <Input value={form.last} onChange={set("last")} />
           </Field>
         </div>
+        {accountType && (
+          <Field label="Account type">
+            <p className="flex h-11 items-center rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">{accountType}</p>
+          </Field>
+        )}
         <div className="flex items-center gap-3">
           <Field label={emailLabel} hint="A 6-digit code goes to the new address first." className="flex-1">
             <Input value={form.email} onChange={set("email")} type="email" />
           </Field>
-          <Button size="lg" className="shrink-0" onClick={() => setToast(`Verification code sent to ${form.email}`)}>
+          <Button
+            size="lg"
+            className="shrink-0"
+            disabled={form.email === initial.email || !form.email.includes("@")}
+            onClick={() => {
+              setPending(form.email);
+              setCode("");
+              setToast(`Verification code sent to ${form.email}`);
+            }}
+          >
             Change email
           </Button>
         </div>
+        {/* TB-099 — until this is confirmed, the address on the account is still the old one. */}
+        {pending && (
+          <div className="flex items-end gap-3 rounded-lg bg-surface-2 p-4">
+            <Field label={`Enter the code sent to ${pending}`} hint="Any 6 digits work in this demo." className="flex-1">
+              <Input value={code} inputMode="numeric" onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} placeholder="123456" />
+            </Field>
+            <Button
+              size="lg"
+              variant="primary"
+              disabled={code.length !== 6}
+              onClick={() => {
+                setPending(null);
+                setToast("Email verified and updated");
+              }}
+            >
+              Verify
+            </Button>
+            <Button
+              size="lg"
+              onClick={() => {
+                setForm((current) => ({ ...current, email: initial.email }));
+                setPending(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
         <Field label="Phone">
           <Input value={form.phone} onChange={set("phone")} />
         </Field>
@@ -75,7 +147,15 @@ export function AccountSettingsCard({
           <Button size="lg" onClick={() => setForm(initial)}>
             Cancel
           </Button>
-          <Button size="lg" variant="primary" onClick={() => setToast("Changes saved")}>
+          <Button
+            size="lg"
+            variant="primary"
+            disabled={!!pending}
+            onClick={() => {
+              onSave?.(form);
+              setToast(pending ? "Verify the new email first" : "Changes saved");
+            }}
+          >
             Save changes
           </Button>
         </div>
@@ -85,17 +165,14 @@ export function AccountSettingsCard({
   );
 }
 
-const PASSWORD_RULES: readonly [string, (password: string) => boolean][] = [
-  ["At least 8 characters", (password) => password.length >= 8],
-  ["One uppercase letter", (password) => /[A-Z]/.test(password)],
-  ["One number", (password) => /\d/.test(password)],
-  ["One symbol", (password) => /[^A-Za-z0-9]/.test(password)],
-];
+/** One list of rules for sign-up, reset and this form, plus the symbol this form asks for on top. */
+const PASSWORD_RULES: readonly [string, (password: string) => boolean][] = [...AUTH_RULES, ["One symbol", (password: string) => /[^A-Za-z0-9]/.test(password)]];
 
 export function PasswordSettingsCard() {
-  const [current, setCurrent] = useState("••••••••••");
+  const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [wrong, setWrong] = useState(false);
   const [toast, setToast] = useToast();
   const valid = PASSWORD_RULES.every(([, test]) => test(next)) && next === confirm && current.length > 0;
 
@@ -104,9 +181,17 @@ export function PasswordSettingsCard() {
       <Card className="mx-auto flex w-[720px] flex-col gap-4 p-6">
         <SettingsHeading>Change password</SettingsHeading>
         <p className="max-w-[660px] text-[13px] leading-[1.4] text-ink-2">Use at least 8 characters with one uppercase letter, one number and one symbol. This is the same rule as sign-up.</p>
-        <Field label="Current password">
-          <Input type="password" value={current} onChange={(event) => setCurrent(event.target.value)} />
+        <Field label="Current password" hint={`This demo account uses ${DEMO_PASSWORD}`}>
+          <Input
+            type="password"
+            value={current}
+            onChange={(event) => {
+              setCurrent(event.target.value);
+              setWrong(false);
+            }}
+          />
         </Field>
+        {wrong && <p className="text-[13px] leading-[1.4] text-danger">That isn’t your current password. Check it and try again.</p>}
         <Field label="New password">
           <Input type="password" value={next} onChange={(event) => setNext(event.target.value)} placeholder="Enter a new password" />
         </Field>
@@ -125,7 +210,18 @@ export function PasswordSettingsCard() {
           <Button size="lg" onClick={() => { setNext(""); setConfirm(""); }}>
             Cancel
           </Button>
-          <Button size="lg" variant="primary" disabled={!valid} onClick={() => { setToast("Password updated"); setNext(""); setConfirm(""); }}>
+          <Button
+            size="lg"
+            variant="primary"
+            disabled={!valid}
+            onClick={() => {
+              if (current !== DEMO_PASSWORD) return setWrong(true);
+              setToast("Password updated");
+              setCurrent("");
+              setNext("");
+              setConfirm("");
+            }}
+          >
             Update password
           </Button>
         </div>

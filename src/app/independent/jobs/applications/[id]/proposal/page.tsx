@@ -44,7 +44,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
   };
   const submit = () => setSent(true);
   const finish = () => {
-    setStage(app.id, "proposal_sent", { label: revise ? "Proposal v2 sent" : "Proposal sent", tone: "info" });
+    setStage(app.id, "proposal_sent", { label: "Proposal submitted", tone: "info", meta: revise ? "v2 · today" : "v1 · today" });
     router.push(back);
   };
 
@@ -231,7 +231,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
         open={sent}
         onClose={finish}
         title="Proposal submitted"
-        description={`${job.builder.contact} has been notified by email. Your proposal now shows as ${revise ? "Proposal v2" : "Proposal sent"} in the pipeline.`}
+        description={`${job.builder.contact} has been notified. Your proposal now shows as Proposal submitted in the pipeline.`}
         footer={
           <Button size="lg" variant="primary" onClick={finish}>
             Back to application
