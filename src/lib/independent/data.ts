@@ -3,6 +3,7 @@
 import type { Stage } from "@/components/independent/ui";
 /** The Off Track rule and the objective-type wording are the same spec on both sides of a trial. */
 import { isOffTrack } from "@/lib/team/data";
+import type { Posting } from "@/lib/demo/deal";
 
 export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Sales Manager", avatar: "/independent/avatar.jpg" };
 
@@ -43,123 +44,36 @@ export type Role = {
 
 const WS = { builder: [5, 5, 2, 3, 2, 5], independent: [5, 4, 2, 2, 2, 2] }; // Figma 11321:3220 bubble positions
 
-export const roles: Role[] = [
-  {
-    slug: "sales-manager",
-    title: "Sales Manager",
-    company: "Nairobi Solutions",
-    initials: "NS",
-    type: "trial",
+/** A published posting in the shape the job board renders. The board has no seed of its own:
+ *  everything on it was posted by the Team Builder in the other portal. */
+export function roleFromPosting(p: Posting): Role {
+  return {
+    slug: p.slug,
+    title: p.title,
+    company: p.company,
+    initials: p.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+    type: p.type,
     match: 80,
-    location: "Remote, US hours",
-    rate: "$1,600 /month",
-    rateRange: "$1,200 to $1,600 /month",
-    level: "Advanced (5–8 years)",
-    posted: "Posted 3 days ago",
-    closes: "Closes 30 Sep",
-    savedAgo: "Saved 2 days ago",
-    blurb: "Lead a six-person outbound team selling to US mid-market fintech. You own pipeline from first touch to signed contract and coach reps on discovery calls.",
-    skills: ["Outbound sales", "Team leadership", "HubSpot", "Forecasting"],
-    description: [
-      "We are looking for a Sales Manager to lead our outbound motion for the US market. You will own pipeline from first touch to signed contract, coach two SDRs on discovery calls, and keep HubSpot accurate so forecasting is trusted.",
-      "During the 30-day trial you work on three objectives with the founder. A strong trial converts to a full-time offer at the trial rate.",
-    ],
-    objectives: ["Book 50 discovery calls in 30 days", "Reply rate above 12% on outbound sequences", "Ship the outbound playbook with 3 measurable key results"],
-    about: {
-      blurb: "B2B SaaS agency based in New York. We build outbound teams for early-stage fintechs and keep them accountable with weekly metrics.",
-      location: "New York, USA · remote team",
-      industry: "Sales and marketing services",
-      size: "10 to 49 employees",
-    },
-    workStyle: WS,
-  },
-  {
-    slug: "customer-success-lead",
-    title: "Customer Success Lead",
-    company: "Brightline Health",
-    initials: "BH",
-    type: "full-time",
-    match: 72,
-    location: "Remote, UK hours",
-    rate: "$1,400 /month",
-    rateRange: "$1,200 to $1,400 /month",
-    level: "Intermediate (2–5 years)",
-    posted: "Posted 5 days ago",
-    closes: "Closes 10 Oct",
-    savedAgo: "Saved 4 days ago",
-    blurb: "Own onboarding and renewals for 60 clinic accounts. Run quarterly reviews, track health scores and cut churn.",
-    skills: ["Onboarding", "Account management", "Churn analysis"],
-    description: ["Own onboarding and renewals for 60 clinic accounts. Run quarterly reviews, track health scores and cut churn."],
-    objectives: ["Renew 30 of 38 accounts this quarter", "Keep churn under 6%", "Run 20 quarterly reviews"],
-    about: { blurb: "Digital health platform for outpatient clinics across the UK.", location: "London, UK · remote team", industry: "Health tech", size: "50 to 99 employees" },
-    workStyle: WS,
-  },
-  {
-    slug: "business-development-representative",
-    title: "Business Development Representative",
-    company: "Kestrel Logistics",
-    initials: "KL",
-    type: "trial",
-    match: 65,
-    location: "Remote, US hours",
-    rate: "$1,200 /month",
-    rateRange: "$1,000 to $1,200 /month",
-    level: "Intermediate (2–5 years)",
-    posted: "Posted 1 week ago",
-    closes: "Closes 20 Sep",
-    savedAgo: "Saved 2 weeks ago",
-    blurb: "Book qualified meetings for two account executives through cold calls and email sequences. Apollo and Salesforce experience preferred.",
-    skills: ["Cold calling", "Apollo", "Salesforce", "Pipeline hygiene"],
-    description: ["Book qualified meetings for two account executives through cold calls and email sequences. Apollo and Salesforce experience preferred."],
-    objectives: ["Book 20 qualified meetings", "Keep CRM hygiene above 95%", "Launch two email sequences"],
-    about: { blurb: "Freight-forwarding software for mid-size shippers.", location: "Chicago, USA · remote team", industry: "Logistics software", size: "10 to 49 employees" },
-    workStyle: WS,
-  },
-  {
-    slug: "account-executive",
-    title: "Account Executive",
-    company: "Summit Payments",
-    initials: "SP",
-    type: "full-time",
-    match: 88,
-    location: "Remote, AU hours",
-    rate: "$1,800 /month",
-    rateRange: "$1,600 to $1,800 /month",
-    level: "Expert (8+ years)",
-    posted: "Posted 2 weeks ago",
-    closes: "Closes 15 Oct",
-    savedAgo: "Saved 1 week ago",
-    blurb: "Close inbound and partner-sourced deals for a payments platform. Run demos, negotiate contracts and hand off cleanly to onboarding.",
-    skills: ["Enterprise sales", "Negotiation", "Demo delivery"],
-    description: ["Close inbound and partner-sourced deals for a payments platform. Run demos, negotiate contracts and hand off cleanly to onboarding."],
-    objectives: ["Close $40k in new ARR", "Run 25 demos", "Hand off 10 accounts to onboarding"],
-    about: { blurb: "Payments platform for Australian retailers.", location: "Sydney, AU · remote team", industry: "Fintech", size: "100 to 249 employees" },
-    workStyle: WS,
-  },
-  {
-    slug: "sales-development-representative",
-    title: "Sales Development Representative",
-    company: "Orbit Media",
-    initials: "OM",
-    type: "trial",
-    match: 58,
-    location: "Remote, US hours",
-    rate: "$1,100 /month",
-    rateRange: "$900 to $1,100 /month",
-    level: "Beginner (0–2 years)",
-    posted: "Posted 2 weeks ago",
-    closes: "Closes 5 Oct",
-    savedAgo: "Saved 3 weeks ago",
-    blurb: "Research accounts, write first-touch emails and keep the CRM clean for a media sales team of four.",
-    skills: ["Lead research", "Outbound email", "CRM management"],
-    description: ["Research accounts, write first-touch emails and keep the CRM clean for a media sales team of four."],
-    objectives: ["Research 200 accounts", "Send 400 first-touch emails", "Keep CRM clean weekly"],
-    about: { blurb: "Media sales agency for podcast networks.", location: "Austin, USA · remote team", industry: "Media", size: "10 to 49 employees" },
-    workStyle: WS,
-  },
-];
+    location: p.location,
+    rate: p.rate,
+    rateRange: p.rateRange,
+    level: p.level,
+    posted: p.posted,
+    closes: p.closes,
+    savedAgo: "Saved just now",
+    blurb: p.description[0] ?? "",
+    skills: p.skills,
+    description: p.description,
+    objectives: p.objectives,
+    about: { blurb: p.companyBlurb, location: p.location, industry: p.industry, size: p.size },
+    workStyle: { builder: p.workStyle, independent: WORK_STYLE_ANSWERS },
+  };
+}
 
-export const INITIAL_SAVED = ["sales-manager", "account-executive", "business-development-representative"];
+/** Nothing is on the board until a role is published from the client portal. */
+export const roles: Role[] = [];
+
+export const INITIAL_SAVED: string[] = [];
 
 /* -------------------------------------------------------- applications ---- */
 
@@ -174,18 +88,8 @@ export type Application = {
   status?: { label: string; tone: "info" | "ok" | "danger" | "neutral" | "warn"; meta?: string };
 };
 
-const APP = (id: string, stage: Stage, role: string, extra: Partial<Application> = {}): Application => {
-  const r = roles.find((x) => x.slug === role) ?? roles[0];
-  return { id, roleSlug: r.slug, title: r.title, company: r.company, match: r.match, submitted: "Submitted 2 Sep 2026", stage, ...extra };
-};
 
-export const applications: Application[] = [
-  APP("h1", "hired", "sales-manager", { status: { label: "Hired · trial running", tone: "ok" }, submitted: "Submitted 12 Aug 2026" }),
-  APP("o1", "offer_received", "customer-success-lead", { status: { label: "Offer received", tone: "ok" } }),
-  APP("p2", "proposal_sent", "account-executive", { status: { label: "Proposal sent", tone: "info" } }),
-  APP("i2", "invite_accepted", "business-development-representative", { status: { label: "Incoming interview", tone: "info", meta: "Thu 18 Sep · 2:00 PM" } }),
-  APP("m1", "matched", "sales-development-representative", { status: { label: "Matched", tone: "info" } }),
-];
+export const applications: Application[] = [];
 
 /** Kanban column headers — colours lifted from the Figma "My Applications" frame. */
 export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; border: string; text: string; count: string }[] = [
@@ -259,11 +163,7 @@ Important Disclaimer: This is a form provided on an "as is" basis without repres
 
 export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; status: "starts" | "accepted" | "completed" | "declined"; past?: boolean };
 
-export const interviews: Interview[] = [
-  { id: "iv1", role: "Sales Manager", roleHref: "/independent/jobs/applications/h1", company: "Nairobi Solutions Inc.", when: "Thu 10 Sep 2026, 2:00 PM PHT", format: "Google Meet", status: "starts" },
-  { id: "iv2", role: "Business Development Representative", roleHref: "/independent/jobs/applications/i2", company: "Kestrel Logistics", when: "Thu 18 Sep 2026, 2:00 PM PHT", format: "Zoom", status: "accepted" },
-  { id: "iv3", role: "Sales Manager", roleHref: "/independent/jobs/applications/h1", company: "Nairobi Solutions Inc.", when: "Wed 12 Aug 2026, 11:00 AM PHT", format: "Google Meet", status: "completed", past: true },
-];
+export const interviews: Interview[] = [];
 
 /* ----------------------------------------------------------- contracts ---- */
 
@@ -337,39 +237,8 @@ export type Contract = {
 };
 
 /** IN-076 — the objectives agreed at the offer, each with the due and last-update dates the card shows. */
-const NS_OBJECTIVES: Objective[] = [
-  { id: "demos", title: "Book 20 qualified demos by day 30", kind: "kpi", progress: 65, status: "pending", meta: "13 of 20 booked", current: 13, target: 20, due: "24 Sep 2026", updated: "8 Sep 2026", unit: "demos", dailyTarget: 2, trend: [5, 10, 20, 30, 35, 45, 50, 60, 65] },
-  { id: "sequence", title: "Rebuild the outbound email sequence", kind: "task", progress: 100, status: "complete", meta: "Approved by Alex", due: "5 Sep 2026", updated: "3 Sep 2026" },
-  { id: "reply", title: "Lift reply rate from 4% to 8%", kind: "okr", progress: 33, status: "on", meta: "Now 5.2% · 1 of 3 key results approved", due: "24 Sep 2026", updated: "6 Sep 2026", keyResults: 3 },
-  { id: "crm", title: "Clean the CRM pipeline stages", kind: "task", progress: 100, status: "complete", meta: "Approved by Alex", due: "29 Aug 2026", updated: "29 Aug 2026" },
-];
 
-export const contracts: Contract[] = [
-  {
-    slug: "sales-manager",
-    title: "Sales Manager",
-    company: "Nairobi Solutions",
-    initials: "NS",
-    type: "trial",
-    location: "Remote, US hours",
-    line: "Started 25 Aug 2026 · Day 18 of 30 · $1,600 /month · Manager: Alex Rivera",
-    status: { label: "On track", tone: "ok" },
-    progressLabel: "Trial progress",
-    progress: 60,
-    progressTone: "primary",
-    manager: "Alex Rivera",
-    managerFirst: "Alex",
-    started: "25 Aug 2026",
-    day: "Day 18 of 30",
-    ends: "24 Sep 2026",
-    rate: "$1,600 /month",
-    objectives: NS_OBJECTIVES,
-    tfs: { overall: 82, performance: 86, profile: 80, workStyle: 76 },
-    phase: 3,
-    activity: [2, 2, 1, 2, 2, 2, 0, 2, 1, 2, 2, 2, 2, 1, 2, 2, 0, 2],
-    streak: 6,
-  },
-];
+export const contracts: Contract[] = [];
 
 /**
  * IN-049 — the Team Builder's company as the independent sees it from a contract: read-only,
@@ -385,46 +254,6 @@ export const COMPANIES: Record<string, CompanyProfile> = {
     location: "New York, USA · remote team",
     url: "www.nairobisolutions.com",
     tags: ["Direct", "Data-driven", "Async first", "Weekly check-ins", "Coaching"],
-  },
-  "Brightline Health": {
-    name: "Brightline Health",
-    description: "Digital health platform for outpatient clinics across the UK. Sixty clinic accounts, onboarded and renewed by a small customer team.",
-    industry: "Health tech",
-    location: "London, UK · remote team",
-    url: "www.brightlinehealth.co.uk",
-    tags: ["Structured", "Documentation first", "Quarterly reviews", "Low meeting load"],
-  },
-  "Kestrel Logistics": {
-    name: "Kestrel Logistics",
-    description: "Freight-forwarding software for mid-size shippers, sold to operations teams across the US midwest.",
-    industry: "Logistics software",
-    location: "Chicago, USA · remote team",
-    url: "www.kestrellogistics.com",
-    tags: ["Fast-moving", "Hands-on", "Daily stand-ups"],
-  },
-  "Summit Payments": {
-    name: "Summit Payments",
-    description: "Payments platform for Australian retailers, from in-store terminals to online checkout.",
-    industry: "Fintech",
-    location: "Sydney, AU · remote team",
-    url: "www.summitpayments.com.au",
-    tags: ["Process-led", "Compliance aware", "Async first"],
-  },
-  "Orbit Media": {
-    name: "Orbit Media",
-    description: "Media sales agency representing podcast networks to brand advertisers.",
-    industry: "Media",
-    location: "Austin, USA · remote team",
-    url: "www.orbitmedia.fm",
-    tags: ["Creative", "Collaborative", "Weekly check-ins"],
-  },
-  "Harbor Analytics": {
-    name: "Harbor Analytics",
-    description: "Revenue analytics for European SaaS teams — dashboards, forecasting and pipeline hygiene.",
-    industry: "Analytics",
-    location: "Amsterdam, NL · remote team",
-    url: "www.harboranalytics.eu",
-    tags: ["Analytical", "Detail-oriented", "Async first"],
   },
 };
 
@@ -478,9 +307,7 @@ export type TxnType = (typeof TXN_TYPES)[number];
 /** IN-032 — `contract` is the slug the row belongs to, so a contract can list its own history. */
 export type Transaction = { date: string; /** yyyymmdd — the ledger sorts newest first and filters by range on this, not on the printed date. */ at: number; desc: string; party: string; type: TxnType; contract?: string; amount: string; status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" } };
 
-export const transactions: Transaction[] = [
-  { date: "25 Aug 2026", at: 20260825, desc: "Escrow funded · Sales Manager trial", party: "Nairobi Solutions", type: "Payment Deposited", contract: "sales-manager", amount: "$1,600.00", status: { label: "Held", tone: "warn" } },
-];
+export const transactions: Transaction[] = [];
 
 /** IN-032 / IN-059 — one dispute per contract, so the tab shows it and the button stops offering another. */
 export type Dispute = { id: string; contract: string; filed: string; reason: string; description: string; amount: string; evidence?: string; status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" }; resolution?: { outcome: string; notes: string } };
@@ -590,32 +417,7 @@ export const SKILL_SUGGESTIONS = [
  */
 export type PastEvaluation = { company: string; role: string; type: "trial" | "full-time"; date: string; stars: number; feedback: string };
 
-export const pastEvaluations: PastEvaluation[] = [
-  {
-    company: "Orbit Media",
-    role: "Sales Development Representative",
-    type: "full-time",
-    date: "31 Aug 2026",
-    stars: 4,
-    feedback: "Researched the account list properly and kept the CRM clean for eight months. Comfortable handing him a bigger territory next time.",
-  },
-  {
-    company: "Vela Partners",
-    role: "Business Development Representative",
-    type: "trial",
-    date: "30 Jul 2026",
-    stars: 5,
-    feedback: "Beat the meeting target in week two and wrote the sequence the team still uses. Would hire full-time if the headcount had been there.",
-  },
-  {
-    company: "Harbor Analytics",
-    role: "Sales Operations Analyst",
-    type: "trial",
-    date: "12 Jun 2026",
-    stars: 3,
-    feedback: "Solid fundamentals and reliable reporting. Prioritisation needed steering early on, but the weekly pack was always on time.",
-  },
-];
+export const pastEvaluations: PastEvaluation[] = [];
 
 /** IN-062 — the bio limit, quoted in the editor and enforced by it. */
 export const BIO_MAX = 500;
@@ -690,22 +492,16 @@ export function setupSteps({ payouts, applications, workStyle = WORK_STYLE_ANSWE
 
 export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: "contracts" | "offers" | "payments" | "interviews" | "other"; href: string };
 
-export const notifications: Notification[] = [
-  { id: "n1", group: "Today", title: "Week 2 update approved", body: "Alex Rivera approved your update for Sales Manager — 3 of 4 objectives on track.", time: "10:02", unread: true, kind: "contracts", href: "/independent/contracts/sales-manager" },
-  { id: "n2", group: "Today", title: "Payout method verified", body: "Your Maya account is verified. Trial payments will be released to it at each cycle end.", time: "08:15", unread: true, kind: "payments", href: "/independent/wallet" },
-  { id: "n3", group: "Yesterday", title: "Interview confirmed", body: "Kestrel Logistics confirmed your Business Development Representative interview for Thu 18 Sep, 2:00 PM PHT.", time: "16:40", unread: false, kind: "interviews", href: "/independent/jobs/interviews" },
-  { id: "n4", group: "Earlier", title: "Objective due in 3 days", body: "“Book 20 qualified demos by day 30” is at 65% — log progress to stay on track.", time: "8 Sep", unread: false, kind: "contracts", href: "/independent/contracts/sales-manager/objectives/demos" },
-  { id: "n5", group: "Earlier", title: "Escrow funded", body: "Nairobi Solutions funded $1,600 for your Sales Manager trial. You started on 25 Aug.", time: "25 Aug", unread: false, kind: "payments", href: "/independent/wallet" },
-];
+export const notifications: Notification[] = [];
 
 /* ------------------------------------------------------------ messages ---- */
 
-export const conversations = [
-  { id: "c1", name: "Nairobi Solutions", sub: "Alex Rivera · Sales Manager trial", preview: "Looks good — approved the week 2 update.", time: "10:02", unread: 1, initials: "NS" },
-  { id: "c2", name: "Brightline Health", sub: "Owen Price · Customer Success", preview: "Offer letter attached, have a read.", time: "Yesterday", unread: 0, initials: "BH" },
-  { id: "c3", name: "Vela Partners", sub: "Ana Reyes · Account Executive", preview: "Interview moved to Thursday 2pm.", time: "Tue", unread: 0, initials: "VP" },
-  { id: "c4", name: "Hireable support", sub: "Payouts", preview: "Your Maya payout method is verified.", time: "8 Sep", unread: 0, initials: "H" },
-];
+export type Conversation = { id: string; name: string; sub: string; preview: string; time: string; unread: number; initials: string };
+
+/** The inbox is not a seed: the thread exists once you are in a company's pipeline. */
+export function conversationsFor(engaged: boolean): Conversation[] {
+  return engaged ? [{ id: "c1", name: "Nairobi Solutions", sub: "Alex Rivera · Sales Manager", preview: "", time: "", unread: 0, initials: "NS" }] : [];
+}
 
 export const thread = [
   { me: true, text: "Week 2 update is in — 5 of 6 objectives on track, the outreach KPI is at 72% of target.", time: "Yesterday" },

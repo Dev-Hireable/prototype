@@ -36,7 +36,11 @@ export default function Dashboard() {
   /* TB-120/121 — the greeting and the avatar follow whatever the profile page saved. */
   /* Contracts and interviews come from the store: ending a contract or scheduling an interview
      elsewhere in the app has to show up in these widgets. */
-  const { profile, contracts, interviews, company, cards, roles } = useDemo();
+  const { profile, contracts, interviews, company, cards, roles, candidates } = useDemo();
+  /** TB-002 — counted from the pipeline, not three numbers typed into the card. */
+  const live = candidates.filter((c) => !c.dropped);
+  const inTrial = contracts.filter((c) => c.status.label !== "Ended").length;
+  const shortlisted = live.filter((c) => c.stage !== "applied" && c.stage !== "hired").length;
   /* TB-001 — computed from what is actually set up, so finishing a step moves the bar. */
   const steps = setupSteps({ company, cards, roles });
   const [dismissed, setDismissed] = usePersisted("team.bannerDismissed", "");
@@ -94,8 +98,8 @@ export default function Dashboard() {
                 <Work size={20} aria-hidden />
               </span>
               <div className="flex-1 whitespace-nowrap">
-                <p className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">16</p>
-                <p className="text-[13px] leading-[1.2] tracking-[0.2px] text-ink-2">Applicants this month</p>
+                <p className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{live.length}</p>
+                <p className="text-[13px] leading-[1.2] tracking-[0.2px] text-ink-2">{live.length === 1 ? "Applicant so far" : "Applicants so far"}</p>
               </div>
               <Link href="/team/hire/roles" aria-label="Open applicants" className="rounded-full bg-white p-1 text-ink">
                 <NorthEast size={24} aria-hidden />
@@ -103,8 +107,8 @@ export default function Dashboard() {
             </div>
             <DashboardBarChart
               bars={[
-                { value: 8, label: "In trial", background: "bg-[#c9ccd0]" },
-                { value: 4, label: "Shortlisted", background: "bg-gradient-to-b from-primary to-[#64bceb]" },
+                { value: inTrial, label: "In trial", background: "bg-[#c9ccd0]" },
+                { value: shortlisted, label: "Shortlisted", background: "bg-gradient-to-b from-primary to-[#64bceb]" },
               ]}
             />
           </DashboardSummaryCard>

@@ -52,7 +52,7 @@ export function SendOfferDialog({
   role: Role;
   proposal: { rate: string; objectives: { title: string; kind: Objective["kind"] }[]; letter: string };
   card?: PaymentMethod;
-  onSend: () => void;
+  onSend: (terms: { start: string; end: string }) => void;
 }) {
   const [step, setStep] = useState(0);
   const [start, setStart] = useState(iso(new Date()));
@@ -90,7 +90,7 @@ export function SendOfferDialog({
               {step === 2 ? "Deposit & continue" : "Continue"}
             </Button>
           ) : (
-            <Button size="lg" variant="primary" disabled={!signature.trim()} onClick={() => { onSend(); close(); }}>
+            <Button size="lg" variant="primary" disabled={!signature.trim()} onClick={() => { onSend({ start, end }); close(); }}>
               Sign &amp; send offer
             </Button>
           )}

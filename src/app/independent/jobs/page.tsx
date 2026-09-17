@@ -5,7 +5,8 @@ import { RoleCard } from "@/components/independent/RoleCard";
 import { Pagination } from "@/components/team/ui";
 import { Button, Checkbox, EmptyState, Page, SearchBox } from "@/components/independent/ui";
 import { EXPERIENCE_LEVELS, MarketplaceFilterPanel, SKILL_OPTIONS } from "@/components/portal/filters";
-import { roles } from "@/lib/independent/data";
+import { roleFromPosting } from "@/lib/independent/data";
+import { usePostings } from "@/lib/demo/deal";
 
 const PER_PAGE = 8;
 
@@ -20,6 +21,7 @@ export default function Discover() {
   const [applied, setApplied] = useState(DEFAULT);
 
   const rate = (r: string) => Number(r.replace(/[^0-9]/g, ""));
+  const roles = usePostings().map(roleFromPosting);
   const results = roles.filter((r) => {
     const text = `${r.title} ${r.company} ${r.skills.join(" ")}`.toLowerCase();
     if (q && !text.includes(q.toLowerCase())) return false;

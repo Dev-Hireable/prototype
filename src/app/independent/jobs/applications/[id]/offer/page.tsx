@@ -5,6 +5,7 @@ import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { Button, Card, Checkbox, Field, InfoBanner, Modal, ObjectiveRow, Page, Textarea } from "@/components/independent/ui";
 import { AGREEMENT, ME, marketingSpecialist as job } from "@/lib/independent/data";
+import { useDeal } from "@/lib/demo/deal";
 import { useDemo } from "@/lib/independent/store";
 
 /**
@@ -26,16 +27,19 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
   const [declined, setDeclined] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const o = job.offer;
-  const rate = updated ? o.updatedRate : o.rate;
+  /** IN-074 — when the Team Builder sent this offer, these are their terms, not the seed's. */
+  const deal = useDeal();
+  const sent = deal?.offer;
+  const rate = sent ? sent.rate : updated ? o.updatedRate : o.rate;
   const total = updated ? o.updatedTotal : o.total;
   const signed = name.trim().length > 2 && agree;
 
   const rows: [string, string][] = [
-    ["Role", job.title],
+    ["Role", deal?.title ?? job.title],
     ["Contract type", "Trial"],
     ["Duration", "30 Days"],
-    ["Start date", o.start],
-    ["End date", o.end],
+    ["Start date", sent?.start ?? o.start],
+    ["End date", sent?.end ?? o.end],
     ["Rate", rate],
     ["Payment cadence", o.cadence],
     ["Pay in", o.payIn],
@@ -77,7 +81,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
             <div className="flex flex-col gap-6 px-6 pb-6">
               <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Objectives</h3>
               <div className="flex flex-col gap-2">
-                {o.objectives.map((ob, i) => (
+                {(sent?.objectives.map((x) => x.title) ?? o.objectives).map((ob, i) => (
                   <ObjectiveRow key={ob} index={i}>
                     {ob}
                   </ObjectiveRow>
@@ -159,7 +163,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
               // the stage the store notifies the Team Builder on. It used to sit in Offers as
               // "Offer accepted", so the Team Builder heard nothing.
               setStage(app.id, "hired", { label: "Waiting to start", tone: "ok" });
-              router.push("/independent/contracts/sales-manager");
+              router.push(`/independent/contracts/${deal?.roleSlug ?? "sales-manager"}`);
             }}
           >
             Open contract

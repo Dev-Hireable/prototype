@@ -58,7 +58,7 @@ type Dialog = null | "invite" | "drop" | "flag" | "request" | "proposal" | "decl
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
   const router = useRouter();
-  const { roles, candidates, setStage, setDropped, setOffer, cards, addInterview } = useDemo();
+  const { roles, candidates, setStage, setDropped, sendOffer, cards, addInterview } = useDemo();
   const role = roles.find((r) => r.slug === slug);
   const cand = candidates.find((c) => c.id === id);
   if (!role || !cand) notFound();
@@ -450,9 +450,16 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         role={role}
         proposal={PROPOSAL}
         card={cards.find((c) => c.isDefault) ?? cards[0]}
-        onSend={() => {
+        onSend={(terms) => {
+          // TB-105 — the terms and the committed objectives travel with the offer, so the talent
+          // signs the same thing the tracker is built from.
+          sendOffer({
+            rate: PROPOSAL.rate,
+            start: terms.start,
+            end: terms.end,
+            objectives: PROPOSAL.objectives.map((o, i) => ({ id: `obj-${i + 1}`, title: o.title, kind: o.kind })),
+          });
           setStage(cand.id, "offer_received", { label: "Awaiting response", tone: "warn", meta: "Expires in 7 days" });
-          setOffer("o1", { status: { label: "Pending", tone: "warn" } });
           setToast("Offer sent to candidate");
         }}
       />

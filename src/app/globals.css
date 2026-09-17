@@ -97,3 +97,18 @@ body {
 }
 
 
+
+/* Tailwind v4's preflight leaves buttons at `cursor: default`, so every clickable control in the
+   app read as dead — you could not tell an active button from a disabled one without clicking it.
+   One rule here rather than a `cursor-pointer` class on each of the hundreds of call sites.
+   Anything genuinely disabled keeps the not-allowed cursor the components already set. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="tab"],
+[role="menuitem"],
+[role="option"],
+label:has(> input[type="checkbox"]:not(:disabled)),
+label:has(> input[type="radio"]:not(:disabled)),
+summary {
+  cursor: pointer;
+}

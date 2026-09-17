@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Modal, Page, Pills, StatusDot, Toast, useToast } from "@/components/independent/ui";
-import { interviews as seed } from "@/lib/independent/data";
 import type { Interview } from "@/lib/independent/data";
+import { useDemo } from "@/lib/independent/store";
 
 const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" | "neutral" | "danger" }> = {
   starts: { label: "Starts in 12 min", tone: "info" },
@@ -19,7 +19,8 @@ const COLS = ["min-w-0 flex-1", "w-[180px]", "w-[215px]", "w-[120px]", "w-[120px
 /** Figma "Interviews / My interviews · list": pill tabs, table (header #f2f2f2, px 16 / py 12), 12px footnote. */
 export default function Interviews() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
-  const [items, setItems] = useState(seed);
+  /** IN-070 — the interviews the Team Builder has actually booked, not a copy in page state. */
+  const { interviews: items, declineInterview } = useDemo();
   const [declining, setDeclining] = useState<Interview | null>(null);
   const [toast, setToast] = useToast();
   const upcoming = items.filter((i) => !i.past);
@@ -86,7 +87,7 @@ export default function Interviews() {
               size="lg"
               variant="danger"
               onClick={() => {
-                setItems((all) => all.map((i) => (i.id === declining?.id ? { ...i, status: "declined", past: true } : i)));
+                if (declining) declineInterview(declining.id);
                 setDeclining(null);
                 setToast("Interview declined");
               }}

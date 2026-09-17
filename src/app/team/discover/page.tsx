@@ -64,7 +64,7 @@ export default function Discover() {
       <div className="flex items-start gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <SearchBox value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search by name, title or skill" />
-          <p className="text-[14px] leading-[1.4] text-ink-2">{results.length === 1 ? "1 independent matches" : `${results.length} independents match`}</p>
+          <p className="text-[14px] leading-[1.4] text-ink-2">{results.length === 1 ? "1 independent matched" : `${results.length} independents matched`}</p>
           {results.length === 0 ? (
             <EmptyState title="No independents match these filters" body="Try removing a filter, clearing the search, or widening the rate range." action={<Button onClick={reset}>Reset filters</Button>} />
           ) : (

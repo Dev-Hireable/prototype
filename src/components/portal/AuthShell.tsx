@@ -5,24 +5,56 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Input } from "@/components/independent/ui";
 
-/** OB-001 to OB-004 — one centred card for every account screen, so they read as one flow. */
-export function AuthShell({ title, subtitle, children, footer, width = 460 }: { title: string; subtitle: string; children: ReactNode; footer?: ReactNode; width?: number }) {
+/**
+ * OB-001 to OB-004 — the account screens, built to the same layout the live Hireable app uses
+ * (apps/web/app/(auth)): a fixed #212121 sidebar carrying the white wordmark and the pillars
+ * graphic, and a centred 480px column beside it. The sidebar drops away under `lg`, where the
+ * form takes the whole width.
+ *
+ * The form controls are the prototype's own, so these screens still look like the rest of it.
+ */
+export function AuthShell({ title, subtitle, children, footer, width = 480 }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode; width?: number }) {
   return (
-    <main className="flex min-h-dvh flex-1 flex-col items-center justify-center gap-6 bg-surface-2 px-6 py-12">
-      <Link href="/" aria-label="Hireable">
-        <Image src="/hireable-logo.svg" alt="Hireable" width={701} height={140} priority unoptimized className="h-7 w-auto" />
-      </Link>
-      <div className="flex w-full flex-col gap-5 rounded-2xl bg-white p-8 shadow-[0_8px_24px_rgba(26,31,46,0.08)]" style={{ maxWidth: width }}>
-        <div className="flex flex-col gap-1">
-          <h1 className="font-display text-[24px] leading-[1.4] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-            {title}
-          </h1>
-          <p className="text-[13.5px] leading-[1.45] text-ink-2">{subtitle}</p>
+    <div className="flex min-h-dvh w-full overflow-x-hidden bg-white">
+      <aside className="fixed top-0 left-0 isolate hidden h-dvh w-[480px] flex-col items-start overflow-hidden bg-[#212121] p-14 lg:flex">
+        <Link href="/" className="z-10 inline-flex shrink-0 items-center" aria-label="Hireable">
+          <Image src="/hireable-wordmark-white.svg" alt="Hireable" width={164} height={26} loading="eager" draggable={false} unoptimized />
+        </Link>
+        {/* Decorative only: the pillars sit bottom-left, bleeding off the panel like the live app. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-14 z-0 h-[301px] w-[480px] overflow-hidden bg-contain bg-left-bottom bg-no-repeat"
+          style={{ backgroundImage: "url(/auth-pillars.svg)" }}
+        />
+      </aside>
+
+      {/* Spacer so the centred column measures against what is left, not the whole viewport. */}
+      <div className="hidden w-[480px] shrink-0 lg:block" />
+
+      <main className="relative flex flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
+        <div className="flex w-full flex-col gap-6 sm:gap-8" style={{ maxWidth: width }}>
+          <div className="flex flex-col items-center gap-3 sm:gap-4">
+            <Image src="/hireable-mark.svg" alt="" width={44} height={44} className="size-11" unoptimized />
+            <h1 className="text-center text-[24px] leading-[1.3] font-semibold tracking-[-0.2px] text-balance text-ink sm:text-[30px]">{title}</h1>
+            {subtitle && <p className="text-center text-[14px] leading-[1.45] text-balance text-ink-2">{subtitle}</p>}
+          </div>
+          {children}
         </div>
-        {children}
-      </div>
-      {footer && <p className="text-[13px] leading-[1.4] text-ink-2">{footer}</p>}
-    </main>
+        {footer && <div className="mt-6 flex h-5 items-center justify-center gap-1 text-[14px] leading-[1.2] tracking-[0.2px]">{footer}</div>}
+      </main>
+    </div>
+  );
+}
+
+/** The footer pattern from the live app: prompt in ink, the action in brand blue. */
+export function AuthLink({ prompt, linkText, href }: { prompt: string; linkText: string; href: string }) {
+  return (
+    <>
+      <span className="text-ink">{prompt}</span>
+      <Link href={href} className="rounded-lg font-medium text-primary hover:underline">
+        {linkText}
+      </Link>
+    </>
   );
 }
 

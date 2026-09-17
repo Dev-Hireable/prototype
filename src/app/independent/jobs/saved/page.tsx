@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { RoleCard } from "@/components/independent/RoleCard";
 import { EmptyState, LinkButton, Page, SearchBox, Select } from "@/components/independent/ui";
-import { roles } from "@/lib/independent/data";
+import { roleFromPosting } from "@/lib/independent/data";
+import { usePostings } from "@/lib/demo/deal";
 import { useDemo } from "@/lib/independent/store";
 
 /** Figma "Job Board / Saved roles · list / · empty": toolbar 522 wide (search + 150 type), list gap 12. */
@@ -11,6 +12,7 @@ export default function SavedRoles() {
   const { saved } = useDemo();
   const [q, setQ] = useState("");
   const [type, setType] = useState("Type: All");
+  const roles = usePostings().map(roleFromPosting);
   const list = roles
     .filter((r) => saved.includes(r.slug))
     .filter((r) => (type === "Type: All" ? true : type === "Type: Trial" ? r.type === "trial" : r.type === "full-time"))

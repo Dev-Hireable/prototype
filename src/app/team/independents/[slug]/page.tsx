@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useState } from "react";
-import { ICONS } from "@/components/admin/icons";
 import { Breadcrumb, Button, Card, Field, InfoBanner, Input, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Select, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { Avatar, CardHeading } from "@/components/team/ui";
 import { TrialFitScore } from "@/components/team/TrialWidgets";
@@ -15,7 +14,6 @@ import type { MoveKind } from "@/lib/demo/live";
 import type { Objective } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 
-const More = ICONS.moreV;
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 const OBJ_STATUS: Record<Objective["status"], { label: string; tone: "warn" | "ok" | "trial"; bar: "primary" | "ok" | "warn" }> = {
   pending: { label: "Update pending", tone: "warn", bar: "primary" },
@@ -446,9 +444,6 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 <Button size="lg" variant="primary" onClick={() => (pending ? setReview(objectives.find((o) => o.status === "pending") ?? null) : setTab("evaluation"))}>
                   {pending ? "Review update" : "Send evaluation"}
                 </Button>
-                <button type="button" aria-label="More" className="text-ink">
-                  <More size={24} aria-hidden />
-                </button>
               </div>
             </div>
             <p className="flex gap-6 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">

@@ -77,15 +77,10 @@ export type Live = {
   seen: Record<Side, number>;
 };
 
-const SEED_CHAT: ChatMsg[] = [
-  { id: "s1", from: "independent", text: "Week 2 update is in — 5 of 6 objectives on track, the outreach KPI is at 72% of target.", time: "09:12" },
-  { id: "s2", from: "team", text: "Nice. Can you add the two booked demos to the CRM board before the 1:1?", time: "09:20" },
-  { id: "s3", from: "independent", text: "Done — both added with notes. Also attached the revised KPI targets for week 3.", time: "09:41" },
-  { id: "s4", from: "independent", file: { name: "Week-3-KPI-targets.pdf", meta: "PDF · 84 KB · 09:41" }, time: "09:41" },
-  { id: "s5", from: "team", text: "Looks good — approved the week 2 update. Let’s push outreach a bit this week, you’re close.", time: "10:02" },
-];
+/** Nothing has been said yet — the thread starts when one side messages the other. */
+const SEED_CHAT: ChatMsg[] = [];
 
-const SEED: Live = { team: teamSeed, independent: indSeed, payments: [], chat: SEED_CHAT, seen: { team: SEED_CHAT.length, independent: SEED_CHAT.length - 1 } };
+const SEED: Live = { team: teamSeed, independent: indSeed, payments: [], chat: SEED_CHAT, seen: { team: 0, independent: 0 } };
 
 /* ------------------------------------------------------------------ store */
 
@@ -183,6 +178,7 @@ export type MoveKind =
   | "offer_declined" // IN-075 Decline Offer
   | "objective_update" // IN-026 Update Progress on an objective
   | "objective_done" // IN-077 Mark a default objective as done
+  | "interview_declined" // IN-071 Decline an interview invitation
   | "dispute_raised" // IN-059 File a Dispute
   | "dispute_pulled" // IN-082 Withdraw Dispute
   | "withdrawn"; // IN — withdraw application
@@ -319,6 +315,12 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     story: "IN-077",
     title: () => `${PAIR.independent.name} marked an objective as done`,
     body: (r) => `It sits at Pending approval on ${r} until you approve it or send it back.`,
+  },
+  interview_declined: {
+    to: "team",
+    story: "IN-071",
+    title: () => `${PAIR.independent.name} declined the interview`,
+    body: (r) => `They cannot make that slot for ${r}. Their application stays open — offer another time.`,
   },
   dispute_raised: {
     to: "team",

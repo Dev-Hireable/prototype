@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Modal } from "@/components/independent/ui";
+import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
 import { unreadChat, useLive } from "@/lib/demo/live";
 import { menuItemFor, sectionFor } from "@/lib/portal/nav";
@@ -48,6 +49,7 @@ export function PortalShell({
   const [collapsed, setCollapsed] = useState(false);
   /** Destination of a pending log-out, held while the confirm dialog is open. */
   const [logout, setLogout] = useState<string | null>(null);
+  const hydrated = useHydrated();
   const router = useRouter();
 
   /* Live unread counts on the Messages and Notifications nav items (TB-007/008, IN-007/008). */
@@ -208,7 +210,9 @@ export function PortalShell({
       </div>
 
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]">
-        {children}
+        {/* The demo's records live in localStorage, so the page waits one paint for them rather
+            than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
+        {hydrated ? children : null}
       </div>
 
       <Modal

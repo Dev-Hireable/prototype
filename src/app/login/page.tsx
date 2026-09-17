@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, AuthShell, PasswordInput } from "@/components/portal/AuthShell";
 import { Button, Field, Input } from "@/components/independent/ui";
-import { DEMO_PASSWORD, HOME, signIn } from "@/lib/demo/auth";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD, HOME, signIn } from "@/lib/demo/auth";
 
 /** OB-001 — sign in, land on the dashboard the account type belongs to. */
 export default function Login() {
@@ -22,16 +21,8 @@ export default function Login() {
 
   return (
     <AuthShell
-      title="Sign in to Hireable"
+      title="Login to Hireable"
       subtitle="Trial Drives, objectives and payments — all in one place."
-      footer={
-        <>
-          New to Hireable?{" "}
-          <Link href="/signup" className="font-medium text-primary hover:underline">
-            Sign up
-          </Link>
-        </>
-      }
     >
       <form
         className="flex flex-col gap-4"
@@ -65,25 +56,32 @@ export default function Login() {
             placeholder="Your password"
           />
         </Field>
-        <div className="flex justify-end">
-          <Link href="/forgot-password" className="text-[13px] leading-[1.4] font-medium text-primary hover:underline">
-            Forgot password?
-          </Link>
-        </div>
         <Button size="xl" variant="primary" type="submit" disabled={!email.trim() || !password}>
           Sign in
         </Button>
       </form>
 
-      {/* The demo accounts, so the prototype can actually be signed into. */}
-      <div className="flex flex-col gap-1.5 rounded-lg bg-surface-2 p-4 text-[12.5px] leading-[1.45] text-ink-2">
-        <p className="font-medium text-ink">Demo accounts</p>
-        <p>alex@nairobisolutions.com — Team Builder</p>
-        <p>juandelacruz@gmail.com — Independent</p>
-        <p>admin@hireable.com — Admin</p>
-        <p>
-          Password for all three: <span className="font-medium text-ink">{DEMO_PASSWORD}</span>
-        </p>
+      {/* The demo accounts. Pick one and the form fills itself — nothing to copy across. */}
+      <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-4">
+        <p className="text-[12.5px] leading-[1.45] font-medium text-ink">Sign in as</p>
+        {DEMO_ACCOUNTS.map((a) => (
+          <button
+            key={a.email}
+            type="button"
+            onClick={() => {
+              setEmail(a.email);
+              setPassword(DEMO_PASSWORD);
+              setError("");
+            }}
+            className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition ${email === a.email ? "border-primary bg-white" : "border-transparent bg-white/70 hover:border-border hover:bg-white"}`}
+          >
+            <span className="flex min-w-0 flex-col">
+              <span className="text-[13px] leading-[1.3] font-medium text-ink">{a.name}</span>
+              <span className="truncate text-[12px] leading-[1.3] text-ink-2">{a.email}</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-surface-2 px-2 py-1 text-[11px] leading-[1.2] font-medium text-ink-2">{a.label}</span>
+          </button>
+        ))}
       </div>
     </AuthShell>
   );

@@ -6,7 +6,8 @@ import { CallDialog } from "@/components/portal/CallDialog";
 import { Highlight, Page, SearchBox, StatusDot } from "@/components/independent/ui";
 import { Avatar } from "@/components/team/ui";
 import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, sendChat, sendFile, startCall, unreadChat, useLive } from "@/lib/demo/live";
-import { conversations } from "@/lib/team/data";
+import { conversationsFor } from "@/lib/team/data";
+import { useDemo } from "@/lib/team/store";
 
 const DoneAll = ICONS.doneAll;
 const Call = ICONS.call;
@@ -21,15 +22,18 @@ const Download = ICONS.download;
 export default function Messages() {
   const live = useLive();
   const [tab, setTab] = useState<"conversations" | "candidates">("conversations");
+  const { contracts, candidates } = useDemo();
+  const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
+  const conversations = conversationsFor({ hired: contracts.length > 0, inPipeline: candidates.some((c) => !c.dropped) });
   const [q, setQ] = useState("");
-  const [active, setActive] = useState(conversations[0].id);
+  const [active, setActive] = useState(conversations[0]?.id ?? "");
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [callLink, setCallLink] = useState<string | null>(null);
   const [inCall, setInCall] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const conv = conversations.find((c) => c.id === active)!;
+  const conv = conversations.find((c) => c.id === active) ?? conversations[0];
   const unread = unreadChat(live, "team");
   const last = live.chat[live.chat.length - 1];
 
@@ -80,7 +84,7 @@ export default function Messages() {
           </div>
           {list.length === 0 && (
             <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">
-              No conversations match “{q.trim()}”. Clear the search to see everyone.
+              {q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : tab === "candidates" ? "Nobody in the pipeline yet." : "No active contracts yet."}
             </p>
           )}
           <ul className="flex flex-col gap-0.5 px-2 pt-2">
@@ -109,6 +113,13 @@ export default function Messages() {
           </ul>
         </section>
 
+        {/* Nobody to talk to yet: an empty inbox says so rather than rendering half a thread. */}
+        {!conv ? (
+          <section className="flex min-w-0 flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
+            <p className="text-[15px] leading-[1.4] font-semibold text-ink">No conversations yet</p>
+            <p className="max-w-[360px] text-[13px] leading-[1.45] text-muted">Once someone applies to one of your roles, or a trial starts, your thread with them opens here.</p>
+          </section>
+        ) : (
         <section className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center gap-3 border-b border-line px-[18px] py-3">
             <Avatar src={conv.avatar} size={36} />
@@ -116,7 +127,7 @@ export default function Messages() {
               <p className="text-[14px] font-semibold text-ink-deep">{conv.name}</p>
               <p className="text-[11.5px] text-muted">{conv.sub}</p>
             </div>
-            <StatusDot tone="trial">TRIAL · Day 18 of 30</StatusDot>
+            {trial && <StatusDot tone="trial">TRIAL · {trial.day}</StatusDot>}
             {/* TB-011: starts a call session and notifies the other party. */}
             <button type="button" aria-label="Start call" onClick={() => { setCallLink(startCall("team")); setInCall(true); }} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
               <Call size={20} aria-hidden />
@@ -222,8 +233,9 @@ export default function Messages() {
             </div>
           </form>
         </section>
+        )}
       </div>
-      <CallDialog open={inCall} link={callLink} withWhom={conv.name} onEnd={() => setInCall(false)} />
+      <CallDialog open={inCall} link={callLink} withWhom={conv?.name ?? ""} onEnd={() => setInCall(false)} />
     </Page>
   );
 }

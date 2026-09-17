@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AuthError, AuthShell, PasswordInput, PasswordRules } from "@/components/portal/AuthShell";
+import { AuthError, AuthLink, AuthShell, PasswordInput, PasswordRules } from "@/components/portal/AuthShell";
 import { Button, Field, Input, StatusDot } from "@/components/independent/ui";
 import { emptyQuiz, quizComplete, WorkStyleQuiz, type QuizState } from "@/components/portal/WorkStyleQuiz";
 import { emailOk, HOME, PASSWORD_RULES, passwordOk, seedPersisted, signUp, type Role } from "@/lib/demo/auth";
@@ -84,14 +83,7 @@ export default function SignUp() {
     <AuthShell
       title="Create your account"
       subtitle="Hire through a 30-day Trial Drive, or get hired through one."
-      footer={
-        <>
-          Already have an account?{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
-            Sign in
-          </Link>
-        </>
-      }
+      footer={<AuthLink prompt="Already have an account?" linkText="Login" href="/login" />}
     >
       <form
         className="flex flex-col gap-4"

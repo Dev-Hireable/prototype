@@ -108,29 +108,9 @@ export type Role = {
 const DESC =
   "We need someone to own our digital marketing end to end. You'll plan and run campaigns across social, email, and paid channels, track what's working, and report weekly. You'll work directly with the founder, async-first, with one weekly sync. We move fast and expect you to take ownership without being managed.";
 
-const ROLE = (r: Partial<Role> & Pick<Role, "slug" | "title" | "type" | "status" | "updated">): Role => ({
-  candidates: 0,
-  matched: 0,
-  interviews: 0,
-  offers: 0,
-  hired: 0,
-  description: DESC,
-  budget: "$1,500.00 - $3,500.00 /mo",
-  duration: "30 Days",
-  experience: "Advanced (5-8 years)",
-  skills: ["Digital Marketing", "Content Creation", "SEO / SEM", "Social Media Management", "Google Analytics", "Copywriting"],
-  expectation:
-    "Write a 3-post LinkedIn content series targeting B2B SaaS buyers, set up and run a Google Ads campaign with a $500 budget, and deliver a 1-page report summarizing results and recommendations.",
-  attachment: "https://docs.google.com/presentation/d/marketing-brief-q1",
-  ...r,
-});
 
-export const roles: Role[] = [
-  // The counts are what the demo actually holds: one candidate, Juan, hired onto the trial.
-  ROLE({ slug: "sales-manager", title: "Sales Manager", type: "trial", status: "Active", candidates: 1, matched: 1, interviews: 1, offers: 1, hired: 1, updated: "2 Sep 2026" }),
-  // A draft abandoned partway: no budget yet, so TB-035 reopens it on Budget rather than Review.
-  ROLE({ slug: "account-executive", title: "Account Executive", type: "full-time", status: "Draft", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "9 Sep 2026", budget: "" }),
-];
+/** Nothing is posted yet: the demo starts with Create role. */
+export const roles: Role[] = [];
 
 export const ROLE_STATUS: Record<RoleStatus, Tone> = { Active: "ok", Draft: "neutral", Closed: "danger", Archived: "neutral" };
 
@@ -146,9 +126,7 @@ export type Candidate = {
   dropped?: boolean;
 };
 
-export const candidates: Candidate[] = [
-  { id: "c1", independent: "juan-dela-cruz", role: "sales-manager", stage: "hired", status: { label: "Hired · trial running", tone: "ok", meta: "Started 25 Aug 2026" }, submitted: "Applied 12 Aug 2026" },
-];
+export const candidates: Candidate[] = [];
 
 /**
  * TB-037 candidate tracker — the seven Kanban columns, in order. "Dropped" isn't a stage: a
@@ -176,18 +154,13 @@ export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
 
 export type Interview = { id: string; independent: string; role: string; when: string; format: string; status: { label: string; tone: Tone }; past?: boolean };
 
-export const interviews: Interview[] = [
-  { id: "iv1", independent: "juan-dela-cruz", role: "Sales Manager", when: "Thu 10 Sep 2026, 2:00 PM PHT", format: "Google Meet", status: { label: "Starts in 12 min", tone: "info" } },
-  { id: "iv7", independent: "juan-dela-cruz", role: "Sales Manager", when: "Wed 12 Aug 2026, 11:00 AM PHT", format: "Zoom", status: { label: "Cancelled", tone: "danger" }, past: true },
-];
+export const interviews: Interview[] = [];
 
 /* ----------------------------------------------------------------- offers */
 
 export type Offer = { id: string; independent: string; role: string; sent: string; rate: string; start: string; status: { label: string; tone: Tone } };
 
-export const offers: Offer[] = [
-  { id: "o1", independent: "juan-dela-cruz", role: "Sales Manager", sent: "20 Aug 2026", rate: "$1,600 /month", start: "25 Aug 2026", status: { label: "Accepted", tone: "ok" } },
-];
+export const offers: Offer[] = [];
 
 /* -------------------------------------------------------------- contracts */
 
@@ -245,16 +218,8 @@ export type Contract = {
   streak: number;
 };
 
-const OBJECTIVES: Objective[] = [
-  { id: "demos", title: "Book 20 qualified demos by day 30", kind: "kpi", progress: 65, status: "pending", meta: "13 of 20 booked · updated 8 Sep", due: "24 Sep 2026", keyResults: 3, updated: "8 Sep 2026" },
-  { id: "sequence", title: "Rebuild the outbound email sequence", kind: "task", progress: 100, status: "complete", meta: "Approved 3 Sep", due: "5 Sep 2026", keyResults: 0, updated: "3 Sep 2026" },
-  { id: "reply", title: "Lift reply rate from 4% to 8%", kind: "okr", progress: 33, status: "on", meta: "Now 5.2% · 1 of 3 key results approved", due: "24 Sep 2026", keyResults: 3, updated: "6 Sep 2026" },
-  { id: "crm", title: "Clean the CRM pipeline stages", kind: "task", progress: 100, status: "complete", meta: "Approved 29 Aug", due: "29 Aug 2026", keyResults: 0, updated: "29 Aug 2026" },
-];
 
-export const contracts: Contract[] = [
-  { slug: "juan-dela-cruz", independent: "juan-dela-cruz", role: "Sales Manager", type: "trial", status: { label: "On track", tone: "ok" }, progress: 60, progressLabel: "Trial progress", started: "25 Aug 2026", day: "Day 18 of 30", ends: "24 Sep 2026", rate: "$1,600 /month", manager: "Alex Rivera", objectives: OBJECTIVES , tfs: { overall: 82, performance: 86, profile: 80, workStyle: 76 }, phase: 3, activity: [2,2,1,2,2,2,0,2,1,2,2,2,2,1,2,2,0,2], streak: 6 },
-];
+export const contracts: Contract[] = [];
 
 /** Display names for contracts whose slug is not the independent’s own. */
 export const CONTRACT_NAMES: Record<string, string> = {};
@@ -280,12 +245,7 @@ export type Transaction = {
   detail: { time: string; drawerStatus: string; rows: [string, string][]; breakdown: [string, string][]; total: string; timeline: { title: string; date: string; done: boolean }[] };
 };
 
-export const transactions: Transaction[] = [
-  {
-    id: "t1", date: "8 Sep 2026", contract: "Sales Manager — trial", at: 20260908, desc: "Escrow deposit · Sales Manager trial", independent: "Juan Dela Cruz", type: "Payment Deposited", amount: "$1,600.00", status: { label: "Held", tone: "warn" },
-    detail: { time: "8 Sep 2026, 3:42 PM PHT", drawerStatus: "Held in escrow", rows: [["Reference", "TXN-2026-09-08-0412"], ["Independent", "Juan Dela Cruz"], ["Role", "Sales Manager · 30-day trial"], ["Payment method", "Visa ending 4242"], ["Releases on", "30 Sep 2026, when the trial ends"]], breakdown: [["Trial rate", "$1,600.00"], ["Platform fee", "Included"]], total: "$1,600.00", timeline: [{ title: "Deposit charged to Visa ending 4242", date: "8 Sep 2026", done: true }, { title: "Funds held in escrow", date: "8 Sep 2026", done: true }, { title: "Released to Juan Dela Cruz after the trial", date: "30 Sep 2026", done: false }] },
-  },
-];
+export const transactions: Transaction[] = [];
 
 export type Dispute = {
   id: string;
@@ -305,8 +265,7 @@ export type Dispute = {
   open: boolean;
 };
 
-export const disputes: Dispute[] = [
-];
+export const disputes: Dispute[] = [];
 
 /** TB-101 — the plan on this account, and the ladder it sits on. */
 export const PLAN = { name: "Growth", cycle: "Monthly", renews: "1 Oct 2026", billedTo: "Visa ending 4242" };
@@ -339,20 +298,23 @@ export type Notification = {
   action?: { label: string; href: string; primary?: boolean };
 };
 
-export const notifications: Notification[] = [
-  { id: "n1", group: "Today", title: "Juan Dela Cruz submitted an objective update", crumb: "Independents › Juan Dela Cruz", body: "Book 20 qualified demos: 13 of 20. Waiting for your approval.", time: "2 hours ago", unread: true, kind: "independents", avatar: "/team/juan.jpg", action: { label: "Review update", href: "/team/independents/juan-dela-cruz", primary: true } },
-  { id: "n5", group: "Last 7 days", title: "Escrow deposit confirmed", crumb: "Payments › Transactions", body: "$1,600.00 held for Sales Manager, trial started 25 Aug 2026.", time: "6 days ago", unread: false, kind: "payments", avatar: "/team/juan.jpg" },
-];
+export const notifications: Notification[] = [];
 
 /* ---------------------------------------------------------------- messages */
 
-/** Messages: only the live pair (see @/lib/demo/live) — preview, time and unread come from the shared thread. */
-export const conversations = [
-  // Conversations tab = talent under an active contract; Candidates tab = offer sent or interview
-  // scheduled. Juan is both (Sales Manager trial, and candidate c1 awaiting an interview reply).
-  { id: "juan", name: "Juan Dela Cruz", sub: "Sales Manager · Trial", avatar: "/team/juan.jpg", kind: "conversations" },
-  { id: "juan-candidate", name: "Juan Dela Cruz", sub: "Sales Manager · Candidate", avatar: "/team/juan.jpg", kind: "candidates" },
-];
+export type Conversation = { id: string; name: string; sub: string; avatar: string; kind: "conversations" | "candidates" };
+
+/**
+ * Messages: only the live pair (see @/lib/demo/live). The thread is not a seed — it exists once
+ * there is somebody to talk to. Conversations is talent under a contract, Candidates is anyone in
+ * the pipeline, so a brand-new demo opens on an empty inbox.
+ */
+export function conversationsFor({ hired, inPipeline }: { hired: boolean; inPipeline: boolean }): Conversation[] {
+  return [
+    ...(hired ? ([{ id: "juan", name: "Juan Dela Cruz", sub: "Sales Manager · Trial", avatar: "/team/juan.jpg", kind: "conversations" }] as const) : []),
+    ...(inPipeline ? ([{ id: "juan-candidate", name: "Juan Dela Cruz", sub: "Sales Manager · Candidate", avatar: "/team/juan.jpg", kind: "candidates" }] as const) : []),
+  ];
+}
 
 /* ---------------------------------------------------------------- profile */
 

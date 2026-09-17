@@ -50,13 +50,10 @@ const SEED_ACCOUNTS: Account[] = [
   { email: "admin@hireable.com", password: DEMO_PASSWORD, name: "Hireable Admin", role: "admin", detail: "Platform operations", verified: true },
 ];
 
-/** OB-004 — a reset link, with the moment it was issued so the 24-hour expiry is real. */
-export type ResetLink = { token: string; email: string; issued: number };
-
-type Auth = { session: Session; accounts: Account[]; resets: ResetLink[] };
+type Auth = { session: Session; accounts: Account[] };
 
 const KEY = "hireable.demo.auth";
-const SEED: Auth = { session: null, accounts: SEED_ACCOUNTS, resets: [] };
+const SEED: Auth = { session: null, accounts: SEED_ACCOUNTS };
 
 let snapshot: Auth = SEED;
 let loaded = false;
@@ -71,7 +68,7 @@ function parse(raw: string | null): Auth {
     const saved = JSON.parse(raw) as Auth;
     // Seeded accounts always exist, whatever an older snapshot held.
     const extra = (saved.accounts ?? []).filter((a) => !SEED_ACCOUNTS.some((s) => s.email === a.email));
-    return { session: saved.session ?? null, accounts: [...SEED_ACCOUNTS, ...extra], resets: saved.resets ?? [] };
+    return { session: saved.session ?? null, accounts: [...SEED_ACCOUNTS, ...extra] };
   } catch {
     return SEED;
   }
@@ -153,33 +150,6 @@ export function signOut() {
   write({ ...snapshot, session: null });
 }
 
-/** OB-004 — issue a reset link for a registered address; an unknown one is refused. */
-export function requestReset(email: string): { link: ResetLink } | { error: string } {
-  ensureLoaded();
-  const account = findAccount(email);
-  if (!account) return { error: "No account uses that email. Check the address, or sign up instead." };
-  const link: ResetLink = { token: Math.random().toString(36).slice(2, 10), email: account.email, issued: Date.now() };
-  write({ ...snapshot, resets: [link, ...snapshot.resets].slice(0, 5) });
-  return { link };
-}
-
-export const RESET_WINDOW_HOURS = 24;
-
-/** OB-004 — a link older than 24 hours is dead, and a used one is removed. */
-export function resetPassword(token: string, password: string): { email: string } | { error: string } {
-  ensureLoaded();
-  const link = snapshot.resets.find((r) => r.token === token);
-  if (!link) return { error: "This reset link is not valid. Request a new one from the sign-in page." };
-  if (Date.now() - link.issued > RESET_WINDOW_HOURS * 3600_000) return { error: "This reset link has expired — they last 24 hours. Request a new one." };
-  if (!passwordOk(password)) return { error: "The new password does not meet the requirements." };
-  write({
-    ...snapshot,
-    accounts: snapshot.accounts.map((a) => (a.email === link.email ? { ...a, password } : a)),
-    resets: snapshot.resets.filter((r) => r.token !== token),
-  });
-  return { email: link.email };
-}
-
 /**
  * OB-002 / OB-003 — a new account's quiz answers have to reach the portal store before the
  * dashboard mounts. The portal stores hydrate from these keys, so writing them here is how the
@@ -192,3 +162,6 @@ export function seedPersisted(key: string, value: unknown) {
     /* ignore */
   }
 }
+/** The accounts the sign-in screen offers, so nobody has to type or paste credentials. */
+export const DEMO_ACCOUNTS = SEED_ACCOUNTS.map((a) => ({ email: a.email, name: a.name, label: a.role === "team" ? "Client" : a.role === "independent" ? "Talent" : "Admin" }));
+

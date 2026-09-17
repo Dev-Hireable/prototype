@@ -19,13 +19,14 @@ import {
   WorkStyleChart,
   useToast,
 } from "@/components/independent/ui";
-import { matchFor, roles } from "@/lib/independent/data";
+import { matchFor, roleFromPosting } from "@/lib/independent/data";
+import { usePostings } from "@/lib/demo/deal";
 import { useDemo } from "@/lib/independent/store";
 
 /** Figma "Job Board / Role detail" + "Apply to role · confirm" modal. */
 export default function RoleDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const role = roles.find((r) => r.slug === slug);
+  const role = usePostings().map(roleFromPosting).find((r) => r.slug === slug);
   if (!role) notFound();
   const search = useSearchParams();
   const { saved, toggleSaved, apply, applications, withdrawnRoleSlugs, workStyle } = useDemo();

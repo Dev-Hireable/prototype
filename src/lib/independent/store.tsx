@@ -2,12 +2,14 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
+import { clearDeal, getDeal, startDeal, today, trialDay, updateDeal, useDeal } from "@/lib/demo/deal";
+import type { Deal } from "@/lib/demo/deal";
 import { markRead as markLiveRead, move, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
 import { KEY_RESULTS, krValue } from "@/lib/team/data";
 import type { KeyResult } from "@/lib/team/data";
-import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, disputes as seedDisputes, ME, payoutMethods as seedPayouts, profile as seedProfile, tagsFor, transactions as seedTransactions, WORK_STYLE_ANSWERS } from "./data";
-import type { Application, Contract, Dispute, Notification, Objective, PayoutMethod, Transaction } from "./data";
+import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, disputes as seedDisputes, interviews as seedInterviews, ME, payoutMethods as seedPayouts, profile as seedProfile, tagsFor, transactions as seedTransactions, WORK_STYLE_ANSWERS } from "./data";
+import type { Application, Contract, Dispute, Interview, Notification, Objective, PayoutMethod, Transaction } from "./data";
 
 /**
  * Demo state for the Independent pages, so a button on one screen is visible on another
@@ -42,6 +44,10 @@ type Demo = {
   withdrawDispute: (id: string) => void;
   /** IN-051 / IN-052 / IN-053 — the seeded ledger plus anything recorded this session, newest first. */
   transactions: Transaction[];
+  /** IN-070 — interviews the Team Builder has booked on the shared engagement. */
+  interviews: Interview[];
+  /** IN-071 — declining keeps the application open and tells the Team Builder. */
+  declineInterview: (id: string) => void;
   /**
    * IN-060 / IN-061 / IN-062 — the profile as Team Builders see it. The edit form used to keep it
    * in page state, so every "Profile saved" was a lie that a reload undid.
@@ -95,6 +101,68 @@ const SEED_PROFILE: Profile = {
   timezone: "(GMT+8) Manila",
 };
 
+/** The deal as an application card: the talent's side of the one engagement. */
+const applicationFromDeal = (deal: Deal): Application => ({
+  id: DEAL_ID,
+  roleSlug: deal.roleSlug,
+  title: deal.title,
+  company: deal.company,
+  match: deal.match,
+  submitted: `Submitted ${deal.submitted}`,
+  stage: deal.stage,
+  status: deal.stage === "hired" ? { label: "Hired · trial running", tone: "ok" } : deal.offer?.status === "sent" ? { label: "Offer received", tone: "ok" } : deal.interview?.accepted ? { label: "Interview confirmed", tone: "info", meta: deal.interview.when } : deal.interview ? { label: "Interview invitation", tone: "warn", meta: deal.interview.when } : undefined,
+});
+
+/** The deal's contract as the talent's tracker reads it. Fields the trial has not earned yet
+ *  (an evaluation, a fit score history) start where a real day-one trial would. */
+const contractFromDeal = (deal: Deal): Contract | null => {
+  const c = deal.contract;
+  if (!c) return null;
+  const day = trialDay(c.started);
+  const done = c.objectives.filter((o) => o.status === "complete").length;
+  return {
+    slug: deal.roleSlug,
+    title: deal.title,
+    company: deal.company,
+    initials: deal.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
+    type: "trial",
+    location: "Remote",
+    line: `Started ${c.started} · ${day} · ${c.rate}`,
+    status: c.ended ? { label: "Ended", tone: "neutral" } : { label: "On track", tone: "ok" },
+    progressLabel: "Trial progress",
+    progress: c.objectives.length ? Math.round((done / c.objectives.length) * 100) : 0,
+    progressTone: "primary",
+    manager: PAIR_MANAGER,
+    managerFirst: PAIR_MANAGER.split(" ")[0],
+    started: c.started,
+    day,
+    ends: c.ends,
+    rate: c.rate,
+    objectives: c.objectives.map((o) => ({
+      id: o.id,
+      title: o.title,
+      kind: o.kind,
+      progress: o.progress,
+      status: o.status,
+      meta: o.meta,
+      current: o.current,
+      target: o.target,
+      unit: o.unit,
+      dailyTarget: o.dailyTarget,
+      due: c.ends,
+      updated: o.updated,
+    })),
+    tfs: { overall: 0, performance: 0, profile: 0, workStyle: 0 },
+    phase: 3,
+    activity: c.activity,
+    streak: c.streak,
+  };
+};
+
+/** The one id both portals use for the shared engagement. */
+export const DEAL_ID = "deal";
+const PAIR_MANAGER = "Alex Rivera";
+
 const Ctx = createContext<Demo | null>(null);
 
 /** Stages the sheet says the Team Builder hears about, and which movement that is. */
@@ -117,6 +185,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   /** Withdrawals made in this session; they join the ledger like any other transaction. */
   const [withdrawals, setWithdrawals] = usePersisted<Transaction[]>("ind.withdrawals", []);
   const live = useLive();
+  const deal = useDeal();
 
   /**
    * IN-051 — a payment recorded on the other side of the demo has to show up here immediately,
@@ -156,18 +225,62 @@ export function DemoProvider({ children }: { children: ReactNode }) {
    */
   const available = transactions.filter((t) => t.type === "Payment Released").reduce((n, t) => n + amountOf(t.amount), 0) - transactions.filter((t) => t.type === "Payout").reduce((n, t) => n + amountOf(t.amount), 0);
 
+  const dealInterview: Interview | null = deal?.interview
+    ? {
+        id: DEAL_ID,
+        role: deal.title,
+        roleHref: `/independent/jobs/applications/${DEAL_ID}`,
+        company: deal.company,
+        when: deal.interview.when,
+        format: deal.interview.format,
+        status: deal.interview.past ? "completed" : deal.interview.accepted ? "accepted" : "starts",
+        past: deal.interview.past,
+      }
+    : null;
+  const dealApplication = deal ? applicationFromDeal(deal) : null;
+  const dealContract = deal ? contractFromDeal(deal) : null;
+  const allApplications: Application[] = dealApplication ? [dealApplication, ...applications] : applications;
+  const allContracts: Contract[] = dealContract ? [dealContract, ...contracts] : contracts;
+
   const value: Demo = {
     saved,
     toggleSaved: (slug) => setSaved((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug])),
-    applications,
+    applications: allApplications,
     setStage: (id, stage, status, notify) => {
-      const app = applications.find((x) => x.id === id);
+      const app = allApplications.find((x) => x.id === id);
       const kind = notify === undefined ? STAGE_MOVE[stage as keyof typeof STAGE_MOVE] : notify || undefined;
       if (kind && app) move(kind, { slug: app.roleSlug, title: app.title });
+      // The shared engagement moves in the shared store, so the Team Builder's tracker moves with it.
+      if (id === DEAL_ID)
+        return updateDeal((d) => {
+          if (stage !== "hired" || !d.offer) return { ...d, stage };
+          // Accepting turns the offer's objectives into the trial both trackers now work from.
+          return {
+            ...d,
+            stage,
+            offer: { ...d.offer, status: "accepted" },
+            contract: d.contract ?? {
+              started: d.offer.start,
+              ends: d.offer.end,
+              rate: d.offer.rate,
+              objectives: d.offer.objectives.map((o) => ({ ...o, progress: 0, status: "on" as const, meta: "No update yet" })),
+              activity: [],
+              streak: 0,
+            },
+          };
+        });
       setApplications((a) => a.map((x) => (x.id === id ? { ...x, stage, status: status ?? x.status } : x)));
     },
     withdraw: (id) => {
-      const app = applications.find((x) => x.id === id);
+      if (id === DEAL_ID) {
+        const d = getDeal();
+        if (d) {
+          move("withdrawn", { slug: d.roleSlug, title: d.title });
+          setWithdrawnRoleSlugs((slugs) => (slugs.includes(d.roleSlug) ? slugs : [...slugs, d.roleSlug]));
+        }
+        return clearDeal();
+      }
+      const app = allApplications.find((x) => x.id === id);
       if (app) {
         move("withdrawn", { slug: app.roleSlug, title: app.title });
         setWithdrawnRoleSlugs((slugs) => (slugs.includes(app.roleSlug) ? slugs : [...slugs, app.roleSlug]));
@@ -175,19 +288,36 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setApplications((a) => a.filter((x) => x.id !== id));
     },
     apply: (roleSlug, title, company, match) => {
-      if (withdrawnRoleSlugs.includes(roleSlug) || applications.some((x) => x.roleSlug === roleSlug)) return; // IN-017: cannot apply twice
+      if (withdrawnRoleSlugs.includes(roleSlug) || allApplications.some((x) => x.roleSlug === roleSlug)) return; // IN-017: cannot apply twice
       move("applied", { slug: roleSlug, title });
-      setApplications((a) => [{ id: `new-${Date.now()}`, roleSlug, title, company, match, submitted: "Submitted just now", stage: "applied" }, ...a]);
+      // IN-017 — applying starts the engagement the Team Builder sees in their candidate tracker.
+      startDeal({ roleSlug, title, company, match, submitted: today() });
     },
     withdrawnRoleSlugs,
-    contracts,
-    setObjectives: (slug, fn) => setContracts((cs) => cs.map((c) => (c.slug === slug ? { ...c, objectives: fn(c.objectives) } : c))),
+    contracts: allContracts,
+    setObjectives: (slug, fn) => {
+      // An update on a shared contract is what the Team Builder reviews, so it goes to the deal.
+      if (dealContract && slug === dealContract.slug) {
+        return updateDeal((d) => {
+          if (!d.contract) return d;
+          const next = fn(dealContract.objectives);
+          return { ...d, contract: { ...d.contract, objectives: d.contract.objectives.map((o) => { const u = next.find((x) => x.id === o.id); return u ? { ...o, progress: u.progress, status: u.status, meta: u.meta, current: u.current, updated: u.updated } : o; }) } };
+        });
+      }
+      setContracts((cs) => cs.map((c) => (c.slug === slug ? { ...c, objectives: fn(c.objectives) } : c)));
+    },
     keyResults,
     markTask: (krId, taskId) => setDoneTasks((t) => (t.includes(`${krId}:${taskId}`) ? t : [...t, `${krId}:${taskId}`])),
     disputes,
     fileDispute: (d) => setDisputes((all) => (all.some((x) => x.contract === d.contract) ? all : [d, ...all])),
     withdrawDispute: (id) => setDisputes((all) => all.map((d) => (d.id === id ? { ...d, status: { label: "Withdrawn", tone: "neutral" as const } } : d))),
     transactions,
+    interviews: dealInterview ? [dealInterview, ...seedInterviews] : seedInterviews,
+    declineInterview: (id) => {
+      if (id !== DEAL_ID || !deal) return;
+      move("interview_declined", { slug: deal.roleSlug, title: deal.title });
+      updateDeal((d) => (d.interview ? { ...d, interview: { ...d.interview, past: true, accepted: false } } : d));
+    },
     profile,
     setProfile: (patch) => setProfile((p) => ({ ...p, ...patch })),
     workStyle,
