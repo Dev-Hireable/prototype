@@ -2,8 +2,8 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
-import { canMessage, clearDeal, getDeal, stageOf, startDeal, today, trialDay, updateDeal, useDeal } from "@/lib/demo/deal";
-import type { Deal } from "@/lib/demo/deal";
+import { canMessage, clearDeal, fillPosting, getDeal, stageOf, startDeal, today, trialDay, updateDeal, useDeal } from "@/lib/demo/deal";
+import type { Deal, DealProposal } from "@/lib/demo/deal";
 import { markRead as markLiveRead, move, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
 import { KEY_RESULTS, krValue } from "@/lib/team/data";
@@ -32,6 +32,8 @@ type Demo = {
   setStage: (id: string, stage: Stage, status?: Application["status"], notify?: MoveKind | false) => void;
   withdraw: (id: string) => void;
   apply: (roleSlug: string, title: string, company: string, match: number) => void;
+  /** IN-072 / IN-073 — saves the proposal on the shared engagement so the Team Builder reviews what was sent. */
+  submitProposal: (id: string, proposal: Omit<DealProposal, "version" | "sent">) => void;
   withdrawnRoleSlugs: string[];
   /** IN-076 — progress updates have to survive a reload, so the contracts live here, not in page state. */
   contracts: Contract[];
@@ -112,8 +114,21 @@ const applicationFromDeal = (deal: Deal): Application => ({
   match: deal.match,
   submitted: `Submitted ${deal.submitted}`,
   stage: stageOf(deal),
-  status: deal.stage === "hired" ? { label: "Hired · trial running", tone: "ok" } : deal.offer?.status === "sent" ? { label: "Offer received", tone: "ok" } : deal.interview?.accepted ? { label: "Interview confirmed", tone: "info", meta: deal.interview.when } : deal.interview ? { label: "Interview invitation", tone: "warn", meta: deal.interview.when } : undefined,
+  status: dealStatus(deal),
 });
+
+/** The talent's status line for the deal, most advanced fact first. */
+function dealStatus(deal: Deal): Application["status"] {
+  if (deal.stage === "hired") return { label: "Hired · trial running", tone: "ok" };
+  if (deal.offer?.status === "declined") return { label: "Declined", tone: "danger" };
+  if (deal.offer?.status === "sent") return { label: "Offer received", tone: "ok" };
+  if (deal.revision) return { label: "Revision requested", tone: "warn", meta: deal.revision.date };
+  if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
+  if (deal.stage === "proposal_requested") return { label: "Proposal requested", tone: "warn" };
+  if (deal.interview?.accepted) return { label: "Interview confirmed", tone: "info", meta: deal.interview.when };
+  if (deal.interview) return { label: "Interview invitation", tone: "warn", meta: deal.interview.when };
+  return undefined;
+}
 
 /** The deal's contract as the talent's tracker reads it. Fields the trial has not earned yet
  *  (an evaluation, a fit score history) start where a real day-one trial would. */
@@ -235,6 +250,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         company: deal.company,
         when: deal.interview.when,
         format: deal.interview.format,
+        link: deal.interview.link,
         status: deal.interview.past ? "completed" : deal.interview.accepted ? "accepted" : "starts",
         past: deal.interview.past,
       }
@@ -255,8 +271,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const kind = notify === undefined ? STAGE_MOVE[stage as keyof typeof STAGE_MOVE] : notify || undefined;
       if (kind && app) move(kind, { slug: app.roleSlug, title: app.title });
       // The shared engagement moves in the shared store, so the Team Builder's tracker moves with it.
-      if (id === DEAL_ID)
-        return updateDeal((d) => {
+      if (id === DEAL_ID) {
+        updateDeal((d) => {
+          // IN-070 — confirming is what the Team Builder's schedule reads as Confirmed.
+          if (stage === "invite_accepted" && d.interview) return { ...d, stage, interview: { ...d.interview, accepted: true } };
+          // IN-075 — a declined offer keeps its stage; the offer itself records the answer.
+          if (notify === "offer_declined" && d.offer) return { ...d, stage, offer: { ...d.offer, status: "declined" } };
           if (stage !== "hired" || !d.offer) return { ...d, stage };
           // Accepting turns the offer's objectives into the trial both trackers now work from.
           return {
@@ -273,6 +293,10 @@ export function DemoProvider({ children }: { children: ReactNode }) {
             },
           };
         });
+        // IN-074 — the hire takes the role's seat; a full posting leaves the job board.
+        if (stage === "hired" && app) fillPosting(app.roleSlug);
+        return;
+      }
       setApplications((a) => a.map((x) => (x.id === id ? { ...x, stage, status: status ?? x.status } : x)));
     },
     withdraw: (id) => {
@@ -296,6 +320,18 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       move("applied", { slug: roleSlug, title });
       // IN-017 — applying starts the engagement the Team Builder sees in their candidate tracker.
       startDeal({ roleSlug, title, company, match, submitted: today() });
+    },
+    submitProposal: (id, proposal) => {
+      const app = allApplications.find((x) => x.id === id);
+      if (app) move("proposal_sent", { slug: app.roleSlug, title: app.title });
+      if (id === DEAL_ID)
+        return updateDeal((d) => ({
+          ...d,
+          stage: "proposal_sent",
+          proposal: { ...proposal, version: (d.proposal?.version ?? 0) + 1, sent: today() },
+          revision: undefined,
+        }));
+      setApplications((a) => a.map((x) => (x.id === id ? { ...x, stage: "proposal_sent", status: { label: "Proposal submitted", tone: "info" } } : x)));
     },
     withdrawnRoleSlugs,
     contracts: allContracts,

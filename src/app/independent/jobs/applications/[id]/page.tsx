@@ -5,7 +5,8 @@ import { notFound } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { BackLink, Button, Card, Chip, JobBadge, KeyValue, LinkButton, Modal, Page, PipelineTracker, Toast, WorkStyleChart, useToast } from "@/components/independent/ui";
-import { marketingSpecialist as job } from "@/lib/independent/data";
+import { useDeal } from "@/lib/demo/deal";
+import { useJobView } from "@/lib/independent/job-view";
 import { useDemo } from "@/lib/independent/store";
 
 const Flag = ICONS.flag;
@@ -21,18 +22,23 @@ const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-de
  */
 export default function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { applications, setStage } = useDemo();
+  const { applications, setStage, workStyle } = useDemo();
   const app = applications.find((a) => a.id === id);
   if (!app) notFound();
+  const job = useJobView(app);
+  const deal = useDeal();
+  /** TB-106 — the Team Builder's note and the version it applies to, off the shared engagement. */
+  const revisionNote = deal?.roleSlug === app.roleSlug ? deal.revision : undefined;
+  const proposalVersion = deal?.roleSlug === app.roleSlug ? deal.proposal?.version : undefined;
   const [declining, setDeclining] = useState(false);
   const [toast, setToast] = useToast();
   const declined = app.status?.label === "Declined";
-  const revision = app.status?.label === "Revision requested";
+  const revision = !!revisionNote || app.status?.label === "Revision requested";
   const offerUpdated = app.status?.label === "Offer updated";
 
   const accept = () => {
     // IN-070 names this status "Interview confirmed".
-    setStage(app.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: "Jan 06 · 6:00AM" });
+    setStage(app.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: `${job.interview.date} · ${job.interview.time}` });
     setToast("Invitation accepted");
   };
 
@@ -41,14 +47,14 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
       <div className="flex flex-col gap-10 pb-14">
         <div className="flex items-start justify-center gap-6">
           <div className="flex w-[576px] flex-col gap-4">
-            <Card className="flex h-[223px] flex-col gap-4 p-4">
+            <Card className="flex min-h-[223px] flex-col gap-4 p-4">
               <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
                 {job.title}
               </h2>
               <p className="flex items-center gap-2 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
-                <JobBadge type="trial" /> {job.posted}
+                <JobBadge type={job.contract === "Trial" ? "trial" : "full-time"} /> {job.posted}
               </p>
-              <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{job.description}</p>
+              <p className="text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink">{job.description}</p>
             </Card>
             <Card className="flex flex-col gap-6 p-4">
               <h3 className={H2}>Budget &amp; details</h3>
@@ -68,7 +74,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                 ))}
               </div>
             </Card>
-            <WorkStyleChart builder={job.workStyle.builder} independent={job.workStyle.independent} match={app.match} />
+            {job.workStyle && <WorkStyleChart builder={job.workStyle} independent={workStyle} match={app.match} />}
           </div>
 
           <div className="flex w-[385px] shrink-0 flex-col gap-4">
@@ -142,7 +148,17 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
               </Card>
             )}
 
-            {(app.stage === "interviewed" || app.stage === "proposal_requested") && (
+            {revision && (app.stage === "proposal_requested" || app.stage === "proposal_sent") && (
+              <Card className="flex flex-col gap-4 p-4">
+                <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Revision requested to Proposal v{proposalVersion ?? 1}</p>
+                {revisionNote && <p className="rounded-lg bg-[#fff3cc] p-4 text-[14px] leading-[1.2] tracking-[0.2px] text-[#8e6f12]">{revisionNote.note}</p>}
+                <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/proposal?revise=1`}>
+                  Revise proposal
+                </LinkButton>
+              </Card>
+            )}
+
+            {!revision && (app.stage === "interviewed" || app.stage === "proposal_requested") && (
               <Card className="flex flex-col gap-4 p-4">
                 <div className="flex flex-col gap-2">
                   <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/proposal`}>
@@ -155,24 +171,12 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
               </Card>
             )}
 
-            {app.stage === "proposal_sent" && (
+            {!revision && app.stage === "proposal_sent" && (
               <Card className="flex flex-col gap-4 p-4">
-                {revision ? (
-                  <>
-                    <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Revision requested to Proposal v1</p>
-                    <p className="rounded-lg bg-[#fff3cc] p-4 text-[14px] leading-[1.2] tracking-[0.2px] text-[#8e6f12]">{job.revision.note}</p>
-                    <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/proposal?revise=1`}>
-                      Revise proposal
-                    </LinkButton>
-                  </>
-                ) : (
-                  <>
-                    <Button size="lg" disabled>
-                      Proposal sent
-                    </Button>
-                    <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">Nairobi Solutions is reviewing your proposal. You will hear back within 5 working days.</p>
-                  </>
-                )}
+                <Button size="lg" disabled>
+                  Proposal sent
+                </Button>
+                <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{job.company} is reviewing your proposal. You will hear back within 5 working days.</p>
               </Card>
             )}
 
@@ -187,7 +191,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                     <Button size="lg" disabled>
                       Offer accepted
                     </Button>
-                    <LinkButton size="lg" href="/independent/contracts/sales-manager">
+                    <LinkButton size="lg" href={`/independent/contracts/${app.roleSlug}`}>
                       Open contract
                     </LinkButton>
                   </>
@@ -199,7 +203,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
               <Card className="flex flex-col gap-2 p-4">
                 <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{app.stage === "matched" ? "You are matched" : "Application received"}</p>
                 <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
-                  {app.stage === "matched" ? "Nairobi Solutions can now invite you to an interview." : "Nairobi Solutions is reviewing applications."}
+                  {app.stage === "matched" ? `${job.company} can now invite you to an interview.` : `${job.company} is reviewing applications.`}
                 </p>
               </Card>
             )}
@@ -209,8 +213,9 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
             <Card className="flex flex-col gap-6 p-4">
               <h3 className={H2}>About the team builder</h3>
               <div className="flex flex-col gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
-                <p>{job.builder.location}</p>
-                <p>{job.builder.since}</p>
+                <p>{job.company}</p>
+                {job.location && <p>{job.location}</p>}
+                {job.industry && <p>{job.industry}</p>}
               </div>
             </Card>
             <button type="button" onClick={() => setToast("Thanks — our team will review this post")} className="flex items-center gap-2 text-[14px] font-medium text-accent-ink">
@@ -225,7 +230,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
         onClose={() => setDeclining(false)}
         tone="danger"
         title="Decline this invitation?"
-        description="Nairobi Solutions gets a note and your application stays open. You can ask to reschedule from Messages."
+        description={`${job.company} gets a note and your application stays open. You can ask to reschedule from Messages.`}
         footer={
           <>
             <Button size="lg" onClick={() => setDeclining(false)}>

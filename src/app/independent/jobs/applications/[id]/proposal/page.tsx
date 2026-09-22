@@ -6,12 +6,19 @@ import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Card, Field, InfoBanner, Input, KeyValue, MatchPill, Modal, ObjectiveRow, Page, Select, Steps, Textarea } from "@/components/independent/ui";
-import { ME, marketingSpecialist as job } from "@/lib/independent/data";
+import { ME } from "@/lib/independent/data";
+import { useDeal } from "@/lib/demo/deal";
+import type { DealObjective } from "@/lib/demo/deal";
+import { useJobView } from "@/lib/independent/job-view";
 import { useDemo } from "@/lib/independent/store";
 
 const STEPS = ["Add Objectives", "Propose Rate", "Cover Letter", "Review & Send"];
 const Add = ICONS.add;
 const X = ICONS.close;
+/** The objective rows cycle through these icons, so the kinds follow the same order. */
+const KINDS: DealObjective["kind"][] = ["okr", "kpi", "task"];
+const UNIT_SHORT: Record<string, string> = { month: "mo", week: "wk", hour: "hr" };
+const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /**
  * Figma "Proposals and offers / Add objectives → Propose rate → Cover letter → Review and send → Proposal sent · confirm" (+ Revise).
@@ -19,9 +26,14 @@ const X = ICONS.close;
  */
 export default function ProposalWizard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { applications, setStage } = useDemo();
+  const { applications, submitProposal, profile } = useDemo();
   const app = applications.find((a) => a.id === id);
   if (!app) notFound();
+  const job = useJobView(app);
+  const deal = useDeal();
+  /** A revision starts from what was actually sent, with the Team Builder's note above it. */
+  const previous = deal?.roleSlug === app.roleSlug ? deal.proposal : undefined;
+  const revisionNote = deal?.roleSlug === app.roleSlug ? deal.revision : undefined;
   const router = useRouter();
   const search = useSearchParams();
   const revise = search.get("revise") === "1";
@@ -29,12 +41,12 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
   const back = `/independent/jobs/applications/${app.id}`;
 
   const [step, setStep] = useState(0);
-  const [objectives, setObjectives] = useState<string[]>(revise ? job.proposalObjectives : []);
+  const [objectives, setObjectives] = useState<string[]>(revise && previous ? previous.objectives.map((o) => o.title) : []);
   const [newObjective, setNewObjective] = useState("");
-  const [rate, setRate] = useState(revise ? "1,500.00" : "");
+  const [rate, setRate] = useState(revise && previous ? previous.rate.replace(/[^0-9.,]/g, "") : "");
   const [unit, setUnit] = useState("month");
-  const [letter, setLetter] = useState(revise ? job.coverLetter : "");
-  const [portfolio, setPortfolio] = useState("www.juandelacruz.com");
+  const [letter, setLetter] = useState(revise && previous ? previous.letter : "");
+  const [portfolio, setPortfolio] = useState(revise && previous?.portfolio ? previous.portfolio : "www.juandelacruz.com");
   const [sent, setSent] = useState(false);
 
   const addObjective = () => {
@@ -42,11 +54,21 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
     setObjectives((o) => [...o, newObjective.trim()]);
     setNewObjective("");
   };
-  const submit = () => setSent(true);
-  const finish = () => {
-    setStage(app.id, "proposal_sent", { label: "Proposal submitted", tone: "info", meta: revise ? "v2 · today" : "v1 · today" });
-    router.push(back);
+  const rateLabel = `${money(Number(rate.replace(/[^0-9.]/g, "")) || 0)}/${UNIT_SHORT[unit] ?? unit}`;
+  /**
+   * Saved the moment it is submitted, not when the confirmation closes — leaving any other way
+   * used to drop it, and the Team Builder reviewed a sample proposal instead of this one.
+   */
+  const submit = () => {
+    submitProposal(app.id, {
+      rate: rateLabel,
+      letter: letter.trim(),
+      portfolio: portfolio.trim() || undefined,
+      objectives: objectives.map((title, i) => ({ title, kind: KINDS[i % KINDS.length] })),
+    });
+    setSent(true);
   };
+  const finish = () => router.push(back);
 
   const canContinue = [objectives.length > 0, rate.trim().length > 0, letter.trim().length > 0, true][step];
 
@@ -59,14 +81,14 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
           </h2>
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
             {revise
-              ? `${job.title} · Juan D. ${job.revision.version} · ${job.revision.date}`
+              ? `${job.title} · ${ME.name.split(" ")[0]} ${ME.name.split(" ").at(-1)?.[0]}. Proposal v${previous?.version ?? 1} · ${previous?.sent ?? ""}`
               : "Understand what's expected, set clear objectives, and submit your proposed rate for the trial engagement and send proposal."}
           </p>
         </div>
 
-        {revise && (
+        {revise && revisionNote && (
           <InfoBanner tone="warn">
-            <span className="font-semibold">Revision requested to {job.revision.version}:</span> {job.revision.note}
+            <span className="font-semibold">Revision requested to Proposal v{previous?.version ?? 1}:</span> {revisionNote.note}
           </InfoBanner>
         )}
 
@@ -114,7 +136,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
               <div className="flex items-center gap-2">
                 <label className="flex h-11 flex-1 items-center gap-2 rounded-lg border border-border px-4 text-[14px] tracking-[0.2px] focus-within:border-primary">
                   <span className="text-ink-2">$</span>
-                  <input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="decimal" placeholder="0.00" className="min-w-0 flex-1 outline-none placeholder:text-ink-2" />
+                  <input value={rate} onChange={(e) => setRate(e.target.value.replace(/[^0-9.,]/g, ""))} inputMode="decimal" placeholder="0.00" className="min-w-0 flex-1 outline-none placeholder:text-ink-2" />
                 </label>
                 <span className="text-ink-2">/</span>
                 <Select options={["month", "week", "hour"]} value={unit} onChange={(e) => setUnit(e.target.value)} className="!w-[220px]" />
@@ -156,16 +178,16 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
                   </span>
                   <div className="flex flex-col whitespace-nowrap">
                     <p className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{ME.name}</p>
-                    <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{job.title}</p>
+                    <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{profile.headline}</p>
                   </div>
                 </div>
                 <MatchPill pct={app.match} />
               </div>
               <hr className="my-2 border-[#e5e5e5]" />
               <div className="flex gap-2">
-                <KeyValue label="Rate" value={`$${rate}/${unit === "month" ? "mo" : unit}`} />
-                <KeyValue label="Contract" value="Trial" />
-                <KeyValue label="Duration" value="30 Days" />
+                <KeyValue label="Rate" value={rateLabel} />
+                <KeyValue label="Contract" value={job.contract} />
+                <KeyValue label="Duration" value={job.duration} />
               </div>
             </Card>
             <Card className="flex w-full flex-col gap-4 p-6 tracking-[0.2px] text-ink">
@@ -196,20 +218,22 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
         <section className="flex flex-col gap-6 text-[14px] leading-[1.2] tracking-[0.2px]">
           <div className="flex flex-col gap-3 text-ink">
             <h3 className="font-semibold">Trial expectation</h3>
-            <p>{job.expectation}</p>
+            <p className="whitespace-pre-line">{job.expectation || "No trial expectation was added to this role."}</p>
           </div>
-          <div className="flex flex-col gap-3">
-            <h3 className="font-semibold text-ink">Attachment</h3>
-            <Link href={job.attachment} className="text-accent-ink" target="_blank">
-              {job.attachment}
-            </Link>
-          </div>
+          {job.attachment && (
+            <div className="flex flex-col gap-3">
+              <h3 className="font-semibold text-ink">Attachment</h3>
+              <Link href={job.attachment} className="text-accent-ink" target="_blank">
+                {job.attachment}
+              </Link>
+            </div>
+          )}
           <dl className="flex flex-col gap-3 rounded-lg bg-surface-2 p-3 outline -outline-offset-1 outline-border">
             {[
-              ["ROLE", <Link key="r" href={back} className="text-accent-ink underline">{job.summary.role}</Link>],
-              ["CONTRACT TYPE", job.summary.contractType],
-              ["BUDGET", job.summary.budget],
-              ["DURATION", job.summary.duration],
+              ["ROLE", <Link key="r" href={back} className="text-accent-ink underline">{job.title}</Link>],
+              ["CONTRACT TYPE", job.contract],
+              ["BUDGET", job.budget],
+              ["DURATION", job.duration],
             ].map(([k, v]) => (
               <div key={k as string} className="flex h-5 items-center justify-between">
                 <dt className="font-semibold text-ink-2">{k}</dt>
@@ -231,7 +255,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
         open={sent}
         onClose={finish}
         title="Proposal submitted"
-        description={`${job.builder.contact} has been notified. Your proposal now shows as Proposal submitted in the pipeline.`}
+        description={`${job.company} has been notified. Your proposal now shows as Proposal submitted in the pipeline.`}
         footer={
           <Button size="lg" variant="primary" onClick={finish}>
             Back to application

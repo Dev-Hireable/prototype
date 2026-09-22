@@ -137,12 +137,14 @@ export function ProposalReview({
               <p className="text-[14px] leading-[1.2] font-semibold text-ink">Trial expectation</p>
               <p className="text-[14px] leading-[1.45] text-ink-2">{role.expectation}</p>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <p className="text-[14px] leading-[1.2] font-semibold text-ink">Attachment</p>
-              <a href={role.attachment} target="_blank" rel="noreferrer" className="truncate text-[14px] leading-[1.2] text-primary hover:underline">
-                {role.attachment}
-              </a>
-            </div>
+            {role.attachment && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-[14px] leading-[1.2] font-semibold text-ink">Attachment</p>
+                <a href={role.attachment} target="_blank" rel="noreferrer" className="truncate text-[14px] leading-[1.2] text-primary hover:underline">
+                  {role.attachment}
+                </a>
+              </div>
+            )}
             <dl className="flex flex-col rounded-lg p-3 outline -outline-offset-1 outline-border">
               {(
                 [
@@ -169,34 +171,40 @@ export function ProposalReview({
             <Collapse size={20} aria-hidden className="text-ink-2" />
             <span className="text-[16px] leading-[1.5] font-semibold text-ink">Objective</span>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-            <span className="flex items-center gap-2 text-[13px] leading-[1.2] font-medium text-ink">
-              <span className={`size-2.5 rotate-45 ${DIAMOND[objective.kind]}`} aria-hidden />
-              {OBJECTIVE_KIND[objective.kind]}
-            </span>
-            <h4 className="font-display text-[28px] leading-[1.28] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-              {objective.title}
-            </h4>
-            <p className="text-[14px] leading-[1.45] text-ink-2">{objective.description}</p>
+          {!objective ? (
+            <p className="p-4 text-[14px] leading-[1.45] text-ink-2">No objectives were proposed.</p>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+              <span className="flex items-center gap-2 text-[13px] leading-[1.2] font-medium text-ink">
+                <span className={`size-2.5 rotate-45 ${DIAMOND[objective.kind]}`} aria-hidden />
+                {OBJECTIVE_KIND[objective.kind]}
+              </span>
+              <h4 className="font-display text-[28px] leading-[1.28] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+                {objective.title}
+              </h4>
+              {objective.description && <p className="text-[14px] leading-[1.45] text-ink-2">{objective.description}</p>}
 
-            <p className="pt-2 text-[14px] leading-[1.2] font-semibold text-ink">Key results</p>
-            <div className="flex flex-col gap-2">
-              {objective.keyResults.map((kr, i) => (
-                <div key={kr.title} className="rounded-lg outline -outline-offset-1 outline-border">
-                  <button type="button" aria-expanded={i === openKr} onClick={() => setOpenKr(i === openKr ? -1 : i)} className="flex w-full items-center gap-2 p-4 text-left">
-                    <span className="min-w-0 flex-1 text-[14px] leading-[1.2] font-medium text-ink">{kr.title}</span>
-                    <Chevron size={20} aria-hidden className={`shrink-0 text-ink-2 transition-transform ${i === openKr ? "rotate-180" : ""}`} />
-                  </button>
-                  {i === openKr && (
-                    <div className="flex flex-col gap-4 px-4 pb-4">
-                      <p className="text-[13px] leading-[1.45] text-ink-2">{kr.description}</p>
-                      {kr.target && <p className="text-[13px] leading-[1.2] text-ink-2">Target: {kr.target}</p>}
-                    </div>
-                  )}
-                </div>
-              ))}
+              <p className="pt-2 text-[14px] leading-[1.2] font-semibold text-ink">Key results</p>
+              {/* A talent's own proposal names objectives only; the key results are agreed on the tracker. */}
+              {objective.keyResults.length === 0 && <p className="text-[13px] leading-[1.45] text-ink-2">None proposed yet. Progress is tracked against the objective itself.</p>}
+              <div className="flex flex-col gap-2">
+                {objective.keyResults.map((kr, i) => (
+                  <div key={kr.title} className="rounded-lg outline -outline-offset-1 outline-border">
+                    <button type="button" aria-expanded={i === openKr} onClick={() => setOpenKr(i === openKr ? -1 : i)} className="flex w-full items-center gap-2 p-4 text-left">
+                      <span className="min-w-0 flex-1 text-[14px] leading-[1.2] font-medium text-ink">{kr.title}</span>
+                      <Chevron size={20} aria-hidden className={`shrink-0 text-ink-2 transition-transform ${i === openKr ? "rotate-180" : ""}`} />
+                    </button>
+                    {i === openKr && (
+                      <div className="flex flex-col gap-4 px-4 pb-4">
+                        <p className="text-[13px] leading-[1.45] text-ink-2">{kr.description}</p>
+                        {kr.target && <p className="text-[13px] leading-[1.2] text-ink-2">Target: {kr.target}</p>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </aside>
       </div>
     </div>

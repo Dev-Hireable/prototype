@@ -22,14 +22,17 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
   const back = `/independent/jobs/applications/${app.id}`;
   const [name, setName] = useState("");
   const [agree, setAgree] = useState(false);
-  const [accepted, setAccepted] = useState(false);
+  /** Shows the confirmation; the acceptance itself is already saved by the time it opens. */
+  const [justAccepted, setJustAccepted] = useState(false);
   const [declining, setDeclining] = useState(false);
-  const [declined, setDeclined] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const o = job.offer;
   /** IN-074 — when the Team Builder sent this offer, these are their terms, not the seed's. */
   const deal = useDeal();
   const sent = deal?.offer;
+  // Read back from the shared engagement, so an answer given earlier still shows after a reload.
+  const accepted = sent?.status === "accepted";
+  const declined = sent?.status === "declined";
   const rate = sent ? sent.rate : updated ? o.updatedRate : o.rate;
   const total = updated ? o.updatedTotal : o.total;
   const signed = name.trim().length > 2 && agree;
@@ -136,7 +139,20 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
                 </Button>
               ) : (
                 <>
-                  <Button size="lg" variant="primary" disabled={!signed} onClick={() => setAccepted(true)}>
+                  <Button
+                    size="lg"
+                    variant="primary"
+                    disabled={!signed}
+                    onClick={() => {
+                      // IN-074 — accepting is saved on the click. It used to wait for the "Open
+                      // contract" button in the confirmation, so closing that dialog any other way
+                      // lost the acceptance while telling the talent the company had been notified.
+                      // It moves the card to Hired as "Waiting to start", the stage the Team
+                      // Builder is notified on.
+                      setStage(app.id, "hired", { label: "Waiting to start", tone: "ok" });
+                      setJustAccepted(true);
+                    }}
+                  >
                     Accept
                   </Button>
                   <Button size="lg" onClick={() => setDeclining(true)}>
@@ -150,7 +166,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
       </div>
 
       <Modal
-        open={accepted}
+        open={justAccepted}
         onClose={() => router.push(back)}
         title="You’ve accepted the offer"
         description={`${o.from} has been notified. Escrow for the trial is funded next; the contract and its tracker appear under Contracts once it starts.`}
@@ -158,13 +174,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
           <Button
             size="lg"
             variant="primary"
-            onClick={() => {
-              // IN-074 — accepting moves the card into Hired as "Waiting to start", which is also
-              // the stage the store notifies the Team Builder on. It used to sit in Offers as
-              // "Offer accepted", so the Team Builder heard nothing.
-              setStage(app.id, "hired", { label: "Waiting to start", tone: "ok" });
-              router.push(`/independent/contracts/${deal?.roleSlug ?? "sales-manager"}`);
-            }}
+            onClick={() => router.push(`/independent/contracts/${app.roleSlug}`)}
           >
             Open contract
           </Button>
@@ -186,8 +196,8 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
               variant="danger"
               onClick={() => {
                 setDeclining(false);
-                setDeclined(true);
-                // IN-075 — the stage doesn't move, so the notification has to be named outright.
+                // IN-075 — the stage doesn't move, so the notification has to be named outright;
+                // the store records the declined answer on the offer itself.
                 setStage(app.id, "offer_received", { label: "Declined", tone: "danger", meta: declineReason.trim() || undefined }, "offer_declined");
               }}
             >

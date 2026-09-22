@@ -7,8 +7,9 @@ import type { Interview } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
 const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" | "neutral" | "danger" }> = {
-  starts: { label: "Starts in 12 min", tone: "info" },
-  accepted: { label: "Accepted", tone: "ok" },
+  // A booking the talent hasn't answered yet. It read "Starts in 12 min" whatever the date was.
+  starts: { label: "Awaiting reply", tone: "info" },
+  accepted: { label: "Confirmed", tone: "ok" },
   completed: { label: "Completed", tone: "neutral" },
   declined: { label: "Declined", tone: "danger" },
 };
@@ -20,7 +21,7 @@ const COLS = ["min-w-0 flex-1", "w-[180px]", "w-[215px]", "w-[120px]", "w-[120px
 export default function Interviews() {
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   /** IN-070 — the interviews the Team Builder has actually booked, not a copy in page state. */
-  const { interviews: items, declineInterview } = useDemo();
+  const { interviews: items, declineInterview, setStage } = useDemo();
   const [declining, setDeclining] = useState<Interview | null>(null);
   const [toast, setToast] = useToast();
   const upcoming = items.filter((i) => !i.past);
@@ -59,9 +60,33 @@ export default function Interviews() {
               <StatusDot tone={STATUS[iv.status].tone}>{STATUS[iv.status].label}</StatusDot>
             </span>
             <span className={`${COLS[5]} flex gap-2`}>
-              <Button size="sm" variant="primary" disabled={iv.status !== "starts"} onClick={() => setToast("Opening Google Meet…")}>
-                Join call
-              </Button>
+              {/* IN-070 — an invitation is answered here too, not only from the application page.
+                  Join call used to be live only before accepting, and never opened the meeting. */}
+              {iv.status === "starts" && !iv.past ? (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    setStage(iv.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: iv.when });
+                    setToast("Interview accepted");
+                  }}
+                >
+                  Accept
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  disabled={iv.status !== "accepted" || iv.past}
+                  title={iv.status === "accepted" && !iv.link ? "No meeting link yet — ask the Team Builder to share one" : undefined}
+                  onClick={() => {
+                    if (!iv.link) return setToast("No meeting link yet — ask the Team Builder to share one.");
+                    window.open(iv.link, "_blank", "noopener");
+                  }}
+                >
+                  Join call
+                </Button>
+              )}
               <Button size="sm" disabled={iv.status === "declined" || iv.past} onClick={() => setDeclining(iv)}>
                 Decline
               </Button>
@@ -70,7 +95,7 @@ export default function Interviews() {
         ))}
         {rows.length === 0 && <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">Nothing here.</p>}
       </div>
-      <p className="text-[12px] leading-[1.4] text-ink-2">Join call turns on 15 minutes before the start. Declining sends the employer a note and keeps your application open.</p>
+      <p className="text-[12px] leading-[1.4] text-ink-2">Accept to confirm the slot; Join call then opens the meeting link. Declining sends the employer a note and keeps your application open.</p>
 
       <Modal
         open={!!declining}

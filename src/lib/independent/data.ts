@@ -40,6 +40,11 @@ export type Role = {
   objectives: string[];
   about: { blurb: string; location: string; industry: string; size: string };
   workStyle: { builder: number[]; independent: number[] };
+  /** "30 Days" for a trial; the start timing for a full-time role. */
+  duration: string;
+  hires: number;
+  /** Every seat is taken — shown, but closed to applications. */
+  filled: boolean;
 };
 
 const WS = { builder: [5, 5, 2, 3, 2, 5], independent: [5, 4, 2, 2, 2, 2] }; // Figma 11321:3220 bubble positions
@@ -67,6 +72,9 @@ export function roleFromPosting(p: Posting): Role {
     objectives: p.objectives,
     about: { blurb: p.companyBlurb, location: p.location, industry: p.industry, size: p.size },
     workStyle: { builder: p.workStyle, independent: WORK_STYLE_ANSWERS },
+    duration: p.duration ?? "30 Days",
+    hires: p.hires ?? 1,
+    filled: !!p.filled,
   };
 }
 
@@ -161,7 +169,8 @@ Important Disclaimer: This is a form provided on an "as is" basis without repres
 
 /* ---------------------------------------------------------- interviews ---- */
 
-export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; status: "starts" | "accepted" | "completed" | "declined"; past?: boolean };
+/** `starts` is an invitation still waiting on the talent's answer. */
+export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined"; past?: boolean };
 
 export const interviews: Interview[] = [];
 

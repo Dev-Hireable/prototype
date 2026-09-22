@@ -34,7 +34,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   const match = matchFor(role, workStyle);
   const applied = applications.some((a) => a.roleSlug === role.slug);
   const withdrawn = withdrawnRoleSlugs.includes(role.slug);
-  const [open, setOpen] = useState(search.get("apply") === "1" && !applied && !withdrawn);
+  const [open, setOpen] = useState(search.get("apply") === "1" && !applied && !withdrawn && !role.filled);
   const [note, setNote] = useState("");
   const [includeQuiz, setIncludeQuiz] = useState(true);
   const [toast, setToast] = useToast();
@@ -57,7 +57,9 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
             <JobBadge type={role.type} />
             <MatchPill pct={match} />
           </div>
-          <p className="text-[14px] leading-[1.4] font-medium text-ink">Rate: {role.rateRange} · 30-day trial · Starts within 2 weeks of acceptance</p>
+          <p className="text-[14px] leading-[1.4] font-medium text-ink">
+            Rate: {role.rateRange} · {role.type === "trial" ? `${role.duration.match(/\d+/)?.[0] ?? 30}-day trial` : role.duration} · Starts within 2 weeks of acceptance
+          </p>
           <section className="flex flex-col gap-2 text-[14px] leading-[1.4]">
             <h3 className="font-semibold text-ink">Role description</h3>
             {role.description.map((p) => (
@@ -88,8 +90,8 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
           <dl className="flex gap-8 leading-[1.4] font-medium">
             {[
               ["Experience", role.level],
-              ["Duration", "30 days"],
-              ["Hires", "1 position"],
+              ["Duration", role.duration],
+              ["Hires", role.hires === 1 ? "1 position" : `${role.hires} positions`],
             ].map(([k, v]) => (
               <div key={k} className="flex flex-col gap-0.5">
                 <dt className="text-[12px] text-ink-2">{k}</dt>
@@ -105,8 +107,8 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
           <h3 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
             {role.company} Inc.
           </h3>
-          <Button variant="primary" size="lg" disabled={applied || withdrawn} onClick={() => setOpen(true)}>
-            {withdrawn ? "Withdrawn" : applied ? "Applied" : "Apply now"}
+          <Button variant="primary" size="lg" disabled={applied || withdrawn || role.filled} onClick={() => setOpen(true)}>
+            {withdrawn ? "Withdrawn" : applied ? "Applied" : role.filled ? "Position filled" : "Apply now"}
           </Button>
           <Button size="lg" onClick={() => toggleSaved(role.slug)}>
             {isSaved ? "Saved" : "Save role"}
@@ -116,6 +118,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
           <p className="text-[13px] leading-[1.4] text-ink-2">{role.about.industry}</p>
           <p className="text-[13px] leading-[1.4] text-ink-2">{role.about.size}</p>
           {withdrawn && <p className="text-[12px] leading-[1.4] text-danger">You withdrew this application and cannot apply to this role again.</p>}
+          {role.filled && !applied && <p className="text-[12px] leading-[1.4] text-ink-2">This role has been filled and is no longer taking applications.</p>}
           <Button size="lg">Visit website</Button>
         </Card>
       </div>

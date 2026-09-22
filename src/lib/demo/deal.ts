@@ -19,6 +19,13 @@ import type { Stage } from "@/components/independent/ui";
 
 export type DealObjective = { id: string; title: string; kind: "kpi" | "okr" | "task"; target?: number; unit?: string; dailyTarget?: number };
 
+/**
+ * IN-072 / IN-073 — the proposal exactly as the talent submitted it. The Team Builder reviews
+ * this record and the offer is built from it, so the rate and objectives signed are the ones
+ * proposed. `version` counts resubmissions after a revision request.
+ */
+export type DealProposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; objectives: { title: string; kind: DealObjective["kind"] }[] };
+
 export type Deal = {
   roleSlug: string;
   title: string;
@@ -30,6 +37,10 @@ export type Deal = {
   dropped?: boolean;
   /** TB-037 / IN-070 — set when the Team Builder books one; `accepted` once the talent confirms. */
   interview?: { when: string; format: string; link?: string; accepted?: boolean; past?: boolean };
+  /** IN-072 — what the talent proposed; absent until they submit. */
+  proposal?: DealProposal;
+  /** TB-106 — the Team Builder's requested changes; cleared when the talent resubmits. */
+  revision?: { note: string; date: string };
   /** TB-105 / IN-074 — the terms the trial starts on. */
   offer?: { rate: string; start: string; end: string; objectives: DealObjective[]; status: "sent" | "accepted" | "declined"; sent: string };
   /** Created when the offer is accepted: from then on both trackers read this. */
@@ -69,6 +80,16 @@ export type Posting = {
   skills: string[];
   objectives: string[];
   expectation: string;
+  /** Optional so postings saved before these fields existed still load. */
+  attachment?: string;
+  duration?: string;
+  /** Seats to fill ("How many to hire"); missing means one. */
+  hires?: number;
+  /**
+   * Set when the last seat is hired. The posting stays on file so the hired talent's application
+   * still has its job details, but it leaves the board and can't be applied to.
+   */
+  filled?: boolean;
   posted: string;
   closes: string;
   /** The company's own work style, so the talent's match is worked out against something real. */
@@ -177,6 +198,17 @@ export function usePostings(): Posting[] {
 export function publishPosting(posting: Posting) {
   ensureLoaded();
   write({ ...snapshot, postings: [posting, ...snapshot.postings.filter((p) => p.slug !== posting.slug)] });
+}
+
+/**
+ * A hire takes one seat. With one live pair in the demo, a single-seat posting is full after one
+ * hire; a multi-seat one stays open for the rest.
+ */
+export function fillPosting(slug: string) {
+  ensureLoaded();
+  const posting = snapshot.postings.find((p) => p.slug === slug);
+  if (!posting || (posting.hires ?? 1) > 1) return;
+  write({ ...snapshot, postings: snapshot.postings.map((p) => (p.slug === slug ? { ...p, filled: true } : p)) });
 }
 
 /** A role that is closed, archived or deleted comes off the board. */

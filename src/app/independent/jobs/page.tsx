@@ -4,35 +4,62 @@ import { useState } from "react";
 import { RoleCard } from "@/components/independent/RoleCard";
 import { Pagination } from "@/components/team/ui";
 import { Button, Checkbox, EmptyState, Page, SearchBox } from "@/components/independent/ui";
-import { EXPERIENCE_LEVELS, MarketplaceFilterPanel, SKILL_OPTIONS } from "@/components/portal/filters";
+import { EXPERIENCE_LEVELS, MarketplaceFilterPanel } from "@/components/portal/filters";
 import { roleFromPosting } from "@/lib/independent/data";
 import { usePostings } from "@/lib/demo/deal";
 
 const PER_PAGE = 8;
 
-const DEFAULT = { trial: true, fullTime: true, levels: new Set(EXPERIENCE_LEVELS), min: "", max: "" };
-const INITIAL_DRAFT = { ...DEFAULT, levels: new Set(EXPERIENCE_LEVELS.slice(1, 3)) };
+const NO_SKILL = "Select skills";
+/**
+ * One starting point for both the draft and the applied filters. The draft used to open with only
+ * Intermediate and Advanced ticked while everything was shown, so pressing Apply without touching
+ * anything suddenly hid every Beginner and Expert role.
+ */
+const DEFAULT = { trial: true, fullTime: true, levels: new Set(EXPERIENCE_LEVELS), min: "", max: "", skill: NO_SKILL };
+
+/** "$3,000 – $4,500 /month" → [3000, 4500]; a single figure is both ends. */
+function rateRange(rate: string): [number, number] {
+  const nums = (rate.match(/\d[\d,]*(?:\.\d+)?/g) ?? []).map((n) => Number(n.replace(/,/g, "")));
+  return nums.length ? [nums[0], nums[nums.length - 1]] : [0, 0];
+}
+const amount = (v: string) => Number(v.replace(/[^0-9.]/g, ""));
 
 /** Figma "Job Board / Discover roles · browse / · no results": results (gap 16) + 280px filter column, content gap 24. */
 export default function Discover() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [draft, setDraft] = useState(INITIAL_DRAFT);
+  const [draft, setDraft] = useState(DEFAULT);
   const [applied, setApplied] = useState(DEFAULT);
 
-  const rate = (r: string) => Number(r.replace(/[^0-9]/g, ""));
-  const roles = usePostings().map(roleFromPosting);
+  // A filled role has no seat left to apply for, so it leaves the board (IN-074).
+  const roles = usePostings()
+    .filter((p) => !p.filled)
+    .map(roleFromPosting);
+  /** Skills that are actually on the board, so every option can match something. */
+  const skillOptions = [NO_SKILL, ...[...new Set(roles.flatMap((r) => r.skills))].sort((a, b) => a.localeCompare(b))];
   const results = roles.filter((r) => {
     const text = `${r.title} ${r.company} ${r.skills.join(" ")}`.toLowerCase();
     if (q && !text.includes(q.toLowerCase())) return false;
     if (r.type === "trial" && !applied.trial) return false;
     if (r.type === "full-time" && !applied.fullTime) return false;
     if (!applied.levels.has(r.level)) return false;
-    const v = rate(r.rate);
-    if (applied.min && v < Number(applied.min)) return false;
-    if (applied.max && v > Number(applied.max)) return false;
+    if (applied.skill !== NO_SKILL && !r.skills.includes(applied.skill)) return false;
+    // Keep roles whose pay band overlaps the one asked for. The rate used to have every digit
+    // stripped out and glued together, so "$3,000 – $4,500" compared as 30,004,500.
+    const [lo, hi] = rateRange(r.rate);
+    if (applied.min && hi < amount(applied.min)) return false;
+    if (applied.max && lo > amount(applied.max)) return false;
     return true;
   });
+  /** Filters actually narrowing the list, for the count beside the Filter heading. */
+  const activeCount =
+    (applied.trial ? 0 : 1) +
+    (applied.fullTime ? 0 : 1) +
+    (applied.levels.size < EXPERIENCE_LEVELS.length ? 1 : 0) +
+    (applied.skill !== NO_SKILL ? 1 : 0) +
+    (applied.min ? 1 : 0) +
+    (applied.max ? 1 : 0);
 
   /** A screenful of role cards; below this the pager disappears. */
   const pages = Math.max(1, Math.ceil(results.length / PER_PAGE));
@@ -43,6 +70,7 @@ export default function Discover() {
     setDraft(DEFAULT);
     setApplied(DEFAULT);
     setQ("");
+    setPage(1);
   };
   const toggleLevel = (l: string) =>
     setDraft((d) => {
@@ -59,7 +87,10 @@ export default function Discover() {
           <SearchBox value={q} onChange={setQ} placeholder="Search by title, company or skill" />
           {/* The real count. It used to add a flat 37 to whatever was on screen. */}
           <p className="text-[14px] leading-[1.4] text-ink-2">{results.length === 1 ? "1 open role" : `${results.length} open roles`}</p>
-          {results.length === 0 ? (
+          {roles.length === 0 ? (
+            // Nothing is published at all — no filter is to blame, so don't offer to reset one.
+            <EmptyState title="No open roles yet" body="Roles appear here as soon as a Team Builder publishes one." />
+          ) : results.length === 0 ? (
             <EmptyState
               title="No roles match these filters"
               body="Try removing a filter, clearing the search, or widening the rate range."
@@ -84,7 +115,7 @@ export default function Discover() {
           roleTypeSlot={
             <fieldset className="flex flex-col gap-2">
               <legend className="mb-2 text-[14px] leading-[1.4] font-medium text-ink">Role type</legend>
-              <Checkbox checked={draft.trial} onChange={(value) => setDraft((d) => ({ ...d, trial: value }))}>Trial (30 days)</Checkbox>
+              <Checkbox checked={draft.trial} onChange={(value) => setDraft((d) => ({ ...d, trial: value }))}>Trial</Checkbox>
               <Checkbox checked={draft.fullTime} onChange={(value) => setDraft((d) => ({ ...d, fullTime: value }))}>Full-time</Checkbox>
             </fieldset>
           }
@@ -95,8 +126,14 @@ export default function Discover() {
           max={draft.max}
           onMinChange={(value) => setDraft((d) => ({ ...d, min: value }))}
           onMaxChange={(value) => setDraft((d) => ({ ...d, max: value }))}
-          skillOptions={SKILL_OPTIONS}
-          onApply={() => setApplied(draft)}
+          skillOptions={skillOptions}
+          skill={draft.skill}
+          onSkillChange={(value) => setDraft((d) => ({ ...d, skill: value }))}
+          activeCount={activeCount}
+          onApply={() => {
+            setApplied(draft);
+            setPage(1);
+          }}
           onReset={reset}
         />
       </div>

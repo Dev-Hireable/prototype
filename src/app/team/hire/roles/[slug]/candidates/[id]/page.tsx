@@ -9,10 +9,22 @@ import { InterviewDialog } from "@/components/team/InterviewDialog";
 import { SendOfferDialog } from "@/components/team/SendOfferDialog";
 import { ProposalReview } from "@/components/team/ProposalReview";
 import type { Proposal } from "@/components/team/ProposalReview";
+import { useDeal } from "@/lib/demo/deal";
+import type { DealProposal } from "@/lib/demo/deal";
 import { EMPLOYER_STAGE_LABELS, byName } from "@/lib/team/data";
+import { DEAL_ID } from "@/lib/team/deal-view";
 import { useDemo } from "@/lib/team/store";
 
-/** Figma node 11338-10129 — the proposal as submitted, with each objective's key results. */
+/** The pair's submitted proposal in the review dialog's shape. Objectives arrive as titles only. */
+const reviewFrom = (p: DealProposal): Proposal => ({
+  version: p.version,
+  sent: p.sent,
+  rate: p.rate,
+  letter: p.letter,
+  objectives: p.objectives.map((o) => ({ title: o.title, kind: o.kind, description: "", keyResults: [] })),
+});
+
+/** Figma node 11338-10129 — the sample proposal the seeded (non-live) candidates show. */
 const PROPOSAL: Proposal = {
   version: 1,
   sent: "7 Sep 2026",
@@ -59,11 +71,17 @@ type Dialog = null | "invite" | "drop" | "flag" | "request" | "proposal" | "decl
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
   const router = useRouter();
-  const { roles, candidates, interviews, setStage, setDropped, sendOffer, cards } = useDemo();
+  const { roles, candidates, interviews, setStage, requestRevision, setDropped, sendOffer, cards } = useDemo();
   const role = roles.find((r) => r.slug === slug);
   const cand = candidates.find((c) => c.id === id);
   if (!role || !cand) notFound();
   const p = byName(cand.independent);
+  const deal = useDeal();
+  /**
+   * IN-072 — the live candidate's proposal is the one they submitted (null until they do); it used
+   * to be a hard-coded sample, so the rate and objectives reviewed and signed were never theirs.
+   */
+  const proposal: Proposal | null = cand.id === DEAL_ID ? (deal?.proposal ? reviewFrom(deal.proposal) : null) : PROPOSAL;
   const [dialog, setDialog] = useState<Dialog>(null);
   /** TB-106 — the revision note is required before the request can be sent. */
   const [revisionNote, setRevisionNote] = useState("");
@@ -135,7 +153,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
             {/* TB-106 — once a revision has been asked for there is a submitted proposal to track,
                 so the button stays live and opens it read-only. Before the first submission there
                 is nothing to open, and it stays disabled. */}
-            <Button size="lg" variant="primary" className="w-full" disabled={!awaitingRevision} onClick={() => setDialog("proposal")}>
+            <Button size="lg" variant="primary" className="w-full" disabled={!awaitingRevision || !proposal} onClick={() => setDialog("proposal")}>
               Review proposal
             </Button>
             {message}
@@ -144,7 +162,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       case "proposal_sent":
         return (
           <>
-            <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("proposal")}>
+            <Button size="lg" variant="primary" className="w-full" disabled={!proposal} onClick={() => setDialog("proposal")}>
               Review proposal
             </Button>
             {message}
@@ -308,28 +326,30 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       </Modal>
 
       {/* Review proposal — Figma node 11338-10290: the dialog owns its header, panes and action bar. */}
-      <Modal open={dialog === "proposal"} onClose={() => setDialog(null)} title={`${first}'s proposal for ${role.title}`} width={1100} bare>
-        <ProposalReview
-          person={p}
-          role={role}
-          proposal={PROPOSAL}
-          onClose={() => setDialog(null)}
-          actions={
-            <>
-              <Button size="xl" variant="primary" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("offer")}>
-                Send offer
-              </Button>
-              {/* Only one revision request per round — asking again is what the resubmission is for. */}
-              <Button size="xl" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("revision")}>
-                Request revision
-              </Button>
-              <Button size="xl" className="!px-0 w-12" disabled={awaitingRevision} onClick={() => setDialog("decline")}>
-                <ThumbDown size={20} aria-hidden />
-                <span className="sr-only">Decline proposal</span>
-              </Button>
-            </>
-          }
-        />
+      <Modal open={dialog === "proposal" && !!proposal} onClose={() => setDialog(null)} title={`${first}'s proposal for ${role.title}`} width={1100} bare>
+        {proposal && (
+          <ProposalReview
+            person={p}
+            role={role}
+            proposal={proposal}
+            onClose={() => setDialog(null)}
+            actions={
+              <>
+                <Button size="xl" variant="primary" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("offer")}>
+                  Send offer
+                </Button>
+                {/* Only one revision request per round — asking again is what the resubmission is for. */}
+                <Button size="xl" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("revision")}>
+                  Request revision
+                </Button>
+                <Button size="xl" className="!px-0 w-12" disabled={awaitingRevision} onClick={() => setDialog("decline")}>
+                  <ThumbDown size={20} aria-hidden />
+                  <span className="sr-only">Decline proposal</span>
+                </Button>
+              </>
+            }
+          />
+        )}
       </Modal>
 
       <Modal
@@ -347,9 +367,8 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
               variant="primary"
               disabled={!revisionNote.trim()}
               onClick={() => {
-                // Revision and a first request land on the same stage, so the notification is
-                // named explicitly rather than inferred from it (TB-106 vs TB-103).
-                setStage(cand.id, "proposal_requested", { label: "Revision requested", tone: "warn", meta: "v1 · today" }, "proposal_revision");
+                // TB-106 — the note travels with the request, so the talent revises against it.
+                requestRevision(cand.id, revisionNote.trim());
                 setRevisionNote("");
                 setDialog(null);
                 setToast("Revision requested");
@@ -400,26 +419,28 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       </Modal>
 
       {/* TB-105 — four-step send offer: letter → dates → deposit → sign. */}
-      <SendOfferDialog
-        open={dialog === "offer"}
-        onClose={() => setDialog(null)}
-        person={p}
-        role={role}
-        proposal={PROPOSAL}
-        card={cards.find((c) => c.isDefault) ?? cards[0]}
-        onSend={(terms) => {
-          // TB-105 — the terms and the committed objectives travel with the offer, so the talent
-          // signs the same thing the tracker is built from.
-          sendOffer({
-            rate: PROPOSAL.rate,
-            start: terms.start,
-            end: terms.end,
-            objectives: PROPOSAL.objectives.map((o, i) => ({ id: `obj-${i + 1}`, title: o.title, kind: o.kind })),
-          });
-          setStage(cand.id, "offer_received", { label: "Awaiting response", tone: "warn", meta: "Expires in 7 days" });
-          setToast("Offer sent to candidate");
-        }}
-      />
+      {proposal && (
+        <SendOfferDialog
+          open={dialog === "offer"}
+          onClose={() => setDialog(null)}
+          person={p}
+          role={role}
+          proposal={proposal}
+          card={cards.find((c) => c.isDefault) ?? cards[0]}
+          onSend={(terms) => {
+            // TB-105 — the proposed rate and objectives travel with the offer, so the talent signs
+            // what they proposed and the tracker is built from the same list.
+            sendOffer({
+              rate: proposal.rate,
+              start: terms.start,
+              end: terms.end,
+              objectives: proposal.objectives.map((o, i) => ({ id: `obj-${i + 1}`, title: o.title, kind: o.kind })),
+            });
+            setStage(cand.id, "offer_received", { label: "Awaiting response", tone: "warn", meta: "Expires in 7 days" });
+            setToast("Offer sent to candidate");
+          }}
+        />
+      )}
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

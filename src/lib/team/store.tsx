@@ -3,7 +3,8 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { DEAL_ID, dealObjectivesFrom, postingFrom } from "@/lib/team/deal-view";
-import { canMessage, publishPosting, stageOf, today, trialDay, unpublishPosting, updateDeal, useDeal } from "@/lib/demo/deal";
+import { canMessage, publishPosting, stageOf, today, trialDay, unpublishPosting, updateDeal, useDeal, usePostings } from "@/lib/demo/deal";
+import type { Deal } from "@/lib/demo/deal";
 import { markRead as markLiveRead, move, PAIR, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
 import { COMPANY_PROFILE, INITIAL_SAVED, TEAM_PROFILE, candidates as seedCandidates, contracts as seedContracts, disputes as seedDisputes, interviews as seedInterviews, offers as seedOffers, paymentMethods as seedCards, roles as seedRoles } from "./data";
@@ -34,6 +35,8 @@ type Demo = {
    * land on the same stage, so inference alone would send the wrong one (and send it twice).
    */
   setStage: (id: string, stage: Stage, status?: Candidate["status"], notify?: MoveKind | false) => void;
+  /** TB-106 — sends the proposal back with the note the talent revises against. */
+  requestRevision: (id: string, note: string) => void;
   setDropped: (id: string, dropped: boolean) => void;
   invite: (independent: string, role: string) => void;
   /**
@@ -84,6 +87,19 @@ type Demo = {
 
 const Ctx = createContext<Demo | null>(null);
 
+/** The Team Builder's status line for the deal, most advanced fact first. */
+function dealStatus(deal: Deal): Candidate["status"] {
+  if (deal.stage === "hired") return { label: "Hired · trial running", tone: "ok" };
+  if (deal.offer?.status === "declined") return { label: "Offer declined", tone: "danger" };
+  if (deal.offer?.status === "sent") return { label: "Offer sent", tone: "warn", meta: `Starts ${deal.offer.start}` };
+  if (deal.revision) return { label: "Revision requested", tone: "warn", meta: deal.revision.date };
+  if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
+  if (deal.stage === "proposal_requested") return { label: "Awaiting proposal", tone: "warn" };
+  if (deal.interview?.accepted) return { label: "Interview confirmed", tone: "ok", meta: deal.interview.when };
+  if (deal.interview) return { label: "Awaiting reply", tone: "neutral", meta: deal.interview.when };
+  return { label: "New application", tone: "info" };
+}
+
 /** Stages the sheet says the Independent hears about, and which movement that is. */
 const STAGE_MOVE = {
   invited: "interview_invited",
@@ -107,6 +123,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [signupTags] = usePersisted<string[] | null>("team.companyTags", null);
   const live = useLive();
   const deal = useDeal();
+  const postings = usePostings();
+  /**
+   * A role whose last seat was hired reads as Closed — its posting has left the board. Reopening
+   * republishes the posting without the filled mark, so the role reads Active again.
+   */
+  const rolesView = roles.map((r) => (r.status === "Active" && postings.some((p) => p.slug === r.slug && p.filled) ? { ...r, status: "Closed" as const } : r));
 
   /** Only the live pair emits notifications — everyone else is static background data. */
   const roleOf = (slug: string) => ({ slug, title: roles.find((r) => r.slug === slug)?.title ?? slug });
@@ -122,7 +144,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         independent: PAIR.independent.slug,
         role: deal.roleSlug,
         stage: stageOf(deal),
-        status: deal.stage === "hired" ? { label: "Hired · trial running", tone: "ok" } : deal.offer?.status === "sent" ? { label: "Offer sent", tone: "warn", meta: `Starts ${deal.offer.start}` } : deal.interview?.accepted ? { label: "Interview confirmed", tone: "ok", meta: deal.interview.when } : deal.interview ? { label: "Awaiting reply", tone: "neutral", meta: deal.interview.when } : { label: "New application", tone: "info" },
+        status: dealStatus(deal),
         submitted: `Applied ${deal.submitted}`,
         dropped: deal.dropped,
       }
@@ -178,7 +200,11 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       }
     : null;
 
-  const allCandidates: Candidate[] = dealCandidate ? [dealCandidate, ...candidates] : candidates;
+  // Once the pair applies, the deal is their card for that role; the "Invited to apply" row it
+  // grew out of would otherwise sit beside it as a second copy of the same person.
+  const allCandidates: Candidate[] = dealCandidate
+    ? [dealCandidate, ...candidates.filter((c) => !(c.independent === dealCandidate.independent && c.role === dealCandidate.role))]
+    : candidates;
   const allInterviews: Interview[] = dealInterview ? [dealInterview, ...interviews] : interviews;
   const allOffers: Offer[] = dealOffer ? [dealOffer, ...offers] : offers;
   const allContracts: Contract[] = dealContract ? [dealContract, ...contracts] : contracts;
@@ -186,7 +212,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const value: Demo = {
     saved,
     toggleSaved: (slug) => setSaved((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug])), // TB-018 / TB-022: silent, no notification
-    roles,
+    roles: rolesView,
     addRole: (r) => {
       setRoles((rs) => [r, ...rs.filter((x) => x.slug !== r.slug)]);
       // TB-026 — an Active role is a posting the talent can find and apply to; a draft is not.
@@ -224,6 +250,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       // Moving the shared engagement moves it on the talent's side too.
       if (id === DEAL_ID) return updateDeal((d) => ({ ...d, stage }));
       setCandidates((cs) => cs.map((x) => (x.id === id ? { ...x, stage, status } : x)));
+    },
+    requestRevision: (id, note) => {
+      const c = allCandidates.find((x) => x.id === id);
+      if (livePair(c)) move("proposal_revision", roleOf(c!.role));
+      if (id === DEAL_ID) return updateDeal((d) => ({ ...d, stage: "proposal_requested", revision: { note, date: today() } }));
+      setCandidates((cs) => cs.map((x) => (x.id === id ? { ...x, stage: "proposal_requested", status: { label: "Revision requested", tone: "warn", meta: "v1 · today" } } : x)));
     },
     setDropped: (id, dropped) => {
       if (id === DEAL_ID) return updateDeal((d) => ({ ...d, dropped }));
