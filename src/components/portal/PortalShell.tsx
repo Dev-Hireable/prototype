@@ -89,7 +89,7 @@ export function PortalShell({
                   >
                     <RailGlyph icon={s.icon} active={active} />
                     {badge > 0 && (
-                      <span aria-label={`${badge} unread`} className="pointer-events-none absolute top-2.5 right-[22px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white">
+                      <span aria-label={`${badge} unread`} className="pointer-events-none absolute top-2.5 right-[22px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white">
                         {badge > 9 ? "9+" : badge}
                       </span>
                     )}
@@ -181,7 +181,7 @@ export function PortalShell({
                   {badge > 0 && (
                     <span
                       aria-label={`${badge} unread`}
-                      className={`pointer-events-none absolute z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1.5 text-[10.5px] leading-none font-semibold text-white ${EASE} transition-[left,top]`}
+                      className={`pointer-events-none absolute z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white ${EASE} transition-[left,top]`}
                       style={collapsed ? { left: 24, top: 2 } : { left: 178, top: 8 }}
                     >
                       {badge > 9 ? "9+" : badge}
