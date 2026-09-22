@@ -254,12 +254,12 @@ export function InfoBanner({ children, tone = "info" }: { children: ReactNode; t
 /* --------------------------------------------------------------- badges --- */
 
 export function JobBadge({ type }: { type: "trial" | "full-time" }) {
-  // Solid fills, white text. Trial is the brand orange token (the logo mark) as asked — note white
-  // on it is 2.5:1, under the 4.5:1 AA minimum; dark ink (#3d1a00) would be 8:1.
+  // Solid fills in the logo's own two colours, white text, as asked. Both are under the 4.5:1 AA
+  // minimum for text this size (orange 2.5:1, blue 2.7:1); dark ink on them would be 8:1 and 6:1.
   return (
     <span
       className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap uppercase ${
-        type === "trial" ? "bg-brand-orange text-white" : "bg-[#005b99] text-white"
+        type === "trial" ? "bg-brand-orange text-white" : "bg-brand-blue text-white"
       }`}
     >
       {type}
