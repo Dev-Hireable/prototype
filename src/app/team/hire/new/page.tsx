@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useId, useState } from "react";
 import { MdAdd, MdAttachMoney, MdBorderColor, MdOutlineCalendarToday, MdRemove } from "react-icons/md";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Page, Select, Steps, Textarea } from "@/components/independent/ui";
+import { SkillPicker } from "@/components/portal/controls";
+import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { useDemo } from "@/lib/team/store";
 import type { Role } from "@/lib/team/data";
 
@@ -18,6 +20,23 @@ const CHIP_TONES = ["text-ok", "text-primary", "text-[#e91e63]"];
 const BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"] as const;
 const BENEFITS_DISCLAIMER =
   "Exclusive benefits apply to full-time hired freelancers only. These benefits are reimbursable, proof of payment (receipts) must be submitted to receive reimbursement.";
+
+/** Every field the wizard edits — what Review's Edit → Cancel restores. */
+type Snapshot = {
+  title: string;
+  desc: string;
+  level: string;
+  skills: string[];
+  hires: number;
+  expectation: string;
+  attachment: string;
+  min: string;
+  max: string;
+  chip: number;
+  benefits: Record<string, string>;
+};
+
+type ReviewSection = "title" | "budget" | "description" | "skills" | "duration" | "experience" | "hires" | "expectations" | "benefits";
 
 /** Copy per path — Figma "Path A · Test Independents (trial)" and "Path B · Build Team (full-time)". */
 const PATH = {
@@ -114,7 +133,6 @@ function CreateRoleWizard() {
   const [desc, setDesc] = useState("");
   const [level, setLevel] = useState(LEVELS[0]);
   const [skills, setSkills] = useState<string[]>([]);
-  const [skill, setSkill] = useState("");
   const [hires, setHires] = useState(1);
   const [expectation, setExpectation] = useState("");
   const [attachment, setAttachment] = useState("");
@@ -123,6 +141,11 @@ function CreateRoleWizard() {
   const [chip, setChip] = useState(0);
   /** Benefit label → monthly amount; absent means the checkbox is off. */
   const [benefits, setBenefits] = useState<Record<string, string>>({});
+  /**
+   * Review edits in place: the one section being edited, and the values from before it opened so
+   * Cancel can put them back. The fields write straight to the wizard state, so Save just closes.
+   */
+  const [open, setOpen] = useState<{ section: ReviewSection; before: Snapshot } | null>(null);
   /** Keep the draft's slug when editing, so publishing replaces it instead of leaving it behind. */
   const slug = editing?.slug ?? (title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "new-role");
 
@@ -143,12 +166,13 @@ function CreateRoleWizard() {
     setSkills(editing.skills);
     setExpectation(editing.expectation);
     setAttachment(editing.attachment);
+    setHires(editing.hires ?? 1);
     // "$1,500.00 - $3,500.00 /mo" → 1500 / 3500. Split on the dash first, then take the whole
     // part of each side; stripping punctuation up front turned "1,500.00" into "1 500 00".
     const [lo, hi] = editing.budget.split(/[–-]/);
     const whole = (s?: string) => (s?.match(/[\d,]+/)?.[0] ?? "").replace(/,/g, "");
-    setMin(whole(lo));
-    setMax(whole(hi));
+    setMin(settleMoney(whole(lo)));
+    setMax(settleMoney(whole(hi)));
     setBenefits(Object.fromEntries((editing.benefits ?? []).map((b) => [b.label, b.amount])));
     const reviewStep = t.sequence.indexOf("review");
     setStep(editing.duplicatedFrom ? reviewStep : resumeStep(editing, t.sequence));
@@ -163,14 +187,12 @@ function CreateRoleWizard() {
   /** Which card this slot shows — the two paths order their steps differently. */
   const kind = t.sequence[step];
   // Keyed off the card, not the slot index: budget is step 2 on one path and step 3 on the other.
-  const can = kind === "details" ? detailsDone : kind === "expectations" ? expectation.trim().length > 0 : kind === "budget" ? min.length > 0 && max.length > 0 : true;
+  const amount = (v: string) => Number(v.replace(/,/g, ""));
+  /** Both amounts filled, and the range isn't upside down. */
+  const budgetOk = min.length > 0 && max.length > 0 && amount(min) <= amount(max);
+  const rangeError = min && max && amount(min) > amount(max) ? "Minimum can't be more than the maximum." : null;
+  const can = kind === "details" ? detailsDone : kind === "expectations" ? expectation.trim().length > 0 : kind === "budget" ? budgetOk : true;
 
-  const addSkill = () => {
-    const s = skill.trim();
-    if (!s || skills.length >= 5 || skills.includes(s)) return;
-    setSkills((all) => [...all, s]);
-    setSkill("");
-  };
   const roleFrom = (status: Role["status"]): Role => {
     return {
       slug,
@@ -190,6 +212,7 @@ function CreateRoleWizard() {
       skills,
       expectation,
       attachment,
+      hires,
       benefits: Object.entries(benefits).map(([label, amount]) => ({ label, amount: amount || "0" })),
     };
   };
@@ -205,7 +228,52 @@ function CreateRoleWizard() {
     addRole(roleFrom("Draft"));
     router.push("/team/hire/roles");
   };
-  const back = () => (step === 0 ? router.push("/team/hire") : setStep(step - 1));
+  const snapshot = (): Snapshot => ({ title, desc, level, skills, hires, expectation, attachment, min, max, chip, benefits });
+  const restore = (v: Snapshot) => {
+    setTitle(v.title);
+    setDesc(v.desc);
+    setLevel(v.level);
+    setSkills(v.skills);
+    setHires(v.hires);
+    setExpectation(v.expectation);
+    setAttachment(v.attachment);
+    setMin(v.min);
+    setMax(v.max);
+    setChip(v.chip);
+    setBenefits(v.benefits);
+  };
+  const goTo = (next: number) => {
+    setStep(next);
+    window.scrollTo({ top: 0 });
+  };
+  const startEdit = (section: ReviewSection) => setOpen({ section, before: snapshot() });
+  const cancelEdit = () => {
+    if (open) restore(open.before);
+    setOpen(null);
+  };
+  const back = () => (open ? cancelEdit() : step === 0 ? router.push("/team/hire") : goTo(step - 1));
+  /** Same rules as the wizard steps, so a quick edit can't leave a required field empty. */
+  const sectionOk: Record<ReviewSection, boolean> = {
+    title: title.trim().length > 1,
+    budget: budgetOk,
+    description: desc.trim().length > 0,
+    skills: skills.length > 0,
+    duration: true,
+    experience: level !== LEVELS[0],
+    hires: hires >= 1,
+    expectations: expectation.trim().length > 0,
+    benefits: true,
+  };
+  /** Props every review section shares: which one is open, and Save / Cancel for it. */
+  const item = (section: ReviewSection) => ({
+    editing: open?.section === section,
+    locked: open !== null && open.section !== section,
+    canSave: sectionOk[section],
+    onEdit: () => startEdit(section),
+    onSave: () => setOpen(null),
+    onCancel: cancelEdit,
+  });
+  const cta = (disabled: boolean) => <Cta next={t.next[step]} disabled={disabled} onNext={() => goTo(step + 1)} onDraft={saveDraft} />;
 
   if (kind === "published")
     return (
@@ -265,7 +333,7 @@ function CreateRoleWizard() {
                 <Textarea value={desc} maxLength={500} onChange={(e) => setDesc(e.target.value)} placeholder={t.descPlaceholder} className="!h-[131px] resize-none" />
               </Block>
               <Block label="Skills" helper={["Select up to 5 skills", `${skills.length} / 5`]}>
-                <Input value={skill} onChange={(e) => setSkill(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())} onBlur={addSkill} placeholder="Search skills" disabled={skills.length >= 5} />
+                <SkillPicker options={GENERAL_SKILLS} value={skills} onChange={setSkills} max={5} />
                 {skills.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {skills.map((s) => (
@@ -281,18 +349,10 @@ function CreateRoleWizard() {
               </Block>
               <div className="flex flex-col gap-2">
                 <p className="text-[16px] leading-6 font-bold text-[#111827]">How many to hire</p>
-                <div className="flex h-11 w-max items-center overflow-hidden rounded-lg border border-border bg-white">
-                  <button type="button" aria-label="Fewer" onClick={() => setHires((n) => Math.max(1, n - 1))} className="flex size-11 items-center justify-center text-ink">
-                    <MdRemove size={18} aria-hidden />
-                  </button>
-                  <span className="flex h-11 w-16 items-center justify-center border-x border-border text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{hires}</span>
-                  <button type="button" aria-label="More" onClick={() => setHires((n) => n + 1)} className="flex size-11 items-center justify-center text-ink">
-                    <MdAdd size={18} aria-hidden />
-                  </button>
-                </div>
+                <Counter value={hires} onChange={setHires} />
               </div>
             </div>
-            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
+            {cta(!can)}
           </StepCard>
         )}
 
@@ -313,7 +373,7 @@ function CreateRoleWizard() {
                   <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{t.hint2}</span>
                 </label>
               </div>
-              <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
+              {cta(!can)}
             </StepCard>
           </>
         )}
@@ -329,6 +389,7 @@ function CreateRoleWizard() {
                   <Money label="Maximum" value={max} onChange={setMax} />
                   <span className="flex h-12 w-[51px] items-center justify-center text-[16px] leading-[1.5] tracking-[0.2px] text-ink">/month</span>
                 </div>
+                {rangeError && <p className="text-[12px] leading-[1.2] tracking-[0.2px] text-danger">{rangeError}</p>}
                 <p className="flex w-[533px] items-center gap-1 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
                   {t.hint3}
                   <Link href="/team/hire/roles" className="font-medium text-primary underline underline-offset-2">
@@ -347,7 +408,7 @@ function CreateRoleWizard() {
                 </div>
               </div>
             </div>
-            <Cta next={t.next[step]} disabled={!can} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
+            {cta(!can)}
           </StepCard>
         )}
 
@@ -355,116 +416,151 @@ function CreateRoleWizard() {
         {kind === "benefits" && (
           <StepCard title="Exclusive Benefits" body="Optional. Add what you cover on top of salary — you can skip this and add it later." bodySize={16}>
             <div className="flex flex-col gap-6">
-              {BENEFITS.map((b) => {
-                const on = b in benefits;
-                return (
-                  <div key={b} className="flex w-[533px] items-center gap-4">
-                    <label className="flex flex-1 items-center gap-3 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
-                      <input
-                        type="checkbox"
-                        checked={on}
-                        onChange={() =>
-                          setBenefits((prev) => {
-                            const next = { ...prev };
-                            if (on) delete next[b];
-                            else next[b] = "";
-                            return next;
-                          })
-                        }
-                        className="size-5 shrink-0 accent-primary"
-                      />
-                      {b}
-                    </label>
-                    <Money label="" value={benefits[b] ?? ""} onChange={(v) => setBenefits((prev) => ({ ...prev, [b]: v }))} disabled={!on} />
-                    <span className="flex h-12 w-[51px] items-center text-[14px] leading-[1.5] tracking-[0.2px] text-ink-2">/month</span>
-                  </div>
-                );
-              })}
+              <BenefitsEditor value={benefits} onChange={setBenefits} />
               <InfoBanner tone="warn">{BENEFITS_DISCLAIMER}</InfoBanner>
             </div>
-            <Cta next={t.next[step]} disabled={false} onNext={() => setStep(step + 1)} onDraft={saveDraft} />
+            {cta(false)}
           </StepCard>
         )}
 
-        {/* Step 4 — Review */}
+        {/* Step 4 — Review. Each pencil turns that section into its fields right here (one at a
+            time), with Cancel / Save, instead of sending you back through the wizard. */}
         {kind === "review" && (
           <div className="flex w-[720px] flex-col gap-6">
             <InfoBanner>{t.reviewNote}</InfoBanner>
             <Card className="flex flex-col gap-10 rounded-2xl p-10">
-              <div className="flex items-center gap-4">
-                <h3 className="font-display text-[32px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-                  {title}
-                </h3>
-                <JobBadge type={type} />
-              </div>
-              <Line label={t.money} value={money} onEdit={() => setStep(2)} />
-              <div className="flex flex-col gap-4">
-                <Line label="Role Description" onEdit={() => setStep(0)} />
+              <ReviewItem
+                label="Role"
+                {...item("title")}
+                heading={
+                  <div className="flex items-center gap-4">
+                    <h3 className="font-display text-[32px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+                      {title}
+                    </h3>
+                    <JobBadge type={type} />
+                  </div>
+                }
+                editor={<Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add e.g. Marketing Manager, Virtual Assistant" autoFocus />}
+              />
+              <ReviewItem
+                label={t.money}
+                value={money}
+                {...item("budget")}
+                editor={
+                  <div className="flex w-[533px] items-end gap-4">
+                    <Money label="Minimum" value={min} onChange={setMin} />
+                    <span aria-hidden className="mb-[22px] h-px w-6 bg-border" />
+                    <Money label="Maximum" value={max} onChange={setMax} />
+                    <span className="flex h-12 w-[51px] items-center justify-center text-[16px] leading-[1.5] tracking-[0.2px] text-ink">/month</span>
+                  </div>
+                }
+                error={rangeError}
+              />
+              <ReviewItem
+                label="Role Description"
+                {...item("description")}
+                editor={
+                  <Block label="" helper={["Up to 500 characters", `${desc.length} / 500`]}>
+                    <Textarea value={desc} maxLength={500} onChange={(e) => setDesc(e.target.value)} placeholder={t.descPlaceholder} className="!h-[131px] resize-none" autoFocus />
+                  </Block>
+                }
+              >
                 <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{desc || "No description yet."}</p>
-              </div>
-              <div className="flex flex-col gap-4">
-                <Line label="Skills" onEdit={() => setStep(0)} />
-                <div className="flex flex-wrap gap-2">
-                  {skills.map((s) => (
-                    <Chip key={s} size="sm">
-                      {s}
-                    </Chip>
-                  ))}
-                  {skills.length === 0 && <span className="text-[14px] text-ink-2">No skills added.</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{t.when}</span>
-                <DateChip tone={CHIP_TONES[chip]} selected>
-                  {t.chips[chip]}
-                </DateChip>
-                <EditButton onClick={() => setStep(2)} />
-              </div>
-              <Line label="Experience Level:" value={level === LEVELS[0] ? "Any level" : level} onEdit={() => setStep(0)} />
-              <Line label="How many to hire:" value={String(hires)} onEdit={() => setStep(0)} />
+              </ReviewItem>
+              <ReviewItem
+                label="Skills"
+                {...item("skills")}
+                editor={
+                  <Block label="" helper={["Select up to 5 skills", `${skills.length} / 5`]}>
+                    <SkillPicker options={GENERAL_SKILLS} value={skills} onChange={setSkills} max={5} />
+                    <SkillChips skills={skills} onRemove={(s) => setSkills((all) => all.filter((x) => x !== s))} />
+                  </Block>
+                }
+              >
+                <SkillChips skills={skills} />
+              </ReviewItem>
+              <ReviewItem
+                label={t.when}
+                value={
+                  <DateChip tone={CHIP_TONES[chip]} selected>
+                    {t.chips[chip]}
+                  </DateChip>
+                }
+                {...item("duration")}
+                editor={
+                  <div className="flex gap-4">
+                    {t.chips.map((c, i) => (
+                      <DateChip key={c} tone={CHIP_TONES[i]} selected={chip === i} onClick={() => setChip(i)}>
+                        {c}
+                      </DateChip>
+                    ))}
+                  </div>
+                }
+              />
+              <ReviewItem
+                label="Experience Level:"
+                value={level === LEVELS[0] ? "Any level" : level}
+                {...item("experience")}
+                editor={<Select options={[...LEVELS]} value={level} onChange={(e) => setLevel(e.target.value)} />}
+              />
+              <ReviewItem label="How many to hire:" value={String(hires)} {...item("hires")} editor={<Counter value={hires} onChange={setHires} />} />
             </Card>
             {/* The two paths carry different extras: a trial has expectations + attachments,
                 a full-time post has its exclusive benefits breakdown (TB-024). */}
             {type === "trial" ? (
               <Card className="flex flex-col gap-10 rounded-2xl p-10">
-                <div className="flex flex-col gap-4">
-                  <Line label={t.field2} onEdit={() => setStep(1)} />
+                <ReviewItem
+                  label={t.field2}
+                  {...item("expectations")}
+                  editor={
+                    <div className="flex flex-col gap-6">
+                      <Block label="" helper={["Up to 500 characters", `${expectation.length} / 500`]}>
+                        <Textarea value={expectation} maxLength={500} onChange={(e) => setExpectation(e.target.value)} placeholder={t.ph2} className="!h-[131px] resize-none" autoFocus />
+                      </Block>
+                      <label className="flex flex-col gap-2">
+                        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments (Optional)</span>
+                        <Input value={attachment} onChange={(e) => setAttachment(e.target.value)} placeholder="Add a link to a Loom, Google Doc, YouTube video, or anything that helps." />
+                      </label>
+                    </div>
+                  }
+                >
                   <p className="min-h-[131px] rounded-lg border border-border px-4 py-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{expectation}</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments</span>
-                  {attachment ? (
-                    <Link href={attachment} target="_blank" className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-primary">
-                      {attachment}
-                    </Link>
-                  ) : (
-                    <span className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] text-ink-2">None</span>
-                  )}
-                </div>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments</span>
+                    {attachment ? (
+                      <Link href={attachment} target="_blank" className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-primary">
+                        {attachment}
+                      </Link>
+                    ) : (
+                      <span className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] text-ink-2">None</span>
+                    )}
+                  </div>
+                </ReviewItem>
               </Card>
             ) : (
               <Card className="flex flex-col gap-6 rounded-2xl p-10">
-                <Line label="Exclusive Benefits" onEdit={() => setStep(2)} />
-                {Object.keys(benefits).length === 0 ? (
-                  <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">None added.</p>
-                ) : (
-                  <ul className="flex flex-col gap-3">
-                    {Object.entries(benefits).map(([label, amount]) => (
-                      <li key={label} className="flex items-center justify-between gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
-                        <span>{label}</span>
-                        <span className="font-semibold">${amount || "0"} /month</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <ReviewItem label="Exclusive Benefits" {...item("benefits")} editor={<BenefitsEditor value={benefits} onChange={setBenefits} />}>
+                  {Object.keys(benefits).length === 0 ? (
+                    <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">None added.</p>
+                  ) : (
+                    <ul className="flex flex-col gap-3">
+                      {Object.entries(benefits).map(([label, amount]) => (
+                        <li key={label} className="flex items-center justify-between gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
+                          <span>{label}</span>
+                          <span className="font-semibold">${amount || "0"} /month</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </ReviewItem>
                 <InfoBanner tone="warn">{BENEFITS_DISCLAIMER}</InfoBanner>
               </Card>
             )}
             <div className="flex justify-end gap-3">
-              <Button size="lg" className="!px-5" onClick={saveDraft}>
+              <Button size="lg" className="!px-5" onClick={saveDraft} disabled={open !== null} title={open ? "Save or cancel your edit first" : undefined}>
                 Save as draft
               </Button>
-              <Button size="lg" variant="primary" className="!px-5" onClick={publish}>
+              <Button size="lg" variant="primary" className="!px-5" onClick={publish} disabled={open !== null} title={open ? "Save or cancel your edit first" : undefined}>
                 Publish Role
               </Button>
             </div>
@@ -489,10 +585,13 @@ function StepCard({ title, body, bodySize = 14, children }: { title: string; bod
 }
 
 /** Field block: 16px semibold label, 16px gap, optional 12px helper row (left text · counter). */
+/** A plain group rather than a <label>: a label forwards clicks anywhere in it (heading, helper
+ *  row, blank space) to the control inside, which popped dropdowns open from outside them. */
 function Block({ label, helper, children }: { label: string; helper?: [string, string]; children: React.ReactNode }) {
+  const id = useId();
   return (
-    <label className="flex flex-col gap-4">
-      <span className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{label}</span>
+    <div role="group" aria-labelledby={label ? id : undefined} className="flex flex-col gap-4">
+      {label && <span id={id} className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{label}</span>}
       <span className="flex flex-col gap-2">
         {children}
         {helper && (
@@ -502,8 +601,25 @@ function Block({ label, helper, children }: { label: string; helper?: [string, s
           </span>
         )}
       </span>
-    </label>
+    </div>
   );
+}
+
+/** Live money formatting: digits only, thousands commas, one dot, at most two decimals ("1500.5" → "1,500.5"). */
+function formatMoney(raw: string) {
+  const clean = raw.replace(/[^0-9.]/g, "");
+  const dot = clean.indexOf(".");
+  const int = (dot < 0 ? clean : clean.slice(0, dot)).replace(/^0+(?=\d)/, "");
+  const dec = dot < 0 ? null : clean.slice(dot + 1).replace(/\./g, "").slice(0, 2);
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dec === null ? grouped : `${grouped || "0"}.${dec}`;
+}
+
+/** On blur, settle to two decimals ("1,500" → "1,500.00"); an empty field stays empty. */
+function settleMoney(v: string) {
+  if (!v) return "";
+  const [int, dec = ""] = formatMoney(v).split(".");
+  return `${int || "0"}.${dec.padEnd(2, "0")}`;
 }
 
 function Money({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
@@ -512,7 +628,26 @@ function Money({ label, value, onChange, disabled }: { label: string; value: str
       {label && <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>}
       <span className="relative block">
         <MdAttachMoney size={16} aria-hidden className="pointer-events-none absolute top-3.5 left-4 text-ink" />
-        <Input value={value} onChange={(e) => onChange(e.target.value.replace(/[^0-9,.]/g, ""))} placeholder="0.00" inputMode="decimal" disabled={disabled} className="!pl-10" />
+        <Input
+          value={value}
+          onChange={(e) => {
+            // Re-place the caret by how many digits/dots sit before it, so inserted commas don't make it jump.
+            const el = e.target;
+            const before = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/[^0-9.]/g, "").length;
+            const next = formatMoney(el.value);
+            onChange(next);
+            requestAnimationFrame(() => {
+              let pos = 0;
+              for (let seen = 0; pos < next.length && seen < before; pos++) if (/[0-9.]/.test(next[pos])) seen++;
+              el.setSelectionRange(pos, pos);
+            });
+          }}
+          onBlur={() => onChange(settleMoney(value))}
+          placeholder="0.00"
+          inputMode="decimal"
+          disabled={disabled}
+          className="!pl-10"
+        />
       </span>
     </label>
   );
@@ -521,29 +656,166 @@ function Money({ label, value, onChange, disabled }: { label: string; value: str
 /** Figma "Duration" chip: h 44, 0.5px border, calendar icon in the chip's colour. */
 function DateChip({ children, tone, selected, onClick }: { children: React.ReactNode; tone: string; selected?: boolean; onClick?: () => void }) {
   return (
-    <button type="button" onClick={onClick} disabled={!onClick} className={`flex h-11 items-center gap-2 rounded-lg border bg-white px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink ${selected ? "border-[#a6a6a6]" : "border-border"}`}>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={!onClick}
+      aria-pressed={onClick ? !!selected : undefined}
+      className={`flex h-11 items-center gap-2 rounded-lg border px-4 text-[14px] leading-[1.2] tracking-[0.2px] transition-colors ${
+        selected ? "border-primary bg-accent-bg font-semibold text-accent-ink ring-1 ring-primary" : "border-border bg-white text-ink enabled:hover:border-[#a6a6a6] enabled:hover:bg-surface-alt"
+      }`}
+    >
       <MdOutlineCalendarToday size={16} aria-hidden className={tone} /> {children}
     </button>
   );
 }
 
-function EditButton({ onClick }: { onClick: () => void }) {
+function EditButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" aria-label="Edit" onClick={onClick} className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-2">
+    <button
+      type="button"
+      aria-label={`Edit ${label.replace(/:$/, "")}`}
+      title="Edit"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink enabled:hover:bg-surface-2 disabled:opacity-40"
+    >
       <MdBorderColor size={16} aria-hidden />
     </button>
   );
 }
 
-function Line({ label, value, onEdit }: { label: string; value?: string; onEdit: () => void }) {
+function Line({ label, value, onEdit, disabled }: { label: string; value?: React.ReactNode; onEdit: () => void; disabled?: boolean }) {
   return (
     <div className="flex items-center gap-2">
       <span className="flex items-center gap-2 text-[16px] leading-[1.5] tracking-[0.2px] whitespace-nowrap text-ink">
         <span className="font-semibold">{label}</span>
         {value && <span>{value}</span>}
       </span>
-      <EditButton onClick={onEdit} />
+      <EditButton label={label} onClick={onEdit} disabled={disabled} />
     </div>
+  );
+}
+
+/** A Review section: its preview with a pencil, or — while editing — its fields with Cancel / Save. */
+function ReviewItem({
+  label,
+  value,
+  heading,
+  children,
+  editor,
+  error,
+  editing,
+  locked,
+  canSave,
+  onEdit,
+  onSave,
+  onCancel,
+}: {
+  label: string;
+  value?: React.ReactNode;
+  /** Replaces the label line in preview (the role title shows as the big heading). */
+  heading?: React.ReactNode;
+  children?: React.ReactNode;
+  editor: React.ReactNode;
+  /** Shown under the fields while editing, e.g. why Save is disabled. */
+  error?: string | null;
+  editing: boolean;
+  locked: boolean;
+  canSave: boolean;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  if (editing)
+    return (
+      <div
+        className="-mx-5 flex flex-col gap-4 rounded-xl border border-primary bg-accent-bg/40 p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && !e.defaultPrevented) onCancel();
+        }}
+      >
+        <span className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{label.replace(/:$/, "")}</span>
+        {editor}
+        {error && <p className="text-[12px] leading-[1.2] tracking-[0.2px] text-danger">{error}</p>}
+        <div className="flex justify-end gap-3">
+          <Button onClick={onCancel}>Cancel</Button>
+          <Button variant="primary" onClick={onSave} disabled={!canSave} title={canSave ? undefined : "This field can't be left empty"}>
+            Save
+          </Button>
+        </div>
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-4">
+      {heading ? (
+        <div className="flex items-center gap-2">
+          {heading}
+          <EditButton label={label} onClick={onEdit} disabled={locked} />
+        </div>
+      ) : (
+        <Line label={label} value={value} onEdit={onEdit} disabled={locked} />
+      )}
+      {children}
+    </div>
+  );
+}
+
+function SkillChips({ skills, onRemove }: { skills: string[]; onRemove?: (skill: string) => void }) {
+  if (skills.length === 0) return onRemove ? null : <span className="text-[14px] text-ink-2">No skills added.</span>;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {skills.map((s) => (
+        <Chip key={s} size="sm" onRemove={onRemove && (() => onRemove(s))}>
+          {s}
+        </Chip>
+      ))}
+    </div>
+  );
+}
+
+function Counter({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex h-11 w-max items-center overflow-hidden rounded-lg border border-border bg-white">
+      <button type="button" aria-label="Fewer" onClick={() => onChange(Math.max(1, value - 1))} className="flex size-11 items-center justify-center text-ink">
+        <MdRemove size={18} aria-hidden />
+      </button>
+      <span className="flex h-11 w-16 items-center justify-center border-x border-border text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{value}</span>
+      <button type="button" aria-label="More" onClick={() => onChange(value + 1)} className="flex size-11 items-center justify-center text-ink">
+        <MdAdd size={18} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/** TB-024 benefit rows: a checkbox per benefit, its monthly amount enabled once ticked. */
+function BenefitsEditor({ value, onChange }: { value: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
+  return (
+    <>
+      {BENEFITS.map((b) => {
+        const on = b in value;
+        return (
+          <div key={b} className="flex w-[533px] items-center gap-4">
+            <label className="flex flex-1 items-center gap-3 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
+              <input
+                type="checkbox"
+                checked={on}
+                onChange={() => {
+                  const next = { ...value };
+                  if (on) delete next[b];
+                  else next[b] = "";
+                  onChange(next);
+                }}
+                className="size-5 shrink-0 accent-primary"
+              />
+              {b}
+            </label>
+            <Money label="" value={value[b] ?? ""} onChange={(v) => onChange({ ...value, [b]: v })} disabled={!on} />
+            <span className="flex h-12 w-[51px] items-center text-[14px] leading-[1.5] tracking-[0.2px] text-ink-2">/month</span>
+          </div>
+        );
+      })}
+    </>
   );
 }
 

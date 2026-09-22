@@ -322,3 +322,108 @@ export function KebabMenu({
     </>
   );
 }
+
+/**
+ * Type-to-filter skill picker: suggests from `options`, lets a typed skill be added when nothing
+ * matches, and hides skills already picked. Picking one closes the list; typing or clicking the
+ * input reopens it. Focus stays in the input (combobox pattern).
+ */
+export function SkillPicker({
+  options,
+  value,
+  onChange,
+  max = 5,
+  placeholder = "Search skills",
+}: {
+  options: readonly string[];
+  value: string[];
+  onChange: (next: string[]) => void;
+  max?: number;
+  placeholder?: string;
+}) {
+  const Chevron = ICONS.chevron;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const menuId = useId();
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+
+  const q = query.trim();
+  const taken = new Set(value.map((s) => s.toLowerCase()));
+  const matches = options.filter((s) => !taken.has(s.toLowerCase()) && s.toLowerCase().includes(q.toLowerCase()));
+  const exact = options.some((s) => s.toLowerCase() === q.toLowerCase());
+  const items = q && !exact && !taken.has(q.toLowerCase()) ? [...matches, q] : matches;
+  const full = value.length >= max;
+
+  const add = (skill: string) => {
+    if (full || taken.has(skill.toLowerCase())) return;
+    onChange([...value, skill]);
+    setQuery("");
+    setHighlighted(0);
+    setOpen(false);
+  };
+
+  return (
+    <span className="relative block">
+      <input
+        ref={inputRef}
+        role="combobox"
+        aria-expanded={open && items.length > 0}
+        aria-controls={open ? menuId : undefined}
+        aria-autocomplete="list"
+        aria-activedescendant={open && items[highlighted] ? `${menuId}-${highlighted}` : undefined}
+        value={query}
+        disabled={full}
+        placeholder={full ? `${max} skills selected` : placeholder}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setHighlighted(0);
+          setOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            setOpen(true);
+            if (items.length) setHighlighted((h) => (h + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length);
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (open && items[highlighted]) add(items[highlighted]);
+          } else if (e.key === "Backspace" && !query && value.length) {
+            onChange(value.slice(0, -1));
+          } else if (e.key === "Tab") {
+            setOpen(false);
+          }
+        }}
+        className={`${FORM_CONTROL} pr-11`}
+      />
+      <Chevron size={24} aria-hidden className="pointer-events-none absolute top-2.5 right-4 text-ink" />
+      <FloatingMenu open={open && !full && items.length > 0} anchorRef={inputRef} onClose={() => setOpen(false)} role="listbox" itemCount={items.length} id={menuId}>
+        {items.map((skill, index) => {
+          const custom = index === matches.length;
+          return (
+            <div
+              key={custom ? `custom:${skill}` : skill}
+              id={`${menuId}-${index}`}
+              role="option"
+              aria-selected={index === highlighted}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setHighlighted(index)}
+              onClick={() => add(skill)}
+              className={`flex w-full cursor-pointer items-center px-3 py-2 ${index === highlighted ? "bg-surface-alt" : ""} text-ink`}
+            >
+              {custom ? (
+                <span>
+                  Add &ldquo;<span className="font-semibold">{skill}</span>&rdquo;
+                </span>
+              ) : (
+                skill
+              )}
+            </div>
+          );
+        })}
+      </FloatingMenu>
+    </span>
+  );
+}

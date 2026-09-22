@@ -99,6 +99,8 @@ export type Role = {
   skills: string[];
   expectation: string;
   attachment: string;
+  /** "How many to hire" from the wizard; roles saved before it was kept count as one. */
+  hires?: number;
   /** TB-024 exclusive benefits — full-time posts only, optional. */
   benefits?: { label: string; amount: string }[];
   /** Slug this draft was cloned from (TB-032); drafts made from scratch leave it unset. */
