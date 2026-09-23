@@ -18,6 +18,7 @@ export default async function IndependentProfile({ params }: PageProps<"/admin/u
       backLabel="Back to independent accounts"
       stats={account.stats}
       activity={account.activity}
+      disputes={{ party: "independent", slug: account.slug }}
     />
   );
 }

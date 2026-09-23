@@ -3,42 +3,41 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Breadcrumb, Button, Card, Chip, Field, Initials, Input, JobBadge, KebabMenu, LinkButton, MenuAction, Modal, ObjectiveRow, Page, Progress, Select, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Breadcrumb, Button, Card, Chip, Initials, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Stat, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
 import { ActivityLog } from "@/components/portal/ActivityLog";
+import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { TrialFitScore } from "@/components/team/TrialWidgets";
-import { move, PAIR, sendChat } from "@/lib/demo/live";
-import { COMPANIES, contractEvaluations, daysLeft, DISPUTE_REASONS, evaluation, objectiveStatus } from "@/lib/independent/data";
+import { useDeal } from "@/lib/demo/deal";
+import { dealContract, escrowLine, escrowOf, fileBlock, fileDispute, rateAmount, STATUS_TONE, useDisputes } from "@/lib/demo/disputes";
+import type { ContractRef } from "@/lib/demo/disputes";
+import { PAIR } from "@/lib/demo/live";
+import { COMPANIES, contractEvaluations, daysLeft, evaluation, objectiveStatus } from "@/lib/independent/data";
 import type { Contract, ContractEvaluation } from "@/lib/independent/data";
 import { FT_BENEFITS, OBJECTIVE_KIND } from "@/lib/team/data";
 import { useDemo } from "@/lib/independent/store";
+import { useQueryState } from "@/lib/portal/query-state";
+import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
-const Business = ICONS.business;
-const Messages = ICONS.messages;
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
 /** Figma "Contracts / Trial tracker · Full-time tracker · Update progress · Mark as done · Evaluation received": DM Sans 24 header + tabs. */
 export default function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, disputes, fileDispute, transactions } = useDemo();
+  const { contracts, transactions } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
   if (!contract) notFound();
-  const [tab, setTab] = useState<"objectives" | "contract" | "evaluation">("objectives");
+  // In the URL rather than state, so leaving from the Evaluation tab comes back to it.
+  const [tab, setTab] = useQueryState("tab", "objectives", ["objectives", "contract", "evaluation"] as const);
   const objectives = contract.objectives;
-  /** IN-037 — composing from the tracker, without leaving it. */
-  const [messaging, setMessaging] = useState(false);
-  const [message, setMessage] = useState("");
+  /** Messages opened on the thread with this contract's manager — only the live pair has one. */
+  const withReturn = useWithReturn();
+  const thread = withReturn(contract.manager === PAIR.team.name ? "/independent/messages?with=c1" : "/independent/messages");
   /** IN-059 — the dispute form: reason, description and amount are required, evidence is not. */
   const [filing, setFiling] = useState(false);
-  const [reason, setReason] = useState(DISPUTE_REASONS[0]);
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [evidence, setEvidence] = useState("");
   /** IN-049 — the company behind the contract, read-only. */
   const [companyOpen, setCompanyOpen] = useState(false);
-  const [menu, setMenu] = useState(false);
   const company = COMPANIES[contract.company];
   const [toast, setToast] = useToast();
   const isTrial = contract.type === "trial";
@@ -49,17 +48,32 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
   /** IN-076 — a dispute is only available once the trial is over; a full-time contract has no gate. */
   const ended = (left !== null && left <= 0) || contract.status.label === "Ended" || contract.status.label === "Evaluation received" || contract.status.label === "Contract complete";
   const canDispute = !isTrial || ended;
-  /** IN-032 — this contract's own transactions and its one dispute, if it has one. */
+  /** IN-032 — this contract's own transactions. */
   const payments = transactions.filter((t) => t.contract === contract.slug);
-  const dispute = disputes.find((d) => d.contract === contract.slug);
 
+  /**
+   * IN-032 / IN-059 — disputes are one record per contract that the Team Builder and Admin read too
+   * (@/lib/demo/disputes), so this tab shows theirs as well as the independent's own.
+   */
+  const deal = useDeal();
+  const allDisputes = useDisputes();
+  const liveRef = dealContract(deal);
+  const onDeal = !!liveRef && liveRef.links.independent === contract.slug;
+  const ref: ContractRef = onDeal ? liveRef : { key: `ind:${contract.slug}`, links: { team: contract.slug, independent: contract.slug }, title: contract.title, type: contract.type, rate: contract.rate, started: contract.started, ends: contract.ends };
+  const escrow = onDeal ? escrowOf(deal, allDisputes) : null;
+  const here = allDisputes.filter((d) => d.contract === ref.key);
+  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "independent", escrow);
+  const flow = useDisputeFlow("independent", setToast);
+  const fileHint = !canDispute ? `Available once the trial ends on ${contract.ends}` : block === "settled" ? "Nothing is left in escrow on this contract" : undefined;
 
   const contractRows = (
     [
       ["Rate", contract.rate],
       [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
-      ["Escrow", isTrial ? `${contract.rate.replace(" /month", "")} ${ended ? "released" : "held"} since ${contract.started}` : "Not used on a full-time contract"],
-      ["Payout", ended ? "Paid to Maya ····4471" : isTrial ? "Released at trial end on approval, to Maya ····4471" : "Released at the end of each month, to Maya ····4471"],
+      // It used to say "released" as soon as the trial dates passed, whether or not the Team
+      // Builder had released anything — the exact case a dispute is for.
+      ["Escrow", isTrial ? (escrow ? escrowLine(escrow, contract.started, { releasedTo: "you", refundedTo: contract.company }) : `${contract.rate.replace(" /month", "")} held since ${contract.started}`) : "Not used on a full-time contract"],
+      ["Payout", (escrow?.released ?? 0) > 0 ? "Paid to Maya ····4471" : isTrial ? "Released at trial end on approval, to Maya ····4471" : "Released at the end of each month, to Maya ····4471"],
     ] as const
   ).map(([k, v]) => (
     <div key={k} className="flex gap-2.5 leading-[1.45]">
@@ -88,18 +102,22 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
         />
       }
       nav={
-        <Breadcrumb
-          items={[
-            { label: "All contracts", href: "/independent/contracts" },
-            `${contract.title} — ${contract.company}`,
-            ...(tab === "evaluation" ? ["Evaluation"] : tab === "contract" ? ["Contract & Payment"] : []),
-          ]}
+        <ReturnNav
+          fallback={
+            <Breadcrumb
+              items={[
+                { label: "All contracts", href: "/independent/contracts" },
+                `${contract.title} — ${contract.company}`,
+                ...(tab === "evaluation" ? ["Evaluation"] : tab === "contract" ? ["Contract & Payment"] : []),
+              ]}
+            />
+          }
         />
       }
     >
       {tab === "evaluation" ? (
         isTrial ? (
-          <Evaluation ready={evaluationReady} company={contract.company} contract={contract} />
+          <Evaluation ready={evaluationReady} company={contract.company} contract={contract} thread={thread} />
         ) : (
           <OngoingEvaluations entries={contractEvaluations[contract.slug] ?? []} contract={contract} />
         )
@@ -111,9 +129,17 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
               <Initials text={contract.initials} className="size-14 text-[14px]" />
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <p className="flex items-center gap-2">
-                  <span className="font-display text-[22px] leading-[1.5] font-semibold text-ink" style={DM}>
+                  {/* IN-049 — the company name opens its profile. It sat alone in a "⋯" menu, which hid
+                      the only action behind an icon and wrapped the label. */}
+                  <button
+                    type="button"
+                    onClick={() => setCompanyOpen(true)}
+                    title="View company profile"
+                    className="font-display text-[22px] leading-[1.5] font-semibold text-ink underline-offset-4 hover:text-primary hover:underline"
+                    style={DM}
+                  >
                     {contract.company}
-                  </span>
+                  </button>
                   <JobBadge type={contract.type} />
                   <StatusDot tone={contract.status.tone}>{contract.status.label}</StatusDot>
                 </p>
@@ -122,33 +148,27 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {/* IN-037 — Send Message is here at all times and composes in place, without leaving the tracker. */}
-                <Button size="lg" onClick={() => setMessaging(true)}>
+                {/* IN-037 — always here. It opens the conversation itself, with its history and where
+                    the reply lands, rather than a compose box that hid both. */}
+                <LinkButton size="lg" href={thread}>
                   Message {contract.managerFirst}
-                </Button>
-                {/* IN-032 — hidden once a dispute exists; only one can be filed per contract. */}
-                {!dispute && (
-                  <Button
-                    size="lg"
-                    disabled={!canDispute}
-                    title={canDispute ? undefined : `Available once the trial ends on ${contract.ends}`}
-                    onClick={() => setFiling(true)}
-                  >
-                    File a dispute
+                </LinkButton>
+                {/* IN-032 — hidden once they have filed on this contract (one per contract). While any
+                    dispute is open on it, from either side, it opens that one instead. */}
+                {block === "open" && running ? (
+                  <Button size="lg" onClick={() => flow.view(running)}>
+                    View dispute
                   </Button>
+                ) : (
+                  block !== "filed" && (
+                    <Button size="lg" disabled={!canDispute || !!block} title={fileHint} onClick={() => setFiling(true)}>
+                      File a dispute
+                    </Button>
+                  )
                 )}
                 <LinkButton size="lg" variant="primary" href={`/independent/contracts/${contract.slug}/objectives/${(objectives.find((o) => o.status !== "complete") ?? objectives[0]).id}`}>
                   Update progress
                 </LinkButton>
-                {/* IN-049 — this was a dead icon; it now opens the company behind the contract. */}
-                <KebabMenu label="Contract actions" open={menu} onOpenChange={setMenu} itemCount={2}>
-                  <MenuAction onClick={() => { setMenu(false); setCompanyOpen(true); }} icon={<Business size={18} aria-hidden />}>
-                    View company profile
-                  </MenuAction>
-                  <MenuAction onClick={() => { setMenu(false); setMessaging(true); }} icon={<Messages size={18} aria-hidden />}>
-                    Message {contract.managerFirst}
-                  </MenuAction>
-                </KebabMenu>
               </div>
             </div>
             <p className="flex gap-6 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">
@@ -212,8 +232,9 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                         <span className="w-[110px] shrink-0">Amount</span>
                         <span className="min-w-0 flex-1">Status</span>
                       </div>
-                      {payments.map((t) => (
-                        <div key={t.date + t.desc} className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[13px] leading-[1.4] text-ink">
+                      {/* Two payments can share a date and description (a dispute release, then End Contract). */}
+                      {payments.map((t, i) => (
+                        <div key={`${i}-${t.date}-${t.desc}-${t.amount}`} className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[13px] leading-[1.4] text-ink">
                           <span className="w-[110px] shrink-0">{t.date}</span>
                           <span className="w-[150px] shrink-0">
                             <Chip size="sm">{t.type}</Chip>
@@ -228,41 +249,24 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                   )}
                 </PanelCard>
 
-                {/* IN-032 — a filed dispute lives on this tab; only one can exist per contract. */}
-                {dispute ? (
-                  <PanelCard title="Dispute" aside={<StatusDot tone={dispute.status.tone}>{dispute.status.label}</StatusDot>}>
-                    <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
-                      <div className="flex gap-2">
-                        <dt className="w-24 shrink-0 text-ink-2">Date filed</dt>
-                        <dd className="text-ink">{dispute.filed}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-24 shrink-0 text-ink-2">Reason</dt>
-                        <dd className="text-ink">{dispute.reason}</dd>
-                      </div>
-                      <div className="flex gap-2">
-                        <dt className="w-24 shrink-0 text-ink-2">Amount</dt>
-                        <dd className="text-ink">{dispute.amount}</dd>
-                      </div>
-                    </dl>
-                    <p className="text-[13px] leading-[1.4] text-ink-2">{dispute.description}</p>
-                    {dispute.evidence && <p className="text-[12.5px] leading-[1.4] text-primary">Evidence: {dispute.evidence}</p>}
-                    {dispute.resolution && (
-                      <div className="flex flex-col gap-1 rounded-lg bg-surface-2 px-4 py-3 leading-[1.4]">
-                        <p className="text-[13px] font-semibold text-ink">{dispute.resolution.outcome}</p>
-                        <p className="text-[12.5px] text-ink-2">{dispute.resolution.notes}</p>
-                      </div>
-                    )}
-                    <p className="text-[12.5px] leading-[1.4] text-ink-2">One dispute can be filed per contract, so there is nothing more to raise here.</p>
+                {/* IN-032 / IN-046 — every dispute filed for this contract lives on this tab, the
+                    company's included: date filed, reason and current status, and the detail
+                    behind View. */}
+                {here.length > 0 ? (
+                  <PanelCard title={here.length === 1 ? "Dispute" : "Disputes"} aside={here.length === 1 ? <StatusDot tone={STATUS_TONE[here[0].status]}>{here[0].status}</StatusDot> : undefined}>
+                    <DisputeRows disputes={here} side="independent" onView={flow.view} />
+                    {block === "filed" && <p className="text-[12.5px] leading-[1.4] text-ink-2">One dispute can be filed per contract, so there is nothing more to raise here.</p>}
                   </PanelCard>
                 ) : (
                   <PanelCard title="Something wrong with a payment?">
                     <p className="text-[13px] leading-[1.4] text-ink-2">
-                      {canDispute
-                        ? "Hireable support reviews the contract, the approved objectives and the escrow record. You can file one dispute per contract."
-                        : `A dispute can be filed once the trial ends on ${contract.ends}. Until then, raise anything unexpected with ${contract.managerFirst} in Messages.`}
+                      {!canDispute
+                        ? `A dispute can be filed once the trial ends on ${contract.ends}. Until then, raise anything unexpected with ${contract.managerFirst} in Messages.`
+                        : block === "settled"
+                          ? "Nothing is left in escrow on this contract, so there is no payment left to dispute."
+                          : "Hireable support reviews the contract, the approved objectives and the escrow record, and the amount stays in escrow until they rule. You can file one dispute per contract."}
                     </p>
-                    <Button size="lg" className="self-start" variant="primary" disabled={!canDispute} title={canDispute ? undefined : `Available once the trial ends on ${contract.ends}`} onClick={() => setFiling(true)}>
+                    <Button size="lg" className="self-start" variant="primary" disabled={!canDispute || !!block} title={fileHint} onClick={() => setFiling(true)}>
                       File a dispute
                     </Button>
                   </PanelCard>
@@ -340,39 +344,6 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
       )}
 
 
-      {/* IN-037 — the Team Builder is already the recipient; an empty message cannot be sent. */}
-      <Modal
-        open={messaging}
-        onClose={() => setMessaging(false)}
-        title={`Message ${contract.manager}`}
-        description={`${contract.company} · about your ${contract.title} contract. It lands in your conversation with ${contract.managerFirst}.`}
-        footer={
-          <>
-            <LinkButton size="lg" href="/independent/messages">
-              Open full conversation
-            </LinkButton>
-            <Button
-              size="lg"
-              variant="primary"
-              disabled={!message.trim()}
-              onClick={() => {
-                // Only the demo pair has a live thread; anyone else just gets the confirmation.
-                if (contract.manager === PAIR.team.name) sendChat("independent", message);
-                setMessage("");
-                setMessaging(false);
-                setToast(`Message sent to ${contract.managerFirst}`);
-              }}
-            >
-              Send
-            </Button>
-          </>
-        }
-      >
-        <Field label="Message">
-          <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={`Ask ${contract.managerFirst} about an objective, a payment or the trial itself.`} />
-        </Field>
-      </Modal>
-
       {/* IN-049 — the company behind the contract: logo, name, description, industry, location,
           URL and its work-style badges. Read-only; nothing here is the independent's to change. */}
       <Modal open={companyOpen} onClose={() => setCompanyOpen(false)} title={company?.name ?? contract.company} description="Read-only — how this company describes itself and how it likes to work.">
@@ -409,63 +380,23 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
         </div>
       </Modal>
 
-      {/* IN-059 — reason, description and amount are required; evidence is optional. Filing sends
-          it to Hireable for a process check, tells the Team Builder, and closes the button for good. */}
-      <Modal
+      {/* IN-059 — the shared form: a reason must be chosen, and the amount has to be a real sum no
+          bigger than what is at stake. Filing sends it to Hireable's queue and tells the Team Builder. */}
+      <DisputeForm
         open={filing}
         onClose={() => setFiling(false)}
         title="File a dispute"
-        description={`Hireable support checks the process on the ${contract.title} contract — the approved objectives, the escrow record and the dates. You can file one dispute per contract.`}
-        footer={
-          <>
-            <Button size="lg" onClick={() => setFiling(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="lg"
-              variant="danger"
-              disabled={!description.trim() || !amount.trim()}
-              onClick={() => {
-                fileDispute({
-                  id: `d-${Date.now()}`,
-                  contract: contract.slug,
-                  filed: "Today",
-                  reason,
-                  description: description.trim(),
-                  amount: `$${Number(amount.replace(/[^0-9.]/g, "")).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-                  evidence: evidence.trim() || undefined,
-                  status: { label: "Pending review", tone: "warn" },
-                });
-                if (contract.manager === PAIR.team.name) move("dispute_raised", { slug: contract.slug, title: contract.title });
-                setFiling(false);
-                setDescription("");
-                setAmount("");
-                setEvidence("");
-                setTab("contract");
-                setToast("Dispute filed — Hireable support is reviewing it");
-              }}
-            >
-              File dispute
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <Field label="Reason">
-            <Select options={DISPUTE_REASONS} value={reason} onChange={(e) => setReason(e.target.value)} />
-          </Field>
-          <Field label="What happened?">
-            <Textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Dates, what was agreed and what was delivered. Support reads this first." />
-          </Field>
-          <Field label="Amount in question" hint={`The contract is ${contract.rate}`}>
-            <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="0.00" />
-          </Field>
-          <Field label="Supporting evidence (optional)">
-            <Input value={evidence} onChange={(e) => setEvidence(e.target.value)} placeholder="File name or link — a report, a thread, a screenshot" />
-          </Field>
-          {(!description.trim() || !amount.trim()) && <p className="text-[12.5px] leading-[1.4] text-ink-2">Add a description and the amount in question before filing.</p>}
-        </div>
-      </Modal>
+        description={`Hireable support checks the process on the ${contract.title} contract — the approved objectives, the escrow record and the dates. The amount stays in escrow until they rule, and you can file one dispute per contract.`}
+        cap={escrow ? escrow.held : rateAmount(contract.rate)}
+        capNote={escrow ? "what is still held in escrow" : `the contract rate, ${contract.rate}`}
+        onFile={(draft) => {
+          const filed = fileDispute({ ref, filedBy: "independent", ...draft });
+          setFiling(false);
+          setTab("contract");
+          setToast(filed ? `Dispute filed — Hireable support is reviewing it and ${contract.company} has been notified` : "A dispute is already open on this contract");
+        }}
+      />
+      {flow.modals}
 
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
@@ -516,7 +447,7 @@ function OngoingEvaluations({ entries, contract }: { entries: ContractEvaluation
 }
 
 /** Figma "Contracts / Evaluation received · view". */
-function Evaluation({ ready, company, contract }: { ready: boolean; company: string; contract: Contract }) {
+function Evaluation({ ready, company, contract, thread }: { ready: boolean; company: string; contract: Contract; thread: string }) {
   if (!ready) {
     return (
       <Card className="p-10 text-center">
@@ -575,7 +506,7 @@ function Evaluation({ ready, company, contract }: { ready: boolean; company: str
             <p className="rounded-md bg-[#fafafa] p-3 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">{evaluation.comments}</p>
           </div>
           <div className="flex justify-end">
-            <LinkButton size="lg" href="/independent/messages">
+            <LinkButton size="lg" href={thread}>
               Message {company}
             </LinkButton>
           </div>

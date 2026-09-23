@@ -6,6 +6,7 @@ import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "./ui";
 import { MATCH_TOOLTIP, matchFor } from "@/lib/independent/data";
 import type { Role } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
+import { useWithReturn } from "@/components/portal/return";
 
 const Bookmark = ICONS.saved;
 const Bookmarked = ICONS.bookmark;
@@ -16,6 +17,9 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
   const isSaved = saved.includes(role.slug);
   const application = applications.find((a) => a.roleSlug === role.slug);
   const withdrawn = withdrawnRoleSlugs.includes(role.slug);
+  const withReturn = useWithReturn();
+  /** From Saved roles the next page leads back there; from Discover the role page's own link already does. */
+  const out = (href: string) => (variant === "saved" ? withReturn(href) : href);
   const meta =
     variant === "saved"
       ? `${role.rate} · ${role.level} · ${role.savedAgo} · ${role.closes}`
@@ -28,7 +32,7 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
         <Initials text={role.initials} />
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <Link href={`/independent/jobs/${role.slug}`} className="text-[18px] leading-[1.4] font-semibold text-ink hover:text-primary">
+            <Link href={out(`/independent/jobs/${role.slug}`)} className="text-[18px] leading-[1.4] font-semibold text-ink hover:text-primary">
               {role.title}
             </Link>
             <JobBadge type={role.type} />
@@ -49,7 +53,7 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
               {/* A saved role that has already been applied to opens that application; it used to
                   keep offering "Apply", which just landed on the role page. */}
               {application ? (
-                <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${application.id}`}>
+                <LinkButton size="sm" variant="primary" href={out(`/independent/jobs/applications/${application.id}`)}>
                   View application
                 </LinkButton>
               ) : withdrawn || role.filled ? (
@@ -57,7 +61,7 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
                   {withdrawn ? "Withdrawn" : "Position filled"}
                 </Button>
               ) : (
-                <LinkButton size="sm" variant="primary" href={`/independent/jobs/${role.slug}?apply=1`}>
+                <LinkButton size="sm" variant="primary" href={out(`/independent/jobs/${role.slug}?apply=1`)}>
                   Apply
                 </LinkButton>
               )}

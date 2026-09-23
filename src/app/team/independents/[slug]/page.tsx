@@ -1,18 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { notFound, useSearchParams } from "next/navigation";
+import { notFound } from "next/navigation";
 import { Suspense, use, useState } from "react";
 import { Breadcrumb, Button, Card, Field, InfoBanner, Input, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Select, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { Avatar, CardHeading } from "@/components/team/ui";
 import { TrialFitScore } from "@/components/team/TrialWidgets";
 import { ActivityLog } from "@/components/portal/ActivityLog";
+import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
-import { CONTRACT_NAMES, byName, FT_BENEFITS, isOffTrack, KEY_RESULTS, OBJECTIVE_KIND, REVISION_REASONS, transactions } from "@/lib/team/data";
-import { move, PAIR, recordPayment, sendChat } from "@/lib/demo/live";
+import { CONTRACT_NAMES, byName, FT_BENEFITS, isOffTrack, KEY_RESULTS, OBJECTIVE_KIND, REVISION_REASONS } from "@/lib/team/data";
+import { useDeal } from "@/lib/demo/deal";
+import { dealContract, escrowLine, escrowOf, fileBlock, fileDispute, holds, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
+import type { ContractRef } from "@/lib/demo/disputes";
+import { move, PAIR } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
 import type { Objective } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
+import { useQueryState } from "@/lib/portal/query-state";
+import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 const OBJ_STATUS: Record<Objective["status"], { label: string; tone: "warn" | "ok" | "trial"; bar: "primary" | "ok" | "warn" }> = {
@@ -37,14 +43,17 @@ export default function TrackerPage({ params }: { params: Promise<{ slug: string
  */
 function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, disputes, endContract, evaluations, addEvaluation, addDispute, addOffer, setObjectives: persistObjectives } = useDemo();
+  const { contracts, endContract, evaluations, addEvaluation, addOffer, transactions, setObjectives: persistObjectives } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
   if (!contract) notFound();
   const p = byName(contract.independent);
   const name = CONTRACT_NAMES[contract.slug] ?? p.name;
   const first = name.split(" ")[0];
-  const initialTab = useSearchParams().get("tab");
-  const [tab, setTab] = useState<"dashboard" | "contract" | "evaluation">(initialTab === "evaluation" ? "evaluation" : initialTab === "contract" ? "contract" : "dashboard");
+  /** Messages opened on this person's thread — only the live pair has one in the demo. */
+  const withReturn = useWithReturn();
+  const thread = withReturn(contract.independent === PAIR.independent.slug ? "/team/messages?with=juan" : "/team/messages");
+  // In the URL rather than state, so leaving from the Evaluation tab comes back to it.
+  const [tab, setTab] = useQueryState("tab", "dashboard", ["dashboard", "contract", "evaluation"] as const);
   const objectives = contract.objectives;
   const setObjectives = (fn: (os: Objective[]) => Objective[]) => persistObjectives(slug, fn);
   const [review, setReview] = useState<Objective | null>(null);
@@ -59,9 +68,6 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const [feedback, setFeedback] = useState("");
   const [recommendation, setRecommendation] = useState("");
   const [ending, setEnding] = useState(false);
-  const [messaging, setMessaging] = useState(false);
-  const [msg, setMsg] = useState("");
-  const [dispute, setDispute] = useState({ reason: "", description: "", amount: "", evidence: "" });
   /** Pre-filled from the trial rate so the offer starts from what they already earn. */
   const [ft, setFt] = useState({ salary: contract.rate.replace(/[^0-9.,]/g, ""), start: "", benefits: [] as string[] });
   /** TB-075 — the new objective being composed; what's required depends on its type. */
@@ -71,8 +77,6 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
     newObj.description.trim().length > 0 &&
     (newObj.type === "Manual" ? !!newObj.target : newObj.type === "Automatic" ? newObj.krs.length > 0 : true);
   const [disputing, setDisputing] = useState(false);
-  /** TB-093 — once a dispute on this contract is withdrawn, no new one can be filed for it. */
-  const withdrawnHere = disputes.some((d) => d.name === name && d.status.label === "Withdrawn");
   /** TB-110 / TB-111 — a reason is mandatory for anything that isn't an approval. */
   const [note, setNote] = useState("");
   const [reasonCode, setReasonCode] = useState("");
@@ -127,6 +131,39 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const pending = objectives.filter((o) => o.status === "pending").length;
 
   /**
+   * TB-073 / TB-118 / TB-093 — a dispute is one record per contract that the independent and Admin
+   * read too (@/lib/demo/disputes), so this tracker sees theirs as well, and the amount a dispute
+   * holds stays in escrow until support rules.
+   */
+  const deal = useDeal();
+  const allDisputes = useDisputes();
+  const liveRef = dealContract(deal);
+  const onDeal = !!liveRef && liveRef.links.team === contract.slug;
+  const ref: ContractRef = onDeal ? liveRef : { key: `team:${contract.slug}`, links: { team: contract.slug, independent: contract.slug }, title: contract.role, type: contract.type, rate: contract.rate, started: contract.started, ends: contract.ends };
+  const escrow = onDeal ? escrowOf(deal, allDisputes) : null;
+  const here = allDisputes.filter((d) => d.contract === ref.key);
+  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "team", escrow);
+  /** TB-073 — on a trial, filing opens once it ends; TB-058 keeps the button in view before that. */
+  const trialOver = !isTrial || (left !== null && left <= 0) || contract.status.label === "Ended";
+  const fileHint = !trialOver ? `Available once the trial ends on ${contract.ends}` : block === "withdrawn" ? "You withdrew a dispute on this contract, so it can't be disputed again" : block === "settled" ? "Nothing is left in escrow on this contract" : undefined;
+  const flow = useDisputeFlow("team", setToast);
+  /** One button everywhere it appears: file one, open the one already running, or say why not. */
+  const disputeButton = (size: "md" | "lg") =>
+    block === "open" && running ? (
+      <Button size={size} onClick={() => flow.view(running)}>
+        View dispute
+      </Button>
+    ) : (
+      <Button size={size} disabled={!trialOver || !!block} title={fileHint} onClick={() => setDisputing(true)}>
+        {block === "withdrawn" ? "Dispute withdrawn" : "File a Dispute"}
+      </Button>
+    );
+  /** TB-071 — End Contract can't release money a dispute is holding. */
+  const endBlocked = here.some(holds);
+  const contractEnded = contract.status.label === "Ended";
+  const escrowText = isTrial ? (escrow ? escrowLine(escrow, contract.started, { releasedTo: first, refundedTo: "you" }) : `Held since ${contract.started}`) : null;
+
+  /**
    * TB-109 / TB-110 / TB-111 — the three verdicts differ in more than wording:
    *   approve  → Achieved, retired from the activity tracker, streak keeps running
    *   reject   → back to Active and still feeding the tracker; a reason is required
@@ -179,17 +216,18 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
           ]}
         />
       }
-      nav={<Breadcrumb items={[{ label: "All independents", href: "/team/independents" }, name]} />}
+      nav={<ReturnNav fallback={<Breadcrumb items={[{ label: "All independents", href: "/team/independents" }, name]} />} />}
       /* TB-058: both stay in the header at every tab and stage of the trial. */
       navActions={
         <>
-          <Button size="md" onClick={() => setMessaging(true)}>
-            Send Message
-          </Button>
-          {/* TB-093 — withdrawing a dispute closes the door on this contract; you can't refile. */}
-          <Button size="md" disabled={withdrawnHere} onClick={() => setDisputing(true)}>
-            {withdrawnHere ? "Dispute withdrawn" : "File a Dispute"}
-          </Button>
+          {/* TB-058 keeps messaging in the header on every tab. It goes to the conversation itself,
+              where the history is and where the reply arrives — this used to open a separate
+              compose box, beside a second "Message" button that navigated instead. */}
+          <LinkButton size="md" href={thread}>
+            Message {first}
+          </LinkButton>
+          {/* TB-058 keeps it in the header; TB-073 opens it at trial end; TB-093 closes it after a withdrawal. */}
+          {disputeButton("md")}
         </>
       }
     >
@@ -237,7 +275,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 [
                   ["Agreed budget", contract.rate],
                   ["Payment schedule", isTrial ? "Held in escrow, released at trial end" : "Monthly, on the 1st"],
-                  ["Escrow status", isTrial ? `Held since ${contract.started}` : "Not applicable to full-time"],
+                  ["Escrow status", escrowText ?? "Not applicable to full-time"],
                   ...(isTrial ? ([["Trial duration", `${contract.started} – ${contract.ends}`]] as const) : []),
                 ] as const
               ).map(([k, v]) => (
@@ -267,6 +305,22 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   </li>
                 ))}
               </ul>
+            )}
+          </Card>
+          {/* IN-032's rule from this side too: every dispute on this contract, whoever filed it. */}
+          <Card className="flex flex-col gap-3 p-5">
+            <div className="flex items-center justify-between gap-4">
+              <CardHeading>Disputes</CardHeading>
+              {disputeButton("md")}
+            </div>
+            {here.length === 0 ? (
+              <p className="text-[13px] leading-[1.4] text-ink-2">
+                {trialOver
+                  ? "No disputes on this contract. If a payment or the agreed process went wrong, file one — the amount in question stays in escrow while Hireable support reviews it."
+                  : `No disputes. Filing opens when the trial ends on ${contract.ends}; until then, raise anything with ${first} in Messages.`}
+              </p>
+            ) : (
+              <DisputeRows disputes={here} side="team" onView={flow.view} />
             )}
           </Card>
         </div>
@@ -316,9 +370,15 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               <div className="flex flex-wrap justify-end gap-3">
                 {isTrial && submitted ? (
                   <>
-                    {/* TB-071 / TB-072 unlock only once the evaluation is on file. */}
-                    <Button size="lg" onClick={() => setEnding(true)}>
-                      End contract
+                    {endBlocked && !contractEnded && (
+                      <p className="w-full text-right text-[13px] leading-[1.4] text-ink-2">
+                        A dispute on this contract is holding {usd(escrow?.onHold ?? 0)} in escrow. You can end the contract once Hireable support has ruled on it.
+                      </p>
+                    )}
+                    {/* TB-071 / TB-072 unlock only once the evaluation is on file — and ending
+                        waits for any dispute, since the escrow it would release is on hold. */}
+                    <Button size="lg" disabled={endBlocked || contractEnded} title={endBlocked ? "A dispute is holding the escrow" : undefined} onClick={() => setEnding(true)}>
+                      {contractEnded ? "Contract ended" : "End contract"}
                     </Button>
                     <Button size="lg" variant="primary" onClick={() => setConverting(true)}>
                       Hire for full-time
@@ -438,9 +498,6 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 <p className="text-[14px] leading-[1.4] text-ink-2">{contract.role}</p>
               </div>
               <div className="flex items-center gap-2">
-                <LinkButton size="lg" href="/team/messages">
-                  Message {first}
-                </LinkButton>
                 <Button size="lg" variant="primary" onClick={() => (pending ? setReview(objectives.find((o) => o.status === "pending") ?? null) : setTab("evaluation"))}>
                   {pending ? "Review update" : "Send evaluation"}
                 </Button>
@@ -543,7 +600,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   [
                     ["Rate", contract.rate],
                     [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
-                    ["Escrow", `${isTrial ? "$1,600 held since" : "Charged monthly from"} ${contract.started}`],
+                    ["Escrow", escrowText ?? `Charged monthly from ${contract.started}`],
                     ["Payout", isTrial ? "Released at trial end on your approval" : "End of each month"],
                   ] as const
                 ).map(([k, v]) => (
@@ -553,9 +610,9 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   </div>
                 ))}
                 </div>
-                <Button size="lg" onClick={() => setToast("Dispute form opens in Messages with Hireable support")}>
-                  Raise a dispute
-                </Button>
+                {/* It used to show a toast about a Messages form that doesn't exist; it is the same
+                    dispute button as the header now. */}
+                {disputeButton("lg")}
               </PanelCard>
             </aside>
           </div>
@@ -705,77 +762,55 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
           </Field>
         </div>
       </Modal>
-      {/* TB-073 — reason, description and amount are required; evidence is optional. */}
-      <Modal
+      {/* TB-073 / TB-118 — the shared form: a reason must be chosen, and the amount has to be a
+          real sum no bigger than what the escrow still holds. */}
+      <DisputeForm
         open={disputing}
         onClose={() => setDisputing(false)}
-        tone="danger"
         title={`File a dispute about ${name}`}
-        description="Hireable support reviews the contract, the objective history and any escrow held. Both sides are notified."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setDisputing(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="lg"
-              variant="danger"
-              disabled={!dispute.reason || !dispute.description.trim() || !dispute.amount.trim()}
-              onClick={() => {
-                addDispute({ id: `d${Date.now()}`, name, role: contract.role, avatar: p.avatar, contract: `${contract.role} — ${isTrial ? "trial" : "full-time"}`, filed: "Today", amount: `$${dispute.amount}`, reason: dispute.reason, description: dispute.description.trim(), evidence: dispute.evidence.trim() || undefined, status: { label: "Pending review", tone: "warn" }, open: true });
-                signalObjective("dispute_filed");
-                setDisputing(false);
-                setDispute({ reason: "", description: "", amount: "", evidence: "" });
-                setToast("Dispute filed — Hireable support is reviewing it");
-              }}
-            >
-              File dispute
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <Field label="Reason">
-            <Select options={["Select a reason", "Not delivered", "No evidence", "Ended early", "Out of scope"]} value={dispute.reason || "Select a reason"} onChange={(e) => setDispute((d) => ({ ...d, reason: e.target.value === "Select a reason" ? "" : e.target.value }))} />
-          </Field>
-          <Field label="Description">
-            <Textarea rows={3} className="h-[78px]" value={dispute.description} onChange={(e) => setDispute((d) => ({ ...d, description: e.target.value }))} placeholder="What happened, and what you expected instead" />
-          </Field>
-          <Field label="Amount in question (USD)">
-            <Input value={dispute.amount} inputMode="decimal" onChange={(e) => setDispute((d) => ({ ...d, amount: e.target.value.replace(/[^0-9.,]/g, "") }))} placeholder="1,600.00" />
-          </Field>
-          <Field label="Supporting evidence (optional)">
-            <Input value={dispute.evidence} onChange={(e) => setDispute((d) => ({ ...d, evidence: e.target.value }))} placeholder="Link to a document, recording or screenshot" />
-          </Field>
-        </div>
-      </Modal>
+        description="Hireable support reviews the contract, the objective history and the escrow record — the process, not the quality of the work. The amount in question stays in escrow until they rule, and both sides are notified."
+        cap={escrow ? escrow.held : rateAmount(contract.rate)}
+        capNote={escrow ? "what is still held in escrow" : "the contract rate"}
+        onFile={(draft) => {
+          const filed = fileDispute({ ref, filedBy: "team", ...draft });
+          setDisputing(false);
+          setToast(filed ? "Dispute filed — Hireable support is reviewing it and has notified " + first : "A dispute is already open on this contract");
+        }}
+      />
 
-      {/* TB-071 — ending releases escrow and moves the contract to inactive. */}
+      {/* TB-071 — ending releases what escrow still holds and moves the contract to inactive. */}
       <Modal
         open={ending}
         onClose={() => setEnding(false)}
         tone="danger"
         title={`End the contract with ${name}?`}
-        description={`The escrowed payment is released to ${first} and the contract moves to your inactive list. Filing a dispute instead keeps the funds held while support reviews it.`}
+        description={`${escrow ? `${usd(escrow.held)} still in escrow is released` : "The escrowed payment is released"} to ${first} and the contract moves to your inactive list. Filing a dispute instead keeps the funds held while support reviews it.`}
         footer={
           <>
             <Button size="lg" onClick={() => setEnding(false)}>
               Cancel
             </Button>
-            <Button size="lg" onClick={() => { setEnding(false); setDisputing(true); }}>
-              File a dispute instead
-            </Button>
+            {!block && trialOver && (
+              <Button
+                size="lg"
+                onClick={() => {
+                  setEnding(false);
+                  setDisputing(true);
+                }}
+              >
+                File a dispute instead
+              </Button>
+            )}
             <Button
               size="lg"
               variant="danger"
               onClick={() => {
-                endContract(slug);
-                signalObjective("contract_ended");
-                // IN-051 — ending the contract is when the money actually moves, so record it
-                // against the ledger the independent reads, not just as a sentence in a feed.
-                if (contract.independent === PAIR.independent.slug) recordPayment({ contract: slug, title: contract.role, company: PAIR.team.company, amount: contract.rate.replace(" /month", ""), period: `${contract.started} – ${contract.ends}` });
+                const released = escrow?.held ?? 0;
+                const ended = endContract(slug);
                 setEnding(false);
-                setToast(`Contract ended — escrow released to ${first}`);
+                if (!ended) return setToast("A dispute is holding the escrow, so the contract can't end until Hireable support rules");
+                signalObjective("contract_ended");
+                setToast(released > 0 ? `Contract ended — ${usd(released)} released to ${first}` : "Contract ended");
               }}
             >
               End contract
@@ -784,37 +819,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
         }
       />
 
-      {/* TB-069 — compose without leaving the dashboard; empty messages can't be sent. */}
-      <Modal
-        open={messaging}
-        onClose={() => setMessaging(false)}
-        title={`Message ${first}`}
-        description="Goes straight to your thread in Messages."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setMessaging(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="lg"
-              variant="primary"
-              disabled={!msg.trim()}
-              onClick={() => {
-                sendChat("team", msg);
-                setMsg("");
-                setMessaging(false);
-                setToast(`Message sent to ${first}`);
-              }}
-            >
-              Send message
-            </Button>
-          </>
-        }
-      >
-        <Field label="Message">
-          <Textarea rows={3} className="h-[78px]" value={msg} onChange={(e) => setMsg(e.target.value)} placeholder={`Write to ${first}…`} />
-        </Field>
-      </Modal>
+      {flow.modals}
+
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

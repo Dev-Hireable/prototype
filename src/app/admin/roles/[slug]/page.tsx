@@ -22,6 +22,7 @@ export default async function RoleDetail({ params }: PageProps<"/admin/roles/[sl
 
   return (
     <AdminPage
+      nav={<BackLink href="/admin/roles">Back to all roles</BackLink>}
       title={role.role}
       actions={
         <>
@@ -30,7 +31,6 @@ export default async function RoleDetail({ params }: PageProps<"/admin/roles/[sl
         </>
       }
     >
-      <BackLink href="/admin/roles">Back to all roles</BackLink>
 
       <div className="flex flex-col gap-4">
         <StatGrid>

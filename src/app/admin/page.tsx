@@ -1,7 +1,7 @@
 import { BarChart, Donut, Legend } from "@/components/admin/charts";
-import { AdminPage, Badge, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { NeedsAttention } from "@/components/admin/NeedsAttention";
+import { AdminPage, StatCard, StatGrid } from "@/components/admin/ui";
 import { needsAttention, platformStats, signups, trialOutcomes } from "@/lib/admin/data/home";
-import type { AttentionItem } from "@/lib/admin/data/home";
 
 export default function AdminDashboard() {
   return (
@@ -32,18 +32,7 @@ export default function AdminDashboard() {
         </section>
       </div>
 
-      <DataTable<AttentionItem>
-        caption="Needs attention"
-        rows={needsAttention}
-        rowHref={(r) => r.href}
-        columns={[
-          { header: "Item", cell: (r) => r.item },
-          { header: "Type", cell: (r) => r.type, width: 150 },
-          { header: "Raised by", cell: (r) => r.raisedBy, width: 200 },
-          { header: "Age", cell: (r) => r.age, width: 110 },
-          { header: "Status", cell: (r) => <Badge tone={r.tone}>{r.status}</Badge>, width: 140 },
-        ]}
-      />
+      <NeedsAttention items={needsAttention} />
     </AdminPage>
   );
 }

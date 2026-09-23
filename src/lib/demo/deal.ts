@@ -56,6 +56,12 @@ export type Deal = {
     /** Set once the Team Builder submits their evaluation (TB-067 / IN-034). */
     evaluation?: { stars: number; feedback: string; recommendation: string; date: string };
     ended?: boolean;
+    /**
+     * What has left escrow so far. The trial rate is deposited at acceptance; End Contract
+     * (TB-071) releases what is still held, and a dispute ruling (AD-034 / AD-035) can release
+     * or refund part of it first. Absent means nothing has moved yet.
+     */
+    escrow?: { released: number; refunded: number };
   };
 };
 
@@ -112,7 +118,10 @@ const CHATTABLE: Stage[] = ["invited", "invite_accepted", "interviewed", "propos
  * IN-006 — the talent can only message a company once it has invited them to interview. Before
  * that there is no thread to open, on either side.
  */
-export const canMessage = (deal: Deal | null) => !!deal && CHATTABLE.includes(stageOf(deal));
+export const canMessage = (deal: Deal | null) => !!deal && stageCanMessage(stageOf(deal));
+
+/** The same rule for any tracker card: no thread while they're only a candidate or a match. */
+export const stageCanMessage = (stage: Stage) => CHATTABLE.includes(stage);
 
 type State = { deal: Deal | null; postings: Posting[] };
 
@@ -227,6 +236,15 @@ export function updateDeal(patch: (deal: Deal) => Deal) {
   ensureLoaded();
   if (!snapshot.deal) return;
   write({ ...snapshot, deal: patch(snapshot.deal) });
+}
+
+/** Money leaving the trial's escrow — released to the talent or refunded to the Team Builder. */
+export function settleEscrow(delta: { released?: number; refunded?: number }) {
+  updateDeal((d) => {
+    if (!d.contract) return d;
+    const was = d.contract.escrow ?? { released: 0, refunded: 0 };
+    return { ...d, contract: { ...d.contract, escrow: { released: was.released + (delta.released ?? 0), refunded: was.refunded + (delta.refunded ?? 0) } } };
+  });
 }
 
 export function clearDeal() {

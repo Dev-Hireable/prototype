@@ -7,6 +7,7 @@ import { InviteModal } from "@/components/team/InviteModal";
 import { IndependentCard, Pagination, ProfileDrawer } from "@/components/team/ui";
 import { independents } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
+import { ReturnNav } from "@/components/portal/return";
 
 const NO_SKILL = SKILL_OPTIONS[0];
 const DEFAULT = { levels: new Set<string>(EXPERIENCE_LEVELS), min: "", max: "", skill: NO_SKILL as string };
@@ -60,7 +61,7 @@ export default function Discover() {
     });
 
   return (
-    <Page title="Discover independents">
+    <Page title="Discover independents" nav={<ReturnNav />}>
       <div className="flex items-start gap-6">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
           <SearchBox value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search by name, title or skill" />

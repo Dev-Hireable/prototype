@@ -66,7 +66,20 @@ export const fileMeta = (file: File) => `${file.name.split(".").pop()?.toUpperCa
  * platform, on a schedule) records it, and it has to appear in the independent's ledger straight
  * away, so it lives here rather than in either portal's own state.
  */
-export type LivePayment = { id: string; contract: string; title: string; company: string; amount: string; period: string; date: string; /** yyyymmdd, so the ledger can sort and filter by date. */ at: number };
+export type LivePayment = {
+  id: string;
+  /** The contract's slug on the independent's side — their contract tab lists its own rows. */
+  contract: string;
+  title: string;
+  company: string;
+  amount: string;
+  period: string;
+  date: string;
+  /** yyyymmdd, so the ledger can sort and filter by date. */
+  at: number;
+  /** Released to the independent (the default) or refunded to the Team Builder after a dispute ruling. */
+  kind?: "released" | "refunded";
+};
 
 export type Live = {
   team: TeamNote[];
@@ -168,9 +181,8 @@ export type MoveKind =
   | "evaluation_sent" // TB-067 Send Evaluation
   | "contract_ended" // TB-071 End Contract
   | "fulltime_offer" // TB-072 Hire for Full-Time
-  | "dispute_filed" // TB-073 File a Dispute
-  | "dispute_withdrawn" // TB-093 Withdraw Dispute
   | "objective_assigned" // TB-075 Create Objective
+  // Disputes (TB-073/093, IN-059/082) notify from @/lib/demo/disputes, which links to the dispute itself.
   | "applied" // IN-017 Apply to Role
   | "interview_accepted" // IN-070 Accept Interview Invitation
   | "proposal_sent" // IN-072 / IN-073 Submit or revise proposal
@@ -179,8 +191,6 @@ export type MoveKind =
   | "objective_update" // IN-026 Update Progress on an objective
   | "objective_done" // IN-077 Mark a default objective as done
   | "interview_declined" // IN-071 Decline an interview invitation
-  | "dispute_raised" // IN-059 File a Dispute
-  | "dispute_pulled" // IN-082 Withdraw Dispute
   | "withdrawn"; // IN — withdraw application
 
 const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) => string; body: (role: string) => string }> = {
@@ -256,18 +266,6 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     title: () => "Full-time offer received",
     body: (r) => `${PAIR.team.company} wants to take you on full-time for ${r}. Review the salary, benefits and start date.`,
   },
-  dispute_filed: {
-    to: "independent",
-    story: "TB-073",
-    title: () => "A dispute has been filed",
-    body: (r) => `${PAIR.team.company} raised a dispute on the ${r} contract. Hireable support is reviewing it and will be in touch.`,
-  },
-  dispute_withdrawn: {
-    to: "independent",
-    story: "TB-093",
-    title: () => "The dispute has been withdrawn",
-    body: (r) => `${PAIR.team.company} withdrew the dispute on the ${r} contract. The review has stopped and the held amount is released to you.`,
-  },
   objective_assigned: {
     to: "independent",
     story: "TB-075",
@@ -322,18 +320,6 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     title: () => `${PAIR.independent.name} declined the interview`,
     body: (r) => `They cannot make that slot for ${r}. Their application stays open — offer another time.`,
   },
-  dispute_raised: {
-    to: "team",
-    story: "IN-059",
-    title: () => `${PAIR.independent.name} filed a dispute`,
-    body: (r) => `A dispute was raised on the ${r} contract. Hireable support is checking the process; you can respond from Payments.`,
-  },
-  dispute_pulled: {
-    to: "team",
-    story: "IN-082",
-    title: () => `${PAIR.independent.name} withdrew their dispute`,
-    body: (r) => `The dispute on the ${r} contract has been pulled. Hireable support has stopped the process check.`,
-  },
   withdrawn: {
     to: "team",
     story: "IN",
@@ -347,21 +333,50 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
  * build, by email — the notification says so), and the row lands in their ledger immediately.
  */
 export function recordPayment(p: Omit<LivePayment, "id" | "date" | "at">) {
+  recordLedger(p);
+  notify("independent", {
+    title: "Payment recorded",
+    body: `${p.company} recorded ${p.amount} for ${p.title} — ${p.period}. A receipt has been emailed to you; the payment is in your earnings now.`,
+    href: "/independent/wallet",
+    kind: "payments",
+  });
+}
+
+/** The ledger row alone — for callers that write their own notification (dispute rulings). */
+export function recordLedger(p: Omit<LivePayment, "id" | "date" | "at">) {
   const now = new Date();
   const date = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   const at = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-  const payment: LivePayment = { ...p, id: uid(), date, at };
-  const note: IndNote = {
+  write({ ...snapshot, payments: [{ ...p, id: uid(), date, at }, ...snapshot.payments] });
+}
+
+/**
+ * A notification that isn't a pipeline movement, with its own destination — a dispute has to open
+ * the dispute, not the hiring tracker that MOVES points at.
+ */
+export function notify(
+  side: Side,
+  n: { title: string; body: string; href: string; label?: string; crumb?: string; avatar?: string; kind?: IndNote["kind"] & TeamNote["kind"] },
+) {
+  const kind = n.kind ?? "payments";
+  if (side === "independent") {
+    const note: IndNote = { id: uid(), group: "Today", title: n.title, body: n.body, time: clock(), unread: true, kind, href: n.href };
+    write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
+    return;
+  }
+  const note: TeamNote = {
     id: uid(),
     group: "Today",
-    title: "Payment recorded",
-    body: `${p.company} recorded ${p.amount} for ${p.title} — ${p.period}. A receipt has been emailed to you; the payment is in your earnings now.`,
-    time: clock(),
+    title: n.title,
+    crumb: n.crumb ?? "Payments",
+    body: n.body,
+    time: "Just now",
     unread: true,
-    kind: "payments",
-    href: "/independent/wallet",
+    kind,
+    avatar: n.avatar ?? PAIR.independent.avatar,
+    action: { label: n.label ?? "Open", href: n.href, primary: true },
   };
-  write({ ...snapshot, payments: [payment, ...snapshot.payments], independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
+  write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
 }
 
 /** Record a movement. Emits the notification the spec says the OTHER side should get. */

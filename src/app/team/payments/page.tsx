@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Chip, EmptyState, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, EmptyState, LinkButton, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { Drawer, Row, Table, Toolbar } from "@/components/team/ui";
-import { transactions } from "@/lib/team/data";
 import type { Transaction } from "@/lib/team/data";
+import { useDemo } from "@/lib/team/store";
 
 /** Figma columns: Date 110 · Description flex · Independent 150 · Type 130 · Amount 110 · Status 132 · Actions 80. */
 const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[130px]", "w-[110px]", "w-[132px]", "w-[80px]"];
@@ -15,8 +15,11 @@ const RANGES = { "All time": Infinity, "Last 30 days": 30, "Last 90 days": 90 } 
 /** A screenful of ledger rows. Not tuned to force a second page out of six transactions — the
  * pager hides itself when everything fits, which is the behaviour worth showing. */
 const PER_PAGE = 10;
-/** Latest transaction in the seed — "last 30 days" is measured from the data, not the wall clock. */
-const TODAY = Math.max(...transactions.map((t) => t.at));
+/** Today as a yyyymmdd stamp. The ledger is live now, so "last 30 days" runs from the real date. */
+const todayStamp = () => {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+};
 /** yyyymmdd stamps, so the gap in days is close enough for a range filter. */
 const daysBetween = (a: number, b: number) => {
   const d = (n: number) => new Date(Math.floor(n / 10000), (Math.floor(n / 100) % 100) - 1, n % 100).getTime();
@@ -25,9 +28,13 @@ const daysBetween = (a: number, b: number) => {
 /** "$1,400.00" → 1400 — the seed carries formatted strings, and the summary has to add them up. */
 const money = (s: string) => Number(s.replace(/[^0-9.]/g, "")) || 0;
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Figma "Payments / Transactions · list" + "Transaction · detail drawer". */
 export default function Transactions() {
+  const { transactions } = useDemo();
+  // Never earlier than the newest row, so a seeded row dated ahead of the clock still counts.
+  const TODAY = Math.max(todayStamp(), ...transactions.map((t) => t.at));
   const [q, setQ] = useState("");
   const [type, setType] = useState<(typeof TYPES)[number]>("All types");
   const [contract, setContract] = useState("All contracts");
@@ -58,8 +65,9 @@ export default function Transactions() {
 
   /* TB-119 — every figure is added up from the ledger, so a new transaction moves it. */
   const spent = all.filter((t) => t.type === "Payment Released").reduce((n, t) => n + money(t.amount), 0);
-  const held = all.filter((t) => t.type === "Payment Deposited").reduce((n, t) => n + money(t.amount), 0);
   const refunded = all.filter((t) => t.type === "Payment Refunded").reduce((n, t) => n + money(t.amount), 0);
+  // What is still in escrow: deposits less what has since been released or refunded out of them.
+  const held = Math.max(0, all.filter((t) => t.type === "Payment Deposited").reduce((n, t) => n + money(t.amount), 0) - spent - refunded);
 
   const pages = Math.max(1, Math.ceil(rows.length / PER_PAGE));
   const current = Math.min(page, pages);
@@ -70,8 +78,8 @@ export default function Transactions() {
       <div className="flex gap-4 whitespace-nowrap">
         {(
           [
-            [usd(spent), "Total spent", `${all.filter((t) => t.type === "Payment Released").length} released across ${new Set(all.map((t) => t.contract)).size} contracts`],
-            [usd(held), "Held in escrow", `${all.filter((t) => t.type === "Payment Deposited").length} deposits not yet released`],
+            [usd(spent), "Total spent", `${all.filter((t) => t.type === "Payment Released").length} released across ${plural(new Set(all.map((t) => t.contract)).size, "contract")}`],
+            [usd(held), "Held in escrow", held > 0 ? "not yet released or refunded" : "nothing held right now"],
             [usd(refunded), "Refunded", `${all.filter((t) => t.type === "Payment Refunded").length} returned to your card`],
           ] as const
         ).map(([v, l, s]) => (
@@ -256,9 +264,13 @@ export default function Transactions() {
               <Button size="lg" className="flex-1" onClick={() => setToast("Receipt downloaded")}>
                 Download receipt
               </Button>
-              <Button size="lg" className="flex-1" onClick={() => { setDetail(null); setToast("Dispute form opens in Messages with Hireable support"); }}>
-                Report a problem
-              </Button>
+              {/* A payment is disputed from its contract, where the escrow and the dispute live —
+                  this used to show a toast about a Messages form that doesn't exist. */}
+              {detail.contractHref && (
+                <LinkButton size="lg" className="flex-1 justify-center" href={detail.contractHref}>
+                  Report a problem
+                </LinkButton>
+              )}
             </div>
           </>
         )}

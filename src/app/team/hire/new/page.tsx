@@ -4,16 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useId, useState } from "react";
-import { MdAdd, MdAttachMoney, MdBorderColor, MdOutlineCalendarToday, MdRemove } from "react-icons/md";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Page, Select, Steps, Textarea } from "@/components/independent/ui";
+import { MdAdd, MdAttachMoney, MdBorderColor, MdOutlineCalendarToday, MdOutlineLibraryBooks, MdRemove } from "react-icons/md";
+import { BackButton, Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Modal, Page, Select, Steps, Textarea } from "@/components/independent/ui";
 import { SkillPicker } from "@/components/portal/controls";
+import { RateSourceModal, TemplateBrowser, TemplateSuggestions } from "@/components/team/RoleTemplates";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
+import { LEVELS, levelName, suggestRange } from "@/lib/team/role-templates";
+import type { RoleTemplate } from "@/lib/team/role-templates";
 import { useDemo } from "@/lib/team/store";
 import type { Role } from "@/lib/team/data";
 
-const Back = ICONS.chevronLeft;
-const LEVELS = ["Select experience level", "Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
 const CHIP_TONES = ["text-ok", "text-primary", "text-[#e91e63]"];
 
 /** TB-024 "Exclusive Benefits" — optional, full-time only, each with its own monthly amount. */
@@ -55,7 +55,6 @@ const PATH = {
     hint2: "Walk your Independent through your expectations in your own words.",
     h3: "Budget & Duration",
     sub3: "Set your monthly rate and trial length.",
-    hint3: "Suggested rate ranged based on similar roles on our platform.",
     label3: "Trial Duration",
     chips: ["30 Days", "60 Days", "90 Days"],
     money: "Budget:",
@@ -79,7 +78,6 @@ const PATH = {
     hint2: "Walk candidates through the role in your own words.",
     h3: "Salary & Start",
     sub3: "Set the monthly salary and when they start.",
-    hint3: "Suggested salary range based on similar roles on our platform.",
     label3: "Start date",
     chips: ["Immediately", "In 2 weeks", "In 1 month"],
     money: "Salary:",
@@ -146,6 +144,14 @@ function CreateRoleWizard() {
    * Cancel can put them back. The fields write straight to the wizard state, so Save just closes.
    */
   const [open, setOpen] = useState<{ section: ReviewSection; before: Snapshot } | null>(null);
+  /**
+   * Role templates: the one filling the form, one waiting on "replace what you typed?" (or
+   * "blank" for Start from scratch), and whether the full library is open.
+   */
+  const [template, setTemplate] = useState<RoleTemplate | null>(null);
+  const [pending, setPending] = useState<RoleTemplate | "blank" | null>(null);
+  const [browsing, setBrowsing] = useState(false);
+  const [sourceOpen, setSourceOpen] = useState(false);
   /** Keep the draft's slug when editing, so publishing replaces it instead of leaving it behind. */
   const slug = editing?.slug ?? (title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "new-role");
 
@@ -242,6 +248,67 @@ function CreateRoleWizard() {
     setChip(v.chip);
     setBenefits(v.benefits);
   };
+  /**
+   * What a template writes, in the form's own shape. The trial path also takes the expectations
+   * and trial length; the full-time path has neither step, so those stay as they are.
+   */
+  const fieldsFrom = (tpl: RoleTemplate) => ({
+    title: tpl.title,
+    desc: tpl.description,
+    skills: tpl.skills.join("|"),
+    level: tpl.level,
+    expectation: type === "trial" ? tpl.trial : expectation,
+    min: settleMoney(String(tpl.budget.min)),
+    max: settleMoney(String(tpl.budget.max)),
+    chip: type === "trial" ? Math.max(0, (t.chips as readonly string[]).indexOf(`${tpl.days} Days`)) : chip,
+  });
+  /** Everything a template would replace, other than the title, is still empty. */
+  const onlyTitle = !desc.trim() && skills.length === 0 && level === LEVELS[0] && !expectation.trim() && !min && !max;
+  const blank = onlyTitle && !title.trim();
+  /** Nothing changed since the template went in, so switching or clearing can't lose anyone's typing. */
+  const untouched = !!template && JSON.stringify(fieldsFrom(template)) === JSON.stringify({ title, desc, skills: skills.join("|"), level, expectation, min, max, chip });
+  const applyTemplate = (tpl: RoleTemplate | "blank") => {
+    if (tpl === "blank") {
+      setTitle("");
+      setDesc("");
+      setSkills([]);
+      setLevel(LEVELS[0]);
+      if (type === "trial") setExpectation("");
+      setMin("");
+      setMax("");
+      setChip(0);
+      setTemplate(null);
+    } else {
+      const f = fieldsFrom(tpl);
+      setTitle(f.title);
+      setDesc(f.desc);
+      setSkills([...tpl.skills]);
+      setLevel(f.level);
+      setExpectation(f.expectation);
+      setMin(f.min);
+      setMax(f.max);
+      setChip(f.chip);
+      setTemplate(tpl);
+    }
+    setPending(null);
+    setBrowsing(false);
+  };
+  /** The budget step's suggested range and its sources (See source), from what step one says. */
+  const suggestion = suggestRange({ title, skills, level, template });
+  const noun = type === "trial" ? "rate" : "salary";
+  const rangeInUse = !!suggestion && min === settleMoney(String(suggestion.min)) && max === settleMoney(String(suggestion.max));
+  const useSuggested = () => {
+    if (!suggestion) return;
+    setMin(settleMoney(String(suggestion.min)));
+    setMax(settleMoney(String(suggestion.max)));
+  };
+  /** Straight in on a blank or untouched form; otherwise confirm first, so a pick never eats typing. */
+  const pickTemplate = (tpl: RoleTemplate | "blank") => (blank || untouched ? applyTemplate(tpl) : setPending(tpl));
+  /**
+   * A suggestion under the Role field comes from what was typed there, so replacing that title is
+   * the point — it only asks when there is more than the title to lose.
+   */
+  const pickSuggestion = (tpl: RoleTemplate) => (onlyTitle || untouched ? applyTemplate(tpl) : setPending(tpl));
   const goTo = (next: number) => {
     setStep(next);
     window.scrollTo({ top: 0 });
@@ -251,7 +318,13 @@ function CreateRoleWizard() {
     if (open) restore(open.before);
     setOpen(null);
   };
-  const back = () => (open ? cancelEdit() : step === 0 ? router.push("/team/hire") : goTo(step - 1));
+  /** The previous step, or the role-type choice from the first one; an open Review edit is dropped first. */
+  const back = () => {
+    if (open) cancelEdit();
+    if (step === 0) router.push("/team/hire");
+    else goTo(step - 1);
+  };
+  const backLabel = step === 0 ? "Back to role type" : `Back to ${t.steps[step - 1]}`;
   /** Same rules as the wizard steps, so a quick edit can't leave a required field empty. */
   const sectionOk: Record<ReviewSection, boolean> = {
     title: title.trim().length > 1,
@@ -301,13 +374,8 @@ function CreateRoleWizard() {
     );
 
   return (
-    <Page title="Create Role" padded={false}>
+    <Page title="Create Role" padded={false} nav={<BackButton onClick={back}>{backLabel}</BackButton>}>
       <div className="flex flex-col items-center gap-6 px-10 pt-4 pb-20">
-        <div className="w-full">
-          <button type="button" onClick={back} className="flex h-5 items-center gap-1 text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
-            <Back size={16} aria-hidden /> back to previous
-          </button>
-        </div>
         <div className="flex w-[720px] flex-col gap-2 tracking-[0.2px]">
           {kind === "review" ? (
             <h2 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{t.reviewTitle}</h2>
@@ -324,10 +392,24 @@ function CreateRoleWizard() {
 
         {/* Step 1 — Role Details */}
         {kind === "details" && (
-          <StepCard title="Role Details" body="This is what Independents will see when they receive your offer.">
+          <StepCard
+            title="Role Details"
+            body="This is what Independents will see when they receive your offer."
+            action={
+              // Templates open in their own dialog, keeping the form itself uncluttered. They're for
+              // a new post — a draft being finished already has its own details.
+              !editing && (
+                <Button size="md" className="shrink-0" onClick={() => setBrowsing(true)}>
+                  <MdOutlineLibraryBooks size={18} aria-hidden />
+                  {template ? "Change template" : "Use a template"}
+                </Button>
+              )
+            }
+          >
             <div className="flex flex-col gap-6">
               <Block label="Role">
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add e.g. Marketing Manager, Virtual Assistant" />
+                {!editing && <TemplateSuggestions query={title} applied={template} onPick={pickSuggestion} />}
               </Block>
               <Block label="Role Description" helper={["Up to 500 characters", `${desc.length} / 500`]}>
                 <Textarea value={desc} maxLength={500} onChange={(e) => setDesc(e.target.value)} placeholder={t.descPlaceholder} className="!h-[131px] resize-none" />
@@ -390,12 +472,31 @@ function CreateRoleWizard() {
                   <span className="flex h-12 w-[51px] items-center justify-center text-[16px] leading-[1.5] tracking-[0.2px] text-ink">/month</span>
                 </div>
                 {rangeError && <p className="text-[12px] leading-[1.2] tracking-[0.2px] text-danger">{rangeError}</p>}
-                <p className="flex w-[533px] items-center gap-1 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
-                  {t.hint3}
-                  <Link href="/team/hire/roles" className="font-medium text-primary underline underline-offset-2">
-                    See source
-                  </Link>
-                </p>
+                {/* The range itself, what backs it, and a one-click fill. The line used to promise a
+                    suggestion without showing one, beside a "See source" that opened All roles. */}
+                {suggestion ? (
+                  <p className="w-[533px] text-[12px] leading-[1.5] tracking-[0.2px] text-ink-2">
+                    Suggested {noun}:{" "}
+                    <strong className="font-semibold text-ink">
+                      ${suggestion.min.toLocaleString("en-US")} – ${suggestion.max.toLocaleString("en-US")} /month
+                    </strong>{" "}
+                    for {title.trim() || suggestion.guide.title} ({levelName(level !== LEVELS[0] ? level : suggestion.guide.level)}), based on similar roles on Hireable.{" "}
+                    <button type="button" onClick={() => setSourceOpen(true)} className="font-medium text-primary underline underline-offset-2">
+                      See source
+                    </button>
+                    {!rangeInUse && (
+                      <>
+                        {" · "}
+                        <button type="button" onClick={useSuggested} className="font-medium text-primary underline underline-offset-2">
+                          Use this range
+                        </button>
+                      </>
+                    )}
+                  </p>
+                ) : (
+                  // Step one is always complete by here, so no suggestion means nothing similar to go on.
+                  <p className="w-[533px] text-[12px] leading-[1.5] tracking-[0.2px] text-ink-2">There aren&apos;t similar roles on Hireable to suggest a {noun} from yet, so set the range you have in mind.</p>
+                )}
               </div>
               <div className="flex flex-col gap-6">
                 <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{t.label3}</p>
@@ -567,17 +668,44 @@ function CreateRoleWizard() {
           </div>
         )}
       </div>
+
+      <TemplateBrowser open={browsing} onClose={() => setBrowsing(false)} onPick={pickTemplate} onClear={() => pickTemplate("blank")} applied={template} />
+      <RateSourceModal open={sourceOpen} onClose={() => setSourceOpen(false)} suggestion={suggestion} role={title.trim()} noun={noun} inUse={rangeInUse} onUse={useSuggested} />
+      {/* Opens over the library when a pick would replace something typed; Cancel keeps both. */}
+      <Modal
+        open={pending !== null}
+        onClose={() => setPending(null)}
+        title={pending === "blank" ? "Start from scratch?" : `Use the ${pending?.title ?? ""} template?`}
+        description={
+          pending === "blank"
+            ? `This clears the role, description, skills, experience level${type === "trial" ? ", trial expectations" : ""} and budget you've entered.`
+            : `It fills in the role, description, skills, experience level${type === "trial" ? ", trial expectations, trial length" : ""} and budget, replacing what you've entered in those fields.`
+        }
+        footer={
+          <>
+            <Button size="lg" onClick={() => setPending(null)}>
+              Keep my changes
+            </Button>
+            <Button size="lg" variant="primary" onClick={() => pending && applyTemplate(pending)}>
+              {pending === "blank" ? "Clear the form" : "Use template"}
+            </Button>
+          </>
+        }
+      />
     </Page>
   );
 }
 
 /** Figma step "container": 720 wide, p 40, gap 40, radius 16, header 20/600 + 14 (or 16) secondary. */
-function StepCard({ title, body, bodySize = 14, children }: { title: string; body: string; bodySize?: 14 | 16; children: React.ReactNode }) {
+function StepCard({ title, body, bodySize = 14, action, children }: { title: string; body: string; bodySize?: 14 | 16; /** A button beside the heading, e.g. Use a template. */ action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <Card className="flex w-[720px] flex-col gap-10 rounded-2xl p-10">
-      <div className="flex flex-col gap-1">
-        <h3 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{title}</h3>
-        <p className={`leading-[1.5] tracking-[0.2px] text-ink-2 ${bodySize === 16 ? "text-[16px]" : "text-[14px] leading-[1.2]"}`}>{body}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{title}</h3>
+          <p className={`leading-[1.5] tracking-[0.2px] text-ink-2 ${bodySize === 16 ? "text-[16px]" : "text-[14px] leading-[1.2]"}`}>{body}</p>
+        </div>
+        {action}
       </div>
       {children}
     </Card>

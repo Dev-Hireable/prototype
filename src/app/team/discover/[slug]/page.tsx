@@ -7,6 +7,7 @@ import { InviteModal } from "@/components/team/InviteModal";
 import { IntroCard, ProfileColumn } from "@/components/team/ui";
 import { independents } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
+import { ReturnNav } from "@/components/portal/return";
 
 /** Full independent profile — the candidate profile layout (Figma 11338:8034) with Discover actions in place of the pipeline. */
 export default function IndependentProfile({ params }: { params: Promise<{ slug: string }> }) {
@@ -19,7 +20,7 @@ export default function IndependentProfile({ params }: { params: Promise<{ slug:
   const isSaved = saved.includes(person.slug);
 
   return (
-    <Page title="Discover independents" nav={<BackLink href="/team/discover">Back to independents</BackLink>}>
+    <Page title="Discover independents" nav={<ReturnNav fallback={<BackLink href="/team/discover">Back to independents</BackLink>} />}>
       <div className="flex flex-col gap-10 pb-14">
         <div className="flex items-start justify-center gap-6">
           <div className="flex w-[384px] shrink-0 flex-col gap-4">

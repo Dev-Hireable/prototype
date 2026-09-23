@@ -29,7 +29,16 @@ export function Person({ name, role, avatar, href }: { name: string; role: strin
   );
 }
 
-/** Figma "Table": #f2f2f2 header (13 medium), rows px 16 / py 12 with #c3c3c3 rules. `cols` are Tailwind width classes. */
+/**
+ * Grid cells: every direct child of a header or row is a cell. Each one stretches to the full row
+ * height so the column rules run top to bottom, and `content-center` centres it vertically while
+ * keeping it a block, so `truncate` and `text-right` still work inside. `items-center` only
+ * affects cells that are themselves flex rows. A cell that wants to fill edge to edge (a coloured
+ * stat) opts out of the padding with `!p-0`.
+ */
+const CELLS = "[&>*]:self-stretch [&>*]:content-center [&>*]:items-center [&>*]:px-3 [&>*]:py-3 [&>*+*]:border-l [&>*+*]:border-[#e5e5e5]";
+
+/** Figma "Table", as a grid: #f2f2f2 header (13 medium), light #e5e5e5 row and column rules. `cols` are Tailwind width classes. */
 export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
   return (
     // overflow-x-auto + min-w-max: the columns are fixed widths, so a narrow pane used to crush
@@ -37,7 +46,7 @@ export function Table({ cols, head, children }: { cols: string[]; head: string[]
     // scrolls sideways instead.
     <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
       <div className="min-w-max">
-        <div className="flex items-center gap-4 bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2">
+        <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 ${CELLS}`}>
           {head.map((h, i) => (
             <span key={h} className={cols[i]}>
               {h}
@@ -51,7 +60,7 @@ export function Table({ cols, head, children }: { cols: string[]; head: string[]
 }
 
 export function Row({ children }: { children: ReactNode }) {
-  return <div className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">{children}</div>;
+  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS}`}>{children}</div>;
 }
 
 /** Figma "Toolbar": search + dropdowns on the left, a count (14 #616161) or a button on the right. */

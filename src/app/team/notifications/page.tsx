@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useWithReturn } from "@/components/portal/return";
 import { EmptyState, LinkButton, Page, Pills } from "@/components/independent/ui";
 import { Avatar } from "@/components/team/ui";
 import { resetDemo } from "@/lib/demo/live";
 import { useDemo } from "@/lib/team/store";
+import { useQueryState } from "@/lib/portal/query-state";
 
 type Filter = "all" | "unread" | "hiring" | "independents" | "payments";
 
 /** Figma "Notifications / Full page / Empty" (Team Builder): pill filters, grouped cards (px 16 / py 14), unread #f5faff with a dot. */
 export default function Notifications() {
   const { notifications, markRead } = useDemo();
-  const [filter, setFilter] = useState<Filter>("all");
+  const withReturn = useWithReturn();
+  const [filter, setFilter] = useQueryState<Filter>("filter", "all", ["all", "unread", "hiring", "independents", "payments"]);
   const unread = notifications.filter((n) => n.unread).length;
   const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : n.kind === filter));
   const groups = ["Today", "Last 7 days"] as const;
@@ -60,7 +62,7 @@ export default function Notifications() {
                   <span className="max-w-[700px] text-[13px] text-ink-2">{n.body}</span>
                   {n.action && (
                     <span className="pt-1.5">
-                      <LinkButton size="sm" variant={n.action.primary ? "primary" : "secondary"} href={n.action.href}>
+                      <LinkButton size="sm" variant={n.action.primary ? "primary" : "secondary"} href={withReturn(n.action.href)}>
                         {n.action.label}
                       </LinkButton>
                     </span>

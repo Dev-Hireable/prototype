@@ -18,6 +18,7 @@ export default async function TeamBuilderProfile({ params }: PageProps<"/admin/u
       backLabel="Back to team builder accounts"
       stats={account.stats}
       activity={account.activity}
+      disputes={{ party: "team", slug: account.slug }}
     />
   );
 }

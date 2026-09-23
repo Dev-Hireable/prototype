@@ -38,7 +38,7 @@ export const SECTIONS: Section[] = [
     icon: "wallet",
     menu: [
       { href: "/independent/wallet", label: "Transaction history", icon: "billing" },
-      { href: "/independent/wallet/disputes", label: "Sent disputes", icon: "disputes" },
+      { href: "/independent/wallet/disputes", label: "Disputes", icon: "disputes" },
     ],
   },
   {

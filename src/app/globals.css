@@ -96,6 +96,68 @@ body {
   display: none;
 }
 
+/* ------------------------------------------------------------ ScrollFade -- */
+
+/* Registered so the fades can ease in and out: an unregistered custom property only snaps. */
+@property --fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/*
+ * ScrollFade fades a scroller's own content at whichever edges still have more behind them. It is
+ * a mask, not the white overlay it used to be: an overlay painted over everything under it —
+ * including the border of the panel the scroller sits flush against — while a mask only thins the
+ * content, so that border and anything outside the scroller are never covered.
+ *
+ * Layers, top to bottom: the vertical scrollbar strip and the horizontal one (always solid, so the
+ * bars never fade), then the vertical and horizontal fades, intersected. The edge keeps 20%, so a
+ * card cut by the edge still shows its outline there. ScrollFade sets the four --fade-* lengths and
+ * the two bar sizes from the scroll position.
+ */
+.scroll-fade {
+  --bar-y: 0px;
+  --bar-x: 0px;
+  mask-image:
+    linear-gradient(#000, #000),
+    linear-gradient(#000, #000),
+    linear-gradient(to bottom, #0003, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), #0003),
+    linear-gradient(to right, #0003, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), #0003);
+  mask-size:
+    var(--bar-y) 100%,
+    100% var(--bar-x),
+    100% 100%,
+    100% 100%;
+  mask-position:
+    right top,
+    left bottom,
+    0 0,
+    0 0;
+  mask-repeat: no-repeat;
+  mask-composite: add, add, intersect, add;
+  transition:
+    --fade-top 200ms,
+    --fade-bottom 200ms,
+    --fade-left 200ms,
+    --fade-right 200ms;
+}
+
 
 
 /* Tailwind v4's preflight leaves buttons at `cursor: default`, so every clickable control in the

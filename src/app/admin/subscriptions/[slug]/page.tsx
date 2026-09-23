@@ -14,6 +14,7 @@ export default async function SubscriptionDetail({ params }: PageProps<"/admin/s
 
   return (
     <AdminPage
+      nav={<BackLink href="/admin/subscriptions">Back to all subscriptions</BackLink>}
       title={sub.company}
       actions={
         <>
@@ -22,7 +23,6 @@ export default async function SubscriptionDetail({ params }: PageProps<"/admin/s
         </>
       }
     >
-      <BackLink href="/admin/subscriptions">Back to all subscriptions</BackLink>
 
       <div className="flex flex-col gap-4">
         <StatGrid>

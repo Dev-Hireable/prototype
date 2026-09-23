@@ -57,11 +57,8 @@ export const transactions: Transaction[] = [
         href: "/admin/roles/sales-manager",
       },
       { record: "Independent", reference: "Juan Dela Cruz", href: "/admin/users/independents/juan-dela-cruz" },
-      {
-        record: "Open dispute",
-        reference: "Escrow not released after trial end",
-        href: "/admin/disputes/escrow-sales-manager",
-      },
+      // Disputes are live records now; this static billing sample no longer claims one exists.
+      { record: "Disputes", reference: "Any dispute on this contract", href: "/admin/disputes" },
     ],
   },
   {

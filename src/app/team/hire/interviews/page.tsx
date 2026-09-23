@@ -5,6 +5,8 @@ import { Button, Checkbox, Field, Input, Modal, Page, Pills, Select, StatusDot, 
 import { Person, Row, Table } from "@/components/team/ui";
 import { byName } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
+import { useQueryState } from "@/lib/portal/query-state";
+import { useWithReturn } from "@/components/portal/return";
 import type { Interview } from "@/lib/team/data";
 
 /** Figma columns: Candidate flex · Role 165 · Date and time 205 · Format 90 · Status 135 · Actions 210. */
@@ -13,9 +15,10 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 /** Figma "Interviews / Scheduled list · Reschedule interview · modal · Cancel interview · confirm · Interview availability · setup". */
 export default function Interviews() {
-  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [tab, setTab] = useQueryState("tab", "upcoming", ["upcoming", "past"] as const);
   /* From the store, so an interview scheduled from a candidate profile appears here. */
   const { interviews: items, setInterview } = useDemo();
+  const withReturn = useWithReturn();
   const [rescheduling, setRescheduling] = useState<Interview | null>(null);
   const [cancelling, setCancelling] = useState<Interview | null>(null);
   const [availability, setAvailability] = useState(false);
@@ -47,7 +50,7 @@ export default function Interviews() {
           return (
             <Row key={iv.id}>
               <span className={COLS[0]}>
-                <Person name={p.name} role={p.role} avatar={p.avatar} href={`/team/discover/${p.slug}`} />
+                <Person name={p.name} role={p.role} avatar={p.avatar} href={withReturn(`/team/discover/${p.slug}`)} />
               </span>
               <span className={`${COLS[1]} text-[14px]`}>{iv.role}</span>
               <span className={COLS[2]}>{iv.when}</span>

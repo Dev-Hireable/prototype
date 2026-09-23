@@ -65,34 +65,33 @@ export function Page({
         {/* No bottom padding: the active tab's 2px underline has to sit on the header's own rule, not float above it. */}
         {tabs && <div>{tabs}</div>}
       </header>
-      {/* The gutter is on this wrapper, not the scroller, so nothing scrolls through it; ScrollFade
-          hugs the scroller so its ramps land on the scrollport edges. The width cap goes on the inner
-          column, matching AdminPage. 40px matches DashboardFrame's own gutter, so every portal page
-          sits the same distance from the shell. `padded={false}` pages set their own (wizards, the
-          kanban, the dashboards). */}
-      <div className={`flex min-h-0 flex-1 ${padded ? "p-10" : ""}`}>
+      {/* One place for every back link and breadcrumb: pinned under the header, in the 40px page
+          gutter, outside the centred content column — so it sits at the same spot on every page,
+          padded or full-bleed, at any window width, and never scrolls away. It used to live inside
+          each layout's own column, so it moved between pages (and the wizard drew its own). Pages
+          whose back link only sometimes appears still pass `nav`, so the row is always reserved. */}
+      {nav && (
+        <div className="shrink-0 px-10 pt-4">
+          <PageNav actions={navActions}>{nav}</PageNav>
+        </div>
+      )}
+      {/* Only the top gutter is on this wrapper. The side and bottom gutters are padding inside the
+          scroller, so the scroller — and its scrollbar — runs to the panel's edges on every page:
+          the bar sits 8px from the edge here just as on the full-bleed pages, and content fades out
+          at the edge instead of stopping short. With the gutters out here the vertical bar floated
+          40px in from the right, and content cut off 40px above the bottom over an empty strip.
+          The content itself doesn't move: the padding keeps it exactly where the wrapper did.
+          The width cap goes on the inner column, matching AdminPage. 40px matches DashboardFrame's own
+          gutter, so every portal page sits the same distance from the shell. `padded={false}` pages
+          set their own (wizards, the kanban, the dashboards). Under a nav row the top gutter
+          shrinks: the row already spaces it. */}
+      <div className={`flex min-h-0 flex-1 ${padded ? (nav ? "pt-4" : "pt-10") : ""}`}>
         <ScrollFade className="flex w-full min-w-0">
-          {/* The nav row sits inside the scroller so it lines up with the content exactly — a row
-              outside it misses the scrollbar's width and ends up a few px to the right. */}
-          <div className={`w-full overflow-y-auto ${!padded && nav ? "flex flex-col" : ""}`}>
-            {padded ? (
-              <PortalContent className="min-h-full">
-                {nav && <PageNav actions={navActions}>{nav}</PageNav>}
-                {children}
-              </PortalContent>
-            ) : (
-              <>
-                {/* Flex column above: the nav row takes its height off the top, so a full-height
-                    child below it (the kanban board) grows into what's left instead of overflowing. */}
-                {nav && (
-                  <div className="shrink-0 px-4 pt-4 pb-3">
-                    <PageNav actions={navActions}>{nav}</PageNav>
-                  </div>
-                )}
-                {children}
-              </>
-            )}
-          </div>
+          {/* Full-bleed pages get a flex column, so a full-height child (the kanban boards) grows into
+              the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
+              gutter plus the column's own 8px, as before; `min-h-full` counts it (border-box), so a
+              page that fits doesn't gain any scroll. */}
+          <div className={`scroll-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
         </ScrollFade>
       </div>
     </>
@@ -100,7 +99,7 @@ export function Page({
 }
 
 /** Both live in portal/nav so the admin shell renders them at exactly the same size. */
-export { BackLink, Breadcrumb } from "@/components/portal/nav";
+export { BackButton, BackLink, Breadcrumb } from "@/components/portal/nav";
 
 /* ------------------------------------------------------------- buttons ---- */
 
@@ -305,13 +304,10 @@ const DOT: Record<Tone, string> = {
   trial: "bg-[#fff5ec] text-brand-orange",
 };
 
+/** A tinted status pill. It used to lead with a 6px dot in the same colour as the text and fill,
+ *  which said nothing the pill didn't already — the name stays so the call sites don't change. */
 export function StatusDot({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return (
-    <span className={`inline-flex h-6 items-center gap-1 rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${DOT[tone]}`}>
-      <span aria-hidden className="size-1.5 rounded-full bg-current opacity-76" />
-      {children}
-    </span>
-  );
+  return <span className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${DOT[tone]}`}>{children}</span>;
 }
 
 export function Chip({ children, onRemove, size = "md" }: { children: ReactNode; onRemove?: () => void; size?: "sm" | "md" }) {
@@ -502,6 +498,7 @@ export function Modal({
   tone = "default",
   width = 512,
   bare = false,
+  closeButton = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -511,6 +508,8 @@ export function Modal({
   footer?: ReactNode;
   tone?: "default" | "danger";
   width?: number;
+  /** A × in the title row. Danger dialogs always have one; others opt in. */
+  closeButton?: boolean;
   /** Hand the whole panel to `children`: no padding, no title row, no footer row. For designs
    * that own their chrome — a header bar, panes that reach the edges, a footer of their own. */
   bare?: boolean;
@@ -559,8 +558,8 @@ export function Modal({
             </h2>
             {description && <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">{description}</p>}
           </div>
-          {tone === "danger" && (
-            <button type="button" onClick={onClose} aria-label="Close" className="text-ink-2">
+          {(tone === "danger" || closeButton) && (
+            <button type="button" onClick={onClose} aria-label="Close" className="text-ink-2 hover:text-ink">
               <X size={16} aria-hidden />
             </button>
           )}

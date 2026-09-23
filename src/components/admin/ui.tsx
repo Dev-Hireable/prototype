@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PortalContent } from "@/components/portal/layout";
+import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
 import { ICONS } from "./icons";
 
@@ -10,10 +11,13 @@ import { ICONS } from "./icons";
 export function AdminPage({
   title,
   actions,
+  nav,
   children,
 }: {
   title: string;
   actions?: ReactNode;
+  /** A back link or breadcrumb: the same fixed row the portals give it, not a line in the content. */
+  nav?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -30,10 +34,18 @@ export function AdminPage({
       {/* Gutter trimmed from the Figma 16/16/24 so the board breathes; it sits on this wrapper, not
           on the scroller, so nothing scrolls through it. Content is capped at the shared 1200px
           desktop width and centred so cards never stretch on ultra-wide screens. */}
-      <div className="flex min-h-0 flex-1 px-2 pt-2 pb-3">
+      {/* Pinned under the header in the page gutter, like the portals' Page, so it never moves. */}
+      {nav && (
+        <div className="shrink-0 px-4 pt-2">
+          <PageNav>{nav}</PageNav>
+        </div>
+      )}
+      {/* Side and bottom gutters are padding inside the scroller (see Page), so its scrollbar sits at
+          the panel's edge and content fades out there. */}
+      <div className="flex min-h-0 flex-1 pt-2">
         <ScrollFade className="flex w-full min-w-0">
-          <div className="w-full overflow-y-auto">
-            <PortalContent>{children}</PortalContent>
+          <div className="scroll-fade w-full overflow-y-auto px-2">
+            <PortalContent className="pb-5">{children}</PortalContent>
           </div>
         </ScrollFade>
       </div>
@@ -79,13 +91,11 @@ const TONES: Record<Tone, string> = {
   trial: "bg-[#fff3e8] text-[#f08a24]",
 };
 
-/** Figma "Badge with dot": h 24, px 8, gap 4, radius 4, 6px dot @ 76 %, Inter Medium 12 / 0.2. */
+/** Figma "Badge": h 24, px 8, radius 4, Inter Medium 12 / 0.2. The leading dot was dropped — the
+ *  tint and text colour already carry the status, matching the portals' StatusDot. */
 export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
   return (
-    <span
-      className={`inline-flex h-6 items-center justify-center gap-1 rounded px-2 py-1 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${TONES[tone]}`}
-    >
-      <span aria-hidden className="size-1.5 rounded-full bg-current opacity-[.76]" />
+    <span className={`inline-flex h-6 items-center justify-center rounded px-2 py-1 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${TONES[tone]}`}>
       {children}
     </span>
   );
@@ -98,7 +108,8 @@ export function Toolbar({ children }: { children: ReactNode }) {
   return <div className="flex flex-wrap items-center gap-4">{children}</div>;
 }
 
-export function SearchInput({ placeholder }: { placeholder: string }) {
+/** Uncontrolled unless `value`/`onChange` are passed — the static list screens don't filter yet. */
+export function SearchInput({ placeholder, value, onChange }: { placeholder: string; value?: string; onChange?: (v: string) => void }) {
   const SearchIcon = ICONS.search;
   return (
     <label className="flex h-11 w-[316px] items-center gap-2 rounded-lg border border-border bg-white px-4 text-ink-2">
@@ -106,19 +117,20 @@ export function SearchInput({ placeholder }: { placeholder: string }) {
       <input
         type="search"
         placeholder={placeholder}
+        {...(onChange ? { value: value ?? "", onChange: (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value) } : {})}
         className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-2"
       />
     </label>
   );
 }
 
-export function Select({ label, options }: { label: string; options: string[] }) {
+export function Select({ label, options, value, onChange }: { label: string; options: string[]; value?: string; onChange?: (v: string) => void }) {
   const Chevron = ICONS.chevron;
   return (
     <label className="relative block">
       <span className="sr-only">{label}</span>
       <select
-        defaultValue={options[0]}
+        {...(onChange ? { value: value ?? options[0], onChange: (e: React.ChangeEvent<HTMLSelectElement>) => onChange(e.target.value) } : { defaultValue: options[0] })}
         className="h-11 w-[180px] appearance-none rounded-lg border border-border bg-white pr-10 pl-4 text-[13px] text-ink-2 outline-none"
       >
         {options.map((o) => (
@@ -133,9 +145,13 @@ export function Select({ label, options }: { label: string; options: string[] })
 export function Button({
   children,
   variant = "secondary",
+  onClick,
+  disabled,
 }: {
   children: ReactNode;
   variant?: "primary" | "secondary" | "danger";
+  onClick?: () => void;
+  disabled?: boolean;
 }) {
   const styles = {
     primary: "bg-accent text-white",
@@ -145,7 +161,9 @@ export function Button({
   return (
     <button
       type="button"
-      className={`h-9 rounded-lg px-4 text-[13px] leading-none font-semibold tracking-[0.2px] whitespace-nowrap ${styles}`}
+      onClick={onClick}
+      disabled={disabled}
+      className={`h-9 rounded-lg px-4 text-[13px] leading-none font-semibold tracking-[0.2px] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
     >
       {children}
     </button>
@@ -169,6 +187,14 @@ export type Column<T> = {
  *   rows     border-t #e3e8ed, px 16 / py 13, Inter 13 lh 1.45; first cell #141a21, rest #737d8a;
  *            even rows #fcfdfe
  */
+/**
+ * Grid rules as inset shadows (the table is border-separate, so real borders would double up):
+ * a top rule on every cell, plus a left rule on every cell after the first.
+ */
+const GRID = "px-4 shadow-[inset_0_1px_0_#e3e8ed] [&:not(:first-child)]:shadow-[inset_1px_1px_0_#e3e8ed]";
+/** The narrowest the flexible (width-less) column may get before the table scrolls instead. */
+const FLEX_MIN = 180;
+
 export function DataTable<T>({
   caption,
   columns,
@@ -190,20 +216,17 @@ export function DataTable<T>({
         </h2>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full table-fixed border-separate border-spacing-0">
+        {/* The Figma widths are taken as-is, padding included. Widening each by its 32px of padding
+            left the one flexible column 32px wide at a 1280 window, so names broke a letter per line
+            into 300px rows. The min-width keeps that column at least FLEX_MIN wide: a narrow window
+            scrolls the table sideways instead of crushing it. */}
+        <table
+          className="w-full table-fixed border-separate border-spacing-0"
+          style={{ minWidth: columns.reduce((n, c) => n + (typeof c.width === "number" ? c.width : 0), 0) + (columns.some((c) => c.width === undefined) ? FLEX_MIN : 0) }}
+        >
           <colgroup>
-            {columns.map((c, j) => (
-              <col
-                key={c.header}
-                style={{
-                  width:
-                    c.width === undefined
-                      ? undefined
-                      : typeof c.width === "number"
-                        ? c.width + (j === columns.length - 1 ? 16 : 0)
-                        : c.width,
-                }}
-              />
+            {columns.map((c) => (
+              <col key={c.header} style={{ width: c.width }} />
             ))}
           </colgroup>
           <thead>
@@ -212,7 +235,7 @@ export function DataTable<T>({
                 <th
                   key={c.header}
                   scope="col"
-                  className={`py-[10px] shadow-[inset_0_1px_0_#e3e8ed] text-[11.5px] leading-[1.45] font-semibold whitespace-nowrap text-muted first:pl-4 last:pr-4 ${
+                  className={`${GRID} py-[10px] text-[11.5px] leading-[1.45] font-semibold whitespace-nowrap text-muted ${
                     c.align === "right" ? "text-right" : ""
                   }`}
                 >
@@ -230,11 +253,11 @@ export function DataTable<T>({
               </tr>
             )}
             {rows.map((row, i) => (
-              <tr key={i} className="bg-white even:bg-row-alt">
+              <tr key={i} className="bg-white even:bg-row-alt hover:bg-surface-alt">
                 {columns.map((c, j) => (
                   <td
                     key={c.header}
-                    className={`py-[13px] shadow-[inset_0_1px_0_#e3e8ed] align-middle text-[13px] leading-[1.45] break-words first:pl-4 last:pr-4 ${
+                    className={`${GRID} py-[13px] align-middle text-[13px] leading-[1.45] break-words ${
                       c.align === "right" ? "text-right" : ""
                     } ${j === 0 ? "text-ink-deep" : "text-muted"}`}
                   >

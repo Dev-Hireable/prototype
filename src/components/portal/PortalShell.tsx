@@ -3,11 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Modal } from "@/components/independent/ui";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
+import { unseenByAdmin, useDisputes } from "@/lib/demo/disputes";
 import { unreadChat, useLive } from "@/lib/demo/live";
 import { menuItemFor, sectionFor } from "@/lib/portal/nav";
 import type { Section } from "@/lib/portal/nav";
@@ -56,13 +57,18 @@ export function PortalShell({
   const live = useLive();
   const side = pathname.startsWith("/team") ? "team" : "independent";
   const root = `/${side === "team" ? "team" : "independent"}`;
-  const badges: Record<string, number> = {
-    [`${root}/messages`]: unreadChat(live, side),
-    [`${root}/notifications`]: live[side].filter((n) => n.unread).length,
-    /* TB-008 / IN-008 — the rail carries a section's total too, so unread messages are visible
-       from every section, not only the one whose submenu happens to list Messages. */
-    [root]: unreadChat(live, side),
-  };
+  /* TB-093 / IN-082 / AD-032 — Admin is told about a new dispute, a withdrawal or a new statement
+     by the Disputes nav, which counts disputes with activity Admin hasn't opened yet. */
+  const disputes = useDisputes();
+  const badges: Record<string, number> = pathname.startsWith("/admin")
+    ? { "/admin/disputes": unseenByAdmin(disputes).length }
+    : {
+        [`${root}/messages`]: unreadChat(live, side),
+        [`${root}/notifications`]: live[side].filter((n) => n.unread).length,
+        /* TB-008 / IN-008 — the rail carries a section's total too, so unread messages are visible
+           from every section, not only the one whose submenu happens to list Messages. */
+        [root]: unreadChat(live, side),
+      };
 
   return (
     // min-h keeps the rail + avatar intact on short viewports (the page scrolls instead of squashing)
@@ -212,7 +218,9 @@ export function PortalShell({
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]">
         {/* The demo's records live in localStorage, so the page waits one paint for them rather
             than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
-        {hydrated ? children : null}
+        {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
+            Suspense boundary — this one covers every portal page, so none needs its own. */}
+        <Suspense>{hydrated ? children : null}</Suspense>
       </div>
 
       <Modal

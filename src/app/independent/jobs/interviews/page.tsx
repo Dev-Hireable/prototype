@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Button, Modal, Page, Pills, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import type { Interview } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
+import { useQueryState } from "@/lib/portal/query-state";
+import { useWithReturn } from "@/components/portal/return";
 
 const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" | "neutral" | "danger" }> = {
   // A booking the talent hasn't answered yet. It read "Starts in 12 min" whatever the date was.
@@ -19,9 +21,10 @@ const COLS = ["min-w-0 flex-1", "w-[180px]", "w-[215px]", "w-[120px]", "w-[120px
 
 /** Figma "Interviews / My interviews · list": pill tabs, table (header #f2f2f2, px 16 / py 12), 12px footnote. */
 export default function Interviews() {
-  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [tab, setTab] = useQueryState("tab", "upcoming", ["upcoming", "past"] as const);
   /** IN-070 — the interviews the Team Builder has actually booked, not a copy in page state. */
   const { interviews: items, declineInterview, setStage } = useDemo();
+  const withReturn = useWithReturn();
   const [declining, setDeclining] = useState<Interview | null>(null);
   const [toast, setToast] = useToast();
   const upcoming = items.filter((i) => !i.past);
@@ -49,7 +52,7 @@ export default function Interviews() {
         {rows.map((iv) => (
           <div key={iv.id} className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">
             <span className={COLS[0]}>
-              <Link href={iv.roleHref} className="text-[14px] font-medium text-primary hover:underline">
+              <Link href={withReturn(iv.roleHref)} className="text-[14px] font-medium text-primary hover:underline">
                 {iv.role}
               </Link>
             </span>

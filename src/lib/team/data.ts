@@ -241,31 +241,15 @@ export type Transaction = {
   type: TxnType;
   amount: string;
   status: { label: string; tone: Tone };
+  /** The contract's tracker, where a problem with this payment is disputed. */
+  contractHref?: string;
   /** Figma "Payments / Transaction · detail drawer" */
   detail: { time: string; drawerStatus: string; rows: [string, string][]; breakdown: [string, string][]; total: string; timeline: { title: string; date: string; done: boolean }[] };
 };
 
 export const transactions: Transaction[] = [];
 
-export type Dispute = {
-  id: string;
-  name: string;
-  role: string;
-  avatar: string;
-  contract: string;
-  filed: string;
-  amount: string;
-  reason: string;
-  /** TB-092 — the detail view shows what was actually written when the dispute was filed. */
-  description: string;
-  evidence?: string;
-  /** TB-092 — only once an admin has ruled on it. */
-  resolution?: { outcome: string; notes: string };
-  status: { label: string; tone: Tone };
-  open: boolean;
-};
-
-export const disputes: Dispute[] = [];
+/* Disputes live in @/lib/demo/disputes — one record the Independent and Admin portals read too. */
 
 /** TB-101 — the plan on this account, and the ladder it sits on. */
 export const PLAN = { name: "Growth", cycle: "Monthly", renews: "1 Oct 2026", billedTo: "Visa ending 4242" };

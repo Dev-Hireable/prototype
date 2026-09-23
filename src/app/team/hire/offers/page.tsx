@@ -6,6 +6,7 @@ import { Person, Row, Table, Toolbar } from "@/components/team/ui";
 import { byName } from "@/lib/team/data";
 import type { Offer } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
+import { ReturnNav } from "@/components/portal/return";
 
 /** Figma columns: Candidate flex · Role 170 · Sent 100 · Rate 130 · Start date 105 · Status 105 · Actions 170. */
 const COLS = ["min-w-0 flex-1", "w-[170px]", "w-[100px]", "w-[130px]", "w-[105px]", "w-[105px]", "w-[170px]"];
@@ -21,7 +22,7 @@ export default function OffersSent() {
   const pending = offers.filter((o) => o.status.label === "Pending").length;
 
   return (
-    <Page title="Offers sent">
+    <Page title="Offers sent" nav={<ReturnNav />}>
       <Toolbar
         right={
           <span className="text-[14px] leading-[1.4] text-ink-2">

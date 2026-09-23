@@ -8,6 +8,7 @@ import { BackLink, Button, Card, Chip, JobBadge, KeyValue, LinkButton, Modal, Pa
 import { useDeal } from "@/lib/demo/deal";
 import { useJobView } from "@/lib/independent/job-view";
 import { useDemo } from "@/lib/independent/store";
+import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 const Flag = ICONS.flag;
 const Copy = ICONS.copy;
@@ -26,6 +27,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   const app = applications.find((a) => a.id === id);
   if (!app) notFound();
   const job = useJobView(app);
+  const withReturn = useWithReturn();
   const deal = useDeal();
   /** TB-106 — the Team Builder's note and the version it applies to, off the shared engagement. */
   const revisionNote = deal?.roleSlug === app.roleSlug ? deal.revision : undefined;
@@ -43,7 +45,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   };
 
   return (
-    <Page title="My Applications" nav={<BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>}>
+    <Page title="My Applications" nav={<ReturnNav fallback={<BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>} />}>
       <div className="flex flex-col gap-10 pb-14">
         <div className="flex items-start justify-center gap-6">
           <div className="flex w-[576px] flex-col gap-4">
@@ -191,7 +193,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                     <Button size="lg" disabled>
                       Offer accepted
                     </Button>
-                    <LinkButton size="lg" href={`/independent/contracts/${app.roleSlug}`}>
+                    <LinkButton size="lg" href={withReturn(`/independent/contracts/${app.roleSlug}`)}>
                       Open contract
                     </LinkButton>
                   </>

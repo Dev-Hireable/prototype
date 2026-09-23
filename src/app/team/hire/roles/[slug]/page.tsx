@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
-import { Suspense, use, useState } from "react";
+import { Suspense, use, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { BackLink, Card, Chip, JobBadge, KeyValue, LinkButton, MatchPill, Page, StatusDot, Tabs, Toast, useToast, WorkStyleChart } from "@/components/independent/ui";
 import { ScrollFade } from "@/components/portal/ScrollFade";
@@ -12,6 +12,9 @@ import { byName, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate } from "@/lib/team/data";
 import { PAIR, unreadChat, useLive } from "@/lib/demo/live";
 import { useDemo } from "@/lib/team/store";
+import { useQueryState } from "@/lib/portal/query-state";
+import { stageCanMessage } from "@/lib/demo/deal";
+import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 const H3 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]";
 const Message = ICONS.messages;
@@ -31,13 +34,42 @@ export default function RolePage({ params }: { params: Promise<{ slug: string }>
  */
 function Role({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { roles, candidates, canChat, setStage, setDropped } = useDemo();
+  const { roles, candidates, setStage, setDropped } = useDemo();
+  const withReturn = useWithReturn();
   /** TB-037 — booking happens on the board, so a first interview is one click from the column. */
   const [inviting, setInviting] = useState<Candidate | null>(null);
   const live = useLive();
   const role = roles.find((r) => r.slug === slug);
-  const [tab, setTab] = useState<"candidates" | "details">(useSearchParams().get("tab") === "details" ? "details" : "candidates");
+  const [tab, setTab] = useQueryState("tab", "candidates", ["candidates", "details"] as const);
   const [toast, setToast] = useToast();
+  /**
+   * `?stage=` comes from a count on All roles: scroll the board so that column sits as close to
+   * the middle as the scroll range allows, and frame it for a moment so it's obvious which one
+   * was opened. Scrolled by hand rather than scrollIntoView, which would also scroll the page.
+   */
+  const focusKey = useSearchParams().get("stage");
+  const [focused, setFocused] = useState<string | null>(null);
+  const columnRefs = useRef<Record<string, HTMLElement | null>>({});
+  // The roles hydrate from storage after mount, so wait for this one before looking for columns.
+  const ready = !!role;
+  useEffect(() => {
+    if (!ready || !focusKey || tab !== "candidates") return;
+    // Next frame: the board has laid out its final width by then.
+    const frame = requestAnimationFrame(() => {
+      const el = columnRefs.current[focusKey];
+      const board = el?.parentElement;
+      if (!el || !board) return;
+      const col = el.getBoundingClientRect();
+      const box = board.getBoundingClientRect();
+      board.scrollTo({ left: board.scrollLeft + col.left - box.left - (board.clientWidth - col.width) / 2, behavior: "smooth" });
+      setFocused(focusKey);
+    });
+    const t = setTimeout(() => setFocused(null), 2500);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(t);
+    };
+  }, [ready, focusKey, tab]);
   if (!role) notFound();
 
   const list = candidates.filter((c) => c.role === role.slug);
@@ -61,10 +93,10 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
         </>
       }
       padded={false}
-      nav={<BackLink href="/team/hire/roles">Back to jobs</BackLink>}
+      nav={<ReturnNav fallback={<BackLink href="/team/hire/roles">Back to jobs</BackLink>} />}
       navActions={
         tab === "candidates" ? (
-          <LinkButton size="md" href="/team/discover" variant="primary">
+          <LinkButton size="md" href={withReturn("/team/discover")} variant="primary">
             Invite independents
           </LinkButton>
         ) : undefined
@@ -81,19 +113,30 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
         />
       }
     >
-      {/* flex-1, not h-full: Page's `padded={false}` slot is a flex column once it renders a nav
-          row, so the board grows into what the nav row leaves instead of taking the full height and
-          overflowing by its height. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4">
+      {/* flex-1, not h-full: Page's `padded={false}` slot is a flex column, so the board grows into
+          the space under the nav row instead of overflowing by its height. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         {tab === "candidates" ? (
-          /* The gutter sits on this wrapper, not the scroller, so cards aren't clipped flush
-             against the panel border; overflow-y-hidden stops a nested vertical scrollbar. */
+          /* The 40px side and bottom gutters are padding inside the board, so its horizontal bar
+             runs along the panel's bottom edge, 8px in, the same as every vertical bar — it used
+             to float 48px up with an empty strip under it. At rest the padding still lines the
+             columns up with the back link; scrolled, cards fade out at the edge rather than stopping
+             short. overflow-y-hidden stops a nested vertical scrollbar. */
           <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
-            <div className="flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden">
+            <div className="scroll-fade flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden px-10 pb-10">
               {TRACKER_COLUMNS.map((col) => {
                 const cards = list.filter((c) => inColumn(col, c));
                 return (
-                  <section key={col.key} className="flex h-full min-h-0 w-[320px] shrink-0 flex-col gap-3">
+                  <section
+                    key={col.key}
+                    ref={(el) => {
+                      columnRefs.current[col.key] = el;
+                    }}
+                    /* The frame is a real border inside a constant p-1, transparent until focused, so
+                       it sits around the header and cards instead of under them and the layout
+                       doesn't shift when it appears. */
+                    className={`flex h-full min-h-0 w-[320px] shrink-0 flex-col gap-3 rounded-xl border-2 p-1 transition-colors duration-500 ${focused === col.key ? "border-accent-soft bg-accent-bg" : "border-transparent"}`}
+                  >
                     <header
                       className="flex items-center justify-between rounded px-3 py-2 text-[14px] leading-[1.2] font-medium tracking-[0.2px]"
                       style={{ background: col.bg, color: col.text }}
@@ -118,8 +161,9 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                                 <span className="truncate text-[12px] text-ink-2">{p.role}</span>
                               </Link>
                               {/* TB-037: unread messages show a red badge on the message icon. */}
-                              {canChat || !isPair ? (
-                                <Link href="/team/messages" aria-label={`Message ${p.name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
+                              {/* The thread opens at the interview invite, for every card — not just the live pair. */}
+                              {stageCanMessage(c.stage) ? (
+                                <Link href={withReturn("/team/messages")} aria-label={`Message ${p.name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
                                   <Message size={16} aria-hidden />
                                   {isPair && unread > 0 && (
                                     <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>
@@ -160,7 +204,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                             )}
                             {/* TB-037: the sent offer is reviewable but not editable. */}
                             {!c.dropped && col.key === "offer" && (
-                              <LinkButton size="sm" href={`/team/hire/offers`} className="justify-center">
+                              <LinkButton size="sm" href={withReturn("/team/hire/offers")} className="justify-center">
                                 Review Sent Offer
                               </LinkButton>
                             )}
@@ -188,8 +232,9 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
             </div>
           </ScrollFade>
         ) : (
-          /* Figma "Right column": one 640px column of role cards. Read-only (TB-037). */
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          /* Figma "Right column": one 640px column of role cards. Read-only (TB-037). The gutters
+             are inside this scroller too, so its bar sits at the panel's edge like the board's. */
+          <div className="min-h-0 flex-1 overflow-y-auto px-10 pb-10">
             <div className="mx-auto flex w-[640px] flex-col gap-4 pb-6">
               <Card className="flex flex-col gap-4 p-4">
                 <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-black" style={{ fontVariationSettings: '"opsz" 14' }}>

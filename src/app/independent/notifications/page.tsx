@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { Button, Page, Pills } from "@/components/independent/ui";
 import { resetDemo } from "@/lib/demo/live";
 import { useDemo } from "@/lib/independent/store";
+import { useQueryState } from "@/lib/portal/query-state";
+import { useWithReturn } from "@/components/portal/return";
 
 type Filter = "all" | "unread" | "contracts" | "offers" | "payments";
 const FILTERS: { value: Filter; label: string }[] = [
@@ -18,7 +19,8 @@ const FILTERS: { value: Filter; label: string }[] = [
 /** Figma "Notifications / Independent": 12.5px pill filters, #e3e8ed list with 10.5px group headers; unread rows #f0f5fc. */
 export default function Notifications() {
   const { notifications, markRead } = useDemo();
-  const [filter, setFilter] = useState<Filter>("all");
+  const withReturn = useWithReturn();
+  const [filter, setFilter] = useQueryState<Filter>("filter", "all", ["all", "unread", "contracts", "offers", "payments"]);
   const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : n.kind === filter));
   const groups = ["Today", "Yesterday", "Earlier"] as const;
 
@@ -44,7 +46,7 @@ export default function Notifications() {
               <ul>
                 {items.map((n) => (
                   <li key={n.id} className={`border-t border-line leading-[1.45] ${n.unread ? "bg-[#f0f5fc]" : "bg-white"}`}>
-                    <Link href={n.href} onClick={() => markRead(n.id)} className="flex items-start gap-3 px-4 py-3 text-left hover:bg-surface-alt">
+                    <Link href={withReturn(n.href)} onClick={() => markRead(n.id)} className="flex items-start gap-3 px-4 py-3 text-left hover:bg-surface-alt">
                       <span className={`mt-[5px] size-2 shrink-0 rounded-full ${n.unread ? "bg-accent" : "bg-line"}`} aria-hidden />
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="text-[13.5px] font-semibold text-ink-deep">{n.title}</span>

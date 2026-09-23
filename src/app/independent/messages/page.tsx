@@ -1,6 +1,8 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { ReturnNav } from "@/components/portal/return";
 import { ICONS } from "@/components/admin/icons";
 import { CallDialog } from "@/components/portal/CallDialog";
 import { Highlight, Initials, Page, SearchBox, StatusDot } from "@/components/independent/ui";
@@ -29,7 +31,10 @@ export default function Messages() {
   const conversations = conversationsFor(canChat || contracts.length > 0);
   const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
   const [q, setQ] = useState("");
-  const [active, setActive] = useState(conversations[0]?.id ?? "");
+  /** `?with=<id>` opens that thread — the contract page links here with the company's thread. The list hydrates after mount, so the id is
+   *  kept even before it appears and takes effect as soon as the conversation does. */
+  const wanted = useSearchParams().get("with");
+  const [active, setActive] = useState(wanted ?? conversations[0]?.id ?? "");
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -68,7 +73,7 @@ export default function Messages() {
   };
 
   return (
-    <Page title="Messages">
+    <Page title="Messages" nav={<ReturnNav />}>
       <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-line">
         {/* Conversations */}
         <section className="flex w-[384px] shrink-0 flex-col border-r border-line">

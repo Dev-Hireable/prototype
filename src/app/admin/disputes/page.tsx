@@ -1,29 +1,69 @@
-import { AdminPage, Badge, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
-import { disputes } from "@/lib/admin/data/disputes";
-import type { Dispute } from "@/lib/admin/data/disputes";
+"use client";
 
+import { useState } from "react";
+import { AdminPage, Badge, DataTable, SearchInput, Select, StatCard, StatGrid, Toolbar } from "@/components/admin/ui";
+import { ageOf, contractName, dateOf, daysOpen, DISPUTE_REASONS, DISPUTE_STATUSES, holds, otherParty, partyName, SLA_DAYS, STATUS_TONE, unseenByAdmin, usd, useDisputes } from "@/lib/demo/disputes";
+import type { Dispute } from "@/lib/demo/disputes";
+
+/**
+ * AD-032 — every dispute on the platform, newest first, with both parties, the amount, the
+ * reason and the status, filterable by status and reason. It used to be five rows transcribed
+ * from Figma, so a dispute filed in either portal never reached it and its filters did nothing.
+ */
 export default function AllDisputes() {
+  const all = useDisputes();
+  const [q, setQ] = useState("");
+  const [status, setStatus] = useState("All statuses");
+  const [reason, setReason] = useState("All reasons");
+  const unseen = new Set(unseenByAdmin(all).map((d) => d.id));
+
+  const rows = [...all]
+    .sort((a, b) => b.at - a.at)
+    .filter(
+      (d) =>
+        (status === "All statuses" || d.status === status) &&
+        (reason === "All reasons" || d.reason === reason) &&
+        `${partyName(d, "team")} ${partyName(d, "independent")} ${contractName(d)} ${d.reason}`.toLowerCase().includes(q.trim().toLowerCase()),
+    );
+  const pending = all.filter((d) => d.status === "Pending");
+
   return (
     <AdminPage title="All disputes">
+      <StatGrid>
+        <StatCard label="Pending review" value={String(pending.length)} sub={`SLA ${SLA_DAYS} days`} />
+        <StatCard label="Past SLA" value={String(pending.filter((d) => daysOpen(d) > SLA_DAYS).length)} sub="pending longer than 5 days" />
+        <StatCard label="Awaiting release" value={String(all.filter((d) => d.resolution?.payment === "awaiting release").length)} sub="ruled for the independent" />
+        <StatCard label="Held in escrow" value={usd(all.filter(holds).reduce((n, d) => n + d.amount, 0))} sub="across open disputes" />
+      </StatGrid>
+
       <Toolbar>
-        <SearchInput placeholder="Search disputes" />
-        <Select
-          label="Status"
-          options={["All statuses", "Pending review", "In review", "Awaiting evidence", "Resolved", "Closed"]}
-        />
-        <Select label="Reason" options={["All reasons", "Escrow", "Delivery", "Evidence", "Payment"]} />
+        <SearchInput placeholder="Search by party, contract or reason" value={q} onChange={setQ} />
+        <Select label="Status" options={["All statuses", ...DISPUTE_STATUSES]} value={status} onChange={setStatus} />
+        <Select label="Reason" options={["All reasons", ...DISPUTE_REASONS]} value={reason} onChange={setReason} />
       </Toolbar>
 
       <DataTable<Dispute>
-        rows={disputes}
-        rowHref={(d) => `/admin/disputes/${d.slug}`}
+        rows={rows}
+        rowHref={(d) => `/admin/disputes/${d.id}`}
+        empty={all.length === 0 ? "No disputes filed yet. When a Team Builder or an independent files one, it lands here for review." : "No disputes match these filters."}
         columns={[
-          { header: "Dispute", cell: (d) => d.dispute, width: "28%" },
-          { header: "Contract", cell: (d) => d.contract, width: "20%" },
-          { header: "Raised by", cell: (d) => d.raisedBy, width: "16%" },
-          { header: "Amount", cell: (d) => d.amount, width: "10%" },
-          { header: "Age", cell: (d) => d.age, width: "10%" },
-          { header: "Status", cell: (d) => <Badge tone={d.tone}>{d.status}</Badge>, width: "16%" },
+          {
+            header: "Dispute",
+            cell: (d) => (
+              <span className="flex flex-wrap items-center gap-2">
+                {d.reason} · {d.title}
+                {/* TB-093 / IN-082 — a filing, a withdrawal or a new statement is flagged until opened. */}
+                {unseen.has(d.id) && <Badge tone="accent">New</Badge>}
+              </span>
+            ),
+            width: "24%",
+          },
+          { header: "Date filed", cell: (d) => dateOf(d.at), width: "11%" },
+          { header: "Filed by", cell: (d) => partyName(d, d.filedBy), width: "15%" },
+          { header: "Against", cell: (d) => partyName(d, otherParty(d.filedBy)), width: "15%" },
+          { header: "Amount", cell: (d) => usd(d.amount), width: "10%" },
+          { header: "Age", cell: (d) => ageOf(d), width: "9%" },
+          { header: "Status", cell: (d) => <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>, width: "16%" },
         ]}
       />
     </AdminPage>

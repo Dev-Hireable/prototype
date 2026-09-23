@@ -2,33 +2,33 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Field, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
-import { sendChat } from "@/lib/demo/live";
+import { Button, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/ScrollFade";
 import { COLUMNS, MATCH_TOOLTIP, roles } from "@/lib/independent/data";
 import type { Application } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
+import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 /** Figma "Job Board / My Applications": 360px columns, gap 8; header px 12 / py 8, 0.5px stroke; cards p 12, gap 12. */
 export default function MyApplications() {
-  const { applications, withdraw } = useDemo();
+  const { applications, withdraw, canChat } = useDemo();
   const [menu, setMenu] = useState<string | null>(null);
   const [target, setTarget] = useState<Application | null>(null);
-  /** IN-022 — compose to the Team Builder without leaving the pipeline. */
-  const [messaging, setMessaging] = useState<Application | null>(null);
-  const [msg, setMsg] = useState("");
   const [toast, setToast] = useToast();
+  const withReturn = useWithReturn();
 
   return (
-    <Page title="My Applications" padded={false}>
-      {/* The gutter is on this wrapper, NOT on the scroller: padding inside a scroll container is
-          scrolled through, so the scrollport would clip cards flush against the panel border. */}
-      <div className="flex h-full min-h-0 p-2">
+    <Page title="My Applications" padded={false} nav={<ReturnNav />}>
+      {/* The 40px side and bottom gutters are padding inside the board, so its horizontal bar runs
+          along the panel's bottom edge, 8px in, like every vertical bar, instead of floating 48px up.
+          At rest the padding lines the columns up with the back-link row; scrolled, cards pass
+          through it and fade out at the edge (ScrollFade's mask) instead of being cut flush. */}
+      <div className="flex min-h-0 flex-1 pt-4">
         <ScrollFade className="flex w-full min-w-0">
           {/* overflow-y-hidden is load-bearing: `overflow-x: auto` alone implicitly turns the y axis
               into a second scrollbar nested inside the shell's. Columns take the vertical scroll. */}
-          <div className="flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden" onClick={() => setMenu(null)}>
+          <div className="scroll-fade flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden px-10 pb-10" onClick={() => setMenu(null)}>
             {COLUMNS.map((col) => {
               const cards = applications.filter((a) => col.stages.includes(a.stage));
               return (
@@ -59,10 +59,18 @@ export default function MyApplications() {
                             <MenuLink density="compact" href={`/independent/jobs/applications/${a.id}`}>
                               View application
                             </MenuLink>
-                            {/* IN-022 — on every card, at every stage. */}
-                            <MenuAction density="compact" onClick={() => { setMessaging(a); setMsg(""); setMenu(null); }}>
-                              Message Team Builder
-                            </MenuAction>
+                            {/* IN-022 — on every card. It opens the conversation in Messages, like every
+                                other Message button, and waits for the interview invite that opens the
+                                thread (IN-006) instead of sending into a thread that doesn't exist yet. */}
+                            {canChat ? (
+                              <MenuLink density="compact" href={withReturn("/independent/messages?with=c1")}>
+                                Message Team Builder
+                              </MenuLink>
+                            ) : (
+                              <MenuAction density="compact" disabled title="Messaging opens once you're invited to interview">
+                                Message Team Builder
+                              </MenuAction>
+                            )}
                             <MenuAction density="compact" destructive onClick={() => { setTarget(a); setMenu(null); }}>
                               Withdraw application
                             </MenuAction>
@@ -126,37 +134,6 @@ export default function MyApplications() {
           </>
         }
       />
-      <Modal
-        open={!!messaging}
-        onClose={() => setMessaging(null)}
-        title={`Message ${messaging?.company ?? ""}`}
-        description={`About your ${messaging?.title ?? ""} application. Goes straight to your thread in Messages.`}
-        footer={
-          <>
-            <Button size="lg" onClick={() => setMessaging(null)}>
-              Cancel
-            </Button>
-            {/* IN-022 — an empty message cannot be sent. */}
-            <Button
-              size="lg"
-              variant="primary"
-              disabled={!msg.trim()}
-              onClick={() => {
-                sendChat("independent", msg);
-                setMessaging(null);
-                setMsg("");
-                setToast("Message sent");
-              }}
-            >
-              Send message
-            </Button>
-          </>
-        }
-      >
-        <Field label="Message">
-          <Textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="Ask a question about the role, timing or next steps." />
-        </Field>
-      </Modal>
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

@@ -7,6 +7,7 @@ import { Button, EmptyState, InfoBanner, JobBadge, LinkButton, Page, SearchBox, 
 import { Avatar } from "@/components/team/ui";
 import { byName, CONTRACT_NAMES, isOffTrack } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
+import { useWithReturn } from "@/components/portal/return";
 import type { Contract } from "@/lib/team/data";
 
 const Message = ICONS.messages;
@@ -28,6 +29,7 @@ const trialEnded = (c: Contract) => c.type === "trial" && daysLeft(c) === 0;
  */
 export default function AllIndependents() {
   const { contracts } = useDemo();
+  const withReturn = useWithReturn();
   const [q, setQ] = useState("");
   const [type, setType] = useState("All");
   const [showInactive, setShowInactive] = useState(false); // TB-054: default OFF
@@ -70,7 +72,7 @@ export default function AllIndependents() {
             body="When a candidate accepts an offer, their contract and tracker appear here."
             action={
               <div className="flex gap-2">
-                <LinkButton href="/team/discover" variant="primary" size="lg">
+                <LinkButton href={withReturn("/team/discover")} variant="primary" size="lg">
                   Discover independents
                 </LinkButton>
                 <LinkButton href="/team/hire" size="lg">
@@ -113,6 +115,7 @@ export default function AllIndependents() {
 
 /** TB-057 — the at-a-glance summary card: objectives breakdown, contract type, TFS, time left. */
 function TalentCard({ contract: c }: { contract: Contract }) {
+  const withReturn = useWithReturn();
   const p = byName(c.independent);
   const name = CONTRACT_NAMES[c.slug] ?? p.name;
   const left = daysLeft(c);
@@ -132,7 +135,7 @@ function TalentCard({ contract: c }: { contract: Contract }) {
           <span className="truncate text-[15px] font-semibold text-ink hover:text-primary">{name}</span>
           <span className="truncate text-[13px] text-ink-2">{c.role}</span>
         </Link>
-        <Link href="/team/messages" aria-label={`Message ${name}`} className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
+        <Link href={withReturn("/team/messages")} aria-label={`Message ${name}`} className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
           <Message size={18} aria-hidden />
         </Link>
       </div>

@@ -256,7 +256,8 @@ export const contracts: Contract[] = [];
 export type CompanyProfile = { name: string; description: string; industry: string; location: string; url: string; tags: string[] };
 
 export const COMPANIES: Record<string, CompanyProfile> = {
-  "Nairobi Solutions": {
+  // Keyed by the full name contracts carry; the short key never matched, so the profile was blank.
+  "Nairobi Solutions Inc.": {
     name: "Nairobi Solutions Inc.",
     description: "B2B SaaS agency based in New York. We build outbound teams for early-stage fintechs and keep them accountable with weekly metrics.",
     industry: "Sales and marketing services",
@@ -318,14 +319,7 @@ export type Transaction = { date: string; /** yyyymmdd — the ledger sorts newe
 
 export const transactions: Transaction[] = [];
 
-/** IN-032 / IN-059 — one dispute per contract, so the tab shows it and the button stops offering another. */
-export type Dispute = { id: string; contract: string; filed: string; reason: string; description: string; amount: string; evidence?: string; status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" }; resolution?: { outcome: string; notes: string } };
-
-export const disputes: Dispute[] = [];
-
-/** IN-032 — the reasons the dispute form offers, kept with the data so IN-059 reuses them. */
-/** IN-059 — the four reason codes the sheet allows on a dispute. */
-export const DISPUTE_REASONS = ["Missing Deliverable", "Out-of-Scope Output", "Missed Deadline", "No Report Submitted"];
+/* Disputes (IN-032 / IN-059 / IN-080–082) live in @/lib/demo/disputes, with their reason codes. */
 
 /* ------------------------------------------------------------ profile ----- */
 

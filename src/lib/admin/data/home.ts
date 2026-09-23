@@ -41,16 +41,8 @@ export type AttentionItem = {
   href: string;
 };
 
+/** The sample items. Open disputes are added in front of them, live, by the dashboard. */
 export const needsAttention: AttentionItem[] = [
-  {
-    item: "Escrow not released — Sales Manager trial",
-    type: "Dispute",
-    raisedBy: "Juan Dela Cruz",
-    age: "3 days",
-    status: "Pending review",
-    tone: "warn",
-    href: "/admin/disputes/escrow-sales-manager",
-  },
   {
     item: "Payout method missing before trial end",
     type: "Account",

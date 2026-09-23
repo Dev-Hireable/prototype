@@ -22,6 +22,7 @@ import {
 import { matchFor, roleFromPosting } from "@/lib/independent/data";
 import { usePostings } from "@/lib/demo/deal";
 import { useDemo } from "@/lib/independent/store";
+import { ReturnNav } from "@/components/portal/return";
 
 /** Figma "Job Board / Role detail" + "Apply to role · confirm" modal. */
 export default function RoleDetail({ params }: { params: Promise<{ slug: string }> }) {
@@ -47,7 +48,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   };
 
   return (
-    <Page title="Discover roles" nav={<BackLink href="/independent/jobs">Back to roles</BackLink>}>
+    <Page title="Discover roles" nav={<ReturnNav fallback={<BackLink href="/independent/jobs">Back to roles</BackLink>} />}>
       <div className="flex items-start gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <div className="flex flex-wrap items-center gap-3">

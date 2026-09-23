@@ -1,22 +1,27 @@
+import { DisputeHistory } from "./DisputeHistory";
 import { AdminPage, BackLink, Button, Card, DataTable, StatCard, StatGrid } from "./ui";
 import type { ActivityEvent, Stat } from "@/lib/admin/data/users";
 
-/** Shared layout for the two account profile screens (stats row + activity log). */
+/** Shared layout for the two account profile screens (stats row, activity log, dispute history). */
 export function AccountDetail({
   title,
   backHref,
   backLabel,
   stats,
   activity,
+  disputes,
 }: {
   title: string;
   backHref: string;
   backLabel: string;
   stats: Stat[];
   activity: ActivityEvent[];
+  /** AD-011 / AD-022 — whose disputes to list: the account's side and its slug. */
+  disputes: { party: "team" | "independent"; slug: string };
 }) {
   return (
     <AdminPage
+      nav={<BackLink href={backHref}>{backLabel}</BackLink>}
       title={title}
       actions={
         <>
@@ -25,7 +30,6 @@ export function AccountDetail({
         </>
       }
     >
-      <BackLink href={backHref}>{backLabel}</BackLink>
 
       <div className="flex flex-col gap-4">
         <StatGrid>
@@ -47,6 +51,8 @@ export function AccountDetail({
         ) : (
           <Card className="px-5 py-10 text-center text-sm text-muted">No activity recorded yet.</Card>
         )}
+
+        <DisputeHistory party={disputes.party} slug={disputes.slug} />
       </div>
     </AdminPage>
   );

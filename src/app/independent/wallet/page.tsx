@@ -6,6 +6,9 @@ import { ICONS } from "@/components/admin/icons";
 import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
 import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { MenuAction } from "@/components/portal/controls";
+import { useDeal } from "@/lib/demo/deal";
+import { escrowOf, useDisputes } from "@/lib/demo/disputes";
+import { PAIR } from "@/lib/demo/live";
 import { contracts, EARNINGS_LABEL, EARNINGS_TYPES } from "@/lib/independent/data";
 import type { PayoutMethod, Transaction } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
@@ -38,7 +41,13 @@ const amountOf = (s: string) => Number(s.replace(/[^0-9.]/g, "")) || 0;
 
 /** Figma "Wallet / Independent": DM Sans 24 header; balances; payout cards (190 tall, radius 16) with ⋮ menu; transactions table. */
 export default function Wallet() {
-  const { payouts, setDefaultPayout, removePayout, available, withdrawFunds, transactions, disputes } = useDemo();
+  const { payouts, setDefaultPayout, removePayout, available, withdrawFunds, transactions } = useDemo();
+  /** Every dispute the independent is a party to — their own and the ones filed against them. */
+  const allDisputes = useDisputes();
+  const disputes = allDisputes.filter((d) => d.independent.slug === PAIR.independent.slug);
+  /** The live trial's escrow, as its contract tab shows it — the ledger has no row for a deposit. */
+  const liveEscrow = escrowOf(useDeal(), allDisputes);
+  const pendingDisputes = disputes.filter((d) => d.status === "Pending").length;
   const [menu, setMenu] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<PayoutMethod | null>(null);
@@ -78,19 +87,23 @@ export default function Wallet() {
   const shown = rows.slice((current - 1) * PER_PAGE, current * PER_PAGE);
   /** IN-052 — every figure is added up from the ledger, so a recorded payment moves it at once. */
   const received = all.filter((t) => t.type === "Payment Released").reduce((n, t) => n + amountOf(t.amount), 0);
-  const held = all.filter((t) => t.type === "Payment Deposited" && t.status.label === "Held").reduce((n, t) => n + amountOf(t.amount), 0);
+  const heldRows = all.filter((t) => t.type === "Payment Deposited" && t.status.label === "Held");
+  const held = heldRows.reduce((n, t) => n + amountOf(t.amount), 0) + (liveEscrow?.held ?? 0);
+  const heldTrials = heldRows.length + ((liveEscrow?.held ?? 0) > 0 ? 1 : 0);
   const withdrawn = all.filter((t) => t.type === "Payout").reduce((n, t) => n + amountOf(t.amount), 0);
   const defaultPayout = payouts.find((p) => p.isDefault);
   const canWithdraw = available > 0 && !!defaultPayout?.verified.startsWith("Verified");
+  const releases = all.filter((t) => t.type === "Payment Released");
+  const payingContracts = new Set(releases.map((t) => t.contract)).size;
 
   return (
     <Page title="Earnings">
       <div className="flex flex-col gap-6" onClick={() => setMenu(null)}>
         <div className="flex gap-4 whitespace-nowrap">
           {[
-            [money(received), "Received, all time", `${all.filter((t) => t.type === "Payment Released").length} payments received from ${new Set(all.filter((t) => t.type === "Payment Released").map((t) => t.contract)).size} contracts`],
+            [money(received), "Received, all time", `${releases.length} ${releases.length === 1 ? "payment" : "payments"} received from ${payingContracts} ${payingContracts === 1 ? "contract" : "contracts"}`],
             [money(available), "Available to withdraw", available ? "released and not yet withdrawn" : received ? "withdrawn already" : "nothing released yet"],
-            [money(held), "Held in escrow", `${all.filter((t) => t.type === "Payment Deposited" && t.status.label === "Held").length} trials funded and not yet released`],
+            [money(held), "Held in escrow", `${heldTrials} ${heldTrials === 1 ? "trial" : "trials"} funded and not yet released`],
             [money(withdrawn), "Withdrawn to payout method", `${all.filter((t) => t.type === "Payout").length === 1 ? "one payout" : `${all.filter((t) => t.type === "Payout").length} payouts`} so far`],
           ].map(([v, l, s]) => (
             <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4">
@@ -229,8 +242,10 @@ export default function Wallet() {
                   </span>
                 ))}
               </div>
-              {shown.map((t) => (
-                <div key={t.date + t.desc} className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">
+              {/* Date + description repeat when two payments land on one contract the same day (a
+                  dispute release, then End Contract), so the amount and position go in the key too. */}
+              {shown.map((t, i) => (
+                <div key={`${i}-${t.date}-${t.desc}-${t.amount}`} className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">
                   <span className={COLS[0]}>{t.date}</span>
                   <span className={`${COLS[1]} truncate text-[14px]`}>{contractName(t)}</span>
                   <span className={COLS[2]}>{t.party}</span>
@@ -268,11 +283,9 @@ export default function Wallet() {
         {/* IN-059 / IN-080 — filed disputes have their own page; this is the pointer to it. */}
         {disputes.length > 0 && (
           <p className="text-[13px] leading-[1.4] text-ink-2">
-            {disputes.filter((d) => d.status.label === "Pending review").length > 0
-              ? `${disputes.filter((d) => d.status.label === "Pending review").length} dispute under review. `
-              : ""}
+            {pendingDisputes > 0 ? `${pendingDisputes} ${pendingDisputes === 1 ? "dispute is" : "disputes are"} under review. ` : ""}
             <LinkButton size="sm" href="/independent/wallet/disputes">
-              View sent disputes
+              View disputes
             </LinkButton>
           </p>
         )}

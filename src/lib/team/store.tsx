@@ -5,10 +5,11 @@ import type { Stage } from "@/components/independent/ui";
 import { DEAL_ID, dealObjectivesFrom, postingFrom } from "@/lib/team/deal-view";
 import { canMessage, publishPosting, stageOf, today, trialDay, unpublishPosting, updateDeal, useDeal, usePostings } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
-import { markRead as markLiveRead, move, PAIR, useLive, usePersisted } from "@/lib/demo/live";
+import { dealContract as contractRefOf, escrowOf, getDisputes, rateAmount, usd } from "@/lib/demo/disputes";
+import { markRead as markLiveRead, move, PAIR, recordPayment, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
-import { COMPANY_PROFILE, INITIAL_SAVED, TEAM_PROFILE, candidates as seedCandidates, contracts as seedContracts, disputes as seedDisputes, interviews as seedInterviews, offers as seedOffers, paymentMethods as seedCards, roles as seedRoles } from "./data";
-import type { Candidate, CompanyProfile, Contract, Dispute, Evaluation, Interview, Notification, Objective, Offer, PaymentMethod, Role, RoleStatus, TeamProfile } from "./data";
+import { COMPANY_PROFILE, INITIAL_SAVED, TEAM_PROFILE, candidates as seedCandidates, contracts as seedContracts, interviews as seedInterviews, offers as seedOffers, paymentMethods as seedCards, roles as seedRoles, transactions as seedTransactions } from "./data";
+import type { Candidate, CompanyProfile, Contract, Evaluation, Interview, Notification, Objective, Offer, PaymentMethod, Role, RoleStatus, TeamProfile, Transaction } from "./data";
 
 /**
  * Demo state for the Team Builder pages (save an independent → Saved list; invite → candidate
@@ -52,8 +53,13 @@ type Demo = {
   addInterview: (i: Interview) => void;
   setInterview: (id: string, patch: Partial<Interview>) => void;
   contracts: Contract[];
-  /** TB-071 — close the engagement and release escrow. */
-  endContract: (slug: string) => void;
+  /**
+   * TB-071 — close the engagement and release what is still in escrow. Refused (false) while a
+   * dispute is holding the money: filing one is what keeps the funds held while support reviews it.
+   */
+  endContract: (slug: string) => boolean;
+  /** TB-084 — the ledger: the seed plus the live contract's deposit, releases and refunds. */
+  transactions: Transaction[];
   /** TB-075/109 — objectives live on the contract, so creates and verdicts survive a reload. */
   setObjectives: (slug: string, fn: (os: Objective[]) => Objective[]) => void;
   /**
@@ -63,10 +69,6 @@ type Demo = {
    */
   evaluations: Record<string, Evaluation[]>;
   addEvaluation: (slug: string, e: Omit<Evaluation, "date">) => void;
-  disputes: Dispute[];
-  addDispute: (d: Dispute) => void;
-  /** TB-118 — withdrawing has to stick, so it goes through the store like filing does. */
-  setDispute: (id: string, patch: Partial<Dispute>) => void;
   offers: Offer[];
   addOffer: (o: Offer) => void;
   /** TB-105 — the offer the talent actually opens: terms plus the objectives it commits them to. */
@@ -114,7 +116,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [offers, setOffers] = usePersisted("team.offers", seedOffers);
   const [cards, setCards] = usePersisted("team.cards", seedCards);
   const [contracts, setContracts] = usePersisted("team.contracts", seedContracts);
-  const [disputes, setDisputes] = usePersisted("team.disputes", seedDisputes);
   const [interviews, setInterviews] = usePersisted("team.interviews", seedInterviews);
   const [evaluations, setEvaluations] = usePersisted<Record<string, Evaluation[]>>("team.evaluations", {});
   const [profile, setProfileState] = usePersisted("team.profile", TEAM_PROFILE);
@@ -209,6 +210,53 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const allOffers: Offer[] = dealOffer ? [dealOffer, ...offers] : offers;
   const allContracts: Contract[] = dealContract ? [dealContract, ...contracts] : contracts;
 
+  /**
+   * TB-084 / AD-042 — the live contract's money in this ledger: the deposit at acceptance, then
+   * every release and dispute refund recorded in the shared store. It used to be the seed alone,
+   * so neither an escrow release nor a refund ever showed up on the Team Builder's side.
+   */
+  const ref = contractRefOf(deal);
+  const dealLedger: Transaction[] = [];
+  if (deal?.contract && ref) {
+    const name = `${deal.title} — trial`;
+    const href = `/team/independents/${ref.links.team}?tab=contract`;
+    const total = rateAmount(deal.contract.rate);
+    const held = escrowOf(deal, [])?.held ?? 0;
+    const stamp = (ms: number) => {
+      const d = new Date(ms);
+      return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+    };
+    const row = (t: Omit<Transaction, "independent" | "contract" | "contractHref" | "detail"> & { drawerStatus: string; lines: [string, string][] }): Transaction => ({
+      ...t,
+      independent: PAIR.independent.name,
+      contract: name,
+      contractHref: href,
+      detail: { time: t.date, drawerStatus: t.drawerStatus, rows: [["Contract", name], ["Independent", PAIR.independent.name], ...t.lines], breakdown: [[t.desc, t.amount]], total: t.amount, timeline: [{ title: t.desc, date: t.date, done: true }] },
+    });
+    dealLedger.push(
+      ...live.payments
+        // Rows recorded before the slug fix carry the Team Builder's slug for the contract.
+        .filter((p) => p.contract === ref.links.independent || p.contract === ref.links.team)
+        .map((p) =>
+          p.kind === "refunded"
+            ? row({ id: p.id, date: p.date, at: p.at, desc: "Refunded after a dispute ruling", type: "Payment Refunded", amount: p.amount, status: { label: "Refunded", tone: "neutral" }, drawerStatus: "Refunded to your card", lines: [["Ruling", p.period]] })
+            : row({ id: p.id, date: p.date, at: p.at, desc: `Released to ${PAIR.independent.name}`, type: "Payment Released", amount: p.amount, status: { label: "Released", tone: "ok" }, drawerStatus: "Released", lines: [["Period", p.period]] }),
+        ),
+      row({
+        id: `deposit-${ref.key}`,
+        date: deal.contract.started,
+        at: stamp(Date.parse(deal.contract.started)),
+        desc: "Escrow deposit",
+        type: "Payment Deposited",
+        amount: usd(total),
+        status: held > 0 ? { label: "Held", tone: "warn" } : { label: "Settled", tone: "neutral" },
+        drawerStatus: held > 0 ? "Held in escrow" : "Settled",
+        lines: [["Still in escrow", usd(held)]],
+      }),
+    );
+  }
+  const transactions = [...dealLedger, ...seedTransactions];
+
   const value: Demo = {
     saved,
     toggleSaved: (slug) => setSaved((s) => (s.includes(slug) ? s.filter((x) => x !== slug) : [...s, slug])), // TB-018 / TB-022: silent, no notification
@@ -290,14 +338,29 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setContracts((cs) => cs.map((c) => (c.slug === slug ? { ...c, objectives: fn(c.objectives) } : c)));
     },
     endContract: (slug) => {
-      if (dealContract && slug === dealContract.slug) return updateDeal((d) => (d.contract ? { ...d, contract: { ...d.contract, ended: true } } : d));
+      if (deal?.contract && dealContract && slug === dealContract.slug) {
+        const escrow = escrowOf(deal, getDisputes());
+        // TB-071 — a dispute keeps its amount in escrow until support rules; ending can't release it.
+        if (escrow && escrow.onHold > 0) return false;
+        const remaining = escrow?.held ?? 0;
+        updateDeal((d) => (d.contract ? { ...d, contract: { ...d.contract, ended: true, escrow: { released: (d.contract.escrow?.released ?? 0) + remaining, refunded: d.contract.escrow?.refunded ?? 0 } } } : d));
+        // IN-051 — ending is when the money moves, so it lands in the independent's ledger, under
+        // their slug for the contract (it used to be ours, so their contract tab never listed it).
+        if (remaining > 0) recordPayment({ contract: deal.roleSlug, title: deal.title, company: PAIR.team.company, amount: usd(remaining), period: `${deal.contract.started} – ${deal.contract.ends}` });
+        return true;
+      }
       setContracts((cs) => cs.map((c) => (c.slug === slug ? { ...c, status: { label: "Ended", tone: "neutral" as const }, progressLabel: "Contract complete" } : c)));
+      return true;
     },
+    transactions,
     evaluations,
-    addEvaluation: (slug, e) => setEvaluations((all) => ({ ...all, [slug]: [{ ...e, date: "Today" }, ...(all[slug] ?? [])] })),
-    disputes,
-    addDispute: (d) => setDisputes((ds) => [d, ...ds]),
-    setDispute: (id, patch) => setDisputes((ds) => ds.map((d) => (d.id === id ? { ...d, ...patch } : d))),
+    addEvaluation: (slug, e) => {
+      setEvaluations((all) => ({ ...all, [slug]: [{ ...e, date: "Today" }, ...(all[slug] ?? [])] }));
+      // IN-034 — the evaluation belongs to the shared contract too, so the talent's side and
+      // Admin's process check (AD-033) can see that it was submitted.
+      if (dealContract && slug === dealContract.slug)
+        updateDeal((d) => (d.contract ? { ...d, contract: { ...d.contract, evaluation: { stars: e.stars, feedback: e.feedback, recommendation: e.recommendation, date: today() } } } : d));
+    },
     offers: allOffers,
     sendOffer: ({ rate, start, end, objectives }) =>
       updateDeal((d) => ({ ...d, stage: "offer_received", offer: { rate, start, end, objectives, status: "sent", sent: today() } })),

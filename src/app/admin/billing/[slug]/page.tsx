@@ -15,6 +15,7 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
 
   return (
     <AdminPage
+      nav={<BackLink href="/admin/billing">Back to all transactions</BackLink>}
       title={txn.reference}
       actions={
         <>
@@ -23,7 +24,6 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
         </>
       }
     >
-      <BackLink href="/admin/billing">Back to all transactions</BackLink>
 
       <div className="flex flex-col gap-4">
         <StatGrid>

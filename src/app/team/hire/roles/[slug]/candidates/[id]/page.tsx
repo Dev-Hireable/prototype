@@ -14,6 +14,7 @@ import type { DealProposal } from "@/lib/demo/deal";
 import { EMPLOYER_STAGE_LABELS, byName } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { useDemo } from "@/lib/team/store";
+import { useWithReturn } from "@/components/portal/return";
 
 /** The pair's submitted proposal in the review dialog's shape. Objectives arrive as titles only. */
 const reviewFrom = (p: DealProposal): Proposal => ({
@@ -77,6 +78,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
   if (!role || !cand) notFound();
   const p = byName(cand.independent);
   const deal = useDeal();
+  const withReturn = useWithReturn();
   /**
    * IN-072 — the live candidate's proposal is the one they submitted (null until they do); it used
    * to be a hard-coded sample, so the rate and objectives reviewed and signed were never theirs.
@@ -98,7 +100,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
 
   /** CTA pair per Figma frame (primary, secondary). */
   const cta = (() => {
-    const message = <LinkButton size="lg" href="/team/messages" className="w-full">Message</LinkButton>;
+    const message = <LinkButton size="lg" href={withReturn("/team/messages")} className="w-full">Message</LinkButton>;
     const request = (
       <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("request")}>
         Request proposal
@@ -121,7 +123,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
           <LinkButton size="lg" variant="primary" href={pipeline} className="w-full">
             Back to pipeline
           </LinkButton>
-          <LinkButton size="lg" href="/team/discover" className="w-full">
+          <LinkButton size="lg" href={withReturn("/team/discover")} className="w-full">
             Browse candidates
           </LinkButton>
         </>
@@ -135,7 +137,10 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
             <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("invite")}>
               Invite to interview
             </Button>
-            {message}
+            {/* The thread opens with the interview invite; before that there is no one to message. */}
+            <Button size="lg" className="w-full" disabled title="Messaging opens once you invite them to interview">
+              Message
+            </Button>
           </>
         );
       case "invited":
@@ -172,7 +177,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       case "offer_accepted":
         return (
           <>
-            <LinkButton size="lg" variant="primary" href="/team/hire/offers" className="w-full">
+            <LinkButton size="lg" variant="primary" href={withReturn("/team/hire/offers")} className="w-full">
               Track offer
             </LinkButton>
             {message}
@@ -181,7 +186,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       default:
         return (
           <>
-            <LinkButton size="lg" variant="primary" href={`/team/independents/${p.slug}`} className="w-full">
+            <LinkButton size="lg" variant="primary" href={withReturn(`/team/independents/${p.slug}`)} className="w-full">
               Track trial progress
             </LinkButton>
             {message}

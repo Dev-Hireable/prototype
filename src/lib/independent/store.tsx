@@ -8,8 +8,8 @@ import { markRead as markLiveRead, move, useLive, usePersisted } from "@/lib/dem
 import type { MoveKind } from "@/lib/demo/live";
 import { KEY_RESULTS, krValue } from "@/lib/team/data";
 import type { KeyResult } from "@/lib/team/data";
-import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, disputes as seedDisputes, interviews as seedInterviews, ME, payoutMethods as seedPayouts, profile as seedProfile, tagsFor, transactions as seedTransactions, WORK_STYLE_ANSWERS } from "./data";
-import type { Application, Contract, Dispute, Interview, Notification, Objective, PayoutMethod, Transaction } from "./data";
+import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, interviews as seedInterviews, ME, payoutMethods as seedPayouts, profile as seedProfile, tagsFor, transactions as seedTransactions, WORK_STYLE_ANSWERS } from "./data";
+import type { Application, Contract, Interview, Notification, Objective, PayoutMethod, Transaction } from "./data";
 
 /**
  * Demo state for the Independent pages, so a button on one screen is visible on another
@@ -41,11 +41,7 @@ type Demo = {
   /** IN-030 — key results with the tasks this session has ticked applied, so progress is derived. */
   keyResults: KeyResult[];
   markTask: (krId: string, taskId: string) => void;
-  /** IN-032 — one dispute per contract; the tab shows it and the File a Dispute button stands down. */
-  disputes: Dispute[];
-  fileDispute: (d: Dispute) => void;
-  /** IN-082 — withdrawing leaves the dispute on file as Withdrawn; it never unblocks a re-file. */
-  withdrawDispute: (id: string) => void;
+  /* Disputes live in @/lib/demo/disputes, where the Team Builder and Admin see the same record. */
   /** IN-051 / IN-052 / IN-053 — the seeded ledger plus anything recorded this session, newest first. */
   transactions: Transaction[];
   /** IN-070 — interviews the Team Builder has booked on the shared engagement. */
@@ -195,7 +191,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [withdrawnRoleSlugs, setWithdrawnRoleSlugs] = usePersisted<string[]>("ind.withdrawn", []);
   const [contracts, setContracts] = usePersisted("ind.contracts", seedContracts);
   const [doneTasks, setDoneTasks] = usePersisted<string[]>("ind.doneTasks", []);
-  const [disputes, setDisputes] = usePersisted("ind.disputes", seedDisputes);
   const [profile, setProfile] = usePersisted<Profile>("ind.profile", SEED_PROFILE);
   const [workStyle, setWorkStyle] = usePersisted("ind.workStyle", WORK_STYLE_ANSWERS);
   const [payouts, setPayouts] = usePersisted("ind.payouts", seedPayouts);
@@ -210,16 +205,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
    */
   const amountOf = (s: string) => Number(s.replace(/[^0-9.]/g, "")) || 0;
   const transactions: Transaction[] = [
-    ...live.payments.map((p) => ({
-      date: p.date,
-      at: p.at,
-      desc: `Payment released · ${p.title}`,
-      party: p.company,
-      type: "Payment Released" as const,
-      contract: p.contract,
-      amount: `+${p.amount}`,
-      status: { label: "Available", tone: "ok" as const },
-    })),
+    ...live.payments.map((p) =>
+      // A dispute ruled for the Team Builder sends escrow back to them: on the contract's history
+      // (IN-032), never in this balance.
+      p.kind === "refunded"
+        ? { date: p.date, at: p.at, desc: `Refunded to ${p.company} after a dispute ruling · ${p.title}`, party: p.company, type: "Payment Refunded" as const, contract: p.contract, amount: p.amount, status: { label: "Refunded", tone: "neutral" as const } }
+        : { date: p.date, at: p.at, desc: `Payment released · ${p.title}`, party: p.company, type: "Payment Released" as const, contract: p.contract, amount: `+${p.amount}`, status: { label: "Available", tone: "ok" as const } },
+    ),
     ...withdrawals,
     ...seedTransactions,
   ];
@@ -348,9 +340,6 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     },
     keyResults,
     markTask: (krId, taskId) => setDoneTasks((t) => (t.includes(`${krId}:${taskId}`) ? t : [...t, `${krId}:${taskId}`])),
-    disputes,
-    fileDispute: (d) => setDisputes((all) => (all.some((x) => x.contract === d.contract) ? all : [d, ...all])),
-    withdrawDispute: (id) => setDisputes((all) => all.map((d) => (d.id === id ? { ...d, status: { label: "Withdrawn", tone: "neutral" as const } } : d))),
     transactions,
     interviews: dealInterview ? [dealInterview, ...seedInterviews] : seedInterviews,
     declineInterview: (id) => {
