@@ -1,0 +1,370 @@
+{
+  "client": {
+    "persona": {
+      "assistantName": "Hiro",
+      "greeting": "Hey, I'm Hiro. I'll throw a few real scenarios your way so we can see how you like to run your team. Pick one, or type your own answer. Ready?",
+      "completionMessage": "Perfect, you're done with the quiz. I'm getting your results ready now.",
+      "shortAcknowledgments": [
+        "Got it.",
+        "Nice.",
+        "Noted.",
+        "Alright.",
+        "Makes sense."
+      ],
+      "otherReflectionsByPosition": {
+        "1": "You move quickly and keep momentum.",
+        "2": "You balance pace with a quick check-in.",
+        "3": "You prefer structure and protecting the plan.",
+        "4": "You like to get full clarity before committing."
+      }
+    },
+    "questions": [
+      {
+        "dimensionId": "decision-making",
+        "questionText": "Your team is stuck waiting on your sign-off to move forward. They've got the context, they just need a yes or no from you. What do you do?",
+        "followupPrompt": "If you had to pick, would you move things forward now or wait for more context first?",
+        "answers": [
+          {
+            "answerText": "Approve it and keep things moving.",
+            "tag": "Decisive",
+            "position": 1
+          },
+          {
+            "answerText": "Get a quick read from the team, then make the call.",
+            "tag": "Consultative",
+            "position": 2
+          },
+          {
+            "answerText": "Review the options before giving a final answer.",
+            "tag": "Analytical",
+            "position": 3
+          },
+          {
+            "answerText": "Hold off until I have the full picture.",
+            "tag": "Cautious",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "adaptability",
+        "questionText": "You're mid-sprint and you realize the direction needs to change. Your team already started building. How do you handle it?",
+        "followupPrompt": "Would you pivot immediately, or pause to validate the change before moving?",
+        "answers": [
+          {
+            "answerText": "Redirect the team right away and keep shipping.",
+            "tag": "Flexible",
+            "position": 1
+          },
+          {
+            "answerText": "Dig into why it changed, then reset priorities with the team.",
+            "tag": "Strategic",
+            "position": 2
+          },
+          {
+            "answerText": "Push back and try to protect the original scope.",
+            "tag": "Consistent",
+            "position": 3
+          },
+          {
+            "answerText": "Pause the sprint until the new direction is clear.",
+            "tag": "Steady",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "responsiveness",
+        "questionText": "One of your team members in a completely different timezone sends you a Slack message. You're in the middle of something. What do you do?",
+        "followupPrompt": "Would you reply quickly today, or keep it for a scheduled sync?",
+        "answers": [
+          {
+            "answerText": "Reply as soon as I see it.",
+            "tag": "Immediate",
+            "position": 1
+          },
+          {
+            "answerText": "Respond when I come up for air.",
+            "tag": "Timely",
+            "position": 2
+          },
+          {
+            "answerText": "Batch my replies and respond later in the day.",
+            "tag": "Balanced",
+            "position": 3
+          },
+          {
+            "answerText": "Address it during my next sync or standup.",
+            "tag": "Structured",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "time-management",
+        "questionText": "It's Monday morning. You've got three different projects that all need attention this week, and your calendar is already packed. How do you approach it?",
+        "followupPrompt": "Do you usually context-switch across work, or focus deeply on one item first?",
+        "answers": [
+          {
+            "answerText": "Jump between all three and keep everything moving.",
+            "tag": "Fast-Paced",
+            "position": 1
+          },
+          {
+            "answerText": "Decide what's most urgent and start there.",
+            "tag": "Prioritizing",
+            "position": 2
+          },
+          {
+            "answerText": "Block my calendar and follow a plan for the week.",
+            "tag": "Organized",
+            "position": 3
+          },
+          {
+            "answerText": "Go deep on one project at a time until it's done.",
+            "tag": "Methodical",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "cooperativeness",
+        "questionText": "You're on a team call and someone pushes back hard on your approach. They think there's a better way. How do you respond?",
+        "followupPrompt": "Would you push your approach, or work toward a shared middle ground?",
+        "answers": [
+          {
+            "answerText": "Back my decision and move forward.",
+            "tag": "Assertive",
+            "position": 1
+          },
+          {
+            "answerText": "Explain my reasoning and give them room to make their case.",
+            "tag": "Open",
+            "position": 2
+          },
+          {
+            "answerText": "Look for a compromise that works for both sides.",
+            "tag": "Mediating",
+            "position": 3
+          },
+          {
+            "answerText": "Give them ownership if their idea is better.",
+            "tag": "Supportive",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "communication",
+        "questionText": "Your team is remote and spread across 3 timezones. Everyone's working different hours. How do you prefer to stay aligned with them?",
+        "followupPrompt": "Would you rather keep a daily pulse, or communicate mainly on scheduled cadence?",
+        "answers": [
+          {
+            "answerText": "Stay in the channels and keep a pulse on things all day.",
+            "tag": "Engaged",
+            "position": 1
+          },
+          {
+            "answerText": "One daily standup or sync to cover priorities.",
+            "tag": "Consistent",
+            "position": 2
+          },
+          {
+            "answerText": "A weekly recap to review what shipped and what's next.",
+            "tag": "Planned",
+            "position": 3
+          },
+          {
+            "answerText": "Async updates only when there's something worth sharing.",
+            "tag": "Independent",
+            "position": 4
+          }
+        ]
+      }
+    ]
+  },
+  "talent": {
+    "persona": {
+      "assistantName": "Hira",
+      "greeting": "Hey! I'm Hira. I've got six quick scenarios about how you work remotely. Pick one, or type your own answer. Let's do it.",
+      "completionMessage": "Amazing, you're done with the quiz. I'm getting your results ready now.",
+      "shortAcknowledgments": [
+        "Got it.",
+        "Nice one.",
+        "Noted.",
+        "Cool.",
+        "Makes sense."
+      ],
+      "otherReflectionsByPosition": {
+        "1": "You take initiative and keep moving.",
+        "2": "You stay balanced and communicative.",
+        "3": "You prefer clarity and process.",
+        "4": "You favor thoughtful, careful execution."
+      }
+    },
+    "questions": [
+      {
+        "dimensionId": "decision-making",
+        "questionText": "You're working on a task and hit a wall. Your lead is offline and probably won't reply for a few hours. How do you handle it?",
+        "followupPrompt": "Would you make a judgment call now, or pause until you get input?",
+        "answers": [
+          {
+            "answerText": "Make a judgment call and keep going.",
+            "tag": "Proactive",
+            "position": 1
+          },
+          {
+            "answerText": "Drop a message and move to something else while I wait.",
+            "tag": "Collaborative",
+            "position": 2
+          },
+          {
+            "answerText": "Document the options and wait for input.",
+            "tag": "Deliberate",
+            "position": 3
+          },
+          {
+            "answerText": "Pause the task until I hear back.",
+            "tag": "Careful",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "adaptability",
+        "questionText": "You're halfway done with a deliverable and the brief changes out of nowhere. New direction, different expectations. What's your move?",
+        "followupPrompt": "Would you rework immediately, or ask clarifying questions first?",
+        "answers": [
+          {
+            "answerText": "Pivot and start reworking right away.",
+            "tag": "Adaptive",
+            "position": 1
+          },
+          {
+            "answerText": "Ask clarifying questions before changing anything.",
+            "tag": "Responsive",
+            "position": 2
+          },
+          {
+            "answerText": "Flag it and suggest sticking to the original brief.",
+            "tag": "Stable",
+            "position": 3
+          },
+          {
+            "answerText": "Take a step back and replan before moving.",
+            "tag": "Gradual",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "responsiveness",
+        "questionText": "Your Team Builder pings you while you're deep in focus mode, headphones on, in the zone. What do you do?",
+        "followupPrompt": "Would you respond quickly today, or keep it for your next scheduled check-in?",
+        "answers": [
+          {
+            "answerText": "Break focus and reply right away.",
+            "tag": "Prompt",
+            "position": 1
+          },
+          {
+            "answerText": "Finish what I'm doing, then respond within the hour.",
+            "tag": "Dependable",
+            "position": 2
+          },
+          {
+            "answerText": "Reply by end of day once I have a clear answer.",
+            "tag": "Consistent",
+            "position": 3
+          },
+          {
+            "answerText": "Save it for my next scheduled check-in.",
+            "tag": "Scheduled",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "time-management",
+        "questionText": "You've got two deliverables due this week and a new async request just landed in your inbox. How do you deal with it?",
+        "followupPrompt": "Do you tend to context-switch, or go deep on one critical task at a time?",
+        "answers": [
+          {
+            "answerText": "Context-switch and chip away at all of them.",
+            "tag": "Versatile",
+            "position": 1
+          },
+          {
+            "answerText": "Prioritize the most time-sensitive one and start there.",
+            "tag": "Focused",
+            "position": 2
+          },
+          {
+            "answerText": "Stick to the schedule I already set for the week.",
+            "tag": "Structured",
+            "position": 3
+          },
+          {
+            "answerText": "Block out distractions and deep-work on one at a time.",
+            "tag": "Deep-Working",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "cooperativeness",
+        "questionText": "Your Team Builder sends feedback on a deliverable and you genuinely disagree with their direction. What do you do?",
+        "followupPrompt": "Would you push back directly, or work toward a version that meets both sides?",
+        "answers": [
+          {
+            "answerText": "Push back and explain why my approach works better.",
+            "tag": "Confident",
+            "position": 1
+          },
+          {
+            "answerText": "Share my perspective and ask to understand theirs.",
+            "tag": "Receptive",
+            "position": 2
+          },
+          {
+            "answerText": "Suggest a version that meets both sides halfway.",
+            "tag": "Balanced",
+            "position": 3
+          },
+          {
+            "answerText": "Go with their feedback, they know their business best.",
+            "tag": "Cooperative",
+            "position": 4
+          }
+        ]
+      },
+      {
+        "dimensionId": "communication",
+        "questionText": "You're working remotely for a Team Builder. They want to know how things are going. How do you usually keep them in the loop?",
+        "followupPrompt": "Would you keep a daily update rhythm, or send updates mainly when progress is ready?",
+        "answers": [
+          {
+            "answerText": "Quick Slack updates throughout the day.",
+            "tag": "Responsive",
+            "position": 1
+          },
+          {
+            "answerText": "A short daily update, async or live.",
+            "tag": "Reliable",
+            "position": 2
+          },
+          {
+            "answerText": "A weekly summary with what's done and what's next.",
+            "tag": "Structured",
+            "position": 3
+          },
+          {
+            "answerText": "Share updates when there's real progress to show.",
+            "tag": "Autonomous",
+            "position": 4
+          }
+        ]
+      }
+    ]
+  }
+}

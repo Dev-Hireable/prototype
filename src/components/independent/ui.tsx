@@ -8,7 +8,7 @@ import { ICONS, type IconName } from "@/components/admin/icons";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
-import { FORM_CONTROL } from "@/components/portal/styles";
+import { CLEAR_DEMO_RESET, FORM_CONTROL } from "@/components/portal/styles";
 
 export { KebabMenu, MenuAction, MenuLink, Select } from "@/components/portal/controls";
 export type { SelectProps } from "@/components/portal/controls";
@@ -44,8 +44,9 @@ export function Page({
   return (
     <>
       <header className="shrink-0 shadow-[inset_0_-1px_0_#c3c3c3]">
-        {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it. */}
-        <div className="flex h-14 items-center justify-between gap-3 px-4">
+        {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it.
+            It ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
+        <div className={`flex h-14 items-center justify-between gap-3 pl-4 ${CLEAR_DEMO_RESET}`}>
           <h1
             className={`flex items-center gap-2 text-ink ${
               heading === "display"

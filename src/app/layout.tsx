@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Inter } from "next/font/google";
 import "./globals.css";
+import { DemoReset } from "@/components/portal/DemoReset";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({
@@ -24,7 +25,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} ${dmSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          {children}
+          <DemoReset />
+        </TooltipProvider>
       </body>
     </html>
   );

@@ -1,12 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Card, Chip, Field, JobBadge, KeyValue, LinkButton, Modal, Page, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { BIO_MAX, pastEvaluations } from "@/lib/independent/data";
-import { emptyQuiz, quizComplete, WorkStyleQuiz, type QuizState } from "@/components/portal/WorkStyleQuiz";
 import { useDemo } from "@/lib/independent/store";
+import { WorkStyleChip } from "@/components/portal/TraitTag";
 
 const Star = ICONS.star;
 const Bookmark = ICONS.saved;
@@ -15,7 +16,8 @@ const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-de
 
 /** Figma "Profile / Talent profile · view" + "Retake quiz · confirm": two equal columns (gap 24), cards p 16 / gap 24. */
 export default function Profile() {
-  const { profile, setProfile, workStyle, setWorkStyle, tags, contracts } = useDemo();
+  const { profile, setProfile, tags, contracts } = useDemo();
+  const router = useRouter();
   /**
    * IN-066 — every evaluation received, from live contracts first and closed engagements after.
    * Read-only: nothing here can be edited or removed from this side.
@@ -26,8 +28,6 @@ export default function Profile() {
     ...pastEvaluations,
   ];
   const [retake, setRetake] = useState(false);
-  /** IN-064 — the quiz itself, once the confirmation has been accepted. */
-  const [quiz, setQuiz] = useState<QuizState | null>(null);
   /** IN-062 — the bio has its own editor, with the 500-character limit on it. */
   const [bio, setBio] = useState<string | null>(null);
   const [toast, setToast] = useToast();
@@ -39,9 +39,16 @@ export default function Profile() {
         <p className="text-[13px] leading-[1.4] text-ink-2">This is exactly how your profile appears to Team Builders.</p>
         <div className="flex items-center gap-3">
           <span className="rounded-full bg-[#eef9f2] px-2.5 py-1 text-[12px] leading-4 font-semibold tracking-[0.24px] text-ok">Pro</span>
-          <Button size="lg" onClick={() => setRetake(true)}>
-            Retake quiz
-          </Button>
+          {/* IN-064 — the quiz is the real app's onboarding (/onboarding/talent). */}
+          {tags.length ? (
+            <Button size="lg" onClick={() => setRetake(true)}>
+              Retake quiz
+            </Button>
+          ) : (
+            <LinkButton size="lg" href="/onboarding/talent">
+              Take the quiz
+            </LinkButton>
+          )}
           <LinkButton size="lg" variant="primary" href="/independent/profile/edit">
             Edit profile
           </LinkButton>
@@ -134,13 +141,21 @@ export default function Profile() {
             <h2 className="text-[16px] leading-[1.4] font-semibold text-ink">Work-style tags</h2>
             <p className="text-[12px] leading-[1.4] text-ink-2">Worked out from your quiz answers, not typed in. Team Builders see these on your profile, and your match score on every role comes from the same answers.</p>
             <div className="flex flex-wrap gap-2">
-              {tags.map((t) => (
-                <Chip key={t}>{t}</Chip>
-              ))}
+              {tags.length ? (
+                tags.map((t) => <WorkStyleChip key={`${t.trait}-${t.label}`} tag={t} />)
+              ) : (
+                <p className="text-[13px] leading-[1.4] text-ink-2">No tags yet. Take the work-style quiz and the tags it gives you appear here.</p>
+              )}
             </div>
-            <Button size="sm" className="self-start" onClick={() => setRetake(true)}>
-              Retake quiz to change them
-            </Button>
+            {tags.length ? (
+              <Button size="sm" className="self-start" onClick={() => setRetake(true)}>
+                Retake quiz to change them
+              </Button>
+            ) : (
+              <LinkButton size="sm" variant="primary" className="self-start" href="/onboarding/talent">
+                Take the work-style quiz
+              </LinkButton>
+            )}
           </Card>
           <Card className="flex flex-col gap-4 p-6 text-[13px] leading-[1.4]">
             <h2 className="text-[16px] font-semibold text-ink">Links</h2>
@@ -165,55 +180,18 @@ export default function Profile() {
         open={retake}
         onClose={() => setRetake(false)}
         title="Retake the work-style quiz?"
-        description="Your current tags stay on your profile until you finish the new quiz. Six questions, and your tags and match scores update the moment you finish."
+        description="Your current tags stay on your profile until you finish the new quiz. Six scenarios, and your tags and match scores update when you finish."
         footer={
           <>
             <Button size="lg" onClick={() => setRetake(false)}>
               Cancel
             </Button>
-            <Button
-              size="lg"
-              variant="primary"
-              onClick={() => {
-                setRetake(false);
-                setQuiz(emptyQuiz(workStyle));
-              }}
-            >
+            <Button size="lg" variant="primary" onClick={() => router.push("/onboarding/talent")}>
               Start quiz
             </Button>
           </>
         }
       />
-
-      <Modal
-        open={!!quiz}
-        onClose={() => setQuiz(null)}
-        width={640}
-        title="Work-style quiz"
-        description="Six questions, one per trait. Answer as you actually work, not as you would like to."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setQuiz(null)}>
-              Cancel
-            </Button>
-            <Button
-              size="lg"
-              variant="primary"
-              disabled={!quiz || !quizComplete(quiz)}
-              onClick={() => {
-                if (!quiz) return;
-                setWorkStyle(quiz.answers.map((a) => a ?? 3));
-                setQuiz(null);
-                setToast("Work-style tags updated — your match scores have been recalculated");
-              }}
-            >
-              Finish quiz
-            </Button>
-          </>
-        }
-      >
-        {quiz && <WorkStyleQuiz state={quiz} onChange={(next) => setQuiz((prev) => (prev ? (typeof next === "function" ? next(prev) : next) : prev))} />}
-      </Modal>
 
       {/* IN-062 — 500 characters, saved the moment you press save. */}
       <Modal

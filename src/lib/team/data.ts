@@ -1,5 +1,6 @@
 import type { Stage } from "@/components/independent/ui";
 import type { DealKeyResult, ObjectiveComment } from "@/lib/demo/deal";
+import { storedWorkStyle } from "@/lib/demo/work-style";
 
 /** Seed data for the Team Builder portal — every string is lifted from the Figma "Team Builder" canvas. */
 
@@ -19,12 +20,12 @@ export const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", 
  * flags, so filling in your company profile or adding a card moved nothing, and the card sat at
  * 40% forever while the company page claimed the same step was finished.
  */
-export function setupSteps({ company, cards, roles }: { company: CompanyProfile; cards: PaymentMethod[]; roles: Role[] }) {
+export function setupSteps({ company, cards, roles, workStyle }: { company: CompanyProfile; cards: PaymentMethod[]; roles: Role[]; workStyle: number[] }) {
   const companyDone = COMPANY_FIELDS.every((k) => String(company[k]).trim() !== "");
   return [
     // Nothing in the demo tracks email confirmation, so this one is simply already true.
     { label: "Verify email", done: true, href: "/team/settings", hint: "Confirm the address we send hiring updates to." },
-    { label: "Work Style Quiz", done: company.tags.length > 0, href: "/team/profile/company", hint: "Generates the workplace tags we match candidates against." },
+    { label: "Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/client", hint: "Generates the workplace tags we match candidates against." },
     { label: "Company profile", done: companyDone, href: "/team/profile/company", hint: "Logo, industry and size — candidates see this on every role." },
     { label: "Payment method", done: cards.length > 0, href: "/team/settings/payment", hint: "Funds the escrow that pays an independent at each cycle." },
     // Can't post a role without a company to post it under or a card to fund the escrow.
@@ -58,7 +59,8 @@ export type Independent = {
   workStyle: { builder: number[]; independent: number[] };
 };
 
-const WS = { builder: [5, 5, 2, 3, 2, 5], independent: [5, 4, 2, 2, 2, 2] };
+/** No quiz answers until each side takes it; `withLiveProfile` reads the pair's from storage. */
+const WS = { builder: [] as number[], independent: [] as number[] };
 
 export const independents: Independent[] = [
   {
@@ -428,7 +430,7 @@ export const isUrl = (v: string) => /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\
 
 /** TB-094 / TB-097 — the editable profile, seeded here and persisted in the store from then on. */
 export type TeamProfile = { name: string; title: string; photo: string; memberSince: string; email: string; phone: string; timezone: string; about: string };
-export type CompanyProfile = { name: string; description: string; url: string; industry: string; location: string; size: string; logo: string | null; tags: string[] };
+export type CompanyProfile = { name: string; description: string; url: string; industry: string; location: string; size: string; logo: string | null };
 
 export const TEAM_PROFILE: TeamProfile = {
   name: ME.name,
@@ -449,15 +451,7 @@ export const COMPANY_PROFILE: CompanyProfile = {
   location: "New York, USA · remote team",
   size: "",
   logo: null,
-  tags: ["Direct", "Data-driven", "Async first", "Weekly check-ins", "Coaching"],
 };
-
-/** TB-096 — a retake shuffles to a different set; the badges have to visibly change. */
-export const WORK_STYLE_SETS = [
-  ["Direct", "Data-driven", "Async first", "Weekly check-ins", "Coaching"],
-  ["Structured", "Outcome-led", "Daily stand-ups", "Hands-on", "Fast feedback"],
-  ["Collaborative", "Documentation-first", "Flexible hours", "Autonomy", "Monthly reviews"],
-];
 
 export const profile = {
   fields: [
@@ -468,7 +462,6 @@ export const profile = {
     ["Time zone", "(GMT+8) Manila"],
     ["About you", "I hire and coach outbound sales teams for US fintechs. I run 30-day trials with three objectives and weekly check-ins."],
   ] as [string, string][],
-  tags: ["Direct", "Data-driven", "Async first", "Weekly check-ins", "Coaching"],
   company: [
     ["Company name", "Nairobi Solutions Inc."],
     ["About", "B2B SaaS agency based in New York. We build outbound teams for early-stage fintechs and keep them accountable with weekly metrics."],
@@ -499,10 +492,13 @@ function withLiveProfile(i: Independent): Independent {
   } catch {
     return i;
   }
+  // Both sides' quiz answers, so the chart moves when either of them retakes it. The match stays
+  // the seeded figure: the demo doesn't score it from the quiz (the real app's matching differs).
+  const styled = { ...i, workStyle: { builder: storedWorkStyle("team"), independent: storedWorkStyle("independent") } };
   const p = profileCache.profile;
-  if (!p) return i;
+  if (!p) return styled;
   return {
-    ...i,
+    ...styled,
     name: p.name?.trim() || i.name,
     role: p.headline?.trim() || i.role,
     bio: p.bio?.trim() || i.bio,

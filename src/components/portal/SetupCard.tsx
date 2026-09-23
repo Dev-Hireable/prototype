@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
 import { TraitTag } from "@/components/portal/TraitTag";
+import type { WorkStyleTag } from "@/lib/demo/work-style";
 import type { DashboardChecklistItem } from "@/components/portal/dashboard";
 
 const Check = ICONS.check;
@@ -40,7 +41,7 @@ export function DashboardSetupCard({
   completionHref: string;
   items: readonly DashboardChecklistItem[];
   /** Shown in place of the checklist once it is finished. */
-  traits?: readonly { label: string; trait: number }[];
+  traits?: readonly WorkStyleTag[];
   completeDescription?: string;
 }) {
   const done = items.filter((i) => i.done).length;
@@ -76,7 +77,7 @@ export function DashboardSetupCard({
       {complete ? (
         <div className="relative mt-4 flex flex-wrap items-center gap-2 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
           {traits.length > 0 ? (
-            traits.map((t) => <TraitTag key={t.label} label={t.label} trait={t.trait} />)
+            traits.map((t) => <TraitTag key={`${t.trait}-${t.label}`} tag={t} />)
           ) : (
             <p className="text-[14px] leading-[1.35] text-ink-2">Take the work-style quiz to earn your trait badges.</p>
           )}

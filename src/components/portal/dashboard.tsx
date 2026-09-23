@@ -8,6 +8,7 @@ import { dayLabel } from "@/lib/demo/dates";
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const Forward = ICONS.arrowForward;
+const NorthEast = ICONS.northEast;
 const Close = ICONS.close;
 
 /**
@@ -117,6 +118,23 @@ export function DashboardSummaryCard({ title, href, children }: { title: string;
       </div>
       <div className="flex flex-1 flex-col">{children}</div>
     </section>
+  );
+}
+
+/**
+ * The count heading a summary card: icon, number and what it counts. The whole row is the link,
+ * not just the arrow, the way the contract rows beside it are — on both dashboards.
+ */
+export function DashboardStat({ href, icon, value, label }: { href: string; icon: ReactNode; value: number; label: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-4 rounded-lg bg-white px-4 py-3 hover:bg-surface-alt">
+      <span className="flex size-10 items-center justify-center rounded-full border border-border bg-white text-ink">{icon}</span>
+      <span className="flex-1 whitespace-nowrap">
+        <span className="block text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{value}</span>
+        <span className="block text-[13px] leading-[1.2] tracking-[0.2px] text-ink-2">{label}</span>
+      </span>
+      <NorthEast size={24} aria-hidden className="shrink-0 text-ink" />
+    </Link>
   );
 }
 

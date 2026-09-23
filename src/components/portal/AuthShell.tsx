@@ -3,7 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
+import { ICONS } from "@/components/admin/icons";
 import { Input } from "@/components/independent/ui";
+
+const Visible = ICONS.visibility;
+const Hidden = ICONS.visibilityOff;
 
 /**
  * OB-001 to OB-004 — the account screens, built to the same layout the live Hireable app uses
@@ -58,19 +62,26 @@ export function AuthLink({ prompt, linkText, href }: { prompt: string; linkText:
   );
 }
 
-/** OB-001 — a password field with the show/hide toggle the AC asks for. */
+/**
+ * OB-001 — a password field with the show/hide toggle the AC asks for. The eye shows the current
+ * state, the live app's way round (Web-App's PasswordInputField): struck through while the
+ * password is hidden, open once it's showing.
+ */
 export function PasswordInput({ value, onChange, placeholder, autoComplete }: { value: string; onChange: (v: string) => void; placeholder?: string; autoComplete?: string }) {
   const [shown, setShown] = useState(false);
+  const Eye = shown ? Visible : Hidden;
   return (
     <span className="relative flex">
-      <Input type={shown ? "text" : "password"} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} className="!pr-20" />
+      <Input type={shown ? "text" : "password"} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoComplete={autoComplete} className="pr-11" />
+      {/* One name plus aria-pressed: a toggle announces its own state, so the label doesn't flip with it. */}
       <button
         type="button"
         onClick={() => setShown((s) => !s)}
+        aria-label="Show password"
         aria-pressed={shown}
-        className="absolute top-0 right-3 flex h-11 items-center gap-1 text-[12.5px] leading-[1.2] font-medium text-ink-2 hover:text-ink"
+        className="absolute top-0 right-0 flex size-11 items-center justify-center rounded-lg text-ink-2 hover:text-ink"
       >
-        {shown ? "Hide" : "Show"}
+        <Eye size={20} aria-hidden />
       </button>
     </span>
   );

@@ -11,6 +11,7 @@ import {
   DashboardHero,
   DashboardQuickAction,
   DashboardSetupCard,
+  DashboardStat,
   DashboardSummaryCard,
   DashboardSummaryGrid,
 } from "@/components/portal/dashboard";
@@ -18,10 +19,8 @@ import { Avatar } from "@/components/team/ui";
 import { useDemo } from "@/lib/team/store";
 import { usePersisted } from "@/lib/demo/live";
 import { CONTRACT_NAMES, liveIndependents, MARKETING_BANNER, setupSteps } from "@/lib/team/data";
-import { COMPANY_WORK_STYLE } from "@/lib/team/deal-view";
-import { traitTagsFor } from "@/lib/independent/data";
+import { traitTagsFor } from "@/lib/demo/work-style";
 
-const NorthEast = ICONS.northEast;
 const Work = ICONS.workOutline;
 const Add = ICONS.add;
 const Search = ICONS.search;
@@ -38,16 +37,19 @@ export default function Dashboard() {
   /* TB-120/121 — the greeting and the avatar follow whatever the profile page saved. */
   /* Contracts and interviews come from the store: ending a contract or scheduling an interview
      elsewhere in the app has to show up in these widgets. */
-  const { profile, contracts, interviews, company, cards, roles, candidates } = useDemo();
-  /** TB-002 — counted from the pipeline, not three numbers typed into the card. */
-  const live = candidates.filter((c) => !c.dropped);
-  const inTrial = contracts.filter((c) => c.status.label !== "Ended").length;
-  const shortlisted = live.filter((c) => c.stage !== "applied" && c.stage !== "hired").length;
-  /* TB-001 — computed from what is actually set up, so finishing a step moves the bar. */
-  const steps = setupSteps({ company, cards, roles });
-  const [dismissed, setDismissed] = usePersisted("team.bannerDismissed", "");
+  const { profile, contracts, interviews, company, cards, roles, candidates, workStyle } = useDemo();
   /** Active = every trial and full-time engagement that hasn't ended. */
   const active = contracts.filter((c) => c.status.label !== "Ended");
+  /** TB-002 — counted from the pipeline, not numbers typed into the card. */
+  const live = candidates.filter((c) => !c.dropped);
+  const shortlisted = live.filter((c) => c.stage !== "applied" && c.stage !== "hired").length;
+  // One bar per kind of engagement: "In trial" used to count every active contract, so a trial
+  // that converted to full-time was still reported as in trial.
+  const inTrial = active.filter((c) => c.type === "trial").length;
+  const fullTime = active.filter((c) => c.type === "full-time").length;
+  /* TB-001 — computed from what is actually set up, so finishing a step moves the bar. */
+  const steps = setupSteps({ company, cards, roles, workStyle });
+  const [dismissed, setDismissed] = usePersisted("team.bannerDismissed", "");
   /** Next few interviews that haven't happened yet. */
   const upcoming = interviews.filter((iv) => !iv.past).slice(0, 3);
 
@@ -69,7 +71,7 @@ export default function Dashboard() {
             description="Complete your account to start hiring."
             completionHref="/team/profile/company"
             items={steps}
-            traits={traitTagsFor(COMPANY_WORK_STYLE)}
+            traits={traitTagsFor(workStyle, "team")}
             completeDescription="Your account is ready. These are the work-style traits candidates are matched against."
           />
         </DashboardHero>
@@ -101,22 +103,14 @@ export default function Dashboard() {
           </DashboardSummaryCard>
 
           <DashboardSummaryCard title="Applicants" href="/team/hire/roles">
-            {/* The whole row is the link, not just the arrow, the way the contract rows beside it are. */}
-            <Link href="/team/hire/roles" className="flex items-center gap-4 rounded-lg bg-white px-4 py-3 hover:bg-surface-alt">
-              <span className="flex size-10 items-center justify-center rounded-full border border-border bg-white text-ink">
-                <Work size={20} aria-hidden />
-              </span>
-              <span className="flex-1 whitespace-nowrap">
-                <span className="block text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{live.length}</span>
-                <span className="block text-[13px] leading-[1.2] tracking-[0.2px] text-ink-2">{live.length === 1 ? "Applicant so far" : "Applicants so far"}</span>
-              </span>
-              <NorthEast size={24} aria-hidden className="shrink-0 text-ink" />
-            </Link>
+            <DashboardStat href="/team/hire/roles" icon={<Work size={20} aria-hidden />} value={live.length} label={live.length === 1 ? "Applicant so far" : "Applicants so far"} />
+            {/* The funnel in order. Shortlisted is grey like the independent's "In progress" bar;
+                each engagement takes its badge's colour, TRIAL orange and FULL-TIME blue. */}
             <DashboardBarChart
               bars={[
-                // The trial colour — the TRIAL badge's brand orange — graded like the blue bar beside it.
+                { value: shortlisted, label: "Shortlisted", background: "bg-[#c9ccd0]" },
                 { value: inTrial, label: "In trial", background: "bg-gradient-to-b from-brand-orange to-[#ffb371]" },
-                { value: shortlisted, label: "Shortlisted", background: "bg-gradient-to-b from-primary to-[#64bceb]" },
+                { value: fullTime, label: "Full-time", background: "bg-gradient-to-b from-brand-blue to-[#7fd3fb]" },
               ]}
             />
           </DashboardSummaryCard>

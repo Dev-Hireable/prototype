@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button, Pills } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
 import { MONTHS } from "@/lib/demo/dates";
-import { resetDemo } from "@/lib/demo/live";
 
 /** One notification as the feed shows it, whichever portal it came from. */
 export type FeedItem = {
@@ -88,9 +87,6 @@ export function NotificationFeed<F extends string>({
         <Button size="sm" onClick={() => onRead()} disabled={!unread}>
           Mark all as read
         </Button>
-        <button type="button" onClick={resetDemo} className="ml-auto text-[12.5px] leading-[1.45] font-medium text-muted underline underline-offset-2">
-          Reset demo
-        </button>
       </div>
       <div className="overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-line">
         {GROUPS.map((g) => {

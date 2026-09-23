@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { quizPath, quizTaken } from "@/lib/demo/work-style";
 
 /**
  * OB-001 to OB-004 — the demo's account layer: who is signed in, which accounts exist, and the
@@ -30,6 +31,13 @@ export type Session = { email: string; name: string; role: Role } | null;
 
 /** Where each account type lands after signing in (OB-001). */
 export const HOME: Record<Role, string> = { team: "/team", independent: "/independent", admin: "/admin" };
+
+/**
+ * Where signing in actually goes: the dashboard, unless it's a Team Builder or an Independent who
+ * hasn't taken the work-style quiz yet. They're greeted by the quiz, which their portal would send
+ * them to anyway, and its "View dashboard" brings them on to HOME.
+ */
+export const landingFor = (role: Role) => (role !== "admin" && !quizTaken(role) ? quizPath(role) : HOME[role]);
 
 /** OB-002 / OB-003 / OB-004 — the same rules the Security settings enforce. */
 export const PASSWORD_RULES: readonly [string, (password: string) => boolean][] = [
@@ -150,18 +158,6 @@ export function signOut() {
   write({ ...snapshot, session: null });
 }
 
-/**
- * OB-002 / OB-003 — a new account's quiz answers have to reach the portal store before the
- * dashboard mounts. The portal stores hydrate from these keys, so writing them here is how the
- * sign-up quiz hands over. (`usePersisted` in @/lib/demo/live reads the same prefix.)
- */
-export function seedPersisted(key: string, value: unknown) {
-  try {
-    localStorage.setItem(`hireable.demo.${key}`, JSON.stringify(value));
-  } catch {
-    /* ignore */
-  }
-}
 /** The accounts the sign-in screen offers, so nobody has to type or paste credentials. */
 export const DEMO_ACCOUNTS = SEED_ACCOUNTS.map((a) => ({ email: a.email, name: a.name, label: a.role === "team" ? "Client" : a.role === "independent" ? "Talent" : "Admin" }));
 

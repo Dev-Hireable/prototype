@@ -8,7 +8,8 @@ import type { ContractObjective, Deal, DealProposal } from "@/lib/demo/deal";
 import { escrowOf, getDisputes, usd } from "@/lib/demo/disputes";
 import { markRead as markLiveRead, move, recordPayment, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
-import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, interviews as seedInterviews, ME, payoutMethods as seedPayouts, profile as seedProfile, tagsFor, transactions as seedTransactions, WORK_STYLE_ANSWERS } from "./data";
+import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, interviews as seedInterviews, ME, payoutMethods as seedPayouts, profile as seedProfile, transactions as seedTransactions } from "./data";
+import { traitTagsFor, type WorkStyleTag } from "@/lib/demo/work-style";
 import type { Application, Contract, Interview, Notification, PayoutMethod, Transaction } from "./data";
 
 /**
@@ -73,7 +74,7 @@ type Demo = {
   /** IN-063 / IN-064 — the quiz answers, and the tags and match percentages derived from them. */
   workStyle: number[];
   setWorkStyle: (answers: number[]) => void;
-  tags: string[];
+  tags: WorkStyleTag[];
   payouts: PayoutMethod[];
   addPayout: (m: PayoutMethod) => void;
   removePayout: (id: string) => void;
@@ -223,7 +224,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const [declinedRoleSlugs, setDeclinedRoleSlugs] = usePersisted<string[]>("ind.declined", []);
   const [contracts] = usePersisted("ind.contracts", seedContracts);
   const [profile, setProfile] = usePersisted<Profile>("ind.profile", SEED_PROFILE);
-  const [workStyle, setWorkStyle] = usePersisted("ind.workStyle", WORK_STYLE_ANSWERS);
+  const [workStyle, setWorkStyle] = usePersisted<number[]>("ind.workStyle", []);
   const [payouts, setPayouts] = usePersisted("ind.payouts", seedPayouts);
   /** Withdrawals made in this session; they join the ledger like any other transaction. */
   const [withdrawals, setWithdrawals] = usePersisted<Transaction[]>("ind.withdrawals", []);
@@ -494,7 +495,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     setProfile: (patch) => setProfile((p) => ({ ...p, ...patch })),
     workStyle,
     setWorkStyle,
-    tags: tagsFor(workStyle),
+    tags: traitTagsFor(workStyle, "independent"),
     payouts,
     addPayout: (m) =>
       setPayouts((p) => {

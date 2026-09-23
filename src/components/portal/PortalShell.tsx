@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Modal } from "@/components/independent/ui";
 import { useHydrated } from "@/lib/demo/deal";
@@ -125,8 +125,8 @@ export function PortalShell({
           </Link>
         </nav>
 
-        {/* Active tab silhouette — sits above the panel so it hides the panel's left stroke.
-            Profile (hidden section, reached from the avatar) is the same shape flipped to the bottom. */}
+        {/* Active tab — one outline with the panel's edge, above the panel so it hides that stroke where
+            they join. Profile (hidden section, reached from the avatar) is the same shape flipped to the bottom. */}
         <ActiveTab index={activeIndex >= 0 ? activeIndex : "profile"} />
 
         {/* Section panel — ONE set of DOM nodes for both states so items morph instead of swapping. */}
@@ -254,65 +254,143 @@ function RailGlyph({ icon, active }: { icon: Section["icon"]; active: boolean })
   return <Glyph size={24} aria-hidden className="shrink-0" />;
 }
 
-/**
- * Pure-CSS version of Figma's exported "active-tab" vector: a white body with a 12px
- * left radius and 1px #c3c3c3 stroke, plus two 12px concave fillets where the tab meets
- * the panel edge. The end tabs have one fillet only: Home's top edge and Profile's bottom
- * edge run straight into the panel's border (Figma flips the Home shape for Profile).
- */
-function ActiveTab({ index }: { index: number | "profile" }) {
-  const top = index === "profile" ? `calc(100% - ${TAB_H}px)` : index * TAB_H;
-  // The end tabs' straight edge only extends over the panel corner once the tab has *arrived*.
-  const [settled, setSettled] = useState<number | "profile" | null>(index);
-  const arrived = settled === index;
-  const straight = index === 0 ? "top" : index === "profile" ? "bottom" : null;
+/** A rail slot, or Profile — the same tab flipped onto the sidebar's bottom edge. */
+type TabAt = number | "profile";
 
+const SLIDE_MS = 500;
+/** The slide overshoots ~4% of the move and settles ("gooey"). */
+const bounce = cubicBezier(0.3, 1.35, 0.5, 1);
+/** At Home / Profile there's no room to overshoot, so the tab gives by up to this much instead. */
+const SQUASH = 10;
+
+/**
+ * Figma's "active-tab" vector: a white body with a 12px left radius and a 1px #c3c3c3 stroke,
+ * joined to the panel's edge by 12px concave fillets. It's drawn as one outline with that edge
+ * rather than as pieces laid over it: near the panel's top or bottom (Home, Profile) a fillet and
+ * the panel's own 8px corner shrink together, so the tab's edge runs straight into the panel's
+ * instead of swapping shapes as it arrives.
+ *
+ * The slide overshoots and settles on every move. Past Home or Profile it would leave the sidebar,
+ * so there the tab stays joined to the panel's edge and squashes against it, then springs back.
+ */
+function ActiveTab({ index }: { index: TabAt }) {
+  const ref = useRef<SVGSVGElement>(null);
+  /** The slot the tab rests on — it only moves on once the slide there has finished. */
+  const [rest, setRest] = useState(index);
+  /** What's on screen mid-slide; null at rest. */
+  const [frame, setFrame] = useState<Frame | null>(null);
+  /** The last target and, mid-slide, the tab's position — a click mid-slide carries on from there. */
+  const pos = useRef<{ at: TabAt; y: number | null }>({ at: index, y: null });
+
+  useEffect(() => {
+    const box = ref.current?.parentElement;
+    const { at, y } = pos.current;
+    if (!box || (at === index && y === null)) return;
+    const yOf = (a: TabAt) => (a === "profile" ? box.clientHeight - TAB_H : a * TAB_H);
+    const from = y ?? yOf(at);
+    pos.current = { at: index, y: from };
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    let start: number | undefined;
+    const step = (now: number) => {
+      start ??= now;
+      const p = still ? 1 : (now - start) / SLIDE_MS;
+      if (p >= 1) {
+        pos.current.y = null;
+        setRest(index);
+        setFrame(null);
+        return;
+      }
+      pos.current.y = from + (yOf(index) - from) * bounce(p);
+      setFrame(frameAt(pos.current.y, box.clientHeight));
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [index]);
+
+  const { top, h, gapTop, gapBottom } = frame ?? restFrame(rest);
+  const { outline, fill } = tabPaths(h, gapTop, gapBottom);
   return (
-    // `top` overshoots and settles ("gooey") on every move, end items included
-    <span
-      aria-hidden
-      className="pointer-events-none absolute z-10 transition-[top] duration-500 ease-[cubic-bezier(.3,1.35,.5,1)]"
-      style={{ left: 8, top, width: 100, height: TAB_H }}
-      onTransitionStart={(e) => {
-        if (e.propertyName === "top") setSettled(null);
-      }}
-      onTransitionEnd={(e) => {
-        if (e.propertyName === "top") setSettled(index);
-      }}
-    >
-      <span className="absolute inset-0 rounded-l-[12px] bg-white" />
-      <span className="absolute top-0 left-0 h-full w-[76px] rounded-l-[12px] border-y border-l border-border" />
-      {straight === "top" ? <StraightEdge side="top" long={arrived} /> : <Fillet corner="top" />}
-      {straight === "bottom" ? <StraightEdge side="bottom" long={arrived} /> : <Fillet corner="bottom" />}
-    </span>
+    <svg ref={ref} aria-hidden width={X_END} height={h} className="pointer-events-none absolute z-10 overflow-visible" style={{ left: 8, top }}>
+      <path d={fill} className="fill-white" />
+      <path d={outline} className="fill-none stroke-border" />
+    </svg>
   );
 }
 
-/** Straight stroke from the tab body to the panel: 12px while sliding, 24px once settled (covers the panel's rounded corner like the Figma export). */
-function StraightEdge({ side, long }: { side: "top" | "bottom"; long: boolean }) {
-  return <span className="absolute left-[76px] h-px bg-border" style={{ [side]: 0, width: long ? 24 : 12 }} />;
+/** One drawing of the tab: its top, its height, and how far each end of it is from the panel's end. */
+type Frame = { top: number | string; h: number; gapTop: number; gapBottom: number };
+
+function restFrame(at: TabAt): Frame {
+  // The sidebar's height is only known to CSS here, so Profile rests on it with calc()
+  if (at === "profile") return { top: `calc(100% - ${TAB_H}px)`, h: TAB_H, gapTop: Infinity, gapBottom: 0 };
+  return { top: at * TAB_H, h: TAB_H, gapTop: at * TAB_H, gapBottom: Infinity };
 }
 
-/**
- * A 12px concave corner: a 12×12 box with its outer corner rounded off and stroked on the two
- * edges that form the arc; a white box-shadow fills the cut-off corner. The wrapper clips the
- * shadow so only the region between the tab edge and the panel edge is painted.
+/** The tab at `y` in a sidebar `sidebarH` tall. Past either end it keeps to that end and squashes instead. */
+function frameAt(y: number, sidebarH: number): Frame {
+  const last = sidebarH - TAB_H;
+  // Follows a small overshoot 1:1 and eases a long one off towards SQUASH
+  const give = (over: number) => SQUASH * (1 - Math.exp(-over / SQUASH));
+  // Whole device pixels only: the browser snaps the svg's box to them, which would nudge a joined edge off the panel's
+  const top = Math.round((y < 0 ? 0 : y > last ? last + give(y - last) : y) * devicePixelRatio) / devicePixelRatio;
+  const bottom = y < 0 ? TAB_H - give(-y) : y > last ? sidebarH : top + TAB_H;
+  return { top, h: bottom - top, gapTop: top, gapBottom: sidebarH - bottom };
+}
+
+/*
+ * The outline in the tab's own coordinates (x 0 is x 8 in the sidebar). Strokes are 1px, so each
+ * line sits on a pixel centre and each radius is measured to the middle of its stroke.
  */
-function Fillet({ corner }: { corner: "top" | "bottom" }) {
-  const isTop = corner === "top";
-  return (
-    <span
-      className="absolute overflow-hidden"
-      // 13px wide so the right stroke lands on the panel's stroke column; shifted 1px so the
-      // straight stroke shares a row with the tab body's border
-      style={{ left: 76, top: isTop ? 1 - TAB_R : TAB_H - 1, width: TAB_R + 1, height: TAB_R }}
-    >
-      <span
-        className={`absolute inset-0 border-r border-border ${
-          isTop ? "rounded-br-[12px] border-b" : "rounded-tr-[12px] border-t"
-        }`}
-        style={{ boxShadow: `0 0 0 ${TAB_R}px #fff` }}
-      />
-    </span>
-  );
+const X_EDGE = 88.5; // the panel's left stroke, x 96 in the sidebar
+const X_END = 100; // the tab reaches 12px into the panel (x 108)
+const R_TAB = TAB_R - 0.5;
+const R_PANEL = 8 - 0.5; // the panel's rounded-lg corner
+/** Any closer to the panel's end and a full fillet and the panel's corner no longer both fit. */
+const JOIN = R_TAB + R_PANEL;
+
+/** `outline` strokes the tab's edge and both joints; `fill` closes that shape through the panel. */
+function tabPaths(h: number, gapTop: number, gapBottom: number) {
+  const top = 0.5;
+  const bottom = h - 0.5;
+  const t = joint(gapTop);
+  const b = joint(gapBottom);
+  // Top joint, from the panel's side: its corner while shrunk, then the fillet onto the tab's top edge
+  const joinedTop = t.corner < R_PANEL;
+  const [x0, y0] = joinedTop ? [X_END, top - gapTop] : [X_EDGE, top - t.fillet];
+  let d = joinedTop ? `H${X_EDGE + t.corner}A${t.corner} ${t.corner} 0 0 0 ${X_EDGE} ${top - gapTop + t.corner}` : "";
+  d += `V${top - t.fillet}A${t.fillet} ${t.fillet} 0 0 1 ${X_EDGE - t.fillet} ${top}`;
+  // The tab: top edge, both 12px left corners, bottom edge
+  d += `H${TAB_R}A${R_TAB} ${R_TAB} 0 0 0 0.5 ${TAB_R}V${h - TAB_R}A${R_TAB} ${R_TAB} 0 0 0 ${TAB_R} ${bottom}`;
+  // Bottom joint: the fillet onto the panel's edge, then its corner while shrunk
+  d += `H${X_EDGE - b.fillet}A${b.fillet} ${b.fillet} 0 0 1 ${X_EDGE} ${bottom + b.fillet}`;
+  let y1 = bottom + b.fillet;
+  if (b.corner < R_PANEL) {
+    y1 = bottom + gapBottom;
+    d += `V${y1 - b.corner}A${b.corner} ${b.corner} 0 0 0 ${X_EDGE + b.corner} ${y1}H${X_END}`;
+  }
+  return { outline: `M${x0} ${y0}${d}`, fill: `M${X_END} ${y0}L${x0} ${y0}${d}L${X_END} ${y1}Z` };
+}
+
+/** A joint `gap` px from the panel's end: full size from JOIN px out, shrinking with the panel's corner to a straight edge at 0. */
+function joint(gap: number) {
+  const k = Math.min(1, Math.max(0, gap) / JOIN);
+  return { fillet: R_TAB * k, corner: R_PANEL * k };
+}
+
+/** CSS's cubic-bezier() as a function — the tab is drawn from its position every frame, so its curve can't live in a transition. */
+function cubicBezier(x1: number, y1: number, x2: number, y2: number) {
+  const at = (a: number, b: number, t: number) => 3 * a * t * (1 - t) ** 2 + 3 * b * t ** 2 * (1 - t) + t ** 3;
+  return (x: number) => {
+    // x rises with t (x1 and x2 are within 0–1), so bisect for the t that lands on x
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 20; i++) {
+      const mid = (lo + hi) / 2;
+      if (at(x1, x2, mid) < x) lo = mid;
+      else hi = mid;
+    }
+    return at(y1, y2, (lo + hi) / 2);
+  };
 }

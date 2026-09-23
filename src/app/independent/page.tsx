@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
 import { Initials, JobBadge, Page } from "@/components/independent/ui";
-import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardSummaryCard, DashboardSummaryGrid } from "@/components/portal/dashboard";
+import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardStat, DashboardSummaryCard, DashboardSummaryGrid } from "@/components/portal/dashboard";
 import { daysLeftLabel, sinceOrFrom } from "@/lib/demo/dates";
 import { usePersisted } from "@/lib/demo/live";
-import { MARKETING_BANNER, ME, setupSteps, traitTagsFor } from "@/lib/independent/data";
+import { MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
+import { traitTagsFor } from "@/lib/demo/work-style";
 import { useDemo } from "@/lib/independent/store";
 
-const NorthEast = ICONS.northEast;
 const Work = ICONS.work;
 const Search = ICONS.search;
 const Account = ICONS.account;
@@ -41,7 +41,7 @@ export default function Dashboard() {
             description="Complete your profile to boost role matches."
             completionHref="/independent/profile/edit"
             items={setupSteps({ payouts, applications, workStyle, bio: profile.bio })}
-            traits={traitTagsFor(workStyle)}
+            traits={traitTagsFor(workStyle, "independent")}
             completeDescription="Your profile is live. These are the work-style traits companies match you on."
           />
         </DashboardHero>
@@ -69,19 +69,8 @@ export default function Dashboard() {
           </DashboardSummaryCard>
 
           <DashboardSummaryCard title="Applications" href="/independent/jobs/applications">
-            <div className="flex items-center gap-4 rounded-lg bg-white px-4 py-3">
-              <span className="flex size-10 items-center justify-center rounded-full border border-border bg-white text-ink-2">
-                <Work size={20} aria-hidden />
-              </span>
-              <div className="flex-1">
-                {/* Counted from the applications you've actually sent. */}
-                <p className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{applications.length}</p>
-                <p className="text-[13px] tracking-[0.2px] text-ink-2">{applications.length === 1 ? "Application sent" : "Applications sent"}</p>
-              </div>
-              <Link href="/independent/jobs/applications" aria-label="Open applications" className="rounded-full bg-white p-1 text-ink">
-                <NorthEast size={24} aria-hidden />
-              </Link>
-            </div>
+            {/* Counted from the applications you've actually sent. */}
+            <DashboardStat href="/independent/jobs/applications" icon={<Work size={20} aria-hidden />} value={applications.length} label={applications.length === 1 ? "Application sent" : "Applications sent"} />
             {/* Split by where they've actually got to, rather than two fixed bars. */}
             <DashboardBarChart
               bars={[

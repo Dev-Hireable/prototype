@@ -57,9 +57,5 @@ export function postingFrom(role: Role, company: CompanyProfile): Posting {
     hires: role.hires,
     posted: "Posted today",
     closes: "Open until filled",
-    workStyle: COMPANY_WORK_STYLE,
   };
 }
-
-/** The Team Builder's own work-style answers, which every match is measured against. */
-export const COMPANY_WORK_STYLE = [5, 5, 2, 3, 2, 5];

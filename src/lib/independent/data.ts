@@ -1,6 +1,7 @@
 /** Seed content transcribed from the "[DRAFT] Independent Portal" Figma canvas. */
 
 import type { Stage } from "@/components/independent/ui";
+import { storedWorkStyle } from "@/lib/demo/work-style";
 /** The Off Track rule and the objective-type wording are the same spec on both sides of a trial. */
 import { isOffTrack } from "@/lib/team/data";
 import type { DealEvaluation, DealKeyResult, ObjectiveComment, Posting } from "@/lib/demo/deal";
@@ -56,7 +57,7 @@ export function roleFromPosting(p: Posting): Role {
     company: p.company,
     initials: p.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
     type: p.type,
-    match: BASE_MATCH,
+    match: DEMO_MATCH,
     location: p.location,
     rate: p.rate,
     rateRange: p.rateRange,
@@ -69,7 +70,8 @@ export function roleFromPosting(p: Posting): Role {
     description: p.description,
     objectives: p.objectives,
     about: { blurb: p.companyBlurb, location: p.location, industry: p.industry, size: p.size },
-    workStyle: { builder: p.workStyle, independent: WORK_STYLE_ANSWERS },
+    // The Team Builder's current quiz answers, read live, not a copy frozen when the role was posted.
+    workStyle: { builder: storedWorkStyle("team"), independent: storedWorkStyle("independent") },
     duration: p.duration ?? "30 Days",
     hires: p.hires ?? 1,
     filled: !!p.filled,
@@ -251,7 +253,7 @@ export const contracts: Contract[] = [];
  * IN-049 — the Team Builder's company as the independent sees it from a contract: read-only,
  * keyed by the company name on the contract so every contract can show the firm it belongs to.
  */
-export type CompanyProfile = { name: string; description: string; industry: string; location: string; url: string; tags: string[] };
+export type CompanyProfile = { name: string; description: string; industry: string; location: string; url: string };
 
 export const COMPANIES: Record<string, CompanyProfile> = {
   // Keyed by the full name contracts carry; the short key never matched, so the profile was blank.
@@ -261,7 +263,6 @@ export const COMPANIES: Record<string, CompanyProfile> = {
     industry: "Sales and marketing services",
     location: "New York, USA · remote team",
     url: "www.nairobisolutions.com",
-    tags: ["Direct", "Data-driven", "Async first", "Weekly check-ins", "Coaching"],
   },
 };
 
@@ -307,73 +308,6 @@ export const transactions: Transaction[] = [];
 
 /* ------------------------------------------------------------ profile ----- */
 
-/**
- * IN-063 / IN-064 — the work-style quiz. One question per trait on the profile chart, answered
- * 1–5. The answers are the independent's own work style: the tags on the profile and the match
- * percentage on every role are both derived from them, so retaking the quiz really does move them.
- */
-export type WorkStyleQuestion = { trait: string; question: string; options: { label: string; value: number }[] };
-
-export const WORK_STYLE_QUESTIONS: WorkStyleQuestion[] = [
-  {
-    trait: "Decision Making",
-    question: "How do you decide when the data is thin?",
-    options: [
-      { label: "Wait until the team agrees", value: 1 },
-      { label: "Ask one or two people, then decide", value: 3 },
-      { label: "Call it and move — correct later if needed", value: 5 },
-    ],
-  },
-  {
-    trait: "Adaptability",
-    question: "A priority changes mid-week. What happens?",
-    options: [
-      { label: "Finish what's started first", value: 1 },
-      { label: "Re-plan at the next check-in", value: 3 },
-      { label: "Drop everything and re-plan on the spot", value: 5 },
-    ],
-  },
-  {
-    trait: "Responsiveness",
-    question: "How quickly do you reply during the working day?",
-    options: [
-      { label: "In batches, once or twice a day", value: 1 },
-      { label: "Within a couple of hours", value: 3 },
-      { label: "Within minutes, most of the day", value: 5 },
-    ],
-  },
-  {
-    trait: "Time Management",
-    question: "How do you run your day?",
-    options: [
-      { label: "Loosely, by whatever has the most energy", value: 1 },
-      { label: "A short list, roughly in order", value: 3 },
-      { label: "Blocked out and scheduled in advance", value: 5 },
-    ],
-  },
-  {
-    trait: "Cooperativeness",
-    question: "How much of the work is with other people?",
-    options: [
-      { label: "Heads-down on my own", value: 1 },
-      { label: "Solo, with regular check-ins", value: 3 },
-      { label: "Alongside others for most of it", value: 5 },
-    ],
-  },
-  {
-    trait: "Communication",
-    question: "How do you keep people posted?",
-    options: [
-      { label: "When there is something worth saying", value: 1 },
-      { label: "A summary at the end of each week", value: 3 },
-      { label: "Written updates as the work moves", value: 5 },
-    ],
-  },
-];
-
-/** OB-003 — "Something else" is scored as the middle of the scale; the words are kept as written. */
-export const OTHER_VALUE = 3;
-
 /** IN-065 — what the skills box offers while you type. Anything else typed in is kept as well. */
 export const SKILL_SUGGESTIONS = [
   "Account management",
@@ -409,54 +343,18 @@ export const pastEvaluations: PastEvaluation[] = [];
 /** IN-062 — the bio limit, quoted in the editor and enforced by it. */
 export const BIO_MAX = 500;
 
-/** The answers on file. WS.independent in the role seed is the same vector, from the last quiz. */
-export const WORK_STYLE_ANSWERS = [5, 4, 2, 2, 2, 2];
-
-/** IN-063 — the tag each trait earns at the top or the bottom of its scale; 3 is unremarkable. */
-const TAGS_BY_TRAIT: [string, string][] = [
-  ["Consultative", "Decisive"],
-  ["Steady", "Adaptive"],
-  ["Considered", "Responsive"],
-  ["Flexible", "Organised"],
-  ["Independent", "Collaborative"],
-  ["Concise", "Communicative"],
-];
-
-/**
- * IN-063 — each earned tag with the trait it came from, so a badge can colour itself by trait
- * rather than being handed a colour at every call site.
- */
-export function traitTagsFor(answers: number[]) {
-  return answers.map((a, i) => (a >= 4 ? { label: TAGS_BY_TRAIT[i][1], trait: i } : a <= 2 ? { label: TAGS_BY_TRAIT[i][0], trait: i } : null)).filter((t): t is { label: string; trait: number } => !!t);
-}
-
-/** IN-063 — tags are derived, never typed in: the quiz is the only thing that can change them. */
-export function tagsFor(answers: number[]) {
-  const tags = traitTagsFor(answers).map((t) => t.label);
-  return tags.length ? tags : ["Balanced"];
-}
-
-/** How closely two work-style vectors sit, 0–100. */
-const similarity = (a: number[], b: number[]) => Math.round(100 - (a.reduce((n, v, i) => n + Math.abs(v - (b[i] ?? 3)), 0) / (a.length * 4)) * 100);
-
 /**
  * TB-018 — at or above this, an applicant is a match rather than a plain application, so the
  * Team Builder's tracker files them straight into Matched instead of the Candidates column.
  */
 export const MATCH_THRESHOLD = 80;
 
-/** The pair's fit before the quiz moves it (Figma shows 80% for this company and this talent). */
-const BASE_MATCH = 80;
-
 /**
- * IN-064 — the match on a role moves with the quiz. The seeded percentage is the baseline for the
- * answers on file, and a retake shifts it by however much closer to (or further from) the Team
- * Builder's own style the new answers sit. Unchanged answers leave every number where it was.
+ * IN-064 — the fit every role shows: Figma's 80% for this company and this talent. The demo doesn't
+ * score it from the two sides' quiz answers (the real app's matching works differently), so taking
+ * or retaking the quiz leaves it, and the Team Builder's tracker, where they were.
  */
-export function matchFor(role: { match: number; workStyle: { builder: number[] } }, answers: number[]) {
-  const delta = similarity(role.workStyle.builder, answers) - similarity(role.workStyle.builder, WORK_STYLE_ANSWERS);
-  return Math.max(0, Math.min(100, role.match + delta));
-}
+const DEMO_MATCH = 80;
 
 export const profile = {
   bio: "Sales leader with eight years in B2B SaaS, most recently running a six-person outbound team for a US fintech. I own pipeline from first touch to signed contract, coach reps on discovery calls, and keep the CRM honest.",
@@ -480,11 +378,11 @@ export const profile = {
  * IN-003 account setup checklist — the 5 steps named in the acceptance criteria. `done` is
  * computed from real state, never stored, so completing a step actually moves the bar.
  */
-export function setupSteps({ payouts, applications, workStyle = WORK_STYLE_ANSWERS, bio = profile.bio }: { payouts: PayoutMethod[]; applications: Application[]; workStyle?: number[]; bio?: string }) {
+export function setupSteps({ payouts, applications, workStyle = [], bio = profile.bio }: { payouts: PayoutMethod[]; applications: Application[]; workStyle?: number[]; bio?: string }) {
   return [
     // Nothing in the demo tracks email confirmation, so this one is simply already true.
     { label: "Verify email", done: true, href: "/independent/settings", hint: "Confirm the address we send role alerts to." },
-    { label: "Answer Work Style Quiz", done: workStyle.length > 0, href: "/independent/profile", hint: "Drives your match score against every open role." },
+    { label: "Answer Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/talent", hint: "Drives your match score against every open role." },
     { label: "Setup profile", done: bio.trim() !== "" && profile.skills.length > 0 && profile.rate.trim() !== "", href: "/independent/profile/edit", hint: "Bio, skills and rate — Team Builders see this first." },
     { label: "Setup payment method", done: payouts.length > 0, href: "/independent/settings/payout", hint: "Where your trial and salary payments are released." },
     // No point applying before there is a profile to send or an account to be paid into.

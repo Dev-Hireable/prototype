@@ -1,10 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { Button, Card, Chip, Input, Modal, Page, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
-import { checkImage, COMPANY_DESC_MAX, COMPANY_FIELDS, COMPANY_SIZES, INDUSTRIES, isUrl, readImage, WORK_STYLE_SETS } from "@/lib/team/data";
+import { Button, Card, Input, LinkButton, Modal, Page, Select, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { checkImage, COMPANY_DESC_MAX, COMPANY_FIELDS, COMPANY_SIZES, INDUSTRIES, isUrl, readImage } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 import type { CompanyProfile } from "@/lib/team/data";
+import { WorkStyleChip } from "@/components/portal/TraitTag";
+import { traitTagsFor } from "@/lib/demo/work-style";
 
 type Row = { key: keyof CompanyProfile; label: string; kind: "text" | "long" | "industry" | "size" | "url" };
 /** TB-126 — the rows that are a pick from a known list rather than free text. */
@@ -24,10 +27,12 @@ const ROWS: Row[] = COMPANY_FIELDS.map((key) => ({ key, ...LABELS[key] }));
 
 /** Figma "Profile / Company profile": 72px #5b5bd6 logo tile, DM Sans 22 name, inline-edit rows. */
 export default function CompanyProfile() {
-  const { company, setCompany, roles } = useDemo();
+  const { company, setCompany, roles, workStyle } = useDemo();
+  const router = useRouter();
   const [editing, setEditing] = useState<Row | null>(null);
   const [draft, setDraft] = useState("");
   const [retake, setRetake] = useState(false);
+  const tags = traitTagsFor(workStyle, "team");
   const [toast, setToast] = useToast();
   /** TB-123 — the picked logo is previewed and only written on Save. */
   const [preview, setPreview] = useState<string | null>(null);
@@ -158,14 +163,24 @@ export default function CompanyProfile() {
             <p className="text-[16px] font-semibold text-ink">Work style</p>
             <p className="text-[12px] text-ink-2">Shown on your company profile and used to match you with independents.</p>
           </div>
-          <Button size="sm" onClick={() => setRetake(true)}>
-            Retake quiz
-          </Button>
+          {/* TB-096 — the quiz is the real app's onboarding (/onboarding/client). It used to cycle
+              three typed-in badge sets. */}
+          {tags.length ? (
+            <Button size="sm" onClick={() => setRetake(true)}>
+              Retake quiz
+            </Button>
+          ) : (
+            <LinkButton size="sm" variant="primary" href="/onboarding/client">
+              Take the quiz
+            </LinkButton>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
-          {company.tags.map((t) => (
-            <Chip key={t}>{t}</Chip>
-          ))}
+          {tags.length ? (
+            tags.map((t) => <WorkStyleChip key={`${t.trait}-${t.label}`} tag={t} />)
+          ) : (
+            <p className="text-[13px] leading-[1.4] text-ink-2">No badges yet. Take the work-style quiz and the badges it gives your company appear here.</p>
+          )}
         </div>
       </Card>
 
@@ -173,23 +188,13 @@ export default function CompanyProfile() {
         open={retake}
         onClose={() => setRetake(false)}
         title="Retake the work-style quiz?"
-        description="Your current badges stay until you finish the new quiz. It takes about 8 minutes, and the new badges replace the old ones on your public profile and in matching."
+        description="Your current badges stay until you finish the new quiz. Six scenarios, and the new badges replace the old ones on your company profile and in matching."
         footer={
           <>
             <Button size="lg" onClick={() => setRetake(false)}>
               Cancel
             </Button>
-            <Button
-              size="lg"
-              variant="primary"
-              onClick={() => {
-                // Standing in for the quiz itself: the next set of badges replaces the current one.
-                const next = WORK_STYLE_SETS[(WORK_STYLE_SETS.findIndex((s) => s.join() === company.tags.join()) + 1) % WORK_STYLE_SETS.length];
-                setCompany({ tags: next });
-                setRetake(false);
-                setToast("Work-style badges updated on your public profile");
-              }}
-            >
+            <Button size="lg" variant="primary" onClick={() => router.push("/onboarding/client")}>
               Start quiz
             </Button>
           </>

@@ -23,6 +23,8 @@ import { FT_BENEFITS, OBJECTIVE_KIND } from "@/lib/team/data";
 import { useDemo } from "@/lib/independent/store";
 import { useQueryState } from "@/lib/portal/query-state";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
+import { WorkStyleChip } from "@/components/portal/TraitTag";
+import { storedWorkStyle, traitTagsFor } from "@/lib/demo/work-style";
 
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
@@ -44,6 +46,8 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
   /** IN-049 — the company behind the contract, read-only. */
   const [companyOpen, setCompanyOpen] = useState(false);
   const company = COMPANIES[contract.company];
+  /** The Team Builder's own quiz answers, from their portal — what their badges say about how they work. */
+  const companyTags = contract.company === PAIR.team.company ? traitTagsFor(storedWorkStyle("team"), "team") : [];
   const [toast, setToast] = useToast();
   const isTrial = contract.type === "trial";
   const completed = objectives.filter((o) => o.status === "complete").length;
@@ -412,12 +416,12 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
               </div>
             ))}
           </dl>
-          {!!company?.tags.length && (
+          {companyTags.length > 0 && (
             <div className="flex flex-col gap-2">
               <p className="text-[13px] leading-[1.4] font-medium text-ink">Work style</p>
               <div className="flex flex-wrap gap-2">
-                {company.tags.map((t) => (
-                  <Chip key={t}>{t}</Chip>
+                {companyTags.map((t) => (
+                  <WorkStyleChip key={`${t.trait}-${t.label}`} tag={t} view="other" />
                 ))}
               </div>
             </div>

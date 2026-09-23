@@ -611,14 +611,18 @@ export function unreadChat(live: Live, side: Side) {
   return live.chat.slice(live.seen[side] ?? 0).filter((m) => m.from !== side).length;
 }
 
-/** Wipe every demo key and reload — the escape hatch once localStorage holds a messy run. */
-export function resetDemo() {
+/**
+ * Wipe every demo key and start over — the escape hatch once localStorage holds a messy run.
+ * Lands on `to` when given (a portal's dashboard); otherwise the page just reloads.
+ */
+export function resetDemo(to?: string) {
   try {
     for (const k of Object.keys(localStorage).filter((k) => k.startsWith(PREFIX))) localStorage.removeItem(k);
   } catch {
     /* ignore */
   }
-  location.reload();
+  if (to) location.assign(to);
+  else location.reload();
 }
 
 /* ------------------------------------------------- per-portal persistence */

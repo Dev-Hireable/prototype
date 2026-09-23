@@ -4,9 +4,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, AuthShell, PasswordInput } from "@/components/portal/AuthShell";
 import { Button, Field, Input } from "@/components/independent/ui";
-import { DEMO_ACCOUNTS, DEMO_PASSWORD, HOME, signIn } from "@/lib/demo/auth";
+import { DEMO_ACCOUNTS, DEMO_PASSWORD, landingFor, signIn } from "@/lib/demo/auth";
 
-/** OB-001 — sign in, land on the dashboard the account type belongs to. */
+/** OB-001 — sign in, land on the dashboard the account type belongs to (by way of the quiz, the first time). */
 export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -16,7 +16,7 @@ export default function Login() {
   const submit = () => {
     const result = signIn(email, password);
     if ("error" in result) return setError(result.error);
-    router.push(HOME[result.account.role]);
+    router.push(landingFor(result.account.role));
   };
 
   return (

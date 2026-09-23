@@ -20,7 +20,7 @@ import {
   useToast,
 } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
-import { matchFor, roleFromPosting } from "@/lib/independent/data";
+import { roleFromPosting } from "@/lib/independent/data";
 import { usePostings } from "@/lib/demo/deal";
 import { useDemo } from "@/lib/independent/store";
 import { ReturnNav } from "@/components/portal/return";
@@ -38,8 +38,8 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   const [toast, setToast] = useToast();
   if (!posting) notFound();
   const role = roleFromPosting(posting);
-  /** IN-064 — recalculated from the quiz answers on file, not read off the seed. */
-  const match = matchFor(role, workStyle);
+  /** IN-064 — the demo's fixed fit; the quiz answers only draw the chart. */
+  const { match } = role;
   const applied = applications.some((a) => a.roleSlug === role.slug);
   const withdrawn = withdrawnRoleSlugs.includes(role.slug);
   /** Turned down here before, and that application has since been replaced by another. */
@@ -146,7 +146,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
           {engagedElsewhere && !withdrawn && !declined && !role.filled && !closed && (
             <p className="text-[12px] leading-[1.4] text-ink-2">
               You already have an engagement with {engagedElsewhere.company} on {engagedElsewhere.title}. The demo runs one engagement at a time —{" "}
-              {engagedElsewhere.withdrawable ? "withdraw that application first, or reset the demo from Notifications." : "it's a signed contract, so reset the demo from Notifications to start another."}
+              {engagedElsewhere.withdrawable ? "withdraw that application first, or use Reset demo at the top right." : "it's a signed contract, so use Reset demo at the top right to start another."}
             </p>
           )}
           {website ? (

@@ -1,0 +1,272 @@
+{
+  "icons": {
+    "Decisive": "bolt",
+    "Consultative": "groups",
+    "Analytical": "analytics",
+    "Cautious": "shield",
+    "Proactive": "rocket_launch",
+    "Collaborative": "handshake",
+    "Deliberate": "psychology",
+    "Careful": "verified",
+    "Flexible": "autorenew",
+    "Strategic": "strategy",
+    "Consistent": "straighten",
+    "Steady": "timeline",
+    "Adaptive": "sync_alt",
+    "Responsive": "schedule",
+    "Stable": "anchor",
+    "Gradual": "trending_flat",
+    "Immediate": "mark_chat_read",
+    "Timely": "timer",
+    "Balanced": "balance",
+    "Structured": "grid_view",
+    "Prompt": "flash_on",
+    "Dependable": "verified_user",
+    "Scheduled": "event_repeat",
+    "Fast-Paced": "speed",
+    "Prioritizing": "low_priority",
+    "Organized": "checklist",
+    "Methodical": "format_list_numbered",
+    "Versatile": "swap_horiz",
+    "Focused": "center_focus_strong",
+    "Deep-Working": "do_not_disturb_on",
+    "Assertive": "person",
+    "Open": "visibility",
+    "Mediating": "mediation",
+    "Supportive": "group",
+    "Confident": "military_tech",
+    "Receptive": "hearing",
+    "Cooperative": "diversity_3",
+    "Engaged": "forum",
+    "Planned": "event_note",
+    "Independent": "person_off",
+    "Reliable": "thumb_up",
+    "Autonomous": "self_improvement"
+  },
+  "positions": {
+    "team-builder": {
+      "decision-making": [
+        [1, ["Decisive"]],
+        [2, ["Consultative"]],
+        [3, ["Analytical"]],
+        [4, ["Cautious"]]
+      ],
+      "adaptability": [
+        [1, ["Flexible"]],
+        [2, ["Strategic"]],
+        [3, ["Consistent"]],
+        [4, ["Steady", "Adaptive"]]
+      ],
+      "responsiveness": [
+        [1, ["Immediate"]],
+        [2, ["Timely"]],
+        [3, ["Balanced"]],
+        [4, ["Structured"]]
+      ],
+      "time-management": [
+        [1, ["Fast-Paced"]],
+        [2, ["Prioritizing"]],
+        [3, ["Organized"]],
+        [4, ["Methodical"]]
+      ],
+      "cooperativeness": [
+        [1, ["Assertive"]],
+        [2, ["Open"]],
+        [3, ["Mediating"]],
+        [4, ["Supportive"]]
+      ],
+      "communication": [
+        [1, ["Engaged"]],
+        [2, ["Consistent", "Consistent (Comm)"]],
+        [3, ["Planned"]],
+        [4, ["Independent", "Reliable"]]
+      ]
+    },
+    "independent": {
+      "decision-making": [
+        [1, ["Proactive"]],
+        [2, ["Collaborative"]],
+        [3, ["Deliberate"]],
+        [4, ["Careful"]]
+      ],
+      "adaptability": [
+        [1, ["Adaptive"]],
+        [2, ["Responsive", "Responsive (Adapt)"]],
+        [3, ["Stable"]],
+        [4, ["Gradual"]]
+      ],
+      "responsiveness": [
+        [1, ["Prompt"]],
+        [2, ["Dependable"]],
+        [3, ["Consistent", "Consistent (Resp)"]],
+        [4, ["Scheduled"]]
+      ],
+      "time-management": [
+        [1, ["Versatile"]],
+        [2, ["Focused"]],
+        [3, ["Structured", "Structured (Time)"]],
+        [4, ["DeepWorking", "Deep-Working"]]
+      ],
+      "cooperativeness": [
+        [1, ["Confident"]],
+        [2, ["Receptive"]],
+        [3, ["Balanced", "Balanced (Coop)"]],
+        [4, ["Cooperative"]]
+      ],
+      "communication": [
+        [1, ["Responsive", "Responsive (Comm)"]],
+        [2, ["Reliable"]],
+        [3, ["Structured", "Structured (Comm)"]],
+        [4, ["Autonomous"]]
+      ]
+    }
+  },
+  "openings": {
+    "team-builder": {
+      "1": "You move fast and expect the same from the people around you.",
+      "2": "You balance speed with context before making calls.",
+      "3": "You value consistency and like to protect the plan.",
+      "4": "You take time to get things right before moving forward.",
+      "mixed": "You've got a balanced approach, adapting your style based on the situation."
+    },
+    "independent": {
+      "1": "You move fast, take initiative, and figure things out on your own.",
+      "2": "You stay on top of things without needing to be managed.",
+      "3": "You value clarity, structure, and doing things the right way.",
+      "4": "You take time, ask questions, and deliver polished work.",
+      "mixed": "You've got a flexible working style that adjusts based on what the project and your Team Builder need."
+    }
+  },
+  "closings": {
+    "team-builder": {
+      "1": "You'll match best with self-starting, fast-moving Independents who can keep up with your pace.",
+      "2": "You'll match best with communicative, reliable Independents who can think on their feet.",
+      "3": "You'll match best with dependable Independents who value structure and follow through.",
+      "4": "You'll match best with detail-oriented Independents who take care and deliver polished work.",
+      "mixed": "You'll match best with versatile Independents who can adapt to different working styles."
+    },
+    "independent": {
+      "1": "You'll match best with Team Builders and teams that trust you to run with minimal direction and deliver.",
+      "2": "You'll match best with Team Builders and teams that value communication and give you room to do your thing.",
+      "3": "You'll match best with Team Builders and teams that set clear expectations and respect your process.",
+      "4": "You'll match best with Team Builders and teams that appreciate thorough, high-quality work over speed.",
+      "mixed": "You'll match best with Team Builders and teams that value flexibility and clear communication."
+    }
+  },
+  "sentences": {
+    "team-builder": {
+      "decision-making": {
+        "Decisive": "You make calls quickly and don't second-guess yourself.",
+        "Consultative": "You like a quick gut-check before committing, but you don't drag things out.",
+        "Analytical": "You review the details before signing off on anything.",
+        "Cautious": "You wait until the full picture is clear before making a call."
+      },
+      "adaptability": {
+        "Flexible": "When things change, you redirect the team and keep shipping.",
+        "Strategic": "You adapt, but only after understanding why the change happened.",
+        "Consistent": "You push back on scope creep and protect what was agreed on.",
+        "Steady": "You prefer to pause and get full clarity before changing direction.",
+        "Adaptive": "You prefer to pause and get full clarity before changing direction."
+      },
+      "responsiveness": {
+        "Immediate": "Your team always knows they can reach you, and you'll reply right away.",
+        "Timely": "You stay responsive without letting every message break your focus.",
+        "Balanced": "You batch your replies and get back to people on your own schedule.",
+        "Structured": "You keep communication to scheduled check-ins and syncs."
+      },
+      "time-management": {
+        "Fast-Paced": "You juggle multiple projects at once and keep everything moving.",
+        "Prioritizing": "You triage by urgency and tackle the most important thing first.",
+        "Organized": "You plan the week in advance and stick to your calendar.",
+        "Methodical": "You go deep on one thing at a time until it's done right."
+      },
+      "cooperativeness": {
+        "Assertive": "You stand behind your decisions and lead with confidence.",
+        "Open": "You share your thinking and give your team room to challenge it.",
+        "Mediating": "You look for the compromise that keeps everyone aligned.",
+        "Supportive": "You're happy to let the best idea win, even when it's not yours."
+      },
+      "communication": {
+        "Engaged": "You keep a pulse on your team throughout the day.",
+        "Consistent": "You check in daily to stay aligned without hovering.",
+        "Consistent (Comm)": "You check in daily to stay aligned without hovering.",
+        "Planned": "You trust your team to run between weekly check-ins.",
+        "Independent": "You give your team full autonomy and only check in when there's something to discuss.",
+        "Reliable": "You give your team full autonomy and only check in when there's something to discuss."
+      }
+    },
+    "independent": {
+      "decision-making": {
+        "Proactive": "You don't wait for permission. If there's a blocker, you figure it out.",
+        "Collaborative": "You loop people in before making a call, but you don't let things stall.",
+        "Deliberate": "You think things through and lay out the options before committing.",
+        "Careful": "You'd rather pause and get clarity than risk going in the wrong direction."
+      },
+      "adaptability": {
+        "Adaptive": "When the brief changes, you pivot fast and don't dwell on what was.",
+        "Responsive": "You adapt, but you ask the right questions first to make sure the new direction is clear.",
+        "Responsive (Adapt)": "You adapt, but you ask the right questions first to make sure the new direction is clear.",
+        "Stable": "You flag scope changes and advocate for sticking to what was agreed on.",
+        "Gradual": "You take time to replan and rethink before jumping into a new direction."
+      },
+      "responsiveness": {
+        "Prompt": "You reply to your Team Builder right away, no matter what you're working on.",
+        "Dependable": "You're responsive and reliable without letting every message break your flow.",
+        "Consistent": "You get back to people by end of day with a clear, thoughtful answer.",
+        "Consistent (Resp)": "You get back to people by end of day with a clear, thoughtful answer.",
+        "Scheduled": "You keep communication to scheduled check-ins and planned updates."
+      },
+      "time-management": {
+        "Versatile": "You juggle multiple things at once and keep everything moving forward.",
+        "Focused": "You triage by deadline and knock out the most urgent work first.",
+        "Structured": "You plan your week in advance and stick to the schedule.",
+        "Structured (Time)": "You plan your week in advance and stick to the schedule.",
+        "DeepWorking": "You block out distractions and go deep on one thing at a time.",
+        "Deep-Working": "You block out distractions and go deep on one thing at a time."
+      },
+      "cooperativeness": {
+        "Confident": "You back your work and aren't afraid to push back when you know you're right.",
+        "Receptive": "You share your perspective openly and make space to hear theirs.",
+        "Balanced": "You look for the version that works for everyone.",
+        "Balanced (Coop)": "You look for the version that works for everyone.",
+        "Cooperative": "You're easy to work with and trust your Team Builder's judgment on their business."
+      },
+      "communication": {
+        "Responsive": "You keep your Team Builder updated throughout the day so they always know where things stand.",
+        "Responsive (Comm)": "You keep your Team Builder updated throughout the day so they always know where things stand.",
+        "Reliable": "You send a short daily update so nothing falls through the cracks.",
+        "Structured": "You share a clean weekly summary with what's done and what's next.",
+        "Structured (Comm)": "You share a clean weekly summary with what's done and what's next.",
+        "Autonomous": "You share updates when there's real progress to show, not just for the sake of it."
+      }
+    }
+  },
+  "prewritten": {
+    "team-builder": {
+      "all-1": "You move fast and expect the same from the people around you. You make calls quickly, pivot without hesitation, and stay plugged into what your team is doing throughout the day. You lead with confidence and don't overthink. You'll match best with self-starting, fast-moving Independents who can keep up with your pace.",
+      "all-2": "You balance speed with context before making calls. You check in before committing, adapt once you understand why something changed, and keep a steady daily rhythm. You share your thinking and give people room to challenge it. You'll match best with communicative, reliable Independents who can think on their feet.",
+      "all-3": "You value consistency and like to protect the plan. You review the details before signing off, push back when the scope shifts, and plan your week in advance. You look for compromises and trust your team to run between weekly check-ins. You'll match best with dependable Independents who value structure and follow through.",
+      "all-4": "You take time to get things right before moving forward. You wait for the full picture, go deep on one project at a time, and give your team full autonomy. You're happy to let the best idea win and only check in when there's something real to discuss. You'll match best with detail-oriented Independents who take care and deliver polished work.",
+      "mostly-1-2": "You make decisions quickly and pivot without drama. You stay responsive and keep a pulse on your team, but you also make room for their input. You lead with confidence while staying open to being wrong. You'll match best with self-starting Independents who communicate well and can keep pace.",
+      "mostly-2-1": "You move at a good pace but always want context before committing. You make the call when you need to, but you prefer to understand why before changing direction. You keep a daily rhythm with your team and give them room to speak up. You'll match best with communicative Independents who can balance speed with quality.",
+      "mostly-2-3": "You plan ahead and check in with intention. You consult your team before big calls, adapt strategically when things shift, and look for compromises when there's friction. You trust your team between weekly syncs but stay accessible when they need you. You'll match best with reliable Independents who value structure and clear communication.",
+      "mostly-3-2": "You review the details and plan with purpose. You adapt when the reasoning is clear, batch your communications, and look for the middle ground when there's pushback. You check in daily but give your team room to work. You'll match best with dependable Independents who bring structure and keep things transparent.",
+      "mostly-3-4": "You review the details and protect the plan. You go deep on one project at a time, push back on unnecessary changes, and look for solutions that keep everyone aligned. You check in weekly and let your team work without interruption. You'll match best with focused, structured Independents who take ownership and deliver consistently.",
+      "mostly-4-3": "You wait for clarity before acting. You go deep, let your team take the lead on ideas, and batch your replies so you can focus. You check in weekly with a clear agenda and give your team space to do their best work. You'll match best with self-directed, detail-oriented Independents who can manage their own time and deliver quality.",
+      "mixed": "You've got a balanced approach, adapting your style based on the situation. You make fast calls when needed but take a strategic approach when things shift. You plan your week with intention and look for compromises when there's pushback. You'll match best with versatile Independents who can adapt to different working styles."
+    },
+    "independent": {
+      "all-1": "You move fast, take initiative, and figure things out on your own. You pivot quickly when things change, juggle multiple tasks at once, and always reply right away. You back your work and aren't afraid to push back. You'll match best with Team Builders and teams that trust you to run with minimal direction and deliver.",
+      "all-2": "You stay on top of things without needing to be managed. You loop people in before making calls, ask the right questions when things change, and prioritize by deadline. You're responsive and easy to work with. You'll match best with Team Builders and teams that value communication and give you room to do your thing.",
+      "all-3": "You value clarity, structure, and doing things the right way. You think things through before committing, flag scope changes, and plan your week in advance. You share a clean weekly summary and look for solutions that work for both sides. You'll match best with Team Builders and teams that set clear expectations and respect your process.",
+      "all-4": "You take time, ask questions, and deliver polished work. You pause for clarity, go deep on one thing at a time, and share updates when there's real progress. You trust your Team Builder's judgment and keep communication to scheduled check-ins. You'll match best with Team Builders and teams that appreciate thorough, high-quality work over speed.",
+      "mostly-1-2": "You take initiative and adapt on the fly. You don't wait for permission, but you keep your Team Builder in the loop throughout the day. You're open to feedback and easy to collaborate with. You'll match best with Team Builders and teams that trust you to run but appreciate being kept in the loop.",
+      "mostly-2-1": "You take initiative when it counts but ask the right questions before changing direction. You prioritize by deadline, stay responsive without breaking flow, and send daily updates so nothing falls through. You'll match best with Team Builders and teams that value communication and give you room to do your thing.",
+      "mostly-2-3": "You plan ahead and communicate consistently. You loop people in before making decisions, adapt with questions first, and plan your week in advance. You find the version that works for everyone and send a daily update to keep things clear. You'll match best with Team Builders and teams that set expectations clearly and respect your process.",
+      "mostly-3-2": "You think before acting and communicate with consistency. You ask the right questions when things change, stick to your weekly plan, and reply by end of day with clear answers. You look for the middle ground and keep your Team Builder updated daily. You'll match best with Team Builders and teams that value transparency and dependable delivery.",
+      "mostly-3-4": "You think things through and deliver polished work. You lay out your options before committing, flag scope changes, and block out distractions to go deep. You get back to people with clear, thoughtful answers and send a weekly summary of progress. You'll match best with Team Builders and teams that appreciate quality and give you space to focus.",
+      "mostly-4-3": "You take time to get it right. You pause for clarity, go deep on one task at a time, and share a weekly summary of what's done. You trust your Team Builder's judgment and reply with thoughtful, well-considered answers. You'll match best with Team Builders and teams that value precision and give you room to work without interruption.",
+      "mixed": "You've got a flexible working style that adjusts based on what the project and your Team Builder need. You take initiative when there's a blocker, ask the right questions when things change, and plan your week with intention. You're easy to work with and keep your Team Builder updated daily. You'll match best with Team Builders and teams that value flexibility and clear communication."
+    }
+  }
+}

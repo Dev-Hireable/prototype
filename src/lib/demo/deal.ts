@@ -178,8 +178,6 @@ export type Posting = {
   closed?: boolean;
   posted: string;
   closes: string;
-  /** The company's own work style, so the talent's match is worked out against something real. */
-  workStyle: number[];
 };
 
 /**
