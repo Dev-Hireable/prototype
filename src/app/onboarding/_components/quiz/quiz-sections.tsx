@@ -24,25 +24,31 @@ function QuizHeader({
   totalQuestions: number;
   currentQuestionIndex: number;
 }) {
+  // The description is one line wherever it fits, and where it can't its lines are balanced. It
+  // used to wrap at 480px, a few pixels short of the line, and leave "Other." on a line of its own.
+  // On a short window (`short:`) the header tightens its spacing and the progress sits on one line;
+  // on a short phone, where the description would take two lines, it goes (screen readers still
+  // get it; the assistant's greeting says as much). At full height the header took 151px of a
+  // 720px laptop screen, and with the answer panel that left the chat 160px.
   return (
     <div
       data-onboarding-quiz-header
-      className="border-border box-border flex shrink-0 flex-col items-center gap-4 border-b px-4 pt-6 pb-4 sm:gap-6 sm:pt-8"
+      className="border-border box-border flex shrink-0 flex-col items-center gap-4 border-b px-4 pt-6 pb-4 sm:gap-6 sm:pt-8 short:gap-3 short:pt-4 short:pb-3"
     >
       <div
         data-onboarding-quiz-header-copy
-        className="flex w-full max-w-120 shrink-0 flex-col items-center gap-1 text-center"
+        className="flex w-full shrink-0 flex-col items-center gap-1 text-center"
       >
         <h1 className="text-foreground w-full shrink-0 text-base font-semibold leading-[150%] tracking-[0.2px]">
           {title}
         </h1>
-        <p className="text-muted-foreground w-full shrink-0 text-sm font-normal leading-[120%] tracking-[0.2px]">
+        <p className="text-muted-foreground w-full shrink-0 text-sm font-normal leading-[120%] tracking-[0.2px] text-balance max-sm:short:sr-only">
           {description}
         </p>
       </div>
       <div
         data-onboarding-quiz-header-progress
-        className="flex w-full max-w-120 shrink-0 flex-col items-start gap-2 sm:max-w-100 sm:flex-row sm:items-center"
+        className="flex w-full max-w-120 shrink-0 flex-col items-start gap-2 sm:max-w-100 sm:flex-row sm:items-center short:flex-row short:items-center short:gap-3"
       >
         <div className="flex w-full flex-1 items-center gap-1">
           <ProgressBar
@@ -262,8 +268,11 @@ export function OnboardingQuizContent(props: OnboardingQuizContentProps) {
     totalQuestions,
   } = props;
 
+  // The quiz fills the window, but never shrinks below 600px: under that the page scrolls instead,
+  // and the chat keeps at least 120px or so. It used to shrink with the window, so the chat went to nothing
+  // and then the answer panel was cut off, the Other field first (a phone on its side).
   return (
-    <div className="bg-background flex h-dvh w-full flex-col overflow-hidden">
+    <div className="bg-background flex h-dvh min-h-150 w-full flex-col overflow-hidden">
       <div
         ref={contentRef}
         className="relative flex h-full min-h-0 w-full flex-col opacity-100"

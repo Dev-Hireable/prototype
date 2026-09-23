@@ -6,6 +6,12 @@
    flipping the shadcn components, whose classes carry `dark:` variants. */
 @custom-variant dark (&:is(.dark *));
 
+/* Windows too short for the onboarding quiz's full header and answer panel to leave its chat
+   comfortable room (below ~300px of it): most laptops, and phones with their browser bars. The
+   quiz tightens both there. Registered after the breakpoints, so it beats `sm:` on the same
+   property. */
+@custom-variant short (@media (max-height: 859px));
+
 /*
  * shadcn/ui theme variables (written by `shadcn init`), set to the Hireable values below so every
  * component the CLI installs comes out on-brand without restyling.

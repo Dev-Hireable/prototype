@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type RefObject,
+} from 'react';
 
 import {
   AssistantChatRow,
@@ -176,28 +183,93 @@ function useChatIndicatorsAnimation({
   ]);
 }
 
+/** How near the bottom still counts as reading along, in px. */
+const FOLLOW_SLACK_PX = 48;
+/** Room left above the assistant's latest line when it has to be shown from its top, in px. */
+const LATEST_LINE_MARGIN_PX = 12;
+
 type UseChatAutoScrollParams = {
   chatScrollRef: RefObject<HTMLDivElement | null>;
-  messagesLength: number;
-  currentQuestionIndex: number;
-  isAssistantTyping: boolean;
+  listRef: RefObject<HTMLDivElement | null>;
+  latestMessage: QuizChatMessage | undefined;
 };
 
+/**
+ * Keeps the conversation in view as it grows, the way a chat does. While the reader is at the
+ * bottom, each new line (and the typing dots) glides up into view, and a resized window keeps its
+ * place. Once they scroll up to reread, it leaves them there until they're back at the bottom or
+ * answer. It used to jump to the bottom on every line whatever the reader was doing, and it only
+ * listened for new lines, so a resized window left the chat wherever it happened to be.
+ *
+ * It never scrolls the assistant's latest line off the top: on a short screen the bottom of the
+ * chat can be below the start of the question, and a question is read from its first word. And it
+ * only ever scrolls down, so any scroll up is the reader's.
+ */
 function useChatAutoScroll({
   chatScrollRef,
-  messagesLength,
-  currentQuestionIndex,
-  isAssistantTyping,
+  listRef,
+  latestMessage,
 }: UseChatAutoScrollParams) {
+  const followingRef = useRef(true);
+  const latestUserMessageId =
+    latestMessage?.sender === 'user' ? latestMessage.id : null;
+
+  // Answering brings the reader back down, wherever they'd scrolled to. A layout effect, so it's
+  // in place before the resize observer sees their answer's bubble.
+  useLayoutEffect(() => {
+    if (latestUserMessageId) followingRef.current = true;
+  }, [latestUserMessageId]);
+
   useEffect(() => {
     const chat = chatScrollRef.current;
-    if (!chat) return;
+    const list = listRef.current;
+    if (!chat || !list) return;
 
-    chat.scrollTo({
-      top: chat.scrollHeight,
-      behavior: prefersReducedMotion() ? 'auto' : 'smooth',
+    const follow = (behavior: ScrollBehavior) => {
+      if (!followingRef.current) return;
+      const bottom = chat.scrollHeight - chat.clientHeight;
+      const lines = list.querySelectorAll('[data-quiz-assistant-message]');
+      const latestRow = lines[lines.length - 1]?.closest(
+        '[data-quiz-assistant-row]',
+      );
+      const latestTop = latestRow
+        ? latestRow.getBoundingClientRect().top -
+          chat.getBoundingClientRect().top +
+          chat.scrollTop -
+          LATEST_LINE_MARGIN_PX
+        : bottom;
+      const top = Math.max(chat.scrollTop, Math.min(bottom, latestTop));
+      if (top - chat.scrollTop < 1) return;
+      chat.scrollTo({ top, behavior });
+    };
+
+    let lastTop = chat.scrollTop;
+    const handleScroll = () => {
+      const top = chat.scrollTop;
+      if (chat.scrollHeight - chat.clientHeight - top <= FOLLOW_SLACK_PX) {
+        followingRef.current = true;
+      } else if (top < lastTop) {
+        followingRef.current = false;
+      }
+      lastTop = top;
+    };
+
+    // Every change in size, not a list of state changes: a line or the typing dots arriving, a
+    // bubble swapping in, the window resizing.
+    const observer = new ResizeObserver((entries) => {
+      // New lines glide in; the chat itself resizing (the window did) just keeps its place.
+      const chatResized = entries.some((entry) => entry.target === chat);
+      follow(chatResized || prefersReducedMotion() ? 'auto' : 'smooth');
     });
-  }, [messagesLength, currentQuestionIndex, isAssistantTyping, chatScrollRef]);
+    observer.observe(chat);
+    observer.observe(list);
+    chat.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      chat.removeEventListener('scroll', handleScroll);
+    };
+  }, [chatScrollRef, listRef]);
 }
 
 function getLatestAssistantMessageId(
@@ -224,6 +296,7 @@ export function QuizChatThread({
   suppressIndicators = false,
 }: QuizChatThreadProps) {
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const animateBubbleIn = useChatBubbleEntranceAnimation();
 
   useChatIndicatorsAnimation({
@@ -237,9 +310,8 @@ export function QuizChatThread({
 
   useChatAutoScroll({
     chatScrollRef,
-    messagesLength: messages.length,
-    currentQuestionIndex,
-    isAssistantTyping,
+    listRef,
+    latestMessage: messages[messages.length - 1],
   });
 
   const latestAssistantMessageId = useMemo(
@@ -248,6 +320,12 @@ export function QuizChatThread({
   );
 
   return (
+    // The scroller runs the full width of the window with the conversation centred inside it, so
+    // the wheel scrolls it from anywhere across the band, the way a page scrolls. It used to be the
+    // conversation's own 720px column, and the wheel did nothing an inch either side of it. It
+    // draws no scrollbar, so the chat reads as the page rather than a box inside it. The inline
+    // style hides the bar in Chromium and Firefox (inline, because globals.css gives Firefox a thin
+    // bar on every element, and that rule would outrank a class); the class covers older Safari.
     <div
       data-onboarding-quiz-chat
       ref={chatScrollRef}
@@ -255,10 +333,13 @@ export function QuizChatThread({
       aria-live="polite"
       aria-relevant="additions text"
       aria-atomic={false}
-      className="bg-background order-1 mx-auto flex w-full max-w-180 min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain scroll-smooth motion-reduce:scroll-auto px-3 py-5 sm:px-4 sm:py-6"
-      style={{ scrollbarGutter: 'stable' }}
+      className="bg-background order-1 flex w-full min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain py-5 sm:py-6 short:py-3 [&::-webkit-scrollbar]:hidden"
+      style={{ scrollbarWidth: 'none' }}
     >
-      <div className="flex w-full flex-col gap-4">
+      <div
+        ref={listRef}
+        className="mx-auto flex w-full max-w-180 flex-col gap-4 px-3 sm:px-4"
+      >
         {messages.map((message) =>
           message.sender === 'assistant' ? (
             <AssistantChatRow

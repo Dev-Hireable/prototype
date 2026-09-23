@@ -205,7 +205,8 @@ export function QuizAnswerSection({
     <div
       ref={answerSectionRef}
       data-onboarding-quiz-answer-section
-      className="bg-background box-border order-2 flex w-full flex-none flex-col items-center gap-[16px] overflow-visible px-3 py-[20px] sm:px-4 sm:py-[24px]"
+      // Tighter on a short window (`short:`), where every pixel it takes is one the chat above loses.
+      className="bg-background box-border order-2 flex w-full flex-none flex-col items-center gap-[16px] overflow-visible px-3 py-[20px] sm:px-4 sm:py-[24px] short:gap-3 short:py-3"
     >
       <div
         data-onboarding-quiz-answer-heading
