@@ -4,8 +4,9 @@ import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
 import { Initials, JobBadge, Page } from "@/components/independent/ui";
 import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardSummaryCard, DashboardSummaryGrid } from "@/components/portal/dashboard";
+import { daysLeftLabel, sinceOrFrom } from "@/lib/demo/dates";
 import { usePersisted } from "@/lib/demo/live";
-import { daysLeft, interviews, MARKETING_BANNER, ME, setupSteps, traitTagsFor } from "@/lib/independent/data";
+import { MARKETING_BANNER, ME, setupSteps, traitTagsFor } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
 const NorthEast = ICONS.northEast;
@@ -15,11 +16,12 @@ const Account = ICONS.account;
 
 /** Figma "Home / Dashboard": p 40, gap 40; greeting DM Sans 40; three #f2f2f2 summary cards. */
 export default function Dashboard() {
-  const { payouts, applications, contracts, profile, workStyle } = useDemo();
+  const { payouts, applications, contracts, profile, workStyle, interviews } = useDemo();
   const [dismissed, setDismissed] = usePersisted("ind.bannerDismissed", "");
   /** IN-004 — every ongoing engagement, not a hardcoded card. */
   const active = contracts.filter((c) => c.status.label !== "Ended" && c.status.label !== "Contract complete");
-  const upcoming = interviews.filter((iv) => !iv.past);
+  /** The interviews actually booked on the engagement — this read an empty seed, so it never showed one. */
+  const upcoming = interviews.filter((iv) => !iv.past && (iv.status === "starts" || iv.status === "accepted"));
 
   return (
     <Page title="Dashboard" padded={false}>
@@ -57,8 +59,8 @@ export default function Dashboard() {
                       <p className="truncate text-[14px] font-semibold text-ink">{iv.role}</p>
                       <p className="truncate text-[12px] text-ink-2">{iv.when}</p>
                     </div>
-                    <Link href="/independent/jobs/interviews" className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
-                      Join
+                    <Link href={iv.roleHref} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
+                      {iv.status === "starts" ? "Respond" : "Open"}
                     </Link>
                   </li>
                 ))}
@@ -96,7 +98,7 @@ export default function Dashboard() {
             ) : (
               <ul className="flex flex-col gap-2">
                 {active.slice(0, 3).map((c) => {
-                  const left = daysLeft(c.day);
+                  const left = c.left;
                   return (
                     <li key={c.slug}>
                       <Link href={`/independent/contracts/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-white p-3 hover:bg-surface-alt">
@@ -104,7 +106,7 @@ export default function Dashboard() {
                         <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.2] tracking-[0.2px]">
                           <span className="truncate text-[14px] font-semibold text-ink">{c.company}</span>
                           <span className="truncate text-[12px] text-ink-2">
-                            {c.title} · {left === null ? `since ${c.started}` : `${left} days left`}
+                            {c.title} · {left === null ? `${sinceOrFrom(c.started)} ${c.started}` : daysLeftLabel(left)}
                           </span>
                         </span>
                         <JobBadge type={c.type} />

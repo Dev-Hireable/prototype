@@ -23,11 +23,20 @@ const Download = ICONS.download;
  */
 export default function Messages() {
   const live = useLive();
-  const [tab, setTab] = useState<"conversations" | "candidates">("conversations");
-  const { contracts, canChat } = useDemo();
+  const { contracts, canChat, candidates, roles } = useDemo();
   const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
+  const contract = contracts[0];
+  const pipelineRole = roles.find((r) => r.slug === candidates.find((c) => c.independent === "juan-dela-cruz")?.role)?.title;
   // TB-006 — a candidate thread opens when they are invited to interview, not when they apply.
-  const conversations = conversationsFor({ hired: contracts.length > 0, inPipeline: canChat });
+  const conversations = conversationsFor({
+    hired: contracts.length > 0,
+    inPipeline: canChat,
+    role: contract?.role ?? pipelineRole,
+    contract: contract ? (contract.status.label === "Ended" ? "Ended" : contract.type === "trial" ? "Trial" : "Full-time") : undefined,
+  });
+  /** Opens on the tab that holds the thread until one is picked — it opened on an empty Conversations tab. */
+  const [picked, setTab] = useState<"conversations" | "candidates" | null>(null);
+  const tab = picked ?? conversations[0]?.kind ?? "conversations";
   const [q, setQ] = useState("");
   /** `?with=<id>` opens that thread — the contract page links here with the independent's thread. The list hydrates after mount, so the id is
    *  kept even before it appears and takes effect as soon as the conversation does. */
@@ -90,7 +99,15 @@ export default function Messages() {
           </div>
           {list.length === 0 && (
             <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">
-              {q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : tab === "candidates" ? "No candidate threads yet — one opens when you invite someone to interview." : "No active contracts yet."}
+              {q.trim()
+                ? `No conversations match “${q.trim()}”. Clear the search to see everyone.`
+                : tab === "candidates"
+                  ? conversations.length > 0
+                    ? "This thread moved to Conversations when they were hired."
+                    : "No candidate threads yet — one opens when you invite someone to interview."
+                  : conversations.length > 0
+                    ? "No contract threads yet — the candidate thread is under Candidates."
+                    : "No active contracts yet."}
             </p>
           )}
           <ul className="flex flex-col gap-0.5 px-2 pt-2">
@@ -153,11 +170,16 @@ export default function Messages() {
             </p>
           )}
           <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-5">
-            <p className="flex items-center justify-center gap-2 text-[10.5px] leading-[1.45] text-muted">
-              <span className="font-semibold">Today</span>
-              <span className="h-3 w-px bg-line" />
-              10:02 AM
-            </p>
+            {/* When the thread started — it read "Today · 10:02 AM" whatever the time, even with nothing in it. */}
+            {live.chat.length === 0 ? (
+              <p className="py-6 text-center text-[12.5px] leading-[1.45] text-muted">No messages yet. Say hello — {conv.name} is notified.</p>
+            ) : (
+              <p className="flex items-center justify-center gap-2 text-[10.5px] leading-[1.45] text-muted">
+                <span className="font-semibold">Started</span>
+                <span className="h-3 w-px bg-line" />
+                {live.chat[0].time}
+              </p>
+            )}
             {live.chat.map((m, i) => {
               const me = m.from === "team";
               return (

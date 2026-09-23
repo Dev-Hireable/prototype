@@ -45,6 +45,12 @@ export function interviewStart(when: string): Date | undefined {
   return new Date(Number(m[3]), month, Number(m[1]), hour, Number(m[5]));
 }
 
+/** An interview whose start hasn't come yet. */
+export function isUpcoming(when: string, now = Date.now()) {
+  const start = interviewStart(when)?.getTime();
+  return start !== undefined && start > now;
+}
+
 /** Join call opens 15 minutes before the start and stays open for the hour after it. */
 export function canJoin(when: string, now = Date.now()) {
   const start = interviewStart(when)?.getTime();

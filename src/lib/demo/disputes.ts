@@ -1,7 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { getDeal, settleEscrow } from "@/lib/demo/deal";
+import { dayLabel, momentLabel, parseDay } from "@/lib/demo/dates";
+import { evaluationsOf, getDeal, isFullTime, settleEscrow } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { notify, PAIR, recordLedger } from "@/lib/demo/live";
 
@@ -40,7 +41,17 @@ const ADMIN = "admin: Admin Lead";
 export type DisputeEvent = { at: number; event: string; actor: string };
 export type DisputeStatement = { at: number; from: DisputeParty; text: string; evidence?: string };
 /** What the contract looked like when the dispute was filed — Admin's process check reads it. */
-export type DisputeFacts = { started: string; ends: string; trialEnded: boolean; evaluation: boolean; objectivesDone: number; objectivesTotal: number; escrowHeld: number };
+export type DisputeFacts = {
+  started: string;
+  ends: string;
+  trialEnded: boolean;
+  evaluation: boolean;
+  objectivesDone: number;
+  objectivesTotal: number;
+  escrowHeld: number;
+  /** What was actually deposited into escrow; absent on disputes filed before it was recorded. */
+  escrowFunded?: number;
+};
 
 export type Dispute = {
   id: string;
@@ -165,17 +176,22 @@ const IND = { name: PAIR.independent.name, slug: PAIR.independent.slug, avatar: 
 
 export type ContractRef = { key: string; links: Dispute["links"]; title: string; type: "trial" | "full-time"; rate: string; started: string; ends: string };
 
-/** The live contract — the deal's trial. Both trackers show it, each under its own slug. */
+/**
+ * The live contract — the deal's trial, or the full-time engagement it became. Both trackers show
+ * it, each under its own slug. The key stays the trial's, so a dispute follows the contract across
+ * the conversion instead of detaching from it.
+ */
 export function dealContract(deal: Deal | null): ContractRef | null {
   if (!deal?.contract) return null;
+  const fullTime = isFullTime(deal);
   return {
     key: `deal:${deal.roleSlug}:${deal.contract.started}`,
     links: { team: PAIR.independent.slug, independent: deal.roleSlug },
     title: deal.title,
-    type: "trial",
+    type: fullTime ? "full-time" : "trial",
     rate: deal.contract.rate,
-    started: deal.contract.started,
-    ends: deal.contract.ends,
+    started: dayLabel(fullTime && deal.fullTime ? deal.fullTime.start : deal.contract.started),
+    ends: fullTime ? "Ongoing" : dayLabel(deal.contract.ends),
   };
 }
 
@@ -205,14 +221,16 @@ export const holds = (d: Dispute) => d.status === "Pending" || d.resolution?.pay
 export type Escrow = { total: number; released: number; refunded: number; held: number; onHold: number };
 
 /**
- * The trial's escrow right now: the rate deposited at acceptance, minus what End Contract or a
- * ruling has moved. `onHold` is the part an open dispute is keeping — End Contract can't touch it.
+ * The trial's escrow right now: what was deposited when the offer went out, minus what End
+ * Contract or a ruling has moved. `onHold` is the part an open dispute is keeping — End Contract
+ * can't touch it. The total used to be the rate string with every non-digit stripped, so a weekly
+ * rate funded one week, a 90-day trial one month, and an edited offer "held" money never deposited.
  */
 export function escrowOf(deal: Deal | null, all: Dispute[]): Escrow | null {
   const ref = dealContract(deal);
   const c = deal?.contract;
   if (!ref || !c) return null;
-  const total = rateAmount(c.rate);
+  const total = c.deposit ?? rateAmount(c.rate);
   // A contract ended before escrow was tracked released everything when it ended.
   const released = c.escrow?.released ?? (c.ended ? total : 0);
   const refunded = c.escrow?.refunded ?? 0;
@@ -258,22 +276,26 @@ export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escr
 /** Admin's process check, from the live contract where there is one, else as it was when filed. */
 export function factsFor(ref: ContractRef, deal: Deal | null, all: Dispute[]): DisputeFacts {
   const c = dealContract(deal)?.key === ref.key ? deal?.contract : undefined;
+  const ends = parseDay(ref.ends);
+  /** The same rule the evaluation opens on: the end date came, or every objective was approved first. */
+  const allApproved = !!c?.objectives.length && c.objectives.every((o) => o.status === "complete");
   return {
     started: ref.started,
     ends: ref.ends,
-    trialEnded: ref.type === "trial" ? Date.parse(ref.ends) + 86400000 <= Date.now() || !!c?.ended : false,
-    evaluation: !!c?.evaluation,
+    trialEnded: ref.type === "trial" ? (!!ends && ends.getTime() <= Date.now()) || !!c?.ended || allApproved : false,
+    evaluation: evaluationsOf(c).length > 0,
     objectivesDone: c?.objectives.filter((o) => o.status === "complete").length ?? 0,
     objectivesTotal: c?.objectives.length ?? 0,
     escrowHeld: escrowOf(deal, all)?.held ?? 0,
+    escrowFunded: escrowOf(deal, all)?.total,
   };
 }
 
 /* -------------------------------------------------------------- display */
 
-const DATE: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short", year: "numeric" };
-export const dateOf = (ms: number) => new Date(ms).toLocaleDateString("en-GB", DATE);
-export const stampOf = (ms: number) => new Date(ms).toLocaleString("en-GB", { ...DATE, hour: "2-digit", minute: "2-digit" });
+/** "23 Sep 2026" and "23 Sep 2026, 3:04 PM" — the demo's format, not en-GB's "Sept". */
+export const dateOf = (ms: number) => dayLabel(new Date(ms));
+export const stampOf = (ms: number) => momentLabel(new Date(ms));
 export const daysOpen = (d: Dispute, now = Date.now()) => Math.max(0, Math.floor(((d.status === "Pending" ? now : (d.resolution?.at ?? d.updated)) - d.at) / 86400000));
 export const ageOf = (d: Dispute) => {
   const n = daysOpen(d);
@@ -312,11 +334,9 @@ function tell(d: Dispute, to: DisputeParty, from: DisputeParty | "admin", title:
       title,
       body,
       href: `/team/payments/disputes?tab=${tab}&open=${d.id}`,
-      label: "View dispute",
-      crumb: `Payments › Disputes · ${d.title}`,
       avatar: from === "admin" ? "/admin/avatar.jpg" : d.independent.avatar,
     });
-  else notify("independent", { title, body, href: `/independent/wallet/disputes?tab=${tab}&open=${d.id}` });
+  else notify("independent", { title, body, href: `/independent/wallet/disputes?tab=${tab}&open=${d.id}`, avatar: from === "admin" ? "/admin/avatar.jpg" : undefined });
 }
 
 /**

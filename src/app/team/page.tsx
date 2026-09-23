@@ -17,7 +17,7 @@ import {
 import { Avatar } from "@/components/team/ui";
 import { useDemo } from "@/lib/team/store";
 import { usePersisted } from "@/lib/demo/live";
-import { CONTRACT_NAMES, independents, MARKETING_BANNER, setupSteps } from "@/lib/team/data";
+import { CONTRACT_NAMES, liveIndependents, MARKETING_BANNER, setupSteps } from "@/lib/team/data";
 import { COMPANY_WORK_STYLE } from "@/lib/team/deal-view";
 import { traitTagsFor } from "@/lib/independent/data";
 
@@ -26,8 +26,8 @@ const Work = ICONS.workOutline;
 const Add = ICONS.add;
 const Search = ICONS.search;
 
-const nameOf = (slug: string, independent: string) => CONTRACT_NAMES[slug] ?? independents.find((i) => i.slug === independent)?.name ?? slug;
-const avatarOf = (independent: string) => independents.find((i) => i.slug === independent)?.avatar ?? "/team/juan.jpg";
+const nameOf = (slug: string, independent: string) => CONTRACT_NAMES[slug] ?? liveIndependents().find((i) => i.slug === independent)?.name ?? slug;
+const avatarOf = (independent: string) => liveIndependents().find((i) => i.slug === independent)?.avatar ?? "/team/juan.jpg";
 
 /**
  * Figma "Home / Dashboard" (Team Builder), built to TB-001: dismissible marketing banner,

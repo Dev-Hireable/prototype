@@ -3,6 +3,9 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { PORTAL_CONTENT_CLASS } from "@/components/portal/layout";
+import { dayLabel } from "@/lib/demo/dates";
+
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const Forward = ICONS.arrowForward;
 const Close = ICONS.close;
@@ -59,7 +62,11 @@ export function DashboardGreeting({ name, dateClassName = "text-[15px] tracking-
           </span>
           <span className="block">catching you up on today!</span>
         </p>
-        <p className={dateClassName}>Today, is 09 July 2026</p>
+        {/* The real date — it was a fixed "Today, is 09 July 2026" on both dashboards. Portal pages
+            render after hydration, so this never disagrees with a server render. */}
+        <p className={dateClassName}>
+          Today is {WEEKDAYS[new Date().getDay()]}, {dayLabel(new Date())}
+        </p>
       </div>
       {/* Stacked, matched width: these are the dashboard's primary actions now that the
           duplicate quick-action cards are gone. */}

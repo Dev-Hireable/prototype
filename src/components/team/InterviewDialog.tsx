@@ -24,14 +24,18 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [link, setLink] = useState("https://meet.google.com/yxw-vuts-rqp");
+  /** Sent with the invite — it used to be an uncontrolled box whose text went nowhere. */
+  const [note, setNote] = useState("");
   const first = candidate ? byName(candidate.independent).name.split(" ")[0] : "them";
+  const linkOk = /^https?:\/\/\S+\.\S+/.test(link.trim());
 
   const send = () => {
-    if (!candidate || !date || !time) return;
+    if (!candidate || !date || !time || !linkOk) return;
     // "Tue 6 Jan 2026, 10:00 AM (PHT)" — the lists split the date from the time on ", ".
-    inviteToInterview(candidate.id, { when: `${formatDate(date)}, ${time}`, format: link.includes("zoom") ? "Zoom" : "Google Meet", link });
+    inviteToInterview(candidate.id, { when: `${formatDate(date)}, ${time}`, format: link.includes("zoom") ? "Zoom" : "Google Meet", link: link.trim(), note });
     setDate(undefined);
     setTime("");
+    setNote("");
     onSent(first);
     onClose();
   };
@@ -47,7 +51,7 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
           <Button size="lg" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" variant="primary" disabled={!date || !time} onClick={send}>
+          <Button size="lg" variant="primary" disabled={!date || !time || !linkOk} onClick={send}>
             Send invitation
           </Button>
         </>
@@ -63,11 +67,12 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
             <Select options={["", ...INTERVIEW_TIMES]} value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
         </div>
-        <Field label="Meeting link">
+        {/* A blank link used to go out, and the talent had nothing to join. */}
+        <Field label="Meeting link" error={linkOk ? undefined : "Add the meeting link, starting with https://"}>
           <Input value={link} onChange={(e) => setLink(e.target.value)} />
         </Field>
-        <Field label="Note (optional)">
-          <Textarea rows={3} className="h-[78px]" placeholder="Anything they should prepare" />
+        <Field label="Note (optional)" hint={`${first} reads it with the invitation.`}>
+          <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything they should prepare" />
         </Field>
       </div>
     </Modal>

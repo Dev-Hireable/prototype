@@ -15,10 +15,13 @@ type Scored = Pick<Contract, "tfs" | "phase">;
  */
 export function TrialFitScore({ contract, final = false }: { contract: Scored; final?: boolean }) {
   const w = TFP_WEIGHTS[contract.phase];
+  /** Once an evaluation is in, it is scored like the rest instead of "Added once the evaluation is in". */
+  const evaluated = w.evaluation > 0 && contract.tfs.evaluation !== undefined;
   const rows = [
     { label: "Performance", value: contract.tfs.performance, weight: w.performance, bar: "bg-primary" },
     { label: "Profile", value: contract.tfs.profile, weight: w.profile, bar: "bg-[#27ae60]" },
     { label: "Work Style", value: contract.tfs.workStyle, weight: w.workStyle, bar: "bg-[#f2994a]" },
+    ...(evaluated ? [{ label: "Evaluation", value: contract.tfs.evaluation ?? 0, weight: w.evaluation, bar: "bg-[#9b51e0]" }] : []),
   ];
 
   return (
@@ -48,12 +51,14 @@ export function TrialFitScore({ contract, final = false }: { contract: Scored; f
           </div>
         ))}
         {/* Evaluation only counts once the trial is over, so Phase 3 shows it greyed at 0%. */}
-        <p className="flex items-baseline justify-between text-[13px] leading-[1.2] text-ink-2">
-          <span>
-            Evaluation <span>· {w.evaluation}%</span>
-          </span>
-          <span>{w.evaluation === 0 ? "Excluded during the trial" : final ? "Included in the final score" : "Added once the evaluation is in"}</span>
-        </p>
+        {!evaluated && (
+          <p className="flex items-baseline justify-between text-[13px] leading-[1.2] text-ink-2">
+            <span>
+              Evaluation <span>· {w.evaluation}%</span>
+            </span>
+            <span>{w.evaluation === 0 ? "Excluded during the trial" : final ? "Included in the final score" : "Added once the evaluation is in"}</span>
+          </p>
+        )}
       </div>
     </PanelCard>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { dayStamp, today } from "@/lib/demo/dates";
 import { notifications as indSeed } from "@/lib/independent/data";
 import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
@@ -177,12 +178,15 @@ export type MoveKind =
   | "proposal_revision" // TB-106 Request Changes to Proposal
   | "proposal_declined" // TB-107 Decline Proposal
   | "offer_sent" // TB-105 Send Trial Offer
+  | "offer_updated" // TB-105 Edit a sent offer
+  | "offer_withdrawn" // TB-105 Withdraw a sent offer
   | "objective_approved" // TB-109 Approve Completed Objective
   | "objective_rejected" // TB-110 Reject Completed Objective
   | "objective_revision" // TB-111 Request Objective Revision
   | "evaluation_sent" // TB-067 Send Evaluation
   | "contract_ended" // TB-071 End Contract
   | "fulltime_offer" // TB-072 Hire for Full-Time
+  | "fulltime_withdrawn" // TB-072 Withdraw the full-time offer
   | "objective_assigned" // TB-075 Create Objective
   // Disputes (TB-073/093, IN-059/082) notify from @/lib/demo/disputes, which links to the dispute itself.
   | "applied" // IN-017 Apply to Role
@@ -193,6 +197,8 @@ export type MoveKind =
   | "objective_update" // IN-026 Update Progress on an objective
   | "objective_done" // IN-077 Mark a default objective as done
   | "interview_declined" // IN-071 Decline an interview invitation
+  | "fulltime_accepted" // IN-046 Accept the full-time offer
+  | "fulltime_declined" // IN-046 Decline the full-time offer
   | "withdrawn"; // IN — withdraw application
 
 const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) => string; body: (role: string) => string }> = {
@@ -244,6 +250,18 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     title: () => "Trial offer received",
     body: (r) => `${PAIR.team.company} sent you a trial offer for ${r}. Review the rate, duration and objectives.`,
   },
+  offer_updated: {
+    to: "independent",
+    story: "TB-105",
+    title: () => "Your offer was updated",
+    body: (r) => `${PAIR.team.company} changed the terms of your ${r} offer. Review and sign the new version — the earlier one no longer applies.`,
+  },
+  offer_withdrawn: {
+    to: "independent",
+    story: "TB-105",
+    title: () => "Offer withdrawn",
+    body: (r) => `${PAIR.team.company} withdrew the ${r} offer. Your proposal stays with them and they can send a new one.`,
+  },
   objective_approved: {
     to: "independent",
     story: "TB-109",
@@ -279,6 +297,12 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     story: "TB-072",
     title: () => "Full-time offer received",
     body: (r) => `${PAIR.team.company} wants to take you on full-time for ${r}. Review the salary, benefits and start date.`,
+  },
+  fulltime_withdrawn: {
+    to: "independent",
+    story: "TB-072",
+    title: () => "Full-time offer withdrawn",
+    body: (r) => `${PAIR.team.company} withdrew the full-time offer for ${r}. Your contract and its history are unchanged.`,
   },
   objective_assigned: {
     to: "independent",
@@ -334,6 +358,18 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     title: () => `${PAIR.independent.name} declined the interview`,
     body: (r) => `They cannot make that slot for ${r}. Their application stays open — offer another time.`,
   },
+  fulltime_accepted: {
+    to: "team",
+    story: "IN-046",
+    title: () => `${PAIR.independent.name} accepted your full-time offer`,
+    body: (r) => `${r} is now a full-time engagement. Assign objectives from the contract as the work goes on.`,
+  },
+  fulltime_declined: {
+    to: "team",
+    story: "IN-046",
+    title: () => `${PAIR.independent.name} declined your full-time offer`,
+    body: (r) => `The full-time offer for ${r} was turned down. The trial record stays on the contract.`,
+  },
   withdrawn: {
     to: "team",
     story: "IN",
@@ -358,10 +394,7 @@ export function recordPayment(p: Omit<LivePayment, "id" | "date" | "at">) {
 
 /** The ledger row alone — for callers that write their own notification (dispute rulings). */
 export function recordLedger(p: Omit<LivePayment, "id" | "date" | "at">) {
-  const now = new Date();
-  const date = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  const at = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-  write({ ...snapshot, payments: [{ ...p, id: uid(), date, at }, ...snapshot.payments] });
+  write({ ...snapshot, payments: [{ ...p, id: uid(), date: today(), at: dayStamp() }, ...snapshot.payments] });
 }
 
 /**
@@ -370,11 +403,11 @@ export function recordLedger(p: Omit<LivePayment, "id" | "date" | "at">) {
  */
 export function notify(
   side: Side,
-  n: { title: string; body: string; href: string; label?: string; crumb?: string; avatar?: string; kind?: IndNote["kind"] & TeamNote["kind"] },
+  n: { title: string; body: string; href: string; avatar?: string; kind?: IndNote["kind"] & TeamNote["kind"] },
 ) {
   const kind = n.kind ?? "payments";
   if (side === "independent") {
-    const note: IndNote = { id: uid(), group: "Today", title: n.title, body: n.body, time: clock(), unread: true, kind, href: n.href };
+    const note: IndNote = { id: uid(), group: "Today", title: n.title, body: n.body, time: clock(), at: Date.now(), unread: true, kind, href: n.href, avatar: n.avatar ?? PAIR.team.avatar };
     write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
     return;
   }
@@ -382,13 +415,13 @@ export function notify(
     id: uid(),
     group: "Today",
     title: n.title,
-    crumb: n.crumb ?? "Payments",
     body: n.body,
-    time: "Just now",
+    time: clock(),
+    at: Date.now(),
     unread: true,
     kind,
     avatar: n.avatar ?? PAIR.independent.avatar,
-    action: { label: n.label ?? "Open", href: n.href, primary: true },
+    href: n.href,
   };
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
 }
@@ -416,31 +449,39 @@ function independentTarget(kind: MoveKind, slug: string): { href: string; kind: 
       return { href: application, kind: "contracts" };
     case "offer_sent":
       return { href: `${application}/offer`, kind: "offers" };
+    case "offer_updated":
+      return { href: `${application}/offer?updated=1`, kind: "offers" };
+    case "offer_withdrawn":
+      return { href: application, kind: "offers" };
+    // The talent's contract lives under the role's slug; callers pass it (see the team store).
     case "fulltime_offer":
       return { href: `/independent/contracts/${slug}/offer`, kind: "offers" };
+    case "fulltime_withdrawn":
+      return { href: `/independent/contracts/${slug}`, kind: "offers" };
     default: // objectives, the evaluation, the contract ending — all on the contract
       return { href: `/independent/contracts/${slug}`, kind: "contracts" };
   }
 }
 
-function teamTarget(kind: MoveKind, slug: string): { label: string; href: string; crumb: string } {
+function teamTarget(kind: MoveKind, slug: string): string {
   const board = `/team/hire/roles/${slug}`;
-  const contract = { href: `/team/independents/${PAIR.independent.slug}`, crumb: `Independents › ${PAIR.independent.name}` };
+  const contract = `/team/independents/${PAIR.independent.slug}`;
   switch (kind) {
     case "interview_accepted":
     case "interview_declined":
-      return { label: "Open tracker", href: `${board}?stage=interview`, crumb: "Hire" };
+      return `${board}?stage=interview`;
     case "proposal_sent":
-      return { label: "Review proposal", href: `${board}/candidates/${DEAL}`, crumb: "Hire" };
+      return `${board}/candidates/${DEAL}`;
     case "offer_declined":
-      return { label: "View offers", href: "/team/hire/offers", crumb: "Hire" };
+      return "/team/hire/offers";
     case "offer_accepted":
-      return { label: "Open contract", ...contract };
+    case "fulltime_accepted":
+    case "fulltime_declined":
     case "objective_update":
     case "objective_done":
-      return { label: "Review update", ...contract };
+      return contract;
     default: // applied, withdrawn — the board
-      return { label: "Open tracker", href: board, crumb: "Hire" };
+      return board;
   }
 }
 
@@ -455,25 +496,26 @@ export function move(kind: MoveKind, role: { slug: string; title: string }) {
       title: m.title(role.title),
       body: m.body(role.title),
       time: clock(),
+      at: Date.now(),
       unread: true,
       kind: target.kind,
       href: target.href,
+      avatar: PAIR.team.avatar,
     };
     write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
     return;
   }
-  const target = teamTarget(kind, role.slug);
   const note: TeamNote = {
     id: uid(),
     group: "Today",
     title: m.title(role.title),
-    crumb: target.crumb === "Hire" ? `Hire › ${role.title}` : target.crumb,
     body: m.body(role.title),
-    time: "Just now",
+    time: clock(),
+    at: Date.now(),
     unread: true,
     kind: "hiring",
     avatar: PAIR.independent.avatar,
-    action: { label: target.label, href: target.href, primary: true },
+    href: teamTarget(kind, role.slug),
   };
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
 }
@@ -501,13 +543,13 @@ export function sendChat(from: Side, text: string) {
  * messages collapse into the one unread entry so a back-and-forth doesn't flood the feed —
  * except a call, which always announces itself.
  */
-function noteMessage(from: Side, body: string, action = "Open conversation", force = false) {
+function noteMessage(from: Side, body: string, force = false) {
   const to: Side = from === "team" ? "independent" : "team";
   const sender = from === "team" ? PAIR.team.name : PAIR.independent.name;
   if (!force && snapshot[to].some((n) => n.unread && n.title.startsWith("New message"))) return;
 
   if (to === "independent") {
-    const note: IndNote = { id: uid(), group: "Today", title: `New message from ${sender}`, body, time: clock(), unread: true, kind: "other", href: "/independent/messages" };
+    const note: IndNote = { id: uid(), group: "Today", title: `New message from ${sender}`, body, time: clock(), at: Date.now(), unread: true, kind: "other", href: "/independent/messages", avatar: PAIR.team.avatar };
     write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
     return;
   }
@@ -515,13 +557,13 @@ function noteMessage(from: Side, body: string, action = "Open conversation", for
     id: uid(),
     group: "Today",
     title: `New message from ${sender}`,
-    crumb: "Messages",
     body,
-    time: "Just now",
+    time: clock(),
+    at: Date.now(),
     unread: true,
     kind: "independents",
     avatar: PAIR.independent.avatar,
-    action: { label: action, href: "/team/messages" },
+    href: "/team/messages",
   };
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
 }
@@ -544,7 +586,7 @@ export function startCall(from: Side) {
   const link = `https://meet.hireable.ph/${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 6)}`;
   const chat = [...snapshot.chat, { id: uid(), from, time: clock(), call: { link } }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, "Started a call — the meeting link is in your thread.", "Join call", true);
+  noteMessage(from, "Started a call — the meeting link is in your thread.", true);
   return link;
 }
 

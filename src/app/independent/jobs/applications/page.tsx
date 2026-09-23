@@ -5,14 +5,17 @@ import { useState } from "react";
 import { Button, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/ScrollFade";
-import { COLUMNS, MATCH_TOOLTIP, roles } from "@/lib/independent/data";
+import { usePostings } from "@/lib/demo/deal";
+import { COLUMNS, MATCH_TOOLTIP, roleFromPosting } from "@/lib/independent/data";
 import type { Application } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 /** Figma "Job Board / My Applications": 360px columns, gap 8; header px 12 / py 8, 0.5px stroke; cards p 12, gap 12. */
 export default function MyApplications() {
-  const { applications, withdraw, canChat } = useDemo();
+  const { applications, withdraw, canWithdraw, canChat } = useDemo();
+  /** The postings behind the cards — this read an empty seed, so every card said Trial. */
+  const roles = usePostings().map(roleFromPosting);
   const [menu, setMenu] = useState<string | null>(null);
   const [target, setTarget] = useState<Application | null>(null);
   const [toast, setToast] = useToast();
@@ -71,7 +74,9 @@ export default function MyApplications() {
                                 Message Team Builder
                               </MenuAction>
                             )}
-                            <MenuAction density="compact" destructive onClick={() => { setTarget(a); setMenu(null); }}>
+                            {/* A signed offer is a contract: it is ended or disputed, never withdrawn —
+                                withdrawing used to delete the funded contract outright. */}
+                            <MenuAction density="compact" destructive disabled={!canWithdraw(a)} title={canWithdraw(a) ? undefined : "You've accepted the offer — the contract can be ended, not withdrawn"} onClick={() => { setTarget(a); setMenu(null); }}>
                               Withdraw application
                             </MenuAction>
                           </KebabMenu>
@@ -93,9 +98,9 @@ export default function MyApplications() {
                           </>
                         )}
                         {/* IN-018 — an offer on the table gets its own way in. */}
-                        {a.stage === "offer_received" && (
-                          <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}/offer`} className="justify-center">
-                            Review offer
+                        {a.stage === "offer_received" && (a.status?.label === "Offer received" || a.status?.label === "Offer updated") && (
+                          <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}/offer${a.status.label === "Offer updated" ? "?updated=1" : ""}`} className="justify-center">
+                            {a.status.label === "Offer updated" ? "Review updated offer" : "Review offer"}
                           </LinkButton>
                         )}
                       </li>
@@ -124,9 +129,9 @@ export default function MyApplications() {
               size="lg"
               variant="danger"
               onClick={() => {
-                if (target) withdraw(target.id);
+                const done = target ? withdraw(target.id) : false;
                 setTarget(null);
-                setToast("Application withdrawn");
+                setToast(done ? "Application withdrawn" : "This application can't be withdrawn any more");
               }}
             >
               Withdraw application

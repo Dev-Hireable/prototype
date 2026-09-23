@@ -6,7 +6,7 @@ import { Pagination } from "@/components/team/ui";
 import { Button, Checkbox, EmptyState, Page, SearchBox } from "@/components/independent/ui";
 import { EXPERIENCE_LEVELS, MarketplaceFilterPanel } from "@/components/portal/filters";
 import { roleFromPosting } from "@/lib/independent/data";
-import { usePostings } from "@/lib/demo/deal";
+import { isOpen, usePostings } from "@/lib/demo/deal";
 
 const PER_PAGE = 8;
 
@@ -32,10 +32,9 @@ export default function Discover() {
   const [draft, setDraft] = useState(DEFAULT);
   const [applied, setApplied] = useState(DEFAULT);
 
-  // A filled role has no seat left to apply for, so it leaves the board (IN-074).
-  const roles = usePostings()
-    .filter((p) => !p.filled)
-    .map(roleFromPosting);
+  // A filled role has no seat left to apply for, and a closed one isn't hiring: both leave the
+  // board (IN-074), while staying on file for anyone already in their pipeline.
+  const roles = usePostings().filter(isOpen).map(roleFromPosting);
   /** Skills that are actually on the board, so every option can match something. */
   const skillOptions = [NO_SKILL, ...[...new Set(roles.flatMap((r) => r.skills))].sort((a, b) => a.localeCompare(b))];
   const results = roles.filter((r) => {

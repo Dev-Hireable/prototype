@@ -2,53 +2,89 @@
 
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { Button, Card, Checkbox, InfoBanner, Input, ObjectiveRow, Page } from "@/components/independent/ui";
+import { Button, Card, Checkbox, InfoBanner, Input, LinkButton, ObjectiveRow, Page } from "@/components/independent/ui";
+import { DatePicker, fromISODate, startOfToday, toISODate } from "@/components/portal/DatePicker";
+import { kindIndex } from "@/components/team/ObjectiveViews";
 import { Avatar } from "@/components/team/ui";
+import { addWorkingDays, dayLabel, durationDays, trialMonths } from "@/lib/demo/dates";
+import { useDeal } from "@/lib/demo/deal";
+import { rateAmount, usd } from "@/lib/demo/disputes";
 import { AGREEMENT } from "@/lib/independent/data";
 import { byName } from "@/lib/team/data";
+import { DEAL_ID } from "@/lib/team/deal-view";
 import { useDemo } from "@/lib/team/store";
 
-const OBJECTIVES = ["Drive Qualified Pipeline Through Outreach", "Rebuild the outbound email sequence", "Book 20 qualified demos by day 30"];
+const FEE_RATE = 0.1;
 
-function addDays(date: string, days: number) {
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return "—";
-  d.setDate(d.getDate() + days);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+/** Live money formatting for the rate field: digits, thousands commas, at most two decimals. */
+function formatMoney(raw: string) {
+  const clean = raw.replace(/[^0-9.]/g, "");
+  const dot = clean.indexOf(".");
+  const int = (dot < 0 ? clean : clean.slice(0, dot)).replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dot < 0 ? int : `${int || "0"}.${clean.slice(dot + 1).replace(/\./g, "").slice(0, 2)}`;
 }
 
 /**
  * Figma "Hire / Edit sent offer": same frame as the Independent offer page (px 140, 1080 wide, left card + 360 sign card),
  * headed "Edit the offer to …" with the amber "not signed yet" note. Rate and start date are the editable terms.
+ *
+ * It used to read the rate with every character but digits and commas stripped — "$300.00/wk"
+ * became 30000 — list three hardcoded objectives, end 30 calendar days after the start, and save
+ * without telling the talent. Now it edits the live offer: the rate as agreed, its own objectives,
+ * the working-day end date, the escrow top-up or refund, and a notification to sign the new version.
  */
 export default function EditOffer({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { offers, roles, setOffer } = useDemo();
-  const offer = offers.find((o) => o.id === id);
-  if (!offer) notFound();
+  const { offers, roles, updateOffer } = useDemo();
+  const deal = useDeal();
   const router = useRouter();
-  const p = byName(offer.independent);
-  const role = roles.find((r) => r.title === offer.role) ?? roles[0];
-  const trial = role.type === "trial";
-  const first = p.name.split(" ")[0];
-  const [rate, setRate] = useState(offer.rate.replace(/[^0-9,]/g, ""));
-  const [start, setStart] = useState(offer.start);
+  const live = id === DEAL_ID ? deal?.offer : undefined;
+  const [rate, setRate] = useState(live ? formatMoney(String(rateAmount(live.rate))) : "");
+  const [start, setStart] = useState(live?.start ?? "");
   const [name, setName] = useState("");
   const [agree, setAgree] = useState(false);
-  const signed = name.trim().length > 2 && agree;
-  const changed = `$${rate}` !== offer.rate.split(" ")[0] || start !== offer.start;
+  const offer = offers.find((o) => o.id === id);
+  const role = roles.find((r) => r.slug === deal?.roleSlug);
+  if (!offer || !live || !deal || !role) notFound();
   const back = () => router.push("/team/hire/offers");
+  const p = byName(offer.independent);
+  const first = p.name.split(" ")[0];
+
+  // Only an offer still waiting on an answer can be edited; after a decline the next step is a new offer.
+  if (live.status !== "sent")
+    return (
+      <Page title="Edit offer" heading="modal" onClose={back} padded={false}>
+        <div className="mx-auto flex w-[640px] flex-col gap-4 pt-10">
+          <InfoBanner tone="warn">This offer was {live.status} and can&apos;t be edited. {live.status === "declined" ? `Send ${first} a new offer from their candidate profile instead.` : ""}</InfoBanner>
+          <LinkButton size="lg" href={`/team/hire/roles/${deal.roleSlug}/candidates/${DEAL_ID}`} className="self-start">
+            Open {first}&apos;s profile
+          </LinkButton>
+        </div>
+      </Page>
+    );
+
+  const days = durationDays(role.duration);
+  const months = trialMonths(days);
+  const amount = rateAmount(rate);
+  const startDate = fromISODate(start);
+  const end = startDate ? toISODate(addWorkingDays(startDate, days)) : "";
+  const escrow = amount * months;
+  const fee = Math.round(escrow * FEE_RATE * 100) / 100;
+  const funded = live.deposit?.escrow ?? rateAmount(live.rate) * months;
+  const delta = escrow - funded;
+  const changed = amount !== rateAmount(live.rate) || start !== live.start;
+  const signed = name.trim().length > 2 && agree;
+  const valid = amount > 0 && !!startDate;
 
   const rows: [string, React.ReactNode][] = [
-    ["Role", offer.role],
-    ["Contract type", trial ? "Trial" : "Full-time"],
-    ["Duration", trial ? role.duration : "Ongoing"],
-    ["Start date", <Input key="start" value={start} onChange={(e) => setStart(e.target.value)} className="!h-8 !w-40 !px-3 text-right" />],
-    ["End date", trial ? addDays(start, 30) : "—"],
-    ["Rate", <span key="rate" className="flex items-center gap-1">$<Input value={rate} onChange={(e) => setRate(e.target.value)} inputMode="numeric" className="!h-8 !w-24 !px-3 text-right" />/month</span>],
-    ["Payment cadence", trial ? "Monthly" : "Monthly"],
-    ["Pay in", trial ? "End of trial (1 payment)" : "End of each month"],
-    [trial ? "Total payment at end of trial" : "First month total", `$${rate || "0"}.00`],
+    ["Role", role.title],
+    ["Contract type", "Trial"],
+    ["Duration", `${role.duration} (${days} working days)`],
+    ["Start date", <span key="start" className="block w-44"><DatePicker value={startDate} onChange={(d) => setStart(d ? toISODate(d) : "")} disabled={{ before: startOfToday() }} /></span>],
+    ["End date", end ? dayLabel(fromISODate(end)) : "—"],
+    ["Rate", <span key="rate" className="flex items-center gap-1">$<Input value={rate} onChange={(e) => setRate(formatMoney(e.target.value))} inputMode="decimal" className="!h-8 !w-28 !px-3 text-right" />/month</span>],
+    ["Payment", "Held in escrow, released at the end of the trial"],
+    [`Escrow (${months} ${months === 1 ? "month" : "months"})`, usd(escrow)],
   ];
 
   return (
@@ -58,9 +94,10 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
           <h2 className="font-display text-[32px] leading-[1.5] font-semibold text-black" style={{ fontVariationSettings: '"opsz" 14' }}>
             Edit the offer to {p.name}
           </h2>
-          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">Change the terms below. {first} gets the new version to sign and the offer they have now is replaced.</p>
+          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">Change the terms below. {first} is notified, gets the new version to sign, and the offer they have now is replaced.</p>
           <InfoBanner tone="warn">
-            Sent on {offer.sent}, not signed yet.{changed ? ` Rate changed from ${offer.rate.split(" ")[0]}.00 to $${rate}.00 per month.` : " Edit the rate or start date to send an updated version."}
+            Sent on {live.sent}, not signed yet.{" "}
+            {changed ? `Rate ${live.rate} → ${usd(amount)}/mo, starting ${start ? dayLabel(fromISODate(start)) : "—"}.` : "Edit the rate or start date to send an updated version."}
           </InfoBanner>
         </div>
 
@@ -86,9 +123,9 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
             <div className="flex flex-col gap-6 px-6 pb-6">
               <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Objectives</h3>
               <div className="flex flex-col gap-2">
-                {OBJECTIVES.map((ob, i) => (
-                  <ObjectiveRow key={ob} index={i}>
-                    {ob}
+                {live.objectives.map((o) => (
+                  <ObjectiveRow key={o.id} index={kindIndex(o.kind)}>
+                    {o.title}
                   </ObjectiveRow>
                 ))}
               </div>
@@ -129,13 +166,20 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
                   I agree to the <span className="text-primary underline">platform contract</span> and <span className="text-primary underline">terms of service</span>.
                 </span>
               </Checkbox>
-              <InfoBanner>Hireable will hold your payment when this offer is sent. Payment is only released to the talent after the trial ends and your evaluation is submitted.</InfoBanner>
+              {/* The escrow follows the terms: more is charged, or the difference goes back to the card. */}
+              <InfoBanner>
+                {delta > 0
+                  ? `The escrow goes from ${usd(funded)} to ${usd(escrow)}: ${usd(delta)} more, plus its ${usd(delta * FEE_RATE)} fee, is charged to your card.`
+                  : delta < 0
+                    ? `The escrow goes from ${usd(funded)} to ${usd(escrow)}: ${usd(-delta)} is refunded to your card.`
+                    : `The ${usd(funded)} already in escrow covers these terms.`}
+              </InfoBanner>
               <Button
                 size="lg"
                 variant="primary"
-                disabled={!signed}
+                disabled={!signed || !valid || !changed}
                 onClick={() => {
-                  setOffer(offer.id, { rate: `$${rate} /month`, start, sent: "Today" });
+                  updateOffer({ rate: `${usd(amount)}/mo`, start, end, deposit: { escrow, fee } });
                   back();
                 }}
               >

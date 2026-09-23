@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Card, Chip, Field, JobBadge, KeyValue, LinkButton, Modal, Page, Textarea, Toast, useToast } from "@/components/independent/ui";
-import { BIO_MAX, contractEvaluations, pastEvaluations } from "@/lib/independent/data";
+import { BIO_MAX, pastEvaluations } from "@/lib/independent/data";
 import { emptyQuiz, quizComplete, WorkStyleQuiz, type QuizState } from "@/components/portal/WorkStyleQuiz";
 import { useDemo } from "@/lib/independent/store";
 
@@ -21,7 +21,8 @@ export default function Profile() {
    * Read-only: nothing here can be edited or removed from this side.
    */
   const history = [
-    ...contracts.flatMap((c) => (contractEvaluations[c.slug] ?? []).map((e) => ({ company: c.company, role: c.title, type: c.type, date: e.date, stars: e.stars, feedback: e.feedback }))),
+    // Off the contracts themselves — this read an empty seed, so a submitted evaluation never showed.
+    ...contracts.flatMap((c) => c.evaluations.map((e) => ({ company: c.company, role: c.title, type: c.type, date: e.date, stars: e.stars, feedback: e.feedback }))),
     ...pastEvaluations,
   ];
   const [retake, setRetake] = useState(false);
@@ -92,7 +93,7 @@ export default function Profile() {
           <Card className="flex flex-col gap-6 p-4">
             <div className="flex items-baseline justify-between gap-3">
               <h2 className={H2}>Performance history</h2>
-              <span className="text-[12px] leading-[1.4] text-ink-2">{history.length} evaluations · read-only</span>
+              <span className="text-[12px] leading-[1.4] text-ink-2">{history.length === 1 ? "1 evaluation" : `${history.length} evaluations`} · read-only</span>
             </div>
             <div className="flex flex-col gap-3">
               {history.map((h, i) => (

@@ -13,10 +13,13 @@ const Bookmarked = ICONS.bookmark;
 
 /** Figma "Role card": p 20, gap 12, 1px #c3c3c3 — Discover (Save + View role) and Saved roles (Remove + Apply) variants. */
 export function RoleCard({ role, variant = "discover" }: { role: Role; variant?: "discover" | "saved" }) {
-  const { saved, toggleSaved, workStyle, applications, withdrawnRoleSlugs } = useDemo();
+  const { saved, toggleSaved, workStyle, applications, withdrawnRoleSlugs, declinedRoleSlugs, engagement } = useDemo();
   const isSaved = saved.includes(role.slug);
   const application = applications.find((a) => a.roleSlug === role.slug);
   const withdrawn = withdrawnRoleSlugs.includes(role.slug);
+  const declined = !application && declinedRoleSlugs.includes(role.slug);
+  /** One engagement at a time — another role's is on file, so this one can't be applied to yet. */
+  const engagedElsewhere = !application && !!engagement && engagement.roleSlug !== role.slug;
   const withReturn = useWithReturn();
   /** From Saved roles the next page leads back there; from Discover the role page's own link already does. */
   const out = (href: string) => (variant === "saved" ? withReturn(href) : href);
@@ -56,9 +59,9 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
                 <LinkButton size="sm" variant="primary" href={out(`/independent/jobs/applications/${application.id}`)}>
                   View application
                 </LinkButton>
-              ) : withdrawn || role.filled ? (
-                <Button size="sm" disabled>
-                  {withdrawn ? "Withdrawn" : "Position filled"}
+              ) : withdrawn || declined || role.filled || engagedElsewhere ? (
+                <Button size="sm" disabled title={engagedElsewhere && !withdrawn && !declined && !role.filled ? `You're already engaged on ${engagement?.title} — one engagement at a time` : undefined}>
+                  {withdrawn ? "Withdrawn" : declined ? "Not selected" : role.filled ? "Position filled" : "Apply"}
                 </Button>
               ) : (
                 <LinkButton size="sm" variant="primary" href={out(`/independent/jobs/${role.slug}?apply=1`)}>

@@ -3,7 +3,7 @@
 import type { Stage } from "@/components/independent/ui";
 /** The Off Track rule and the objective-type wording are the same spec on both sides of a trial. */
 import { isOffTrack } from "@/lib/team/data";
-import type { Posting } from "@/lib/demo/deal";
+import type { DealEvaluation, DealKeyResult, ObjectiveComment, Posting } from "@/lib/demo/deal";
 
 export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Sales Manager", avatar: "/independent/avatar.jpg" };
 
@@ -46,8 +46,6 @@ export type Role = {
   /** Every seat is taken — shown, but closed to applications. */
   filled: boolean;
 };
-
-const WS = { builder: [5, 5, 2, 3, 2, 5], independent: [5, 4, 2, 2, 2, 2] }; // Figma 11321:3220 bubble positions
 
 /** A published posting in the shape the job board renders. The board has no seed of its own:
  *  everything on it was posted by the Team Builder in the other portal. */
@@ -109,51 +107,16 @@ export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string;
   { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", text: "#1d6f3f", count: "#c6ffd2" },
 ];
 
-/** The "Marketing Specialist" posting every application detail screen shows. */
-export const marketingSpecialist = {
-  title: "Marketing Specialist",
-  posted: "Posted Jan 08, 2026",
-  description:
-    "We need someone to own our digital marketing end to end. You'll plan and run campaigns across social, email, and paid channels, track what's working, and report weekly. You'll work directly with the founder, async-first, with one weekly sync. We move fast and expect you to take ownership without being managed.",
-  budget: "$1,500.00 - $3,500.00 /mo",
-  duration: "30 Days",
-  experience: "Advanced (5-8 years)",
-  skills: ["Digital Marketing", "Content Creation", "SEO / SEM", "Social Media Management", "Google Analytics", "Copywriting"],
-  workStyle: WS,
-  interview: { date: "01/06/2026", time: "06:00 AM (EST)", link: "https://meet.google.com/yxw-vuts-rqp" },
-  builder: { location: "New York, USA", since: "Member since Jan 01, 2025", contact: "Alex Rivera", company: "Nairobi Solutions" },
-  expectation:
-    "Write a 3-post LinkedIn content series targeting B2B SaaS buyers, set up and run a Google Ads campaign with a $500 budget, and deliver a 1-page report summarizing results and recommendations.",
-  attachment: "https://docs.google.com/presentation/d/marketing-brief-q1",
-  summary: { role: "Marketing Specialist", contractType: "Trial", budget: "$1,500 – $3,500 /month", duration: "30 Days" },
-  proposalObjectives: ["Design Brand Awareness Campaign Collaterals", "Increase Click-Through Rate", "Drive Qualified Pipeline Through Outreach"],
-  coverLetter:
-    "I am a results-driven Marketing Specialist with over 5 years of experience in digital marketing, brand awareness, and campaign management. I have a strong background in managing multi-channel campaigns across email, social media, and paid advertising platforms. My approach combines data-driven strategy with creative execution to deliver measurable results for clients.\n\nIn my previous roles, I have successfully grown click-through rates by an average of 35%, managed monthly ad budgets of up to $10,000, and consistently delivered campaign assets ahead of schedule. I am confident that my skills and experience align well with the goals of this engagement, and I am excited about the opportunity to contribute to your team's success during the 30-day trial period.",
-  revision: { note: "Please update the lead generation target from 50 to 75.", version: "Proposal v1", date: "Jan 1, 2026" },
-  offer: {
-    from: "Nairobi Solutions Inc.",
-    rate: "$1,500.00 /month",
-    updatedRate: "$1,600.00 /month",
-    start: "Mar 30, 2026",
-    end: "Apr 29, 2026",
-    cadence: "One-time",
-    payIn: "End of trial (1 payment)",
-    total: "$1,500.00",
-    updatedTotal: "$1,600.00",
-    expires: "Mar 6, 2026",
-    updatedExpires: "16 Sep 2026",
-    updatedNote: "What changed: rate $1,500.00 to $1,600.00 per month. Everything else is the same as the offer sent on 8 Sep.",
-    objectives: ["Drive Qualified Pipeline Through Outreach", "Launch LinkedIn Thought Leadership Campaign", "MQL Growth Rate"],
-  },
-};
+/** The template's opening and disclaimer — the same on a trial and a full-time agreement. */
+const AGREEMENT_PREAMBLE = `USE OF THIS TEMPLATE IS OPTIONAL. HIREABLE OFFERS THE PARTIES THE OPTION TO UPLOAD THEIR OWN TERMS INSTEAD OF USING THIS TEMPLATE.
+
+Important Disclaimer: This is a form provided on an "as is" basis without representation or warranty of any kind as to its contents. Hireable, its employees, independent contractors or lawyers are not providing you with legal advice and any use of the form is at your own risk. This form is intended to be an example of a services agreement for the Philippines, to be used as an information tool and should not be viewed as a substitute for legal advice.`;
 
 export const AGREEMENT = `HIREABLE SERVICES AGREEMENT
 
 TRIAL CONTRACT - SAMPLE DATA
 
-USE OF THIS TEMPLATE IS OPTIONAL. HIREABLE OFFERS THE PARTIES THE OPTION TO UPLOAD THEIR OWN TERMS INSTEAD OF USING THIS TEMPLATE.
-
-Important Disclaimer: This is a form provided on an "as is" basis without representation or warranty of any kind as to its contents. Hireable, its employees, independent contractors or lawyers are not providing you with legal advice and any use of the form is at your own risk. This form is intended to be an example of a services agreement for the Philippines, to be used as an information tool and should not be viewed as a substitute for legal advice.
+${AGREEMENT_PREAMBLE}
 
 1. Services. The Independent agrees to perform the services described in the Offer Details for the Team Builder during the trial period.
 
@@ -167,6 +130,28 @@ Important Disclaimer: This is a form provided on an "as is" basis without repres
 
 6. Termination. Either party may end the trial early with written notice through the platform. Escrow is released pro rata on approval.`;
 
+/**
+ * TB-072 / IN-046 — what a full-time offer is signed against. The offer page used to show the
+ * trial agreement: escrow at acceptance, a trial period and pro-rata escrow release.
+ */
+export const FULLTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
+
+FULL-TIME ENGAGEMENT - SAMPLE DATA
+
+${AGREEMENT_PREAMBLE}
+
+1. Services. The Independent agrees to perform the services described in the Offer Details for the Team Builder on an ongoing basis from the start date.
+
+2. Compensation. The Team Builder pays the monthly salary shown in the Offer Details at the end of each month, with the exclusive benefits marked as included. No escrow is held on a full-time engagement.
+
+3. Term. This agreement starts on the start date shown in the Offer Details and continues until either party ends it under section 6.
+
+4. Objectives. The hiring manager assigns objectives as the work goes on. Progress is logged in the tracker and reviewed quarterly, with evaluations along the way.
+
+5. Disputes. Either party may raise a payment dispute through Hireable. Hireable reviews process compliance, not work quality.
+
+6. Termination. Either party may end the engagement with 30 days' written notice through the platform. Salary is paid pro rata up to the last working day.`;
+
 /* ---------------------------------------------------------- interviews ---- */
 
 /** `starts` is an invitation still waiting on the talent's answer. */
@@ -179,6 +164,8 @@ export const interviews: Interview[] = [];
 export type Objective = {
   id: string;
   title: string;
+  /** What good looks like, as the Team Builder wrote it when assigning a full-time objective. */
+  description?: string;
   kind: "kpi" | "okr" | "task";
   progress: number;
   /** IN-076 — "revision" is the Revision Requested pill; the rest read out through objectiveStatus. */
@@ -188,7 +175,8 @@ export type Objective = {
   target?: number;
   due?: string;
   updated?: string;
-  keyResults?: number;
+  /** IN-028 — an Automatic objective's own key results; its progress is the share done. */
+  keyResults?: DealKeyResult[];
   /** IN-041 — a Manual objective's own metric: what a value is counted in and the daily pace. */
   unit?: string;
   dailyTarget?: number;
@@ -196,12 +184,10 @@ export type Objective = {
   trend?: number[];
   /** IN-041 / IN-045 — what this contract's own submissions recorded, newest first, with timestamps. */
   activity?: { at: string; text: string }[];
-};
-
-/** "Day 18 of 30" → 12 left; a full-time contract has no countdown. */
-export const daysLeft = (day: string) => {
-  const m = day.match(/Day (\d+) of (\d+)/);
-  return m ? Number(m[2]) - Number(m[1]) : null;
+  /** The latest submission, as the Team Builder reviews it. */
+  lastUpdate?: { date: string; text: string; value?: number; done?: boolean };
+  /** IN-026 — the objective's discussion, shared with the Team Builder. */
+  comments?: ObjectiveComment[];
 };
 
 /**
@@ -235,14 +221,26 @@ export type Contract = {
   started: string;
   day: string;
   ends: string;
+  /** Working days left in a trial (null on a full-time contract), and whether its end date has come. */
+  left: number | null;
+  over: boolean;
+  /** When it was ended, if the Team Builder ended it. */
+  endedOn?: string;
+  /** A trial's length in working days — `day` stops saying "Day 3 of 30" once it closes early. */
+  workingDays?: number;
   rate: string;
   objectives: Objective[];
   /** IN-076 Trial Fit Score — the same breakdown the Team Builder sees, with the phase that weights it. */
-  tfs: { overall: number; performance: number; profile: number; workStyle: number };
+  /** `evaluation` is the latest evaluation's stars as a percentage, once one is in. */
+  tfs: { overall: number; performance: number; profile: number; workStyle: number; evaluation?: number };
   phase: 3 | 4;
   /** TB-058 — one entry per weekday, oldest first: 0 nothing logged, 1 some, 2 all. */
   activity: number[];
   streak: number;
+  /** IN-034 / IN-047 — what the Team Builder submitted, newest first. */
+  evaluations: DealEvaluation[];
+  /** What was funded into escrow for the trial. */
+  deposit?: number;
 };
 
 /** IN-076 — the objectives agreed at the offer, each with the due and last-update dates the card shows. */
@@ -267,32 +265,6 @@ export const COMPANIES: Record<string, CompanyProfile> = {
   },
 };
 
-/**
- * IN-047 — a full-time engagement collects evaluations as it goes, so they are a list per
- * contract rather than the single post-trial one below.
- */
-export type ContractEvaluation = { date: string; stars: number; feedback: string; recommendation: string };
-
-export const contractEvaluations: Record<string, ContractEvaluation[]> = {};
-
-export const evaluation = {
-  /** IN-034 — the overall star rating the Team Builder submits alongside the criteria scores. */
-  stars: 4,
-  submitted: "Submitted 1 Oct 2026. Scores are final and feed your trial fit score.",
-  scores: [
-    { label: "Quality of work", value: 4 },
-    { label: "Communication", value: 5 },
-    { label: "Reliability", value: 4 },
-    { label: "Initiative", value: 4 },
-    { label: "Collaboration", value: 3 },
-  ],
-  average: "Average score 4.0 of 5",
-  recommendation: "Recommend a full-time offer at the trial rate.",
-  comments:
-    "Juan exceeded the call target in week three and booked six demos. Communication was clear and daily check-ins were on time. Recommend a full-time offer at the trial rate.",
-  fit: { locked: "Locked at phase 4 on 1 Oct 2026, after the employer evaluation. It cannot move again." },
-};
-
 /* -------------------------------------------------------------- wallet ---- */
 
 export type PayoutMethod = { id: string; brand: "Maya" | "GCash" | "Bank"; last4: string; holder: string; verified: string; detail: string; isDefault: boolean };
@@ -315,7 +287,19 @@ export const EARNINGS_TYPES = ["Payment Received", "Payment Deposited", "Payment
 export type TxnType = (typeof TXN_TYPES)[number];
 
 /** IN-032 — `contract` is the slug the row belongs to, so a contract can list its own history. */
-export type Transaction = { date: string; /** yyyymmdd — the ledger sorts newest first and filters by range on this, not on the printed date. */ at: number; desc: string; party: string; type: TxnType; contract?: string; amount: string; status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" } };
+export type Transaction = {
+  date: string;
+  /** yyyymmdd — the ledger sorts newest first and filters by range on this, not on the printed date. */
+  at: number;
+  desc: string;
+  party: string;
+  type: TxnType;
+  contract?: string;
+  /** The contract's name as the row was recorded, so the ledger can show it without a lookup. */
+  contractTitle?: string;
+  amount: string;
+  status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" };
+};
 
 export const transactions: Transaction[] = [];
 
@@ -416,7 +400,7 @@ export const SKILL_SUGGESTIONS = [
 
 /**
  * IN-066 — evaluations from engagements that have already closed. Live contracts add their own
- * on top of these (see contractEvaluations), so the section is the whole record, not a seed list.
+ * on top of these (each contract's own evaluations), so the section is the whole record, not a seed list.
  */
 export type PastEvaluation = { company: string; role: string; type: "trial" | "full-time"; date: string; stars: number; feedback: string };
 
@@ -510,17 +494,27 @@ export function setupSteps({ payouts, applications, workStyle = WORK_STYLE_ANSWE
 
 /* ------------------------------------------------------- notifications ---- */
 
-export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: "contracts" | "offers" | "payments" | "interviews" | "other"; href: string };
+/**
+ * `at` is when it happened (epoch ms), so the feed can say Today / Yesterday / Earlier as days pass;
+ * `group` and `time` are what a record without it falls back to. `avatar` is who it is from.
+ */
+export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: "contracts" | "offers" | "payments" | "interviews" | "other"; href: string; at?: number; avatar?: string };
 
 export const notifications: Notification[] = [];
 
 /* ------------------------------------------------------------ messages ---- */
 
-export type Conversation = { id: string; name: string; sub: string; preview: string; time: string; unread: number; initials: string };
+export type Conversation = { id: string; name: string; sub: string; preview: string; time: string; unread: number; initials: string; kind: "conversations" | "applications" };
 
 /** The inbox is not a seed: the thread exists once you are in a company's pipeline. */
-export function conversationsFor(engaged: boolean): Conversation[] {
-  return engaged ? [{ id: "c1", name: "Nairobi Solutions", sub: "Alex Rivera · Sales Manager", preview: "", time: "", unread: 0, initials: "NS" }] : [];
+/**
+ * IN-006 — the one thread, filed where the tabs say: Conversations once there is a contract,
+ * Applications while it is still a pipeline. The subtitle named Alex "Sales Manager" — the
+ * talent's own title — rather than who he is to them.
+ */
+export function conversationsFor({ hired, inPipeline, role }: { hired: boolean; inPipeline: boolean; role?: string }): Conversation[] {
+  if (!hired && !inPipeline) return [];
+  return [{ id: "c1", name: "Nairobi Solutions", sub: `Alex Rivera · Hiring manager${role ? ` · ${role}` : ""}`, preview: "", time: "", unread: 0, initials: "NS", kind: hired ? "conversations" : "applications" }];
 }
 
 export const thread = [

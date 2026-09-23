@@ -31,15 +31,20 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   const withReturn = useWithReturn();
   const deal = useDeal();
   /** TB-106 — the Team Builder's note and the version it applies to, off the shared engagement. */
-  const revisionNote = deal?.roleSlug === app.roleSlug ? deal.revision : undefined;
-  const proposalVersion = deal?.roleSlug === app.roleSlug ? deal.proposal?.version : undefined;
+  const live = deal?.roleSlug === app.roleSlug ? deal : null;
+  const revisionNote = live?.revision;
+  const proposalVersion = live?.proposal?.version;
   const [declining, setDeclining] = useState(false);
   const [toast, setToast] = useToast();
-  const declined = app.status?.label === "Declined";
+  const declined = app.status?.label === "Interview declined";
   /** TB-037 — the Team Builder called it off; the application stays open for a new slot. */
   const cancelled = app.status?.label === "Interview cancelled";
   const revision = !!revisionNote || app.status?.label === "Revision requested";
   const offerUpdated = app.status?.label === "Offer updated";
+  /** IN-075 / TB-105 — the offer's answer, or the Team Builder taking it back. */
+  const offerStatus = live?.offer?.status;
+  /** TB-107 — declined, with the reason they gave; it used to keep reading "reviewing your proposal". */
+  const proposalDeclined = live?.proposalDeclined;
 
   const accept = () => {
     // IN-070 names this status "Interview confirmed".
@@ -131,6 +136,12 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                       <dd className="rounded-lg bg-surface-2 px-4 py-3 text-ink-2">Shared once you accept the invitation.</dd>
                     </div>
                   )}
+                  {live?.interview?.note && (
+                    <div className="flex flex-col gap-1">
+                      <dt className="font-semibold text-ink">Note from {job.company}</dt>
+                      <dd className="text-ink-2">{live.interview.note}</dd>
+                    </div>
+                  )}
                 </dl>
                 {/* IN-071 — only on a confirmed interview, and it opens the meeting itself. */}
                 {app.stage === "invite_accepted" && (
@@ -182,6 +193,13 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                 invitation to propose; the Team Builder's request (TB-103) is. */}
             {!revision && app.stage === "proposal_requested" && (
               <Card className="flex flex-col gap-4 p-4">
+                {/* TB-103 — the note sent with the request, beside the button that answers it. */}
+                {live?.proposalRequest?.note && (
+                  <p className="rounded-lg bg-surface-2 p-3 text-[14px] leading-[1.4] text-ink">
+                    <span className="block text-[12.5px] font-semibold text-ink-2">Note from {job.company}</span>
+                    {live.proposalRequest.note}
+                  </p>
+                )}
                 <div className="flex flex-col gap-2">
                   <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/proposal`}>
                     Submit proposal
@@ -193,18 +211,37 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
               </Card>
             )}
 
-            {!revision && app.stage === "proposal_sent" && (
-              <Card className="flex flex-col gap-4 p-4">
-                <Button size="lg" disabled>
-                  Proposal sent
-                </Button>
-                <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{job.company} is reviewing your proposal. You will hear back within 5 working days.</p>
+            {proposalDeclined ? (
+              <Card className="flex flex-col gap-2 p-4">
+                <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{job.company} declined your proposal</p>
+                <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">{proposalDeclined.reason ? `Their reason: ${proposalDeclined.reason}.` : "They did not give a reason."} They are not moving forward on this role.</p>
               </Card>
+            ) : (
+              !revision &&
+              app.stage === "proposal_sent" && (
+                <Card className="flex flex-col gap-4 p-4">
+                  {offerStatus === "withdrawn" && <p className="rounded-lg bg-surface-2 p-3 text-[13px] leading-[1.4] text-ink-2">{job.company} withdrew the offer they sent. Your proposal is still with them, and they can send a new one.</p>}
+                  <Button size="lg" disabled>
+                    Proposal sent
+                  </Button>
+                  <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{job.company} is reviewing your proposal. You will hear back within 5 working days.</p>
+                </Card>
+              )
             )}
 
             {(app.stage === "offer_received" || app.stage === "offer_accepted" || app.stage === "hired") && (
               <Card className="flex flex-col gap-2 p-4">
-                {app.stage === "offer_received" ? (
+                {app.stage === "offer_received" && offerStatus === "declined" ? (
+                  <>
+                    <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">You declined this offer</p>
+                    <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">
+                      {job.company} was told{live?.offer?.declineReason ? `, with your reason: “${live.offer.declineReason}”` : ""}. If they send a new offer, it shows up here.
+                    </p>
+                    <LinkButton size="lg" href={`/independent/jobs/applications/${app.id}/offer`}>
+                      View declined offer
+                    </LinkButton>
+                  </>
+                ) : app.stage === "offer_received" ? (
                   <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/offer${offerUpdated ? "?updated=1" : ""}`}>
                     {offerUpdated ? "Review updated offer" : "Review offer"}
                   </LinkButton>
@@ -213,6 +250,12 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                     <Button size="lg" disabled>
                       Offer accepted
                     </Button>
+                    {/* IN-046 — the full-time offer that followed the trial, while it waits on an answer. */}
+                    {live?.fullTime?.status === "sent" && (
+                      <LinkButton size="lg" variant="primary" href={`/independent/contracts/${app.roleSlug}/offer`}>
+                        Review full-time offer
+                      </LinkButton>
+                    )}
                     <LinkButton size="lg" href={withReturn(`/independent/contracts/${app.roleSlug}`)}>
                       Open contract
                     </LinkButton>
@@ -231,6 +274,13 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
             )}
 
             <PipelineTracker stage={app.stage} mode="milestone" />
+
+            {live?.note && (
+              <Card className="flex flex-col gap-2 p-4">
+                <h3 className={H2}>Your note with the application</h3>
+                <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">{live.note}</p>
+              </Card>
+            )}
 
             <Card className="flex flex-col gap-6 p-4">
               <h3 className={H2}>About the team builder</h3>

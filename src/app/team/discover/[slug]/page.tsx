@@ -6,14 +6,14 @@ import { Button, LinkButton, Page, Toast, useToast } from "@/components/independ
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { InviteModal } from "@/components/team/InviteModal";
 import { IntroCard, ProfileColumn } from "@/components/team/ui";
-import { independents, pipelineHref } from "@/lib/team/data";
+import { liveIndependents, pipelineHref } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 /** Full independent profile — the candidate profile layout (Figma 11338:8034) with Discover actions in place of the pipeline. */
 export default function IndependentProfile({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const person = independents.find((p) => p.slug === slug);
+  const person = liveIndependents().find((p) => p.slug === slug);
   if (!person) notFound();
   const { saved, toggleSaved, pipelineOf } = useDemo();
   const withReturn = useWithReturn();

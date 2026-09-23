@@ -62,7 +62,7 @@ function Stat({ value, tone, href, label }: { value: number | null; tone: string
 
 /** Figma "Hire / All roles · list / · draft filter / · archived filter" + close / reopen / archive / delete confirms. */
 export default function AllRoles() {
-  const { roles, candidates, setRoleStatus, removeRole, duplicateRole } = useDemo();
+  const { roles, candidates, setRoleStatus, removeRole, duplicateRole, canPublish } = useDemo();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All statuses");
   const [type, setType] = useState("Trial and full-time");
@@ -102,8 +102,18 @@ export default function AllRoles() {
   /** TB-035 — incomplete drafts can't go live; send the user back to finish them instead. */
   const publishDraft = (r: Role) => {
     setMenu(null);
+    if (!canPublish) {
+      setToast("Finish your company profile and add a payment method before publishing");
+      router.push("/team/profile/company");
+      return;
+    }
     if (!draftReady(r)) {
       setToast("Some required fields are still empty — opening the draft so you can finish it");
+      router.push(`/team/hire/new?edit=${r.slug}`);
+      return;
+    }
+    // TB-035 — a copy opens on Review first, so it isn't published as "… (copy)" by accident.
+    if (r.duplicatedFrom) {
       router.push(`/team/hire/new?edit=${r.slug}`);
       return;
     }
@@ -114,6 +124,11 @@ export default function AllRoles() {
   const apply = () => {
     if (!confirm) return;
     const { role, action } = confirm;
+    if (action === "reopen" && !canPublish) {
+      setConfirm(null);
+      setToast("Finish your company profile and add a payment method before reopening a role");
+      return;
+    }
     if (action === "delete") removeRole(role.slug);
     else setRoleStatus(role.slug, action === "close" ? "Closed" : action === "reopen" ? "Active" : "Archived");
     setToast({ close: "Role closed", reopen: "Role reopened", archive: "Role archived", delete: "Role deleted" }[action]);

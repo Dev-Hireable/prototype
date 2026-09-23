@@ -37,7 +37,8 @@ export function useJobView(app: Application): JobView {
   return {
     title: posting?.title ?? app.title,
     company: posting?.company ?? app.company,
-    posted: posting?.posted ?? "",
+    // A closed role keeps the applications already in its tracker; the header says why it has left the board.
+    posted: posting?.closed ? "Closed to new applications" : (posting?.posted ?? ""),
     description: posting?.description.join("\n\n") ?? "",
     budget: posting?.rateRange ?? "—",
     duration: posting?.duration ?? "30 Days",

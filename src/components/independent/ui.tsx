@@ -167,16 +167,26 @@ export function LinkButton({
   variant = "secondary",
   size = "md",
   className = "",
+  external = false,
 }: {
   href: string;
   children: ReactNode;
   variant?: Variant;
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
+  /** Another site: opens in a new tab rather than routing inside the app. */
+  external?: boolean;
 }) {
   const sz = BTN_SIZE[size];
+  const cls = `inline-flex items-center justify-center whitespace-nowrap transition ${sz} ${BTN[variant]} ${className}`;
+  if (external)
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className={cls}>
+        {children}
+      </a>
+    );
   return (
-    <Link href={href} className={`inline-flex items-center justify-center whitespace-nowrap transition ${sz} ${BTN[variant]} ${className}`}>
+    <Link href={href} className={cls}>
       {children}
     </Link>
   );

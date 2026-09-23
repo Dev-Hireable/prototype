@@ -9,7 +9,7 @@ import { MenuAction } from "@/components/portal/controls";
 import { useDeal } from "@/lib/demo/deal";
 import { escrowOf, useDisputes } from "@/lib/demo/disputes";
 import { PAIR } from "@/lib/demo/live";
-import { contracts, EARNINGS_LABEL, EARNINGS_TYPES } from "@/lib/independent/data";
+import { EARNINGS_LABEL, EARNINGS_TYPES } from "@/lib/independent/data";
 import type { PayoutMethod, Transaction } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 
@@ -41,7 +41,7 @@ const amountOf = (s: string) => Number(s.replace(/[^0-9.]/g, "")) || 0;
 
 /** Figma "Wallet / Independent": DM Sans 24 header; balances; payout cards (190 tall, radius 16) with ⋮ menu; transactions table. */
 export default function Wallet() {
-  const { payouts, setDefaultPayout, removePayout, available, withdrawFunds, transactions } = useDemo();
+  const { payouts, setDefaultPayout, removePayout, available, withdrawFunds, transactions, contracts } = useDemo();
   /** Every dispute the independent is a party to — their own and the ones filed against them. */
   const allDisputes = useDisputes();
   const disputes = allDisputes.filter((d) => d.independent.slug === PAIR.independent.slug);
@@ -61,11 +61,13 @@ export default function Wallet() {
   /** IN-054 — one transaction, read-only. */
   const [detail, setDetail] = useState<Transaction | null>(null);
   const [toast, setToast] = useToast();
-  const money = (n: number) => `${n.toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+  const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   /** IN-053 — newest first, before anything is filtered out of it. */
   const all = [...transactions].sort((a, b) => b.at - a.at);
   const newest = Math.max(...all.map((t) => t.at), 0);
-  const contractName = (t: (typeof all)[number]) => contracts.find((c) => c.slug === t.contract)?.title ?? "—";
+  /** The contract a row belongs to, by the title it was recorded with — it looked names up in an empty seed, so every row said "—". */
+  const contractName = (t: (typeof all)[number]) => t.contractTitle ?? contracts.find((c) => c.slug === t.contract)?.title ?? "—";
+  const contractOptions = ["All contracts", ...new Set(all.map(contractName).filter((n) => n !== "—"))];
   // IN-078: the filters combine, and each one used to be decorative — the list never changed.
   const rows = all.filter(
     (t) =>
@@ -196,7 +198,7 @@ export default function Wallet() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <SearchBox value={q} onChange={setQ} placeholder="Search by contract or company" className="w-[280px]" />
-            <Select options={["All contracts", ...contracts.map((c) => c.title)]} value={contract} onChange={(e) => { setContract(e.target.value); setPage(1); }} className="!w-[230px]" />
+            <Select options={contractOptions} value={contractOptions.includes(contract) ? contract : "All contracts"} onChange={(e) => { setContract(e.target.value); setPage(1); }} className="!w-[230px]" />
             <Select options={["All types", ...EARNINGS_TYPES]} value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} className="!w-[190px]" />
             <Select options={Object.keys(RANGES)} value={range} onChange={(e) => { setRange(e.target.value as keyof typeof RANGES); setPage(1); }} className="!w-[160px]" />
             <Button variant="primary" size="lg" className="ml-auto" disabled={!canWithdraw} onClick={() => setWithdrawing(true)}>
@@ -206,7 +208,7 @@ export default function Wallet() {
           {filtering && (
             <div className="flex flex-wrap items-center gap-2 text-[13px] leading-[1.4] text-ink-2">
               <span>
-                Showing {rows.length} of {all.length} transactions
+                Showing {rows.length} of {all.length === 1 ? "1 transaction" : `${all.length} transactions`}
               </span>
               {q.trim() && <Chip>Search: {q.trim()}</Chip>}
               {contract !== "All contracts" && <Chip>{contract}</Chip>}

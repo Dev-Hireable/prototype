@@ -18,13 +18,19 @@ import { DEAL_ID } from "@/lib/team/deal-view";
 import { useDemo } from "@/lib/team/store";
 import { useWithReturn } from "@/components/portal/return";
 
-/** The pair's submitted proposal in the review dialog's shape. Objectives arrive as titles only. */
+/** The pair's submitted proposal in the review dialog's shape — targets, key results and the portfolio link included. */
 const reviewFrom = (p: DealProposal): Proposal => ({
   version: p.version,
   sent: p.sent,
   rate: p.rate,
   letter: p.letter,
-  objectives: p.objectives.map((o) => ({ title: o.title, kind: o.kind, description: "", keyResults: [] })),
+  portfolio: p.portfolio,
+  objectives: p.objectives.map((o) => ({
+    title: o.title,
+    kind: o.kind,
+    description: o.kind === "kpi" && o.target ? `Target: ${o.target} ${o.unit ?? ""}`.trim() : "",
+    keyResults: (o.keyResults ?? []).map((title) => ({ title, description: "Marked done by the independent; the last one sends the objective for your approval." })),
+  })),
 });
 
 /** Figma node 11338-10129 — the sample proposal the seeded (non-live) candidates show. */
@@ -74,26 +80,30 @@ type Dialog = null | "invite" | "complete" | "drop" | "flag" | "request" | "prop
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
   const router = useRouter();
-  const { roles, candidates, interviews, setStage, completeInterview, requestRevision, setDropped, sendOffer, cards } = useDemo();
+  const { roles, candidates, interviews, completeInterview, requestProposal, requestRevision, declineProposal, setDropped, sendOffer, cards } = useDemo();
   const role = roles.find((r) => r.slug === slug);
   const cand = candidates.find((c) => c.id === id);
-  if (!role || !cand) notFound();
-  const p = byName(cand.independent);
   const deal = useDeal();
   const withReturn = useWithReturn();
+  const [dialog, setDialog] = useState<Dialog>(null);
+  /** TB-106 — the revision note is required before the request can be sent. */
+  const [revisionNote, setRevisionNote] = useState("");
+  /** TB-107 — the reason the talent is told alongside the decline. */
+  const [declineReason, setDeclineReason] = useState("Rate above budget");
+  const [toast, setToast] = useToast();
+  if (!role || !cand) notFound();
+  const p = byName(cand.independent);
+  const live = cand.id === DEAL_ID ? deal : null;
   /**
    * IN-072 — the live candidate's proposal is the one they submitted (null until they do); it used
    * to be a hard-coded sample, so the rate and objectives reviewed and signed were never theirs.
    */
   const proposal: Proposal | null = cand.id === DEAL_ID ? (deal?.proposal ? reviewFrom(deal.proposal) : null) : PROPOSAL;
-  const [dialog, setDialog] = useState<Dialog>(null);
-  /** TB-106 — the revision note is required before the request can be sent. */
-  const [revisionNote, setRevisionNote] = useState("");
-  const [toast, setToast] = useToast();
   const first = p.name.split(" ")[0];
-  const declined = cand.status?.label === "Declined to propose";
   /** TB-106 — a revision was requested and the independent hasn't resubmitted yet. */
   const awaitingRevision = cand.status?.label === "Revision requested";
+  /** IN-075 — they turned the offer down; the next move is a new offer, built from the same proposal. */
+  const offerDeclined = live?.offer?.status === "declined";
   // Date, time and link all come off the booking itself, so they survive a reload together.
   const booked = interviews.find((i) => i.independent === cand.independent);
   const [when = "—", at = "—"] = booked?.when.split(", ") ?? [];
@@ -119,15 +129,13 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
           </LinkButton>
         </>
       );
-    if (declined)
+    if (offerDeclined && proposal)
       return (
         <>
-          <LinkButton size="lg" variant="primary" href={pipeline} className="w-full">
-            Back to pipeline
-          </LinkButton>
-          <LinkButton size="lg" href={withReturn("/team/discover")} className="w-full">
-            Browse candidates
-          </LinkButton>
+          <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("proposal")}>
+            Send a new offer
+          </Button>
+          {message}
         </>
       );
     switch (cand.stage) {
@@ -281,6 +289,17 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
                 )}
               </dl>
             )}
+            {/* What came with the application, the request and the answers — the talent wrote these for you. */}
+            {live && (live.note || live.interview?.note || live.proposalRequest?.note || live.offer?.declineReason || live.proposalDeclined?.reason) && (
+              <dl className="flex flex-col gap-3 rounded-lg bg-surface-2 p-4 text-[13px] leading-[1.4]">
+                {live.note && <Note label={`${first}'s note with the application`} text={live.note} />}
+                {live.quiz && <p className="text-ink-2">Hireable quiz results were shared with the application.</p>}
+                {live.interview?.note && <Note label="Your note with the interview invite" text={live.interview.note} />}
+                {live.proposalRequest?.note && <Note label="Your note with the proposal request" text={live.proposalRequest.note} />}
+                {live.proposalDeclined?.reason && <Note label="Why you declined the proposal" text={live.proposalDeclined.reason} />}
+                {live.offer?.status === "declined" && <Note label={`Why ${first} declined the offer`} text={live.offer.declineReason ?? "No reason given."} />}
+              </dl>
+            )}
             <PipelineTracker stage={cand.stage} labels={EMPLOYER_STAGE_LABELS} mode="milestone" />
             <div className="flex items-center gap-4 text-[14px] leading-[1.2] tracking-[0.2px] font-medium">
               <button type="button" onClick={() => setDialog("flag")} className="flex items-center gap-2 text-accent-ink">
@@ -361,8 +380,8 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         open={dialog === "request"}
         name={first}
         onClose={() => setDialog(null)}
-        onSend={() => {
-          setStage(cand.id, "proposal_requested", { label: "Awaiting proposal", tone: "warn", meta: "Sent today" });
+        onSend={(note) => {
+          requestProposal(cand.id, note);
           setDialog(null);
           setToast(`Proposal requested from ${first}`);
         }}
@@ -379,13 +398,13 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
             actions={
               <>
                 <Button size="xl" variant="primary" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("offer")}>
-                  Send offer
+                  {offerDeclined ? "Send a new offer" : "Send offer"}
                 </Button>
                 {/* Only one revision request per round — asking again is what the resubmission is for. */}
-                <Button size="xl" className="w-[280px]" disabled={awaitingRevision} onClick={() => setDialog("revision")}>
+                <Button size="xl" className="w-[280px]" disabled={awaitingRevision || offerDeclined} onClick={() => setDialog("revision")}>
                   Request revision
                 </Button>
-                <Button size="xl" className="!px-0 w-12" disabled={awaitingRevision} onClick={() => setDialog("decline")}>
+                <Button size="xl" className="!px-0 w-12" disabled={awaitingRevision || offerDeclined} onClick={() => setDialog("decline")}>
                   <ThumbDown size={20} aria-hidden />
                   <span className="sr-only">Decline proposal</span>
                 </Button>
@@ -444,9 +463,9 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
               variant="danger"
               onClick={() => {
                 // TB-107: a declined proposal belongs in Dropped, not back in the interview
-                // column where it looked like they were still in the running.
-                setStage(cand.id, cand.stage, { label: "Proposal declined", tone: "danger" }, "proposal_declined");
-                setDropped(cand.id, true);
+                // column where it looked like they were still in the running — and the talent's
+                // own card says it was declined, with the reason.
+                declineProposal(cand.id, declineReason);
                 setDialog(null);
                 setToast("Proposal declined");
               }}
@@ -457,7 +476,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         }
       >
         <Field label="Reason">
-          <Select options={["Rate above budget", "Objectives not aligned", "Chose another candidate", "Other"]} />
+          <Select options={["Rate above budget", "Objectives not aligned", "Chose another candidate", "Other"]} value={declineReason} onChange={(e) => setDeclineReason(e.target.value)} />
         </Field>
       </Modal>
 
@@ -472,19 +491,38 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
           card={cards.find((c) => c.isDefault) ?? cards[0]}
           onSend={(terms) => {
             // TB-105 — the proposed rate and objectives travel with the offer, so the talent signs
-            // what they proposed and the tracker is built from the same list.
+            // what they proposed and the tracker is built from the same list — each objective with
+            // its target or key results, and the escrow that was just funded.
+            const proposed = live?.proposal?.objectives ?? [];
             sendOffer({
               rate: proposal.rate,
               start: terms.start,
               end: terms.end,
-              objectives: proposal.objectives.map((o, i) => ({ id: `obj-${i + 1}`, title: o.title, kind: o.kind })),
+              deposit: terms.deposit,
+              objectives: proposal.objectives.map((o, i) => ({
+                id: `obj-${i + 1}`,
+                title: o.title,
+                kind: o.kind,
+                target: proposed[i]?.target,
+                unit: proposed[i]?.unit,
+                keyResults: proposed[i]?.keyResults?.map((title, k) => ({ id: `kr-${k + 1}`, title })),
+              })),
             });
-            setStage(cand.id, "offer_received", { label: "Awaiting response", tone: "warn", meta: "Expires in 7 days" });
             setToast("Offer sent to candidate");
           }}
         />
       )}
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
+  );
+}
+
+/** One line of what either side wrote along the way — shown where the next decision is made. */
+function Note({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="font-semibold text-ink">{label}</dt>
+      <dd className="text-ink-2">{text}</dd>
+    </div>
   );
 }

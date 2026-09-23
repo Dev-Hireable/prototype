@@ -4,18 +4,21 @@ import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
-import { Button, Card, Chip, Initials, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Stat, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, InfoBanner, Initials, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Stat, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { ActivityLog } from "@/components/portal/ActivityLog";
 import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
+import { kindIndex } from "@/components/team/ObjectiveViews";
 import { TrialFitScore } from "@/components/team/TrialWidgets";
+import { sinceOrFrom } from "@/lib/demo/dates";
 import { useDeal } from "@/lib/demo/deal";
-import { dealContract, escrowLine, escrowOf, fileBlock, fileDispute, rateAmount, STATUS_TONE, useDisputes } from "@/lib/demo/disputes";
+import type { DealEvaluation } from "@/lib/demo/deal";
+import { dealContract, escrowLine, escrowOf, fileBlock, fileDispute, rateAmount, STATUS_TONE, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef } from "@/lib/demo/disputes";
 import { PAIR } from "@/lib/demo/live";
-import { COMPANIES, contractEvaluations, daysLeft, evaluation, objectiveStatus } from "@/lib/independent/data";
-import type { Contract, ContractEvaluation } from "@/lib/independent/data";
+import { COMPANIES, objectiveStatus } from "@/lib/independent/data";
+import type { Contract } from "@/lib/independent/data";
 import { FT_BENEFITS, OBJECTIVE_KIND } from "@/lib/team/data";
 import { useDemo } from "@/lib/independent/store";
 import { useQueryState } from "@/lib/portal/query-state";
@@ -45,10 +48,9 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
   const isTrial = contract.type === "trial";
   const completed = objectives.filter((o) => o.status === "complete").length;
   const pending = objectives.filter((o) => o.status === "pending").length;
-  const evaluationReady = contract.status.label === "Evaluation received";
-  const left = daysLeft(contract.day);
+  const left = contract.left;
   /** IN-076 — a dispute is only available once the trial is over; a full-time contract has no gate. */
-  const ended = (left !== null && left <= 0) || contract.status.label === "Ended" || contract.status.label === "Evaluation received" || contract.status.label === "Contract complete";
+  const ended = contract.over || contract.status.label === "Ended" || contract.evaluations.length > 0;
   const canDispute = !isTrial || ended;
   /** IN-032 — this contract's own transactions. */
   const payments = transactions.filter((t) => t.contract === contract.slug);
@@ -74,7 +76,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
       [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
       // It used to say "released" as soon as the trial dates passed, whether or not the Team
       // Builder had released anything — the exact case a dispute is for.
-      ["Escrow", isTrial ? (escrow ? escrowLine(escrow, contract.started, { releasedTo: "you", refundedTo: contract.company }) : `${contract.rate.replace(" /month", "")} held since ${contract.started}`) : "Not used on a full-time contract"],
+      ["Escrow", isTrial ? (escrow ? escrowLine(escrow, contract.started, { releasedTo: "you", refundedTo: contract.company }) : `${usd(contract.deposit ?? rateAmount(contract.rate))} held since ${contract.started}`) : "Not used on a full-time contract"],
       ["Payout", (escrow?.released ?? 0) > 0 ? "Paid to Maya ····4471" : isTrial ? "Released at trial end on approval, to Maya ····4471" : "Released at the end of each month, to Maya ····4471"],
     ] as const
   ).map(([k, v]) => (
@@ -140,9 +142,9 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
     >
       {tab === "evaluation" ? (
         isTrial ? (
-          <Evaluation ready={evaluationReady} company={contract.company} contract={contract} thread={thread} />
+          <Evaluation evaluation={contract.evaluations[0]} company={contract.company} contract={contract} thread={thread} />
         ) : (
-          <OngoingEvaluations entries={contractEvaluations[contract.slug] ?? []} contract={contract} />
+          <OngoingEvaluations entries={contract.evaluations} contract={contract} />
         )
       ) : (
         <>
@@ -190,20 +192,37 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                     </Button>
                   )
                 )}
-                <LinkButton size="lg" variant="primary" href={`/independent/contracts/${contract.slug}/objectives/${(objectives.find((o) => o.status !== "complete") ?? objectives[0]).id}`}>
-                  Update progress
-                </LinkButton>
+                {/* The next objective still open — or none, once every one is achieved or under review. */}
+                {objectives.some((o) => o.status !== "complete" && o.status !== "pending") && (
+                  <LinkButton size="lg" variant="primary" href={`/independent/contracts/${contract.slug}/objectives/${objectives.find((o) => o.status !== "complete" && o.status !== "pending")!.id}`}>
+                    Update progress
+                  </LinkButton>
+                )}
               </div>
             </div>
             <p className="flex gap-6 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">
               <span>
-                {isTrial ? "Trial started" : "Full-time since"} {contract.started}
+                {isTrial ? "Trial started" : `Full-time ${sinceOrFrom(contract.started)}`} {contract.started}
               </span>
-              <span>{contract.day}</span>
-              <span>{isTrial ? `Ends ${contract.ends}` : "Quarter: Q3 2026 (Jul to Sep)"}</span>
+              {isTrial ? !contract.endedOn && <span>{contract.day}</span> : <span>Quarter: {contract.day}</span>}
+              {isTrial && <span>{contract.endedOn ? `Ended ${contract.endedOn}` : `Ends ${contract.ends}`}</span>}
               <span>{contract.rate}</span>
             </p>
           </Card>
+
+          {/* IN-046 — a full-time offer waiting on an answer, one click from the contract it continues. */}
+          {onDeal && deal?.fullTime?.status === "sent" && (
+            <InfoBanner>
+              <span className="flex items-center justify-between gap-4">
+                <span>
+                  {contract.company} sent you a full-time offer: {deal.fullTime.salary} /month. Review and sign it, or decline.
+                </span>
+                <LinkButton size="sm" variant="primary" href={`/independent/contracts/${contract.slug}/offer`}>
+                  Review offer
+                </LinkButton>
+              </span>
+            </InfoBanner>
+          )}
 
           {tab === "contract" ? (
             <div className="flex items-start gap-6">
@@ -215,7 +234,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                       [
                         ["Role", contract.title],
                         ["Contract type", isTrial ? "Trial" : "Full-time"],
-                        [isTrial ? "Trial duration" : "Review period", isTrial ? `30 days · ${contract.day}` : "Quarterly"],
+                        [isTrial ? "Trial duration" : "Review period", isTrial ? `${contract.workingDays ?? contract.day.replace(/^Day \d+ of /, "")} working days · ${contract.day}` : "Quarterly"],
                         ["Start date", contract.started],
                         [isTrial ? "End date" : "Term ends", contract.ends],
                         [isTrial ? "Agreed budget" : "Base salary", contract.rate],
@@ -325,14 +344,15 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                       {isTrial ? `Locked at the offer — agreed with ${contract.managerFirst}` : `New objectives ${contract.managerFirst} assigns appear here automatically`}
                     </span>
                   </div>
-                  {objectives.map((o, i) => {
+                  {objectives.map((o) => {
                     const st = objectiveStatus(o, left);
                     /** IN-028 — an automatic objective moves on its key results, never by hand. */
-                    const manualUpdate = o.kind !== "okr";
+                    const krs = o.keyResults ?? [];
+                    const next = o.status === "complete" || o.status === "pending" ? "View" : o.kind === "kpi" ? "Update progress" : o.kind === "okr" && krs.length > 0 && !krs.every((k) => k.done) ? "View key results" : "Mark as done";
                     return (
                       <Card key={o.id} className="flex flex-col gap-3 p-4">
                         <Link href={`/independent/contracts/${contract.slug}/objectives/${o.id}`} className="block hover:opacity-80">
-                          <ObjectiveRow index={i}>{o.title}</ObjectiveRow>
+                          <ObjectiveRow index={kindIndex(o.kind)}>{o.title}</ObjectiveRow>
                         </Link>
                         {/* Type, progress, status, due date and last update (IN-076). */}
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] leading-[1.4] text-ink-2">
@@ -340,14 +360,15 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                           <Progress value={o.progress} tone={st.bar} label />
                           <StatusDot tone={st.tone}>{st.label}</StatusDot>
                           {o.due && <span>Due {o.due}</span>}
-                          {!!o.keyResults && <span>{o.keyResults} key results</span>}
+                          {krs.length > 0 && <span>{krs.filter((k) => k.done).length}/{krs.length} key results</span>}
+                          {o.target && <span>Target {o.target} {o.unit}</span>}
                           {o.updated && <span>Updated {o.updated}</span>}
                         </div>
                         <div className="flex items-center justify-between gap-3">
                           <span className="min-w-0 text-[12.5px] leading-[1.4] text-ink-2">{o.meta}</span>
                           {/* Logging progress lives on the objective's own dashboard — one implementation, not two. */}
                           <LinkButton size="sm" href={`/independent/contracts/${contract.slug}/objectives/${o.id}`}>
-                            {o.status === "complete" ? "View" : manualUpdate ? (o.kind === "task" ? "Mark as done" : "Update progress") : "View key results"}
+                            {next}
                           </LinkButton>
                         </div>
                       </Card>
@@ -432,7 +453,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
  * them, newest first, each with its date, stars and written feedback. Read-only.
  * IN-048 — the trial score that led to the conversion sits beside them and never moves again.
  */
-function OngoingEvaluations({ entries, contract }: { entries: ContractEvaluation[]; contract: Contract }) {
+function OngoingEvaluations({ entries, contract }: { entries: DealEvaluation[]; contract: Contract }) {
   return (
     <div className="flex items-start gap-6">
       <div className="flex min-w-0 flex-1 flex-col gap-4">
@@ -447,8 +468,8 @@ function OngoingEvaluations({ entries, contract }: { entries: ContractEvaluation
         {entries.length === 0 ? (
           <Card className="p-10 text-center text-[13px] leading-[1.4] text-ink-2">Feedback appears here after each review period.</Card>
         ) : (
-          entries.map((e) => (
-            <Card key={e.date} className="flex flex-col gap-3 p-5">
+          entries.map((e, i) => (
+            <Card key={`${e.date}-${i}`} className="flex flex-col gap-3 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[13px] leading-[1.4] text-ink-2">Submitted {e.date}</span>
                 <span className="flex items-center gap-1 text-[16px] leading-[1.2] text-[#f2994a]" aria-label={`${e.stars} out of 5 stars`}>
@@ -470,16 +491,21 @@ function OngoingEvaluations({ entries, contract }: { entries: ContractEvaluation
   );
 }
 
-/** Figma "Contracts / Evaluation received · view". */
-function Evaluation({ ready, company, contract, thread }: { ready: boolean; company: string; contract: Contract; thread: string }) {
-  if (!ready) {
+/**
+ * Figma "Contracts / Evaluation received · view" — the evaluation the Team Builder actually sent.
+ * It waited for a status the live contract never had, and would then have shown seeded scores.
+ */
+function Evaluation({ evaluation, company, contract, thread }: { evaluation?: DealEvaluation; company: string; contract: Contract; thread: string }) {
+  if (!evaluation) {
     return (
       <Card className="p-10 text-center">
-        <p className="text-[16px] leading-[1.5] font-semibold text-ink">Evaluation opens on Day 30</p>
-        <p className="mt-2 text-[13px] leading-[1.4] text-ink-2">{company} submits scores after the trial ends. They feed your trial fit score.</p>
+        <p className="text-[16px] leading-[1.5] font-semibold text-ink">{contract.over ? "Waiting on the evaluation" : `Evaluation opens when the trial ends on ${contract.ends}`}</p>
+        <p className="mt-2 text-[13px] leading-[1.4] text-ink-2">{company} submits scores after the trial ends. They feed your trial fit score, and you are notified when they are in.</p>
       </Card>
     );
   }
+  const scores = evaluation.scores ?? [];
+  const average = scores.length ? scores.reduce((n, s) => n + s.value, 0) / scores.length : evaluation.stars;
   return (
     <div className="flex items-start gap-6">
       <div className="flex min-w-0 flex-1 flex-col gap-5">
@@ -487,7 +513,7 @@ function Evaluation({ ready, company, contract, thread }: { ready: boolean; comp
           <h2 className="font-display text-[20px] leading-[1.5] font-semibold text-ink" style={DM}>
             Your evaluation from {company}
           </h2>
-          <p className="text-[14px] leading-[1.4] text-ink-2">{evaluation.submitted}</p>
+          <p className="text-[14px] leading-[1.4] text-ink-2">Submitted {evaluation.date}. Scores are final and feed your trial fit score.</p>
         </div>
         {/* IN-034 — the overall star rating the Team Builder submitted, above the per-criterion scores. */}
         <Card className="flex items-center gap-4 p-5">
@@ -497,11 +523,11 @@ function Evaluation({ ready, company, contract, thread }: { ready: boolean; comp
           </span>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <p className="text-[16px] leading-[1.4] font-semibold text-ink">{evaluation.stars}.0 out of 5 overall</p>
-            <p className="text-[13px] leading-[1.4] text-ink-2">{evaluation.average} · submitted once, and read-only for both of you.</p>
+            <p className="text-[13px] leading-[1.4] text-ink-2">Average score {average.toFixed(1)} of 5 · submitted once, and read-only for both of you.</p>
           </div>
         </Card>
         <Card className="flex flex-col gap-4 p-5">
-          {evaluation.scores.map((s) => (
+          {scores.map((s) => (
             <div key={s.label} className="flex items-center justify-between">
               <p className="text-[14px] leading-[1.4] font-medium text-ink">{s.label}</p>
               <div className="flex gap-2">
@@ -521,13 +547,12 @@ function Evaluation({ ready, company, contract, thread }: { ready: boolean; comp
           <div className="flex flex-col gap-2 pt-2">
             <p className="text-[14px] leading-[1.4] font-medium text-ink">Recommendation</p>
             <p className="flex items-center gap-2 text-[13px] leading-[1.4] text-ink-2">
-              <StatusDot tone="ok">Hire full-time</StatusDot>
-              {evaluation.average}
+              <StatusDot tone={evaluation.recommendation === "End the engagement" ? "neutral" : "ok"}>{evaluation.recommendation}</StatusDot>
             </p>
           </div>
           <div className="flex flex-col gap-2">
             <p className="text-[14px] leading-[1.4] font-medium text-ink">Comments from your employer</p>
-            <p className="rounded-md bg-[#fafafa] p-3 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">{evaluation.comments}</p>
+            <p className="rounded-md bg-[#fafafa] p-3 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">{evaluation.feedback}</p>
           </div>
           <div className="flex justify-end">
             <LinkButton size="lg" href={thread}>
@@ -540,7 +565,7 @@ function Evaluation({ ready, company, contract, thread }: { ready: boolean; comp
           disagreed with it. Same widget the Team Builder reads, so both sides see one score. */}
       <aside className="flex w-[360px] shrink-0 flex-col gap-3">
         <TrialFitScore contract={contract} final />
-        <p className="text-[12.5px] leading-[1.4] text-ink-2">{evaluation.fit.locked}</p>
+        <p className="text-[12.5px] leading-[1.4] text-ink-2">Locked at phase 4 on {evaluation.date}, after the employer evaluation. It does not move again.</p>
       </aside>
     </div>
   );

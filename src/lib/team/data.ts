@@ -1,4 +1,5 @@
 import type { Stage } from "@/components/independent/ui";
+import type { DealKeyResult, ObjectiveComment } from "@/lib/demo/deal";
 
 /** Seed data for the Team Builder portal — every string is lifted from the Figma "Team Builder" canvas. */
 
@@ -173,13 +174,49 @@ export const interviews: Interview[] = [];
 
 /* ----------------------------------------------------------------- offers */
 
-export type Offer = { id: string; independent: string; role: string; sent: string; rate: string; start: string; status: { label: string; tone: Tone } };
+export type Offer = {
+  id: string;
+  independent: string;
+  role: string;
+  sent: string;
+  rate: string;
+  start: string;
+  status: { label: string; tone: Tone };
+  /** Trial offer or TB-072 full-time offer — they are edited and withdrawn differently. */
+  kind?: "trial" | "full-time";
+  /** IN-075 — the reason the talent gave for declining, when they gave one. */
+  declineReason?: string;
+};
 
 export const offers: Offer[] = [];
 
 /* -------------------------------------------------------------- contracts */
 
-export type Objective = { id: string; title: string; kind: "kpi" | "okr" | "task"; progress: number; status: "pending" | "complete" | "risk" | "on"; meta: string; due?: string; keyResults?: number; updated?: string; /** TB-109 — an approved objective stops feeding the activity tracker. */ retired?: boolean };
+export type Objective = {
+  id: string;
+  title: string;
+  description?: string;
+  kind: "kpi" | "okr" | "task";
+  progress: number;
+  /** "revision" — TB-111 sent it back with a reason code; the talent corrects it and resubmits. */
+  status: "pending" | "complete" | "risk" | "on" | "revision";
+  meta: string;
+  due?: string;
+  /** TB-062 — an Automatic objective's own key results. */
+  keyResults?: DealKeyResult[];
+  /** TB-061 — a Manual objective's target, unit and latest value. */
+  target?: number;
+  unit?: string;
+  current?: number;
+  trend?: number[];
+  updated?: string;
+  /** TB-109 — an approved objective stops feeding the activity tracker. */
+  retired?: boolean;
+  /** TB-112 — what happened on it, newest first, and the talent's latest submission. */
+  activity?: { at: string; text: string }[];
+  lastUpdate?: { date: string; text: string; value?: number; done?: boolean };
+  comments?: ObjectiveComment[];
+};
 
 /** TB-058 wording for each objective kind, and the rule that decides when it falls Off Track. */
 export const OBJECTIVE_KIND: Record<Objective["kind"], string> = { kpi: "Manual", okr: "Automatic", task: "Default" };
@@ -205,7 +242,16 @@ export const TFP_WEIGHTS = {
 
 /** TB-111 reason codes — one must be chosen before a revision can be requested. */
 /** TB-067/081/117 — one submitted evaluation; a contract keeps a list of them. */
-export type Evaluation = { stars: number; feedback: string; recommendation: string; date: string; /** TB-068 — the Trial Fit Score as it stood when this was submitted. */ tfp: number };
+export type Evaluation = {
+  stars: number;
+  /** TB-067 — the five criteria scores behind the stars, so the talent sees what was scored. */
+  scores?: { label: string; value: number }[];
+  feedback: string;
+  recommendation: string;
+  date: string;
+  /** TB-068 — the Trial Fit Score as it stood when this was submitted. */
+  tfp: number;
+};
 
 export const REVISION_REASONS = ["Missing Deliverable", "Out-of-Scope Output", "Missed Deadline", "No Report Submitted"];
 
@@ -222,11 +268,17 @@ export type Contract = {
   started: string;
   day: string;
   ends: string;
+  /** Working days left in a trial (null on a full-time contract), and whether its end date has come. */
+  left: number | null;
+  over: boolean;
+  /** When it was ended, if the Team Builder ended it. */
+  endedOn?: string;
   rate: string;
   manager: string;
   objectives: Objective[];
   /** TB-058 Trial Fit Score breakdown; phase decides which weights apply. */
-  tfs: { overall: number; performance: number; profile: number; workStyle: number };
+  /** `evaluation` is the latest evaluation's stars as a percentage, once one is in. */
+  tfs: { overall: number; performance: number; profile: number; workStyle: number; evaluation?: number };
   phase: 3 | 4;
   /** TB-058 activity log — one tile per weekday: 0 nothing, 1 some, 2 all objectives logged. */
   activity: number[];
@@ -288,13 +340,15 @@ export type Notification = {
   id: string;
   group: "Today" | "Last 7 days";
   title: string;
-  crumb: string;
   body: string;
   time: string;
   unread: boolean;
   kind: "hiring" | "independents" | "payments";
   avatar: string;
-  action?: { label: string; href: string; primary?: boolean };
+  /** What the row opens — the thing it is about. */
+  href: string;
+  /** When it happened (epoch ms); `group` and `time` are the fallback for a record without it. */
+  at?: number;
 };
 
 export const notifications: Notification[] = [];
@@ -306,13 +360,14 @@ export type Conversation = { id: string; name: string; sub: string; avatar: stri
 /**
  * Messages: only the live pair (see @/lib/demo/live). The thread is not a seed — it exists once
  * there is somebody to talk to. Conversations is talent under a contract, Candidates is anyone in
- * the pipeline, so a brand-new demo opens on an empty inbox.
+ * the pipeline, so a brand-new demo opens on an empty inbox. It is one thread, so once they are
+ * hired it moves to Conversations rather than being listed under both tabs.
  */
-export function conversationsFor({ hired, inPipeline }: { hired: boolean; inPipeline: boolean }): Conversation[] {
-  return [
-    ...(hired ? ([{ id: "juan", name: "Juan Dela Cruz", sub: "Sales Manager · Trial", avatar: "/team/juan.jpg", kind: "conversations" }] as const) : []),
-    ...(inPipeline ? ([{ id: "juan-candidate", name: "Juan Dela Cruz", sub: "Sales Manager · Candidate", avatar: "/team/juan.jpg", kind: "candidates" }] as const) : []),
-  ];
+export function conversationsFor({ hired, inPipeline, role, contract }: { hired: boolean; inPipeline: boolean; role?: string; contract?: string }): Conversation[] {
+  const person = byName("juan-dela-cruz");
+  if (hired) return [{ id: "juan", name: person.name, sub: `${role ?? person.role} · ${contract ?? "Trial"}`, avatar: person.avatar, kind: "conversations" }];
+  if (inPipeline) return [{ id: "juan-candidate", name: person.name, sub: `Candidate${role ? ` · ${role}` : ""}`, avatar: person.avatar, kind: "candidates" }];
+  return [];
 }
 
 /* ---------------------------------------------------------------- profile */
@@ -424,126 +479,43 @@ export const profile = {
   ] as [string, string][],
 };
 
-export const byName = (slug: string) => independents.find((i) => i.slug === slug) ?? independents[0];
-
-/* --------------------------------------------- objective dashboards (TB-061…065) */
-
-/** TB-061 — how a Manual KPI is written down depends on which direction it tracks. */
-export type KpiType = "increase" | "maintain" | "decrease";
-
-export function kpiValue(type: KpiType, current: number, target: number) {
-  return type === "increase" ? `+${current}` : type === "maintain" ? `${current}/${target}` : String(current);
-}
-
-/** TB-061 progress: current ÷ target × 100, capped so an overachiever doesn't break the bar. */
-export const kpiProgress = (current: number, target: number) => Math.min(100, Math.round((current / target) * 100));
-
-/** TB-061 heatmap states, worst to best, with the colour each tile uses. */
-export const HEAT: Record<string, { label: string; cls: string }> = {
-  over: { label: "Overachieved", cls: "bg-[#1b6b3a]" },
-  hit: { label: "Achieved", cls: "bg-[#27ae60]" },
-  risk: { label: "At Risk", cls: "bg-[#f2c94c]" },
-  miss: { label: "Missed", cls: "bg-[#eb5757]" },
-  none: { label: "No Changes", cls: "bg-[#e0e0e0]" },
-  na: { label: "N/A", cls: "bg-transparent outline outline-1 -outline-offset-1 outline-[#e0e0e0]" },
-};
-
-/** The Manual objective's measurable side — everything the Team Builder can read but not edit. */
-export const MANUAL_METRIC = {
-  kpiType: "increase" as KpiType,
-  current: 13,
-  target: 20,
-  dailyTarget: 2,
-  cadence: "Daily",
-  unit: "demos",
-  /** Cumulative progress per update, oldest first — drives the trend chart. */
-  trend: [5, 10, 20, 30, 35, 45, 50, 60, 65],
-  /** One tile per weekday since the trial started. */
-  heatmap: ["hit", "over", "risk", "hit", "miss", "hit", "hit", "none", "over", "hit", "risk", "hit", "hit", "over", "miss", "hit", "na", "na"],
-};
-
-export type Task = { id: string; title: string; done: boolean };
-
-export type KeyResult = {
-  id: string;
-  title: string;
-  kind: "manual" | "automatic" | "default";
-  progress: number;
-  status: { label: string; tone: Tone };
-  started: string;
-  due: string;
-  /** Automatic key results are driven by their tasks (TB-065). */
-  tasks?: Task[];
-  /** TB-112 — every status change on the key result, newest first, with its timestamp. */
-  activity: { at: string; text: string }[];
-};
-
-/** The three key results behind the Automatic objective (TB-062 / TB-064 / TB-065). */
-export const KEY_RESULTS: KeyResult[] = [
-  {
-    id: "kr-calls",
-    title: "Book 12 discovery calls per week",
-    kind: "manual",
-    progress: 72,
-    status: { label: "On track", tone: "ok" },
-    started: "25 Aug 2026",
-    due: "24 Sep 2026",
-    activity: [
-      { at: "11 Sep 2026, 4:20 PM PHT", text: "9 of 12 calls logged this week — 72%" },
-      { at: "09 Sep 2026, 5:05 PM PHT", text: "Flagged off track, 2 calls behind pace" },
-      { at: "25 Aug 2026, 9:00 AM PHT", text: "Key result agreed and started" },
-    ],
-  },
-  {
-    id: "kr-qualify",
-    title: "Qualify 8 opportunities over $10k",
-    kind: "automatic",
-    // Derived from the tasks below (TB-113): three of four done. One is left open so IN-030 has
-    // something to tick, and so the task → key result → objective chain is visible in the demo.
-    progress: 75,
-    status: { label: "On track", tone: "ok" },
-    started: "25 Aug 2026",
-    due: "18 Sep 2026",
-    tasks: [
-      { id: "t1", title: "Build the ICP scoring sheet", done: true },
-      { id: "t2", title: "Qualify 4 inbound opportunities", done: true },
-      { id: "t3", title: "Qualify 4 outbound opportunities", done: true },
-      { id: "t4", title: "Hand the shortlist to the sales lead", done: false },
-    ],
-    activity: [
-      { at: "15 Sep 2026, 11:45 AM PHT", text: "One task left open: hand the shortlist to the sales lead" },
-      { at: "15 Sep 2026, 11:40 AM PHT", text: "Task “Qualify 4 outbound opportunities” marked done — 75%" },
-      { at: "08 Sep 2026, 10:15 AM PHT", text: "Tasks “ICP scoring sheet” and “4 inbound opportunities” marked done — 50%" },
-      { at: "25 Aug 2026, 9:00 AM PHT", text: "Key result agreed with 4 connected tasks" },
-    ],
-  },
-  {
-    id: "kr-handover",
-    title: "Hand over pipeline doc to sales lead",
-    kind: "default",
-    progress: 100,
-    status: { label: "Achieved", tone: "ok" },
-    started: "25 Aug 2026",
-    due: "24 Sep 2026",
-    activity: [
-      { at: "11 Sep 2026, 9:20 AM PHT", text: "Approved — key result achieved" },
-      { at: "10 Sep 2026, 6:45 PM PHT", text: "Marked as done — waiting on approval" },
-      { at: "25 Aug 2026, 9:00 AM PHT", text: "Key result agreed and started" },
-    ],
-  },
-];
-
-/** TB-065 — an automatic key result's own progress is completed tasks ÷ total. */
-export const taskProgress = (tasks: Task[]) => (tasks.length ? Math.round((tasks.filter((t) => t.done).length / tasks.length) * 100) : 0);
+/** What the talent keeps on their own profile (@/lib/independent/store), as far as a Team Builder sees it. */
+type TalentProfile = { name?: string; headline?: string; bio?: string; rate?: string; level?: string; location?: string; skills?: string[]; photo?: string };
+const TALENT_PROFILE_KEY = "hireable.demo.ind.profile";
+const TALENT_SEED_PHOTO = "/independent/avatar.jpg";
+let profileCache: { raw: string | null; profile: TalentProfile | null } = { raw: null, profile: null };
 
 /**
- * TB-113 — an automatic key result's percentage is derived from its tasks, never read from a
- * stored number, so ticking a task really does move the key result and the objective above it.
+ * IN-060 → TB — the live pair's card follows what the talent saved on their own profile, so an
+ * edit there (bio, rate, skills, headline, photo) is what the Team Builder reads. Every screen
+ * here used to show this seed, and the candidate profile swapped the bio for a marketing one.
+ * Portal pages render after hydration, so reading storage here never runs on the server.
  */
-export const krValue = (kr: KeyResult) => (kr.tasks ? taskProgress(kr.tasks) : kr.progress);
+function withLiveProfile(i: Independent): Independent {
+  if (i.slug !== "juan-dela-cruz" || typeof window === "undefined") return i;
+  try {
+    const raw = localStorage.getItem(TALENT_PROFILE_KEY);
+    if (raw !== profileCache.raw) profileCache = { raw, profile: raw ? (JSON.parse(raw) as TalentProfile) : null };
+  } catch {
+    return i;
+  }
+  const p = profileCache.profile;
+  if (!p) return i;
+  return {
+    ...i,
+    name: p.name?.trim() || i.name,
+    role: p.headline?.trim() || i.role,
+    bio: p.bio?.trim() || i.bio,
+    rate: p.rate?.trim() ? `$${p.rate.trim().replace(/^\$/, "")} /month` : i.rate,
+    level: p.level || i.level,
+    location: p.location?.trim() || i.location,
+    skills: p.skills?.length ? p.skills : i.skills,
+    // The two portals ship different crops of the same photo; only a real change replaces it.
+    avatar: p.photo && p.photo !== TALENT_SEED_PHOTO ? p.photo : i.avatar,
+  };
+}
 
-/** TB-062 — progress is completed KRs ÷ total, never typed in by hand. */
-export const krProgress = (krs: KeyResult[]) => {
-  const done = krs.filter((k) => krValue(k) === 100).length;
-  return { done, total: krs.length, percent: krs.length ? Math.round((done / krs.length) * 100) : 0 };
-};
+export const byName = (slug: string) => withLiveProfile(independents.find((i) => i.slug === slug) ?? independents[0]);
+
+/** Every independent as a Team Builder sees them. Discover read the seed directly, so a profile edit never reached it. */
+export const liveIndependents = () => independents.map(withLiveProfile);

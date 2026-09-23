@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, EmptyState, InfoBanner, JobBadge, LinkButton, Page, SearchBox, Select } from "@/components/independent/ui";
 import { Avatar } from "@/components/team/ui";
+import { daysLeftLabel } from "@/lib/demo/dates";
 import { byName, CONTRACT_NAMES, isOffTrack } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 import { useWithReturn } from "@/components/portal/return";
@@ -12,15 +13,12 @@ import type { Contract } from "@/lib/team/data";
 
 const Message = ICONS.messages;
 
-/** "Day 18 of 30" → 12 left. Full-time contracts have no countdown. */
-function daysLeft(c: Contract) {
-  const m = c.day.match(/Day (\d+) of (\d+)/);
-  return m ? Number(m[2]) - Number(m[1]) : null;
-}
+/** Working days left in a trial; full-time contracts have no countdown. */
+const daysLeft = (c: Contract) => c.left;
 
 const isInactive = (c: Contract) => c.status.label === "Ended";
-/** TB-108 — the trial is over once the countdown hits zero. */
-const trialEnded = (c: Contract) => c.type === "trial" && daysLeft(c) === 0;
+/** TB-108 — the trial is over once its end date comes. */
+const trialEnded = (c: Contract) => c.type === "trial" && c.over;
 
 /**
  * Figma "Independents / All independents", rebuilt to TB-051/054/057: a card per contract with
@@ -154,14 +152,14 @@ function TalentCard({ contract: c }: { contract: Contract }) {
           <>
             <span className="rounded-md bg-[#eef6ff] px-2 py-1 text-[12.5px] font-semibold text-[#005b99]">TFS {c.tfs.overall}%</span>
             {inactive ? (
-              <span>Ended {c.ends}</span>
+              <span>Ended {c.endedOn ?? c.ends}</span>
             ) : (
               /* 7 days or fewer reads as a warning (TB-057). */
-              <span className={left !== null && left <= 7 ? "font-semibold text-brand-orange" : ""}>{left === 0 ? "Trial ended" : `${left} days remaining`}</span>
+              <span className={left !== null && left <= 7 ? "font-semibold text-brand-orange" : ""}>{daysLeftLabel(left ?? 0, "remaining")}</span>
             )}
           </>
         ) : (
-          <span>{inactive ? `Ended ${c.ends}` : `Started ${c.started}`}</span>
+          <span>{inactive ? `Ended ${c.endedOn ?? c.ends}` : `Started ${c.started}`}</span>
         )}
       </div>
 

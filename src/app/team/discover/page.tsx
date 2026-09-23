@@ -5,7 +5,7 @@ import { Button, EmptyState, Page, SearchBox, Toast, useToast } from "@/componen
 import { EXPERIENCE_LEVELS, MarketplaceFilterPanel, SKILL_OPTIONS } from "@/components/portal/filters";
 import { InviteModal } from "@/components/team/InviteModal";
 import { IndependentCard, Pagination, ProfileDrawer } from "@/components/team/ui";
-import { independents } from "@/lib/team/data";
+import { liveIndependents } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { ReturnNav } from "@/components/portal/return";
 
@@ -26,7 +26,7 @@ export default function Discover() {
   const [toast, setToast] = useToast();
 
   const rate = (r: string) => Number(r.replace(/[^0-9]/g, ""));
-  const results = independents.filter((p) => {
+  const results = liveIndependents().filter((p) => {
     const text = `${p.name} ${p.role} ${p.skills.join(" ")}`.toLowerCase();
     if (q && !text.includes(q.toLowerCase())) return false;
     if (!applied.levels.has(p.level)) return false;

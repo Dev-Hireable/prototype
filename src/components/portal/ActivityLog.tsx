@@ -29,7 +29,7 @@ export function ActivityLog({ activity, streak, feeding }: { activity: number[];
   /** TB-109 — every objective approved and retired closes the tracker on a final streak. */
   const finished = feeding === 0;
   return (
-    <PanelCard title="Activity" aside={<StatusDot tone={finished ? "ok" : streak === 0 ? "neutral" : "ok"}>{finished ? `Final streak · ${streak} days` : streakLabel(streak)}</StatusDot>}>
+    <PanelCard title="Activity" aside={<StatusDot tone={finished ? "ok" : streak === 0 ? "neutral" : "ok"}>{finished ? `Final streak · ${streak} ${streak === 1 ? "day" : "days"}` : streakLabel(streak)}</StatusDot>}>
       <div className="flex flex-col gap-[3px]">
         {WEEKDAYS.map((d, r) => (
           <div key={d} className="flex items-center gap-[3px]">

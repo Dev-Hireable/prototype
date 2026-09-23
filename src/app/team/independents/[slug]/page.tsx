@@ -11,22 +11,24 @@ import { ActivityLog } from "@/components/portal/ActivityLog";
 import { DatePicker, fromISODate, startOfToday, toISODate } from "@/components/portal/DatePicker";
 import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
-import { CONTRACT_NAMES, byName, FT_BENEFITS, isOffTrack, KEY_RESULTS, OBJECTIVE_KIND, REVISION_REASONS } from "@/lib/team/data";
+import { kindIndex } from "@/components/team/ObjectiveViews";
+import { CONTRACT_NAMES, byName, FT_BENEFITS, isOffTrack, OBJECTIVE_KIND, REVISION_REASONS } from "@/lib/team/data";
+import { sinceOrFrom } from "@/lib/demo/dates";
 import { useDeal } from "@/lib/demo/deal";
 import { dealContract, escrowLine, escrowOf, fileBlock, fileDispute, holds, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef } from "@/lib/demo/disputes";
-import { move, PAIR } from "@/lib/demo/live";
-import type { MoveKind } from "@/lib/demo/live";
+import { PAIR } from "@/lib/demo/live";
 import type { Objective } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 import { useQueryState } from "@/lib/portal/query-state";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
-const OBJ_STATUS: Record<Objective["status"], { label: string; tone: "warn" | "ok" | "trial"; bar: "primary" | "ok" | "warn" }> = {
+const OBJ_STATUS: Record<Objective["status"], { label: string; tone: "warn" | "ok" | "trial" | "danger"; bar: "primary" | "ok" | "warn" }> = {
   pending: { label: "Update pending", tone: "warn", bar: "primary" },
   complete: { label: "Complete", tone: "ok", bar: "ok" },
   risk: { label: "At risk", tone: "trial", bar: "warn" },
+  revision: { label: "Revision requested", tone: "danger", bar: "warn" },
   on: { label: "On track", tone: "ok", bar: "primary" },
 };
 const SCORES = ["Quality of work", "Communication", "Reliability", "Initiative", "Collaboration"];
@@ -45,7 +47,7 @@ export default function TrackerPage({ params }: { params: Promise<{ slug: string
  */
 function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, endContract, evaluations, addEvaluation, addOffer, transactions, setObjectives: persistObjectives } = useDemo();
+  const { contracts, endContract, evaluations, addEvaluation, sendFullTimeOffer, transactions, reviewObjective, createObjective: assignObjective } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
   if (!contract) notFound();
   const p = byName(contract.independent);
@@ -57,7 +59,6 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   // In the URL rather than state, so leaving from the Evaluation tab comes back to it.
   const [tab, setTab] = useQueryState("tab", "dashboard", ["dashboard", "contract", "evaluation"] as const);
   const objectives = contract.objectives;
-  const setObjectives = (fn: (os: Objective[]) => Objective[]) => persistObjectives(slug, fn);
   const [review, setReview] = useState<Objective | null>(null);
   const [adding, setAdding] = useState(false);
   const [converting, setConverting] = useState(false);
@@ -71,66 +72,52 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const [recommendation, setRecommendation] = useState("");
   const [ending, setEnding] = useState(false);
   /** Pre-filled from the trial rate so the offer starts from what they already earn. */
-  const [ft, setFt] = useState({ salary: contract.rate.replace(/[^0-9.,]/g, ""), start: "", benefits: [] as string[] });
+  const [ft, setFt] = useState({ salary: String(rateAmount(contract.rate).toLocaleString("en-US")), start: "", benefits: [] as string[] });
   /** TB-075 — the new objective being composed; what's required depends on its type. */
-  const [newObj, setNewObj] = useState({ description: "", type: "Manual", kpiType: "Increase", target: "", cadence: "Daily", krs: [] as string[] });
+  const [newObj, setNewObj] = useState({ description: "", type: "Manual", target: "", unit: "", krs: [] as string[], kr: "" });
   const objectiveReady =
     title.trim().length > 1 &&
     newObj.description.trim().length > 0 &&
-    (newObj.type === "Manual" ? !!newObj.target : newObj.type === "Automatic" ? newObj.krs.length > 0 : true);
+    (newObj.type === "Manual" ? Number(newObj.target) > 0 && !!newObj.unit.trim() : newObj.type === "Automatic" ? newObj.krs.length > 0 : true);
   const [disputing, setDisputing] = useState(false);
   /** TB-110 / TB-111 — a reason is mandatory for anything that isn't an approval. */
   const [note, setNote] = useState("");
   const [reasonCode, setReasonCode] = useState("");
   /**
    * TB-111 / TB-116 — only one revision request per objective per reporting period. Read off the
-   * objective rather than held in local state: a guard that a refresh clears isn't a guard, and
-   * `decide("revise")` already stamps the meta line it looks for.
+   * objective rather than held in local state: a guard that a refresh clears isn't a guard. A
+   * resubmission starts a new period.
    */
   const revisedThisPeriod = (o: Objective | null) => !!o && objectives.find((x) => x.id === o.id)?.meta.startsWith("Revision requested") === true;
   const [toast, setToast] = useToast();
-  /** Only the live demo pair raises notifications; the rest are background contracts. */
-  const signalObjective = (kind: MoveKind) => {
-    if (contract.independent === PAIR.independent.slug) move(kind, { slug: contract.slug, title: contract.role });
-  };
 
   const createObjective = () => {
     const kind = newObj.type === "Manual" ? "kpi" : newObj.type === "Automatic" ? "okr" : "task";
-    setObjectives((os) => [
-      ...os,
-      {
-        id: `o${Date.now()}`,
-        title: title.trim(),
-        kind,
-        progress: 0,
-        status: "on",
-        meta: newObj.type === "Manual" ? `Target ${newObj.target} · ${newObj.cadence}` : newObj.type === "Automatic" ? `${newObj.krs.length} key results connected` : "Binary — marked done by the independent",
-        due: contract.ends,
-        keyResults: newObj.type === "Automatic" ? newObj.krs.length : undefined,
-        updated: "Today",
-      },
-    ]);
-    signalObjective("objective_assigned");
+    assignObjective(slug, { title: title.trim(), description: newObj.description.trim(), kind, target: kind === "kpi" ? Number(newObj.target) : undefined, unit: kind === "kpi" ? newObj.unit.trim() : undefined, keyResults: kind === "okr" ? newObj.krs : undefined });
     setTitle("");
-    setNewObj({ description: "", type: "Manual", kpiType: "Increase", target: "", cadence: "Daily", krs: [] });
+    setNewObj({ description: "", type: "Manual", target: "", unit: "", krs: [], kr: "" });
     setAdding(false);
-    setToast("Objective created and assigned");
+    setToast(`Objective created and assigned — ${first} has been told`);
   };
   const isTrial = contract.type === "trial";
-  /** Days remaining drives both the Days left stat and the automatic Off Track rule. */
-  const dayMatch = contract.day.match(/Day (\d+) of (\d+)/);
-  const left = dayMatch ? Number(dayMatch[2]) - Number(dayMatch[1]) : null;
-  const ended = contract.progress === 100 && isTrial;
+  /** Working days remaining drives both the Days left stat and the automatic Off Track rule. */
+  const left = contract.left;
+  /**
+   * TB-067 — the trial is over when its end date comes, or sooner once every objective has been
+   * approved. It used to wait for 100% approval alone, so a trial with one objective still open
+   * could never be evaluated, ended or converted, whatever the date.
+   */
+  const ended = isTrial && (contract.over || contract.progress === 100);
   /**
    * TB-117 — on a full-time contract the evaluation is ongoing feedback, available whenever the
-   * Team Builder wants to give it. A trial's is a one-off verdict, so it stays locked until the
-   * countdown runs out.
+   * Team Builder wants to give it. A trial's is a one-off verdict, so it waits for the trial to end.
    */
   const canEvaluate = !isTrial || ended;
   const completed = objectives.filter((o) => o.status === "complete").length;
   /** TB-066 — this contract's slice of the transaction ledger. */
   const payments = transactions.filter((t) => t.independent === name);
-  const pending = objectives.filter((o) => o.status === "pending").length;
+  const waiting = objectives.filter((o) => o.status === "pending");
+  const pending = waiting.length;
 
   /**
    * TB-073 / TB-118 / TB-093 — a dispute is one record per contract that the independent and Admin
@@ -146,7 +133,15 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const here = allDisputes.filter((d) => d.contract === ref.key);
   const { block, dispute: running } = fileBlock(allDisputes, ref.key, "team", escrow);
   /** TB-073 — on a trial, filing opens once it ends; TB-058 keeps the button in view before that. */
-  const trialOver = !isTrial || (left !== null && left <= 0) || contract.status.label === "Ended";
+  const trialOver = !isTrial || contract.over || contract.status.label === "Ended";
+  /** TB-072 — one full-time offer at a time: while one is out or has been accepted, there is nothing to send. */
+  const fullTimeOffer = onDeal ? deal?.fullTime : undefined;
+  const fullTimeLocked = fullTimeOffer?.status === "sent" || fullTimeOffer?.status === "accepted";
+  /** A new full-time offer starts from the last one: the talent turned down its terms, not the idea. A start date that has passed is dropped. */
+  const openConvert = () => {
+    if (fullTimeOffer) setFt({ salary: fullTimeOffer.salary.replace(/^\$/, ""), start: fullTimeOffer.start >= toISODate(startOfToday()) ? fullTimeOffer.start : "", benefits: fullTimeOffer.benefits });
+    setConverting(true);
+  };
   const fileHint = !trialOver ? `Available once the trial ends on ${contract.ends}` : block === "withdrawn" ? "You withdrew a dispute on this contract, so it can't be disputed again" : block === "settled" ? "Nothing is left in escrow on this contract" : undefined;
   const flow = useDisputeFlow("team", setToast);
   /** One button everywhere it appears: file one, open the one already running, or say why not. */
@@ -175,21 +170,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
     if (!review) return;
     if (verdict !== "approve" && !note.trim()) return;
     if (verdict === "revise" && !reasonCode) return;
-
-    setObjectives((os) =>
-      os.map((o) =>
-        o.id === review.id
-          ? {
-              ...o,
-              status: verdict === "approve" ? "complete" : verdict === "revise" ? "risk" : "on",
-              progress: verdict === "approve" ? 100 : o.progress,
-              retired: verdict === "approve" ? true : o.retired,
-              meta: verdict === "approve" ? "Achieved · approved today" : verdict === "revise" ? `Revision requested · ${reasonCode}` : "Sent back · active again",
-            }
-          : o,
-      ),
-    );
-    signalObjective(verdict === "approve" ? "objective_approved" : verdict === "revise" ? "objective_revision" : "objective_rejected");
+    // TB-111 — the reason code and the note travel together; the talent reads both.
+    reviewObjective(slug, review.id, verdict, verdict === "revise" ? `${reasonCode} — ${note.trim()}` : note.trim());
     setReview(null);
     setNote("");
     setReasonCode("");
@@ -398,8 +380,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                     <Button size="lg" disabled={endBlocked || contractEnded} title={endBlocked ? "A dispute is holding the escrow" : undefined} onClick={() => setEnding(true)}>
                       {contractEnded ? "Contract ended" : "End contract"}
                     </Button>
-                    <Button size="lg" variant="primary" onClick={() => setConverting(true)}>
-                      Hire for full-time
+                    <Button size="lg" variant="primary" disabled={fullTimeLocked} onClick={openConvert}>
+                      {fullTimeOffer?.status === "sent" ? "Full-time offer sent" : fullTimeOffer?.status === "declined" || fullTimeOffer?.status === "withdrawn" ? "Send a new full-time offer" : "Hire for full-time"}
                     </Button>
                   </>
                 ) : isTrial ? (
@@ -417,9 +399,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                       variant="primary"
                       disabled={!canEvaluate || !feedback.trim() || !recommendation}
                       onClick={() => {
-                        addEvaluation(slug, { stars: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), feedback: feedback.trim(), recommendation, tfp: contract.tfs.overall });
-                        signalObjective("evaluation_sent");
-                        setToast("Evaluation sent");
+                        addEvaluation(slug, { stars: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), scores: SCORES.map((label, i) => ({ label, value: scores[i] })), feedback: feedback.trim(), recommendation, tfp: contract.tfs.overall });
+                        setToast(`Evaluation sent — ${first} can read it now`);
                       }}
                     >
                       Send evaluation
@@ -431,8 +412,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                     variant="primary"
                     disabled={!canEvaluate || !feedback.trim() || !recommendation}
                     onClick={() => {
-                      addEvaluation(slug, { stars: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), feedback: feedback.trim(), recommendation, tfp: contract.tfs.overall });
-                      signalObjective("evaluation_sent");
+                      addEvaluation(slug, { stars: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), scores: SCORES.map((label, i) => ({ label, value: scores[i] })), feedback: feedback.trim(), recommendation, tfp: contract.tfs.overall });
                       if (!isTrial) {
                         setFeedback("");
                         setRecommendation("");
@@ -517,16 +497,16 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               </div>
               <div className="flex items-center gap-2">
                 <Button size="lg" variant="primary" onClick={() => (pending ? setReview(objectives.find((o) => o.status === "pending") ?? null) : setTab("evaluation"))}>
-                  {pending ? "Review update" : "Send evaluation"}
+                  {pending ? "Review update" : isTrial && submitted ? "View evaluation" : "Send evaluation"}
                 </Button>
               </div>
             </div>
             <p className="flex gap-6 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">
               <span>
-                {isTrial ? "Trial started" : "Full-time since"} {contract.started}
+                {isTrial ? "Trial started" : `Full-time ${sinceOrFrom(contract.started)}`} {contract.started}
               </span>
-              <span>{contract.day}</span>
-              <span>{isTrial ? `Ends ${contract.ends}` : "Quarter: Q3 2026 (Jul to Sep)"}</span>
+              {isTrial ? !contract.endedOn && <span>{contract.day}</span> : <span>Quarter: {contract.day}</span>}
+              {isTrial && <span>{contract.endedOn ? `Ended ${contract.endedOn}` : `Ends ${contract.ends}`}</span>}
               <span>{contract.rate}</span>
               <span>Manager: {contract.manager}</span>
             </p>
@@ -535,7 +515,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
           {/* TB-109: a banner when something is waiting on you, so approvals don't sit unseen. */}
           {pending > 0 && (
             <InfoBanner tone="warn">
-              {first} marked {pending === 1 ? "an objective" : `${pending} objectives`} as done. Approve to retire {pending === 1 ? "it" : "them"} from the activity tracker, or send {pending === 1 ? "it" : "them"} back with a reason.
+              {first} sent {pending === 1 ? "an objective" : `${pending} objectives`} for review. Approve to retire {pending === 1 ? "it" : "them"} from the activity tracker, or send {pending === 1 ? "it" : "them"} back with a reason.
             </InfoBanner>
           )}
 
@@ -551,9 +531,9 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
             {isTrial ? (
               <Stat label="Days left" value={String(left ?? 0)} sub={`${contract.started} – ${contract.ends}`} />
             ) : (
-              <Stat label="Full-time since" value={contract.started} sub={contract.day} />
+              <Stat label={`Full-time ${sinceOrFrom(contract.started)}`} value={contract.started} sub={contract.day} />
             )}
-            <Stat label="Updates to review" value={String(pending)} sub={pending ? `Sent 8 Sep by ${first}` : "Nothing waiting"} />
+            <Stat label="Updates to review" value={String(pending)} sub={pending ? `Latest ${waiting.map((o) => o.lastUpdate?.date.split(",")[0] ?? o.updated).find(Boolean) ?? "today"} by ${first}` : "Nothing waiting"} />
           </div>
 
           <div className="flex items-start gap-6">
@@ -572,14 +552,15 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   </Button>
                 )}
               </div>
-              {objectives.map((o, i) => {
+              {objectives.map((o) => {
                 // TB-058: Off Track is derived, not stored — ≤7 days left and behind target.
                 const auto = isOffTrack(o, left ?? 99);
                 const st = auto ? { label: "Off Track", tone: "trial" as const, bar: "warn" as const } : OBJ_STATUS[o.status];
+                const href = `/team/independents/${contract.slug}/objectives/${o.id}`;
                 return (
                   <Card key={o.id} className="flex flex-col gap-3 p-4">
-                    <Link href={`/team/independents/${contract.slug}/objectives/${o.id}`} className="block hover:opacity-80">
-                      <ObjectiveRow index={i}>{o.title}</ObjectiveRow>
+                    <Link href={href} className="block hover:opacity-80">
+                      <ObjectiveRow index={kindIndex(o.kind)}>{o.title}</ObjectiveRow>
                     </Link>
                     {/* Type, progress, status, due date, key results and last update (TB-058). */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] leading-[1.4] text-ink-2">
@@ -587,13 +568,20 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                       <Progress value={o.progress} tone={st.bar} label />
                       <StatusDot tone={st.tone}>{st.label}</StatusDot>
                       {o.due && <span>Due {o.due}</span>}
-                      {!!o.keyResults && <span>{o.keyResults} key results</span>}
+                      {!!o.keyResults?.length && <span>{o.keyResults.filter((k) => k.done).length}/{o.keyResults.length} key results</span>}
+                      {o.target && <span>Target {o.target} {o.unit}</span>}
                       {o.updated && <span>Updated {o.updated}</span>}
                     </div>
                     <div className="flex justify-end">
-                      <Button size="sm" variant={o.status === "pending" ? "primary" : "secondary"} disabled={o.status === "complete"} onClick={() => (o.status === "pending" ? setReview(o) : setToast("Nothing to review yet"))}>
-                        {o.status === "pending" ? "Review" : "View"}
-                      </Button>
+                      {o.status === "pending" ? (
+                        <Button size="sm" variant="primary" onClick={() => setReview(o)}>
+                          Review
+                        </Button>
+                      ) : (
+                        <LinkButton size="sm" href={href}>
+                          View
+                        </LinkButton>
+                      )}
                     </div>
                   </Card>
                 );
@@ -605,10 +593,20 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   the final score carried over from the trial, where it no longer moves. */}
               <TrialFitScore contract={contract} final={!isTrial} />
               <ActivityLog activity={contract.activity} streak={contract.streak} feeding={objectives.filter((o) => !o.retired && o.status !== "complete").length} />
+              {/* It used to read "Send your evaluation" after one was sent, and "Opens on Ongoing,
+                  once the trial ends" on a full-time contract. */}
               <PanelCard title={isTrial ? "Trial evaluation" : "Quarterly review"}>
-                <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">{ended ? "The trial has ended. Send your evaluation to unlock the full-time decision." : `Opens on ${contract.ends}, once the trial ends. Your objective reviews feed the fit score until then.`}</p>
-                <Button size="lg" variant={ended ? "primary" : "secondary"} onClick={() => setTab("evaluation")}>
-                  {ended ? "Send evaluation" : "View evaluation"}
+                <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">
+                  {!isTrial
+                    ? `Send feedback whenever you have it. Every evaluation is kept and ${first} is notified.`
+                    : submitted
+                      ? `You sent your evaluation on ${latest.date}. End the contract or hire ${first} for full-time from the Evaluation tab.`
+                      : ended
+                        ? "The trial has ended. Send your evaluation to unlock the full-time decision."
+                        : `Opens on ${contract.ends}, once the trial ends. Your objective reviews feed the fit score until then.`}
+                </p>
+                <Button size="lg" variant={!isTrial || ended ? "primary" : "secondary"} onClick={() => setTab("evaluation")}>
+                  {isTrial && (submitted || !ended) ? "View evaluation" : "Send evaluation"}
                 </Button>
               </PanelCard>
               <PanelCard title="Contract & payment">
@@ -642,7 +640,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
         open={!!review}
         onClose={() => setReview(null)}
         title={`Review update: ${review?.title ?? ""}`}
-        description={`${first} reported ${review?.meta ?? ""}. Approve to move the objective forward, request a revision, or reject it.`}
+        description={`${first} sent this for review. Approve to move the objective forward, request a revision, or reject it.`}
         footer={
           <>
             <Button size="lg" variant="ghost" disabled={!note.trim()} onClick={() => decide("reject")}>
@@ -658,7 +656,13 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
         }
       >
         <div className="flex flex-col gap-3">
-          <div className="rounded-lg bg-[#fafafa] p-4 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">Logged 3 calls today — 9 this week. The afternoon calling block is landing better with the US west coast; two more are booked for Thursday.</div>
+          {/* What the talent actually submitted — the value, the percentage and their own words. */}
+          <div className="flex flex-col gap-1.5 rounded-lg bg-[#fafafa] p-4 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">
+            <span className="text-[12.5px] text-ink-2">
+              {review?.lastUpdate?.date ?? review?.updated} · {review?.meta}
+            </span>
+            <span>{review?.lastUpdate?.text ?? "No note was added to this update."}</span>
+          </div>
           {/* TB-111: a reason code is required to request a revision, and only one per period. */}
           <Field label="Reason code (required to request a revision)">
             <Select options={["Select a reason", ...REVISION_REASONS]} value={reasonCode || "Select a reason"} onChange={(e) => setReasonCode(e.target.value === "Select a reason" ? "" : e.target.value)} />
@@ -703,27 +707,42 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
 
           {newObj.type === "Manual" && (
             <div className="flex gap-3">
-              <Field label="KPI type" className="flex-1">
-                <Select options={["Increase", "Maintain", "Decrease"]} value={newObj.kpiType} onChange={(e) => setNewObj((n) => ({ ...n, kpiType: e.target.value }))} />
-              </Field>
               <Field label="Target value" className="flex-1">
                 <Input value={newObj.target} inputMode="numeric" onChange={(e) => setNewObj((n) => ({ ...n, target: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="20" />
               </Field>
-              <Field label="Cadence" className="flex-1">
-                <Select options={["Daily", "Weekly", "Monthly"]} value={newObj.cadence} onChange={(e) => setNewObj((n) => ({ ...n, cadence: e.target.value }))} />
+              <Field label="Counted in" className="flex-1">
+                <Input value={newObj.unit} onChange={(e) => setNewObj((n) => ({ ...n, unit: e.target.value }))} placeholder="e.g. demos" />
               </Field>
             </div>
           )}
 
+          {/* TB-062 — the objective's own key results; its progress is the share of them done. */}
           {newObj.type === "Automatic" && (
-            <Field label="Connected key results">
+            <Field label="Key results" hint="Add at least one. The last one marked done sends the objective to you for approval.">
               <div className="flex flex-col gap-2">
-                {KEY_RESULTS.map((kr) => (
-                  <label key={kr.id} className="flex items-center gap-3 text-[14px] leading-[1.3] text-ink">
-                    <input type="checkbox" checked={newObj.krs.includes(kr.id)} onChange={() => setNewObj((n) => ({ ...n, krs: n.krs.includes(kr.id) ? n.krs.filter((x) => x !== kr.id) : [...n.krs, kr.id] }))} className="size-5 accent-primary" />
-                    {kr.title}
-                  </label>
+                {newObj.krs.map((kr, i) => (
+                  <span key={`${kr}-${i}`} className="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[14px] leading-[1.3] text-ink">
+                    <span className="min-w-0 flex-1">{kr}</span>
+                    <button type="button" aria-label={`Remove ${kr}`} onClick={() => setNewObj((n) => ({ ...n, krs: n.krs.filter((_, k) => k !== i) }))} className="text-ink-2 hover:text-ink">
+                      ✕
+                    </button>
+                  </span>
                 ))}
+                <div className="flex gap-2">
+                  <Input
+                    value={newObj.kr}
+                    onChange={(e) => setNewObj((n) => ({ ...n, kr: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Enter" || !newObj.kr.trim()) return;
+                      e.preventDefault();
+                      setNewObj((n) => ({ ...n, krs: [...n.krs, n.kr.trim()], kr: "" }));
+                    }}
+                    placeholder="e.g. Qualify 8 opportunities over $10k"
+                  />
+                  <Button disabled={!newObj.kr.trim()} onClick={() => setNewObj((n) => ({ ...n, krs: [...n.krs, n.kr.trim()], kr: "" }))}>
+                    Add
+                  </Button>
+                </div>
               </div>
             </Field>
           )}
@@ -745,10 +764,10 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
             <Button
               size="lg"
               variant="primary"
-              disabled={!ft.salary.trim() || !ft.start.trim()}
+              disabled={!(rateAmount(ft.salary) > 0) || !ft.start.trim()}
               onClick={() => {
-                addOffer({ id: `o${Date.now()}`, independent: name, role: contract.role, sent: "Today", rate: `$${ft.salary} /month`, start: ft.start, status: { label: "Pending", tone: "warn" } });
-                signalObjective("fulltime_offer");
+                // TB-072 — on the shared engagement, so the talent can open it, sign it or decline it.
+                sendFullTimeOffer({ salary: ft.salary, start: ft.start, benefits: ft.benefits });
                 setConverting(false);
                 setToast(`Full-time offer sent to ${first}`);
               }}
@@ -827,7 +846,6 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 const ended = endContract(slug);
                 setEnding(false);
                 if (!ended) return setToast("A dispute is holding the escrow, so the contract can't end until Hireable support rules");
-                signalObjective("contract_ended");
                 setToast(released > 0 ? `Contract ended — ${usd(released)} released to ${first}` : "Contract ended");
               }}
             >

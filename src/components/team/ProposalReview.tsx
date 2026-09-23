@@ -15,7 +15,7 @@ const Collapse = ICONS.chevronLeft;
 
 export type ProposedKeyResult = { title: string; description: string; target?: string };
 export type ProposedObjective = { title: string; kind: Objective["kind"]; description: string; keyResults: ProposedKeyResult[] };
-export type Proposal = { version: number; sent: string; rate: string; letter: string; objectives: ProposedObjective[] };
+export type Proposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; objectives: ProposedObjective[] };
 
 /** The diamond that marks an objective's type, coloured per kind. */
 const DIAMOND: Record<Objective["kind"], string> = { kpi: "bg-[#f2994a]", okr: "bg-primary", task: "bg-[#27ae60]" };
@@ -108,6 +108,15 @@ export function ProposalReview({
             <Card>
               <p className="text-[16px] leading-[1.5] font-semibold text-ink">Cover letter</p>
               <p className="text-[14px] leading-[1.6] text-ink-2">{proposal.letter}</p>
+              {/* The work samples the talent linked — dropped from the review before. */}
+              {proposal.portfolio && (
+                <p className="text-[13px] leading-[1.4] text-ink-2">
+                  Portfolio:{" "}
+                  <a href={/^https?:\/\//.test(proposal.portfolio) ? proposal.portfolio : `https://${proposal.portfolio}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                    {proposal.portfolio}
+                  </a>
+                </p>
+              )}
             </Card>
 
             <Card>
@@ -184,9 +193,11 @@ export function ProposalReview({
               </h4>
               {objective.description && <p className="text-[14px] leading-[1.45] text-ink-2">{objective.description}</p>}
 
-              <p className="pt-2 text-[14px] leading-[1.2] font-semibold text-ink">Key results</p>
-              {/* A talent's own proposal names objectives only; the key results are agreed on the tracker. */}
-              {objective.keyResults.length === 0 && <p className="text-[13px] leading-[1.45] text-ink-2">None proposed yet. Progress is tracked against the objective itself.</p>}
+              {/* Key results belong to Automatic objectives; a Manual one is judged on its target and a
+                  Default one on being done, so neither gets an empty "None proposed yet" section. */}
+              {(objective.kind === "okr" || objective.keyResults.length > 0) && <p className="pt-2 text-[14px] leading-[1.2] font-semibold text-ink">Key results</p>}
+              {objective.kind === "okr" && objective.keyResults.length === 0 && <p className="text-[13px] leading-[1.45] text-ink-2">None proposed yet. The independent marks the objective done as a whole.</p>}
+              {objective.kind === "task" && objective.keyResults.length === 0 && <p className="pt-2 text-[13px] leading-[1.45] text-ink-2">Done or not done: the independent marks it done when the work is delivered, and you approve it.</p>}
               <div className="flex flex-col gap-2">
                 {objective.keyResults.map((kr, i) => (
                   <div key={kr.title} className="rounded-lg outline -outline-offset-1 outline-border">

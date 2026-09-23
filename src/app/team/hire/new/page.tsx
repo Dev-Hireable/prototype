@@ -14,6 +14,7 @@ import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { LEVELS, levelName, suggestRange } from "@/lib/team/role-templates";
 import type { RoleTemplate } from "@/lib/team/role-templates";
 import { useDemo } from "@/lib/team/store";
+import { today } from "@/lib/demo/dates";
 import type { Role } from "@/lib/team/data";
 
 const CHIP_TONES = ["text-ok", "text-primary", "text-[#e91e63]"];
@@ -123,7 +124,7 @@ function CreateRoleWizard() {
   const router = useRouter();
   const search = useSearchParams();
   const editSlug = search.get("edit");
-  const { addRole, roles } = useDemo();
+  const { addRole, roles, canPublish, cards } = useDemo();
   const editing = editSlug ? roles.find((r) => r.slug === editSlug) : undefined;
   // An edited draft carries its own type; the query param only matters for a brand new post.
   const type = (editing?.type ?? (search.get("type") === "full-time" ? "full-time" : "trial")) as "trial" | "full-time";
@@ -154,8 +155,16 @@ function CreateRoleWizard() {
   const [pending, setPending] = useState<RoleTemplate | "blank" | null>(null);
   const [browsing, setBrowsing] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
-  /** Keep the draft's slug when editing, so publishing replaces it instead of leaving it behind. */
-  const slug = editing?.slug ?? (title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "new-role");
+  /**
+   * Keep the draft's slug when editing, so publishing replaces it instead of leaving it behind. A
+   * new role gets a slug no other role has — two roles with the same title used to share one, and
+   * publishing the second silently replaced the first. Frozen once published, for the links after.
+   */
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
+  const base = title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "new-role";
+  let fresh = base;
+  for (let n = 2; roles.some((r) => r.slug === fresh); n++) fresh = `${base}-${n}`;
+  const slug = publishedSlug ?? editing?.slug ?? fresh;
 
   /**
    * TB-035 — open a draft with everything it already had. Drafts persist in localStorage, which
@@ -212,7 +221,7 @@ function CreateRoleWizard() {
       interviews: 0,
       offers: 0,
       hired: 0,
-      updated: "Today",
+      updated: today(),
       description: desc,
       budget: money,
       duration: type === "trial" ? t.chips[chip] : `Starts ${t.chips[chip].toLowerCase()}`,
@@ -225,7 +234,10 @@ function CreateRoleWizard() {
     };
   };
   const publish = () => {
-    addRole(roleFrom("Active"));
+    if (!canPublish) return;
+    const role = roleFrom("Active");
+    addRole(role);
+    setPublishedSlug(role.slug);
     setStep(4);
   };
   /**
@@ -659,11 +671,24 @@ function CreateRoleWizard() {
                 <InfoBanner tone="warn">{BENEFITS_DISCLAIMER}</InfoBanner>
               </Card>
             )}
+            {/* TB-001 — the checklist locks the first role behind a company profile and a card to fund
+                escrow; publishing used to ignore the lock it advertised. Drafts are always allowed. */}
+            {!canPublish && (
+              <InfoBanner tone="warn">
+                To publish, finish your <Link href="/team/profile/company" className="font-semibold underline">company profile</Link>
+                {cards.length === 0 && (
+                  <>
+                    {" "}and add a <Link href="/team/settings/payment" className="font-semibold underline">payment method</Link>
+                  </>
+                )}
+                . You can save this role as a draft now and publish it after.
+              </InfoBanner>
+            )}
             <div className="flex justify-end gap-3">
               <Button size="lg" className="!px-5" onClick={saveDraft} disabled={open !== null} title={open ? "Save or cancel your edit first" : undefined}>
                 Save as draft
               </Button>
-              <Button size="lg" variant="primary" className="!px-5" onClick={publish} disabled={open !== null} title={open ? "Save or cancel your edit first" : undefined}>
+              <Button size="lg" variant="primary" className="!px-5" onClick={publish} disabled={open !== null || !canPublish} title={open ? "Save or cancel your edit first" : !canPublish ? "Finish your company profile and add a payment method first" : undefined}>
                 Publish Role
               </Button>
             </div>

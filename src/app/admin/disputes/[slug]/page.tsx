@@ -5,6 +5,7 @@ import { use, useEffect, useState } from "react";
 import { AdminPage, Button, Card, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { Button as DialogButton, Field, Modal, Select as FormSelect, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { isPast } from "@/lib/demo/dates";
 import { useDeal } from "@/lib/demo/deal";
 import {
   ageOf,
@@ -19,6 +20,7 @@ import {
   otherParty,
   outcomeOf,
   partyName,
+  rateAmount,
   rejectDispute,
   releasePayment,
   requestEvidence,
@@ -75,13 +77,15 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
   /** AD-033 — Hireable checks the process, not the work: each row is a fact on file. */
   const checks: Check[] = [
     d.type === "trial"
-      ? { check: "Trial end date has passed", result: facts.trialEnded ? `Pass — ended ${facts.ends}` : `Fail — runs until ${facts.ends}`, source: "contract" }
+      ? // A trial closes on its end date, or earlier once every objective is approved.
+        { check: "Trial has ended", result: facts.trialEnded ? (isPast(facts.ends) ? `Pass — ended ${facts.ends}` : `Pass — every objective approved ahead of ${facts.ends}`) : `Fail — runs until ${facts.ends}`, source: "contract" }
       : { check: "Full-time contract is active", result: `Pass — since ${facts.started}`, source: "contract" },
     { check: "Evaluation submitted by employer", result: facts.evaluation ? "Pass — submitted" : "Fail — not submitted", source: "trial dashboard" },
     { check: "Objectives approved", result: facts.objectivesTotal ? `${facts.objectivesDone} of ${facts.objectivesTotal} approved` : "No objectives on record", source: "objective log" },
     ...(d.type === "trial"
       ? [
-          { check: "Escrow funded at offer", result: `Pass — ${d.rate} deposited ${facts.started}`, source: "payments" },
+          // What was actually deposited — it printed the rate string, so an edited offer "funded" money nobody paid.
+          { check: "Escrow funded at offer", result: `Pass — ${usd(facts.escrowFunded ?? rateAmount(d.rate))} deposited ${facts.started}`, source: "payments" },
           { check: "Amount in question within escrow", result: d.amount <= d.facts.escrowHeld ? `Pass — ${usd(d.amount)} of ${usd(d.facts.escrowHeld)} held when filed` : `Check — more than the ${usd(d.facts.escrowHeld)} held`, source: "payments" },
         ]
       : []),

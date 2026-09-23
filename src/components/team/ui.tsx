@@ -8,6 +8,8 @@ import { MdBookmark, MdOutlineBookmarkBorder, MdPlayCircleFilled, MdStar } from 
 import { ICONS } from "@/components/admin/icons";
 import { Button, Chip, KeyValue, LinkButton, MatchPill, WorkStyleChart } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
+import { evaluationsOf, useDeal } from "@/lib/demo/deal";
+import { PAIR } from "@/lib/demo/live";
 import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
@@ -314,7 +316,7 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
 /* ------------------------------------------------ candidate / talent profile -- */
 
 const H4 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]";
-const JUAN_BIO = "I am a dedicated Marketing Specialist with a strong passion for creating impactful campaigns and driving brand awareness. My experience spans digital marketing, content creation, and multi-channel campaign management including email, social media, and paid advertising. I thrive on translating data insights into creative strategies that boost engagement and deliver measurable results. My goal is to leverage my skills in campaign execution and performance tracking to contribute to the growth and success of every client I work with.";
+/** Sample work history for the seeded independents; the live pair shows the evaluations they actually received. */
 const HISTORY = [
   { role: "Content Marketing Manager", date: "January 1, 2020", quote: "“{first} exceeded expectations on every campaign. His ability to analyze data and pivot strategy mid-flight saved us thousands in ad spend.”" },
   { role: "Growth Marketing Lead", date: "January 1, 2020", quote: "“Incredible attention to detail and a natural sense for what resonates with audiences. Our email open rates doubled under {first}’s watch.”" },
@@ -338,6 +340,16 @@ export function ProfileColumn({ person: p }: { person: Independent }) {
   const { saved, toggleSaved } = useDemo();
   const isSaved = saved.includes(p.slug);
   const first = p.name.split(" ")[0];
+  const deal = useDeal();
+  /**
+   * The talent's profile promises "exactly how your profile appears to Team Builders", and lists
+   * only the evaluations they have received. This column showed Juan, a sales lead, three marketing
+   * reviews dated 1 January 2020 that his own profile never had.
+   */
+  const history =
+    p.slug === PAIR.independent.slug
+      ? evaluationsOf(deal?.contract).map((e) => ({ role: deal?.title ?? "", date: e.date, stars: e.stars, quote: `“${e.feedback}”` }))
+      : HISTORY.map((h) => ({ ...h, stars: 5, quote: h.quote.replace(/\{first\}/g, first) }));
   return (
     <div className="flex w-[512px] shrink-0 flex-col gap-4">
       <div className="flex min-h-[440px] flex-col gap-4 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
@@ -356,7 +368,8 @@ export function ProfileColumn({ person: p }: { person: Independent }) {
           </h2>
           <p className="text-[16px] leading-[1.5] tracking-[0.2px] text-ink-2">{p.role}</p>
         </div>
-        <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{p.slug === "juan-dela-cruz" ? JUAN_BIO : p.bio}</p>
+        {/* The talent's own bio (byName follows their profile) — it was swapped for a marketing one here. */}
+        <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{p.bio}</p>
       </div>
       <div className="flex flex-col gap-6 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
         <h3 className={H4}>Rate &amp; details</h3>
@@ -377,21 +390,22 @@ export function ProfileColumn({ person: p }: { person: Independent }) {
       </div>
       <div className="flex flex-col gap-6 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
         <h3 className={H4}>History</h3>
+        {history.length === 0 && <p className="text-[13px] leading-[1.4] text-ink-2">No evaluations on Hireable yet. They appear here once a Team Builder sends one.</p>}
         <div className="flex flex-col gap-3">
-          {HISTORY.map((h, i) => (
-            <div key={h.role} className={`flex flex-col gap-3 pb-4 ${i < HISTORY.length - 1 ? "border-b border-[#e5e5e5]" : ""}`}>
+          {history.map((h, i) => (
+            <div key={`${h.role}-${h.date}-${i}`} className={`flex flex-col gap-3 pb-4 ${i < history.length - 1 ? "border-b border-[#e5e5e5]" : ""}`}>
               <div className="flex items-center justify-between">
                 <p className="text-[12px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{h.role}</p>
                 <span className="flex items-center gap-4">
                   <span className="flex gap-[3px] text-warn">
                     {[0, 1, 2, 3, 4].map((k) => (
-                      <MdStar key={k} size={12} aria-hidden />
+                      <MdStar key={k} size={12} aria-hidden className={k < h.stars ? "" : "text-[#d8d8d8]"} />
                     ))}
                   </span>
                   <span className="text-[10px] leading-[1.2] tracking-[0.2px] text-[#757575]">{h.date}</span>
                 </span>
               </div>
-              <p className="text-[10px] leading-[1.2] tracking-[0.2px] text-ink-2 italic">{h.quote.replace(/\{first\}/g, first)}</p>
+              <p className="text-[10px] leading-[1.2] tracking-[0.2px] text-ink-2 italic">{h.quote}</p>
             </div>
           ))}
         </div>
