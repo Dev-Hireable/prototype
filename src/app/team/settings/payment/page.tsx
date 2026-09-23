@@ -21,7 +21,7 @@ export default function PaymentMethods() {
 
   return (
     <Page title="Settings">
-      <Card className="mx-auto flex w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <div className="flex items-center justify-between">
           <CardHeading>Payment methods</CardHeading>
           <Button size="lg" variant="primary" onClick={() => setAdding(true)}>
@@ -56,7 +56,7 @@ export default function PaymentMethods() {
           />
         ))}
         {only && (
-          <div className="w-[530px]">
+          <div className="w-full max-w-[530px]">
             <InfoBanner>You cannot remove your only payment method. Add another card first, then remove this one.</InfoBanner>
           </div>
         )}

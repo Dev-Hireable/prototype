@@ -47,7 +47,7 @@ export function AccountSettingsCard({
 
   return (
     <>
-      <Card className="mx-auto flex w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <SettingsHeading>Account</SettingsHeading>
         <div className="flex items-center gap-4">
           {avatar}
@@ -178,7 +178,7 @@ export function PasswordSettingsCard() {
 
   return (
     <>
-      <Card className="mx-auto flex w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <SettingsHeading>Change password</SettingsHeading>
         <p className="max-w-[660px] text-[13px] leading-[1.4] text-ink-2">Use at least 8 characters with one uppercase letter, one number and one symbol. This is the same rule as sign-up.</p>
         <Field label="Current password" hint={`This demo account uses ${DEMO_PASSWORD}`}>
@@ -248,7 +248,7 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
 
   return (
     <>
-      <Card className="mx-auto flex w-[760px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[760px] flex-col gap-4 p-6">
         <SettingsHeading>Notification preferences</SettingsHeading>
         <p className="max-w-[700px] text-[13px] leading-[1.4] text-ink-2">Choose where you hear about each event. In-app notifications for offers and payments cannot be turned off.</p>
         <div className="flex items-center gap-4 border-b border-border py-2 text-[12px] leading-[1.4] font-medium text-ink-2">
@@ -257,7 +257,7 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
           <span className="w-20 text-center">Email</span>
         </div>
         {prefs.map((event) => (
-          <div key={event.key} className="flex items-center gap-4 border-b border-border py-2.5 leading-[1.4] whitespace-nowrap">
+          <div key={event.key} className="flex items-center gap-4 border-b border-border py-2.5 leading-[1.4]">
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <p className="text-[14px] font-medium text-ink">{event.title}</p>
               <p className="text-[12px] text-ink-2">{event.body}</p>

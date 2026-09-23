@@ -18,7 +18,7 @@ export default function PayoutSettings() {
 
   return (
     <Page title="Settings">
-      <Card className="mx-auto flex w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
             Payout methods
@@ -54,7 +54,7 @@ export default function PayoutSettings() {
           />
         ))}
         {only && (
-          <div className="w-[530px]">
+          <div className="w-full max-w-[530px]">
             <InfoBanner>You cannot remove your only payout method. Add another one first, then remove this one.</InfoBanner>
           </div>
         )}

@@ -11,7 +11,7 @@ export default function Subscription() {
 
   return (
     <Page title="Settings">
-      <Card className="mx-auto flex w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <CardHeading>Subscription</CardHeading>
@@ -61,7 +61,7 @@ export default function Subscription() {
         </div>
       </Card>
 
-      <Card className="mx-auto flex w-[720px] flex-col gap-3 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-6">
         <CardHeading>Other plans</CardHeading>
         {PLANS.filter((p) => p.name !== current.name).map((p) => (
           <div key={p.name} className="flex items-center gap-3 border-t border-border py-3 first:border-t-0">
