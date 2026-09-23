@@ -1,5 +1,6 @@
 "use client";
 
+import { Tip } from "@/components/portal/Tip";
 import { StatusDot } from "@/components/independent/ui";
 import { PanelCard } from "@/components/portal/PanelCard";
 
@@ -37,7 +38,11 @@ export function ActivityLog({ activity, streak, feeding }: { activity: number[];
               const state = activity[w * WEEKDAYS.length + r];
               // The columns share the row's width rather than being 18px each: at 18px the grid
               // stopped short of the card's right edge on the wider sidebar and read as cut off.
-              return <span key={w} title={state === undefined ? `Week ${w + 1} ${d}: not logged yet` : `Week ${w + 1} ${d}: ${TILE_LABEL[state]}`} className={`aspect-square min-w-0 flex-1 rounded-[3px] ${TILE[state ?? 0]}`} />;
+              return (
+                <Tip key={w} label={state === undefined ? `Week ${w + 1} ${d}: not logged yet` : `Week ${w + 1} ${d}: ${TILE_LABEL[state]}`}>
+                  <span className={`aspect-square min-w-0 flex-1 rounded-[3px] ${TILE[state ?? 0]}`} />
+                </Tip>
+              );
             })}
           </div>
         ))}

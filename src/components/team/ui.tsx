@@ -6,7 +6,9 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { MdBookmark, MdOutlineBookmarkBorder, MdPlayCircleFilled, MdStar } from "react-icons/md";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Chip, KeyValue, MatchPill, WorkStyleChart } from "@/components/independent/ui";
+import { Button, Chip, KeyValue, LinkButton, MatchPill, WorkStyleChart } from "@/components/independent/ui";
+import { useWithReturn } from "@/components/portal/return";
+import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 
@@ -96,7 +98,9 @@ export function IndependentCard({
   /** Saved list only — TB-022 routes this through a confirmation prompt. */
   onRemove?: () => void;
 }) {
-  const { saved, toggleSaved, inPipeline } = useDemo();
+  const { saved, toggleSaved, pipelineOf } = useDemo();
+  const withReturn = useWithReturn();
+  const inPipeline = pipelineOf(person.slug);
   const isSaved = saved.includes(person.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
@@ -134,9 +138,16 @@ export function IndependentCard({
               <Mark size={16} aria-hidden />
             </button>
           )}
-          <Button size="sm" variant="primary" onClick={onInvite} disabled={inPipeline(person.slug)}>
-            {inPipeline(person.slug) ? "In your pipeline" : "Invite to apply"}
-          </Button>
+          {/* Already a candidate: open their column on the role's board rather than a dead button. */}
+          {inPipeline ? (
+            <LinkButton size="sm" href={withReturn(pipelineHref(inPipeline))}>
+              View in pipeline
+            </LinkButton>
+          ) : (
+            <Button size="sm" variant="primary" onClick={onInvite}>
+              Invite to apply
+            </Button>
+          )}
         </div>
       </div>
       <p className="text-[14px] leading-[1.4] text-ink-2">
@@ -221,8 +232,10 @@ export function Drawer({ open, onClose, title, children, width = 800 }: { open: 
 
 /** Figma "Discover / Independent profile · preview drawer": profile card, match note, Save + Invite, rate, skills, View full profile. */
 export function ProfileDrawer({ person, onClose, onInvite }: { person: Independent | null; onClose: () => void; onInvite: (p: Independent) => void }) {
-  const { saved, toggleSaved, inPipeline } = useDemo();
+  const { saved, toggleSaved, pipelineOf } = useDemo();
+  const withReturn = useWithReturn();
   const p = person;
+  const inPipeline = p ? pipelineOf(p.slug) : undefined;
   const isSaved = !!p && saved.includes(p.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
@@ -254,9 +267,15 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
             <Button size="lg" className="flex-1" onClick={() => toggleSaved(p.slug)}>
               {isSaved ? "Saved" : "Save"}
             </Button>
-            <Button size="lg" variant="primary" className="flex-1" onClick={() => onInvite(p)} disabled={inPipeline(p.slug)}>
-              {inPipeline(p.slug) ? "In your pipeline" : "Invite to apply"}
-            </Button>
+            {inPipeline ? (
+              <LinkButton size="lg" className="flex-1" href={withReturn(pipelineHref(inPipeline))}>
+                View in pipeline
+              </LinkButton>
+            ) : (
+              <Button size="lg" variant="primary" className="flex-1" onClick={() => onInvite(p)}>
+                Invite to apply
+              </Button>
+            )}
           </div>
           <div className="flex flex-col gap-6 rounded-lg p-4 outline -outline-offset-1 outline-border">
             <h4 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]">Rate &amp; details</h4>

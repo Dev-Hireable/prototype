@@ -171,6 +171,8 @@ const clock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute:
 export type MoveKind =
   | "invite" // TB-017 / TB-023 Invite Independent to Apply
   | "interview_invited" // TB-037 Candidate tracker → Interview
+  | "interview_rescheduled" // TB-037 Interviews → Reschedule
+  | "interview_cancelled" // TB-037 Interviews → Cancel interview
   | "proposal_requested" // TB-103 Request Proposal from Candidate
   | "proposal_revision" // TB-106 Request Changes to Proposal
   | "proposal_declined" // TB-107 Decline Proposal
@@ -205,6 +207,18 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     story: "TB-037",
     title: () => "Interview invitation received",
     body: (r) => `${PAIR.team.name} wants to interview you for ${r}. Accept to confirm your availability.`,
+  },
+  interview_rescheduled: {
+    to: "independent",
+    story: "TB-037",
+    title: () => "Interview rescheduled",
+    body: (r) => `${PAIR.team.name} moved your ${r} interview to a new time. Accept the new slot to confirm it.`,
+  },
+  interview_cancelled: {
+    to: "independent",
+    story: "TB-037",
+    title: () => "Interview cancelled",
+    body: (r) => `${PAIR.team.name} cancelled the ${r} interview. Your application stays open.`,
   },
   proposal_requested: {
     to: "independent",
@@ -379,10 +393,62 @@ export function notify(
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
 }
 
+/** The one engagement's id in both portals (DEAL_ID): its application, its tracker card. */
+const DEAL = "deal";
+
+/**
+ * Where a movement's notification opens: the thing it is about, not one list for everything. They
+ * all used to open My Applications or the role's tracker, so an approved objective or a full-time
+ * offer landed on a hiring board with nothing on it to act on.
+ */
+function independentTarget(kind: MoveKind, slug: string): { href: string; kind: IndNote["kind"] } {
+  const application = `/independent/jobs/applications/${DEAL}`;
+  switch (kind) {
+    case "invite": // not an application yet — the posting is where they apply
+      return { href: `/independent/jobs/${slug}`, kind: "other" };
+    case "interview_invited":
+    case "interview_rescheduled":
+    case "interview_cancelled":
+      return { href: application, kind: "interviews" };
+    case "proposal_requested":
+    case "proposal_revision":
+    case "proposal_declined":
+      return { href: application, kind: "contracts" };
+    case "offer_sent":
+      return { href: `${application}/offer`, kind: "offers" };
+    case "fulltime_offer":
+      return { href: `/independent/contracts/${slug}/offer`, kind: "offers" };
+    default: // objectives, the evaluation, the contract ending — all on the contract
+      return { href: `/independent/contracts/${slug}`, kind: "contracts" };
+  }
+}
+
+function teamTarget(kind: MoveKind, slug: string): { label: string; href: string; crumb: string } {
+  const board = `/team/hire/roles/${slug}`;
+  const contract = { href: `/team/independents/${PAIR.independent.slug}`, crumb: `Independents › ${PAIR.independent.name}` };
+  switch (kind) {
+    case "interview_accepted":
+    case "interview_declined":
+      return { label: "Open tracker", href: `${board}?stage=interview`, crumb: "Hire" };
+    case "proposal_sent":
+      return { label: "Review proposal", href: `${board}/candidates/${DEAL}`, crumb: "Hire" };
+    case "offer_declined":
+      return { label: "View offers", href: "/team/hire/offers", crumb: "Hire" };
+    case "offer_accepted":
+      return { label: "Open contract", ...contract };
+    case "objective_update":
+    case "objective_done":
+      return { label: "Review update", ...contract };
+    default: // applied, withdrawn — the board
+      return { label: "Open tracker", href: board, crumb: "Hire" };
+  }
+}
+
 /** Record a movement. Emits the notification the spec says the OTHER side should get. */
 export function move(kind: MoveKind, role: { slug: string; title: string }) {
   const m = MOVES[kind];
   if (m.to === "independent") {
+    const target = independentTarget(kind, role.slug);
     const note: IndNote = {
       id: uid(),
       group: "Today",
@@ -390,23 +456,24 @@ export function move(kind: MoveKind, role: { slug: string; title: string }) {
       body: m.body(role.title),
       time: clock(),
       unread: true,
-      kind: kind.startsWith("offer") ? "offers" : kind.startsWith("proposal") ? "contracts" : "interviews",
-      href: "/independent/jobs/applications",
+      kind: target.kind,
+      href: target.href,
     };
     write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
     return;
   }
+  const target = teamTarget(kind, role.slug);
   const note: TeamNote = {
     id: uid(),
     group: "Today",
     title: m.title(role.title),
-    crumb: `Hire › ${role.title}`,
+    crumb: target.crumb === "Hire" ? `Hire › ${role.title}` : target.crumb,
     body: m.body(role.title),
     time: "Just now",
     unread: true,
     kind: "hiring",
     avatar: PAIR.independent.avatar,
-    action: { label: "Open tracker", href: `/team/hire/roles/${role.slug}`, primary: true },
+    action: { label: target.label, href: target.href, primary: true },
   };
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
 }

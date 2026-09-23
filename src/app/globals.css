@@ -1,8 +1,40 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+/* The app is light-only. Scoping `dark:` to a `.dark` class that nothing sets keeps OS dark mode from
+   flipping the shadcn components, whose classes carry `dark:` variants. */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * shadcn/ui theme variables (written by `shadcn init`), set to the Hireable values below so every
+ * component the CLI installs comes out on-brand without restyling.
+ *
+ * `muted` and `accent` are Hireable tokens with their own meaning (label grey, link blue), and
+ * `--color-muted` / `--color-accent` below keep it. So `bg-muted` / `bg-accent` in an installed
+ * component are not shadcn's hover surface: swap them for `bg-surface-2` or `bg-accent-bg`.
+ * --muted / --accent here only serve components that read the variables directly.
+ */
 :root {
   --background: #ffffff;
-  --foreground: #212121;
+  --foreground: #212121; /* ink */
+  --card: #ffffff;
+  --card-foreground: #212121;
+  --popover: #ffffff;
+  --popover-foreground: #212121;
+  --primary: #007acc; /* primary */
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f2; /* surface-2 */
+  --secondary-foreground: #212121;
+  --muted: #f2f2f2; /* surface-2 */
+  --muted-foreground: #616161; /* ink-2 */
+  --accent: #f2f2f2; /* surface-2 */
+  --accent-foreground: #212121;
+  --destructive: #dc2626; /* danger */
+  --border: #c3c3c3; /* border */
+  --input: #c3c3c3; /* border */
+  --ring: #007acc; /* focus = primary, as focus:border-primary / focus-visible:outline-primary */
+  --radius: 0.5rem; /* Tailwind's rounded-lg — the radius scale itself stays Tailwind's */
 }
 
 @theme inline {
@@ -10,6 +42,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-display: var(--font-dm-sans);
+  --font-heading: var(--font-dm-sans); /* shadcn titles, same face as font-display headings */
 
   /* Hireable brand — from the Figma logo vectors */
   --color-brand-pink: #fb2e6f;
@@ -41,11 +74,22 @@
   --color-warn: #f7ba00;
   --color-warn-bg: #fff9e7;
   --color-danger: #dc2626;
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
+  /* shadcn/ui semantic colours that don't clash with a Hireable token (values in :root above).
+     No --radius-* overrides: the app is drawn on Tailwind's default radius scale, and shadcn's
+     would round every rounded-md/lg/xl in it differently. */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 /* Figma "Scrollbar" (20370:739 horizontal / 20370:740 vertical): 8px pill track #f2f2f2,
@@ -127,17 +171,20 @@ body {
  * content, so that border and anything outside the scroller are never covered.
  *
  * Layers, top to bottom: the vertical scrollbar strip and the horizontal one (always solid, so the
- * bars never fade), then the vertical and horizontal fades, intersected. The edge keeps 20%, so a
- * card cut by the edge still shows its outline there. ScrollFade sets the four --fade-* lengths and
- * the two bar sizes from the scroll position.
+ * bars never fade), then the vertical and horizontal fades, intersected. The top and side edges
+ * keep 20%, so a card cut by one still shows its outline there. The bottom fades out completely,
+ * over a deeper ramp: the scroller runs down to the panel's bottom edge, and a short fade that kept
+ * 20% there read as content stuck to the border rather than content carrying on below (the top has
+ * the page header to scroll under instead). ScrollFade sets the four --fade-* lengths and the two
+ * bar sizes from the scroll position.
  */
-.scroll-fade {
+.edge-fade {
   --bar-y: 0px;
   --bar-x: 0px;
   mask-image:
     linear-gradient(#000, #000),
     linear-gradient(#000, #000),
-    linear-gradient(to bottom, #0003, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), #0003),
+    linear-gradient(to bottom, #0003, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent),
     linear-gradient(to right, #0003, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), #0003);
   mask-size:
     var(--bar-y) 100%,
@@ -158,8 +205,6 @@ body {
     --fade-right 200ms;
 }
 
-
-
 /* Tailwind v4's preflight leaves buttons at `cursor: default`, so every clickable control in the
    app read as dead — you could not tell an active button from a disabled one without clicking it.
    One rule here rather than a `cursor-pointer` class on each of the hundreds of call sites.
@@ -173,4 +218,18 @@ label:has(> input[type="checkbox"]:not(:disabled)),
 label:has(> input[type="radio"]:not(:disabled)),
 summary {
   cursor: pointer;
+}
+
+/* shadcn/ui base styles (from `shadcn init`). Every border and outline the app draws names its own
+   colour, so the defaults below only reach the installed components. */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
 }

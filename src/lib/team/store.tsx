@@ -3,12 +3,12 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { DEAL_ID, dealObjectivesFrom, postingFrom } from "@/lib/team/deal-view";
-import { canMessage, publishPosting, stageOf, today, trialDay, unpublishPosting, updateDeal, useDeal, usePostings } from "@/lib/demo/deal";
+import { canMessage, publishPosting, stageOf, startDeal, today, trialDay, unpublishPosting, updateDeal, useDeal, usePostings } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { dealContract as contractRefOf, escrowOf, getDisputes, rateAmount, usd } from "@/lib/demo/disputes";
 import { markRead as markLiveRead, move, PAIR, recordPayment, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
-import { COMPANY_PROFILE, INITIAL_SAVED, TEAM_PROFILE, candidates as seedCandidates, contracts as seedContracts, interviews as seedInterviews, offers as seedOffers, paymentMethods as seedCards, roles as seedRoles, transactions as seedTransactions } from "./data";
+import { byName, COMPANY_PROFILE, INITIAL_SAVED, INTERVIEW_CANCELLED, INTERVIEW_DECLINED, TEAM_PROFILE, candidates as seedCandidates, contracts as seedContracts, interviews as seedInterviews, offers as seedOffers, paymentMethods as seedCards, roles as seedRoles, transactions as seedTransactions } from "./data";
 import type { Candidate, CompanyProfile, Contract, Evaluation, Interview, Notification, Objective, Offer, PaymentMethod, Role, RoleStatus, TeamProfile, Transaction } from "./data";
 
 /**
@@ -45,13 +45,30 @@ type Demo = {
    * Once they are a candidate or a match, the next move is an interview, not another invite.
    */
   inPipeline: (independent: string) => boolean;
+  /** Their card, when they're in the tracker — what "View in pipeline" opens. */
+  pipelineOf: (independent: string) => Candidate | undefined;
   /**
    * TB-040 — scheduling an interview from a candidate's profile has to produce a row on the
    * Interviews page and the dashboard widget, and a reschedule or cancel has to stick.
    */
   interviews: Interview[];
-  addInterview: (i: Interview) => void;
-  setInterview: (id: string, patch: Partial<Interview>) => void;
+  /**
+   * TB-037 — book an interview for a tracker card. For the live pair it goes on the shared
+   * engagement, so it lands in their pipeline (IN-018 Interview Requested); someone who never
+   * applied — invited from Discover, or matched — has no engagement yet, and this starts one.
+   * Booking again after a decline or a cancellation replaces the old slot.
+   */
+  inviteToInterview: (candidateId: string, slot: { when: string; format: string; link?: string }) => void;
+  /** A new time for a booked interview: the talent is told and confirms again. */
+  rescheduleInterview: (id: string, when: string) => void;
+  /** The talent is told; they stay in the tracker and can be offered another slot. */
+  cancelInterview: (id: string) => void;
+  /**
+   * IN-018 — the Team Builder marks a confirmed interview as held: the candidate moves to
+   * Interview completed and the interview to Past. TB-103 Request Proposal waits for this, so a
+   * proposal is never asked for before the two sides have actually met.
+   */
+  completeInterview: (id: string) => void;
   contracts: Contract[];
   /**
    * TB-071 — close the engagement and release what is still in escrow. Refused (false) while a
@@ -97,10 +114,22 @@ function dealStatus(deal: Deal): Candidate["status"] {
   if (deal.revision) return { label: "Revision requested", tone: "warn", meta: deal.revision.date };
   if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
   if (deal.stage === "proposal_requested") return { label: "Awaiting proposal", tone: "warn" };
+  if (deal.stage === "interviewed") return { label: "Interview completed", tone: "ok", meta: deal.interview?.when };
+  if (deal.interview?.outcome === "declined") return { label: INTERVIEW_DECLINED, tone: "danger", meta: deal.interview.when };
+  if (deal.interview?.outcome === "cancelled") return { label: INTERVIEW_CANCELLED, tone: "neutral", meta: deal.interview.when };
   if (deal.interview?.accepted) return { label: "Interview confirmed", tone: "ok", meta: deal.interview.when };
   if (deal.interview) return { label: "Awaiting reply", tone: "neutral", meta: deal.interview.when };
   return { label: "New application", tone: "info" };
 }
+
+/** An interview's status pill in the Team Builder's lists, from where it has got to. */
+const INTERVIEW_STATUS: Record<"awaiting" | "accepted" | "done" | "declined" | "cancelled", Interview["status"]> = {
+  awaiting: { label: "Awaiting reply", tone: "neutral" },
+  accepted: { label: "Confirmed", tone: "ok" },
+  done: { label: "Completed", tone: "ok" },
+  declined: { label: "Declined", tone: "danger" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
+};
 
 /** Stages the sheet says the Independent hears about, and which movement that is. */
 const STAGE_MOVE = {
@@ -146,7 +175,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         role: deal.roleSlug,
         stage: stageOf(deal),
         status: dealStatus(deal),
-        submitted: `Applied ${deal.submitted}`,
+        submitted: `${deal.invited ? "Invited" : "Applied"} ${deal.submitted}`,
         dropped: deal.dropped,
       }
     : null;
@@ -157,10 +186,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           id: DEAL_ID,
           independent: PAIR.independent.slug,
           role: deal.title,
+          roleSlug: deal.roleSlug,
+          candidate: DEAL_ID,
           when: deal.interview.when,
           format: deal.interview.format,
           link: deal.interview.link,
-          status: deal.interview.accepted ? { label: "Confirmed", tone: "ok" } : { label: "Awaiting reply", tone: "neutral" },
+          status: INTERVIEW_STATUS[deal.interview.outcome ?? (deal.interview.accepted ? "accepted" : "awaiting")],
           past: deal.interview.past,
         }
       : null;
@@ -310,20 +341,56 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setCandidates((cs) => cs.map((c) => (c.id === id ? { ...c, dropped } : c))); // TB-044: not notified
     },
     inPipeline: (independent) => allCandidates.some((c) => c.independent === independent && !c.dropped),
+    pipelineOf: (independent) => allCandidates.find((c) => c.independent === independent && !c.dropped),
     invite: (independent, role) => {
       if (allCandidates.some((c) => c.independent === independent && c.role === role)) return;
       if (independent === PAIR.independent.slug) move("invite", roleOf(role));
       setCandidates((cs) => [{ id: `c${Date.now()}`, independent, role, stage: "matched", status: { label: "Invited to apply", tone: "info" }, submitted: "Invited just now" }, ...cs]);
     },
     interviews: allInterviews,
-    // TB-037 — booking with the pair books it on the shared engagement, so the talent is invited.
-    addInterview: (i) => {
-      if (i.independent === PAIR.independent.slug && deal) return updateDeal((d) => ({ ...d, interview: { when: i.when, format: i.format, link: i.link } }));
-      setInterviews((is) => [i, ...is]);
+    inviteToInterview: (candidateId, slot) => {
+      const c = allCandidates.find((x) => x.id === candidateId);
+      if (!c) return;
+      const role = roleOf(c.role);
+      if (livePair(c)) move("interview_invited", role);
+      const interview = { when: slot.when, format: slot.format, link: slot.link };
+      if (candidateId === DEAL_ID) return updateDeal((d) => ({ ...d, stage: "invited", interview }));
+      // The pair without an engagement: start it at the interview, so the invitation has an
+      // application to land on in their pipeline. (One engagement at a time — a second role for
+      // the pair stays on this side only rather than overwrite the first.)
+      if (livePair(c) && !deal) return startDeal({ roleSlug: c.role, title: role.title, company: PAIR.team.company, match: byName(c.independent).match, stage: "invited", invited: true, interview });
+      const [day, time] = slot.when.split(", ");
+      setCandidates((cs) => cs.map((x) => (x.id === candidateId ? { ...x, stage: "invited", status: { label: "Awaiting reply", tone: "neutral", meta: `${day} · ${time}` } } : x)));
+      setInterviews((is) => [
+        { id: `iv${Date.now()}`, independent: c.independent, role: role.title, roleSlug: c.role, candidate: c.id, ...interview, status: INTERVIEW_STATUS.awaiting },
+        ...is.filter((i) => i.candidate !== c.id || i.past),
+      ]);
     },
-    setInterview: (id, patch) => {
-      if (id === DEAL_ID) return updateDeal((d) => (d.interview ? { ...d, interview: { ...d.interview, past: patch.past ?? d.interview.past } } : d));
-      setInterviews((is) => is.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+    rescheduleInterview: (id, when) => {
+      const iv = allInterviews.find((i) => i.id === id);
+      if (!iv) return;
+      if (id === DEAL_ID) {
+        if (deal) move("interview_rescheduled", roleOf(deal.roleSlug));
+        return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, when, accepted: false, past: false, outcome: undefined } } : d));
+      }
+      setInterviews((is) => is.map((i) => (i.id === id ? { ...i, when, status: INTERVIEW_STATUS.awaiting } : i)));
+    },
+    cancelInterview: (id) => {
+      const iv = allInterviews.find((i) => i.id === id);
+      if (!iv) return;
+      if (id === DEAL_ID) {
+        if (deal) move("interview_cancelled", roleOf(deal.roleSlug));
+        return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, past: true, outcome: "cancelled" } } : d));
+      }
+      setInterviews((is) => is.map((i) => (i.id === id ? { ...i, status: INTERVIEW_STATUS.cancelled, past: true } : i)));
+      if (iv.candidate) setCandidates((cs) => cs.map((x) => (x.id === iv.candidate ? { ...x, stage: "invited", status: { label: INTERVIEW_CANCELLED, tone: "neutral" } } : x)));
+    },
+    completeInterview: (id) => {
+      const c = allCandidates.find((x) => x.id === id);
+      if (!c) return;
+      if (id === DEAL_ID) return updateDeal((d) => ({ ...d, stage: "interviewed", interview: d.interview && { ...d.interview, past: true, outcome: "done" } }));
+      setCandidates((cs) => cs.map((x) => (x.id === id ? { ...x, stage: "interviewed", status: { label: "Interview completed", tone: "ok" } } : x)));
+      setInterviews((is) => is.map((i) => (i.candidate === c.id && !i.past ? { ...i, status: INTERVIEW_STATUS.done, past: true } : i)));
     },
     contracts: allContracts,
     setObjectives: (slug, fn) => {

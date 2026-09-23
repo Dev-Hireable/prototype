@@ -1,3 +1,4 @@
+import { Tip } from "@/components/portal/Tip";
 /*
  * Both charts reproduce the Figma plot geometry exactly and are driven by data:
  *   BarChart  — Figma "plot" 640×206: gridlines every 45px from y 180 up to 0
@@ -53,12 +54,9 @@ export function BarChart({
             {series.map((s, k) => {
               const h = s.values[i] * scale;
               return (
-                <div
-                  key={s.label}
-                  title={`${cat} · ${s.label}: ${s.values[i]}`}
-                  className="absolute w-5 rounded-t-[3px]"
-                  style={{ left: 18 + k * 24 + i * STEP, top: BASELINE - h, height: h, background: s.color }}
-                />
+                <Tip key={s.label} label={`${cat} · ${s.label}: ${s.values[i]}`}>
+                  <div className="absolute w-5 rounded-t-[3px]" style={{ left: 18 + k * 24 + i * STEP, top: BASELINE - h, height: h, background: s.color }} />
+                </Tip>
               );
             })}
             <span

@@ -3,15 +3,17 @@
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { MdOutlineFlag, MdOutlineThumbDown } from "react-icons/md";
-import { BackLink, Button, Field, JobBadge, LinkButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Button, Field, JobBadge, LinkButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { IntroCard, ProfileColumn } from "@/components/team/ui";
 import { InterviewDialog } from "@/components/team/InterviewDialog";
+import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/InterviewSteps";
 import { SendOfferDialog } from "@/components/team/SendOfferDialog";
 import { ProposalReview } from "@/components/team/ProposalReview";
 import type { Proposal } from "@/components/team/ProposalReview";
 import { useDeal } from "@/lib/demo/deal";
 import type { DealProposal } from "@/lib/demo/deal";
-import { EMPLOYER_STAGE_LABELS, byName } from "@/lib/team/data";
+import { EMPLOYER_STAGE_LABELS, INTERVIEW_DECLINED, byName, needsNewSlot } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { useDemo } from "@/lib/team/store";
 import { useWithReturn } from "@/components/portal/return";
@@ -63,7 +65,7 @@ const PROPOSAL: Proposal = {
 
 const ThumbDown = MdOutlineThumbDown;
 
-type Dialog = null | "invite" | "drop" | "flag" | "request" | "proposal" | "decline" | "revision" | "offer";
+type Dialog = null | "invite" | "complete" | "drop" | "flag" | "request" | "proposal" | "decline" | "revision" | "offer";
 
 /**
  * Figma "Candidate tracker / Candidate profile · matched … Hired": role header with tabs, "Back to pipeline",
@@ -72,7 +74,7 @@ type Dialog = null | "invite" | "drop" | "flag" | "request" | "proposal" | "decl
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
   const router = useRouter();
-  const { roles, candidates, interviews, setStage, requestRevision, setDropped, sendOffer, cards } = useDemo();
+  const { roles, candidates, interviews, setStage, completeInterview, requestRevision, setDropped, sendOffer, cards } = useDemo();
   const role = roles.find((r) => r.slug === slug);
   const cand = candidates.find((c) => c.id === id);
   if (!role || !cand) notFound();
@@ -143,8 +145,35 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
             </Button>
           </>
         );
+      // IN-018 / TB-103 — the interview is marked done (once they've confirmed it), and only then
+      // can a proposal be requested: two confirmed steps, so neither happens on a single click.
       case "invited":
       case "invite_accepted":
+        // They declined it, or it was cancelled: offering a new slot is the next step.
+        if (needsNewSlot(cand))
+          return (
+            <>
+              <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("invite")}>
+                Offer a new time
+              </Button>
+              {message}
+            </>
+          );
+        return (
+          <>
+            <Button
+              size="lg"
+              variant="primary"
+              className="w-full"
+              disabled={cand.stage === "invited"}
+              title={cand.stage === "invited" ? `Waiting for ${first} to confirm the interview` : undefined}
+              onClick={() => setDialog("complete")}
+            >
+              Mark interview as done
+            </Button>
+            {message}
+          </>
+        );
       case "interviewed":
         return (
           <>
@@ -214,7 +243,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
           ]}
         />
       }
-      nav={<BackLink href={pipeline}>Back to pipeline</BackLink>}
+      nav={<BreadcrumbBack href={pipeline}>Back to pipeline</BreadcrumbBack>}
     >
       <div className="flex flex-col gap-10 pb-14">
         <div className="flex items-start justify-center gap-6">
@@ -222,7 +251,14 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
           <div className="flex w-[384px] shrink-0 flex-col gap-4">
             <IntroCard person={p} onPlay={() => setToast("Intro video plays here")} />
             <div className="flex flex-col gap-2">{cta}</div>
-            {(cand.stage === "invited" || cand.stage === "invite_accepted") && !cand.dropped && (
+            {!cand.dropped && (cand.stage === "invited" || cand.stage === "invite_accepted") && (
+              <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">
+                {needsNewSlot(cand)
+                  ? `${cand.status?.label === INTERVIEW_DECLINED ? `${first} declined the interview` : "The interview was cancelled"}. Offer a new time to keep going.`
+                  : `${cand.stage === "invited" ? `Waiting for ${first} to confirm the interview. ` : ""}You can request a proposal once the interview is done.`}
+              </p>
+            )}
+            {(cand.stage === "invited" || cand.stage === "invite_accepted") && !cand.dropped && !needsNewSlot(cand) && (
               <dl className="flex flex-col gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
                 <div className="flex flex-col gap-2">
                   <dt className="font-semibold">Date:</dt>
@@ -262,7 +298,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         </div>
       </div>
 
-      <InterviewDialog candidate={dialog === "invite" ? cand : null} roleTitle={role.title} onClose={() => setDialog(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
+      <InterviewDialog candidate={dialog === "invite" ? cand : null} onClose={() => setDialog(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
 
       <Modal
         open={dialog === "drop"}
@@ -309,26 +345,28 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         </div>
       </Modal>
 
-      <Modal
-        open={dialog === "request"}
+      <CompleteInterviewDialog
+        open={dialog === "complete"}
+        name={first}
+        when={booked?.when}
         onClose={() => setDialog(null)}
-        title={`Request a proposal from ${first}`}
-        description="They see the trial objectives and expectation, then propose a rate and cover letter. You can accept, request a revision or decline."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setDialog(null)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => { setStage(cand.id, "proposal_requested", { label: "Awaiting proposal", tone: "warn", meta: "Sent today" }); setDialog(null); setToast(`Proposal requested from ${first}`); }}>
-              Send request
-            </Button>
-          </>
-        }
-      >
-        <Field label="Note (optional)">
-          <Textarea rows={3} className="h-[78px]" placeholder="Anything to add to the trial expectation" />
-        </Field>
-      </Modal>
+        onConfirm={() => {
+          completeInterview(cand.id);
+          setDialog(null);
+          setToast(`Interview with ${first} marked done`);
+        }}
+      />
+
+      <RequestProposalDialog
+        open={dialog === "request"}
+        name={first}
+        onClose={() => setDialog(null)}
+        onSend={() => {
+          setStage(cand.id, "proposal_requested", { label: "Awaiting proposal", tone: "warn", meta: "Sent today" });
+          setDialog(null);
+          setToast(`Proposal requested from ${first}`);
+        }}
+      />
 
       {/* Review proposal — Figma node 11338-10290: the dialog owns its header, panes and action bar. */}
       <Modal open={dialog === "proposal" && !!proposal} onClose={() => setDialog(null)} title={`${first}'s proposal for ${role.title}`} width={1100} bare>

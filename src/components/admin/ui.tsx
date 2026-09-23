@@ -44,7 +44,7 @@ export function AdminPage({
           the panel's edge and content fades out there. */}
       <div className="flex min-h-0 flex-1 pt-2">
         <ScrollFade className="flex w-full min-w-0">
-          <div className="scroll-fade w-full overflow-y-auto px-2">
+          <div className="edge-fade w-full overflow-y-auto px-2">
             <PortalContent className="pb-5">{children}</PortalContent>
           </div>
         </ScrollFade>
@@ -53,8 +53,8 @@ export function AdminPage({
   );
 }
 
-/** Shared with the portal shells so a back link is the same size everywhere in the app. */
-export { BackLink } from "@/components/portal/nav";
+/* Back links and breadcrumbs: shadcn's Breadcrumb (@/components/ui/breadcrumb) and BreadcrumbBack
+   (@/components/portal/nav), shared with the portals. */
 
 /* -------------------------------------------------------------- surfaces -- */
 

@@ -4,9 +4,25 @@ import Image from "next/image";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { Button, Card, Checkbox, Field, InfoBanner, Modal, ObjectiveRow, Page, Textarea } from "@/components/independent/ui";
-import { AGREEMENT, ME, marketingSpecialist as job } from "@/lib/independent/data";
+import { formatDate, fromISODate } from "@/components/portal/DatePicker";
+import { AGREEMENT, ME, marketingSpecialist as sample } from "@/lib/independent/data";
 import { useDeal } from "@/lib/demo/deal";
+import { PAIR } from "@/lib/demo/live";
+import { useJobView } from "@/lib/independent/job-view";
 import { useDemo } from "@/lib/independent/store";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "23 Sep 2026" (the day it was sent) plus seven days — the window the Team Builder's card counts down. */
+function expiryOf(sent: string) {
+  const m = /^(\d{1,2}) (\w{3}) (\d{4})$/.exec(sent);
+  if (!m || MONTHS.indexOf(m[2]) < 0) return undefined;
+  return formatDate(new Date(Number(m[3]), MONTHS.indexOf(m[2]), Number(m[1]) + 7));
+}
+/** Offer dates are stored yyyy-mm-dd; show them the way every other date reads. */
+const pretty = (iso: string) => {
+  const d = fromISODate(iso);
+  return d ? formatDate(d) : iso;
+};
 
 /**
  * Figma "Offer · unsigned / · signed / Offer accepted · confirm / Decline offer · modal / Offer updated".
@@ -26,23 +42,32 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
   const [justAccepted, setJustAccepted] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
-  const o = job.offer;
-  /** IN-074 — when the Team Builder sent this offer, these are their terms, not the seed's. */
+  const o = sample.offer;
+  /**
+   * IN-074 — when the Team Builder sent this offer, these are their terms and their role, not the
+   * seed's. The page read the sample role throughout, so every offer said "Marketing Specialist",
+   * expired on 6 Mar and came from the seed's contact.
+   */
+  const job = useJobView(app);
   const deal = useDeal();
-  const sent = deal?.offer;
+  const sent = deal?.roleSlug === app.roleSlug ? deal.offer : undefined;
+  const from = sent ? job.company : o.from;
+  const contact = sent ? PAIR.team.name : sample.builder.contact;
   // Read back from the shared engagement, so an answer given earlier still shows after a reload.
   const accepted = sent?.status === "accepted";
   const declined = sent?.status === "declined";
   const rate = sent ? sent.rate : updated ? o.updatedRate : o.rate;
-  const total = updated ? o.updatedTotal : o.total;
+  // A 30-day trial at a monthly rate is paid once, at the end: the rate itself.
+  const total = sent ? sent.rate.replace(/\s*\/\s*(mo|month)$/i, "") : updated ? o.updatedTotal : o.total;
+  const expires = (sent && expiryOf(sent.sent)) ?? (updated ? o.updatedExpires : o.expires);
   const signed = name.trim().length > 2 && agree;
 
   const rows: [string, string][] = [
-    ["Role", deal?.title ?? job.title],
-    ["Contract type", "Trial"],
-    ["Duration", "30 Days"],
-    ["Start date", sent?.start ?? o.start],
-    ["End date", sent?.end ?? o.end],
+    ["Role", job.title],
+    ["Contract type", job.contract],
+    ["Duration", job.duration],
+    ["Start date", sent ? pretty(sent.start) : o.start],
+    ["End date", sent ? pretty(sent.end) : o.end],
     ["Rate", rate],
     ["Payment cadence", o.cadence],
     ["Pay in", o.payIn],
@@ -54,7 +79,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
       <div className="mx-auto flex w-[1080px] flex-col gap-10 pt-10 pb-20">
         <div className="flex flex-col gap-2">
           <h2 className="font-display text-[32px] leading-[1.5] font-semibold text-black" style={{ fontVariationSettings: '"opsz" 14' }}>
-            {updated ? `Updated offer from ${o.from.replace(" Inc.", "")}` : `Offer from ${o.from}`}
+            {updated ? `Updated offer from ${from.replace(" Inc.", "")}` : `Offer from ${from}`}
           </h2>
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
             {updated ? "Nairobi Solutions changed the terms on 9 Sep 2026. Review and sign the new version; the earlier offer no longer applies." : "Review the full proposal, sign the contract, and confirm your offer"}
@@ -107,8 +132,8 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
               <div className="flex items-center gap-3">
                 <Image src={ME.avatar} alt="" width={88} height={88} className="size-11 rounded-full object-cover grayscale" />
                 <div>
-                  <p className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{job.builder.contact}</p>
-                  <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{job.builder.company}</p>
+                  <p className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{contact}</p>
+                  <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{from}</p>
                 </div>
               </div>
             </div>
@@ -128,7 +153,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
                   I agree to the <span className="text-primary underline">platform contract</span> and <span className="text-primary underline">terms of service</span>.
                 </span>
               </Checkbox>
-              <InfoBanner>{updated ? `This updated offer expires on ${o.updatedExpires}` : `This offer expires on ${o.expires}`}</InfoBanner>
+              <InfoBanner>{updated ? `This updated offer expires on ${expires}` : `This offer expires on ${expires}`}</InfoBanner>
               {declined ? (
                 <Button size="lg" disabled>
                   Offer declined
@@ -169,7 +194,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
         open={justAccepted}
         onClose={() => router.push(back)}
         title="You’ve accepted the offer"
-        description={`${o.from} has been notified. Escrow for the trial is funded next; the contract and its tracker appear under Contracts once it starts.`}
+        description={`${from} has been notified. Escrow for the trial is funded next; the contract and its tracker appear under Contracts once it starts.`}
         footer={
           <Button
             size="lg"
@@ -185,7 +210,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
         onClose={() => setDeclining(false)}
         tone="danger"
         title="Decline this offer?"
-        description={`${job.builder.contact} is told you have declined. The offer stays in My Applications so you can look back at the terms, but you cannot accept it afterwards.`}
+        description={`${contact} is told you have declined. The offer stays in My Applications so you can look back at the terms, but you cannot accept it afterwards.`}
         footer={
           <>
             <Button size="lg" onClick={() => setDeclining(false)}>

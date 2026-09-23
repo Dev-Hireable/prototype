@@ -28,7 +28,7 @@ export default function MyApplications() {
         <ScrollFade className="flex w-full min-w-0">
           {/* overflow-y-hidden is load-bearing: `overflow-x: auto` alone implicitly turns the y axis
               into a second scrollbar nested inside the shell's. Columns take the vertical scroll. */}
-          <div className="scroll-fade flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden px-10 pb-10" onClick={() => setMenu(null)}>
+          <div className="edge-fade flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden px-10 pb-10" onClick={() => setMenu(null)}>
             {COLUMNS.map((col) => {
               const cards = applications.filter((a) => col.stages.includes(a.stage));
               return (

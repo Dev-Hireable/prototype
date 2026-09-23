@@ -7,10 +7,11 @@ import { useDemo } from "@/lib/independent/store";
 import { useQueryState } from "@/lib/portal/query-state";
 import { useWithReturn } from "@/components/portal/return";
 
-type Filter = "all" | "unread" | "contracts" | "offers" | "payments";
+type Filter = "all" | "unread" | "interviews" | "contracts" | "offers" | "payments";
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "unread", label: "Unread" },
+  { value: "interviews", label: "Interviews" },
   { value: "contracts", label: "Contracts" },
   { value: "offers", label: "Offers" },
   { value: "payments", label: "Payments" },

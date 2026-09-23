@@ -108,7 +108,7 @@ const applicationFromDeal = (deal: Deal): Application => ({
   title: deal.title,
   company: deal.company,
   match: deal.match,
-  submitted: `Submitted ${deal.submitted}`,
+  submitted: `${deal.invited ? "Invited" : "Submitted"} ${deal.submitted}`,
   stage: stageOf(deal),
   status: dealStatus(deal),
 });
@@ -121,6 +121,10 @@ function dealStatus(deal: Deal): Application["status"] {
   if (deal.revision) return { label: "Revision requested", tone: "warn", meta: deal.revision.date };
   if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
   if (deal.stage === "proposal_requested") return { label: "Proposal requested", tone: "warn" };
+  if (deal.stage === "interviewed") return { label: "Interview completed", tone: "ok", meta: deal.interview?.when };
+  // IN-071 / TB-037 — a declined or cancelled slot says so until a new one is offered.
+  if (deal.interview?.outcome === "declined") return { label: "Declined", tone: "danger", meta: deal.interview.when };
+  if (deal.interview?.outcome === "cancelled") return { label: "Interview cancelled", tone: "neutral", meta: deal.interview.when };
   if (deal.interview?.accepted) return { label: "Interview confirmed", tone: "info", meta: deal.interview.when };
   if (deal.interview) return { label: "Interview invitation", tone: "warn", meta: deal.interview.when };
   return undefined;
@@ -243,7 +247,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
         when: deal.interview.when,
         format: deal.interview.format,
         link: deal.interview.link,
-        status: deal.interview.past ? "completed" : deal.interview.accepted ? "accepted" : "starts",
+        status: deal.interview.outcome === "done" ? "completed" : deal.interview.outcome ?? (deal.interview.accepted ? "accepted" : "starts"),
         past: deal.interview.past,
       }
     : null;
@@ -345,7 +349,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     declineInterview: (id) => {
       if (id !== DEAL_ID || !deal) return;
       move("interview_declined", { slug: deal.roleSlug, title: deal.title });
-      updateDeal((d) => (d.interview ? { ...d, interview: { ...d.interview, past: true, accepted: false } } : d));
+      updateDeal((d) => (d.interview ? { ...d, interview: { ...d.interview, past: true, accepted: false, outcome: "declined" } } : d));
     },
     profile,
     setProfile: (patch) => setProfile((p) => ({ ...p, ...patch })),

@@ -1,5 +1,6 @@
 "use client";
 
+import { layoutClasses, Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -30,7 +31,7 @@ export function Page({
   onClose?: () => void;
   tabs?: ReactNode;
   badge?: ReactNode;
-  /** A `Breadcrumb` or `BackLink`. It gets its own row under the header rather than sitting in `children`. */
+  /** A `Breadcrumb` trail (@/components/ui/breadcrumb) or a `BreadcrumbBack` (@/components/portal/nav). It gets its own row under the header rather than sitting in `children`. */
   nav?: ReactNode;
   /** Page-level actions that share the nav row, so they don't cost the page a second row. */
   navActions?: ReactNode;
@@ -91,15 +92,15 @@ export function Page({
               the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
               gutter plus the column's own 8px, as before; `min-h-full` counts it (border-box), so a
               page that fits doesn't gain any scroll. */}
-          <div className={`scroll-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
+          <div className={`edge-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
         </ScrollFade>
       </div>
     </>
   );
 }
 
-/** Both live in portal/nav so the admin shell renders them at exactly the same size. */
-export { BackButton, BackLink, Breadcrumb } from "@/components/portal/nav";
+/* Back links and breadcrumbs: shadcn's Breadcrumb (@/components/ui/breadcrumb) and BreadcrumbBack
+   (@/components/portal/nav), shared with admin. */
 
 /* ------------------------------------------------------------- buttons ---- */
 
@@ -144,22 +145,19 @@ export function Button({
   size?: "sm" | "md" | "lg" | "xl";
   onClick?: () => void;
   disabled?: boolean;
-  /** Why a disabled button is disabled — the only affordance a greyed-out control has. */
+  /** Why a disabled button is disabled — the only affordance a greyed-out control has. Shown as the
+   *  app's tooltip (Tip), not the browser's, which never appears on a disabled button. */
   title?: string;
   type?: "button" | "submit";
   className?: string;
 }) {
   const sz = BTN_SIZE[size];
   return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`inline-flex items-center justify-center whitespace-nowrap transition disabled:cursor-not-allowed ${sz} ${BTN[variant]} ${className}`}
-    >
-      {children}
-    </button>
+    <Tip label={title} wrap={disabled} wrapClassName={layoutClasses(className)}>
+      <button type={type} onClick={onClick} disabled={disabled} className={`inline-flex items-center justify-center whitespace-nowrap transition disabled:cursor-not-allowed ${sz} ${BTN[variant]} ${className}`}>
+        {children}
+      </button>
+    </Tip>
   );
 }
 
@@ -278,19 +276,20 @@ export function MatchPill({ pct, coded = false, title }: { pct: number; coded?: 
   const base = "inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap";
   if (coded && pct && pct < 80) {
     return (
-      <span className={`${base} ${tone}`} title={title}>
-        {pct}% match
-      </span>
+      <Tip label={title}>
+        <span className={`${base} ${tone}`}>{pct}% match</span>
+      </Tip>
     );
   }
   return (
-    <span
-      className={`${base} ${pct ? "text-white" : "bg-[#e5e5e5] text-[#c3c3c3]"}`}
-      title={title}
-      style={pct ? { backgroundImage: "linear-gradient(101.96deg, #afd845 0%, #27ae60 60.58%, #098be2 121.16%)" } : undefined}
-    >
-      {pct}% match
-    </span>
+    <Tip label={title}>
+      <span
+        className={`${base} ${pct ? "text-white" : "bg-[#e5e5e5] text-[#c3c3c3]"}`}
+        style={pct ? { backgroundImage: "linear-gradient(101.96deg, #afd845 0%, #27ae60 60.58%, #098be2 121.16%)" } : undefined}
+      >
+        {pct}% match
+      </span>
+    </Tip>
   );
 }
 
@@ -520,7 +519,9 @@ export function Modal({
   const mounted = useSyncExternalStore(NOOP_SUBSCRIBE, CLIENT_MOUNTED, SERVER_MOUNTED);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    // A popup inside the dialog (a Select menu, the date picker) claims Escape with preventDefault;
+    // it closes that popup, not the whole dialog.
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !e.defaultPrevented && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);

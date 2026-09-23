@@ -4,7 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { BackLink, Button, Card, Chip, JobBadge, KeyValue, LinkButton, Modal, Page, PipelineTracker, Toast, WorkStyleChart, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, JobBadge, KeyValue, LinkButton, Modal, Page, PipelineTracker, Toast, WorkStyleChart, useToast } from "@/components/independent/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { useDeal } from "@/lib/demo/deal";
 import { useJobView } from "@/lib/independent/job-view";
 import { useDemo } from "@/lib/independent/store";
@@ -23,7 +24,7 @@ const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-de
  */
 export default function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { applications, setStage, workStyle } = useDemo();
+  const { applications, setStage, declineInterview, workStyle } = useDemo();
   const app = applications.find((a) => a.id === id);
   if (!app) notFound();
   const job = useJobView(app);
@@ -35,6 +36,8 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   const [declining, setDeclining] = useState(false);
   const [toast, setToast] = useToast();
   const declined = app.status?.label === "Declined";
+  /** TB-037 — the Team Builder called it off; the application stays open for a new slot. */
+  const cancelled = app.status?.label === "Interview cancelled";
   const revision = !!revisionNote || app.status?.label === "Revision requested";
   const offerUpdated = app.status?.label === "Offer updated";
 
@@ -45,7 +48,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   };
 
   return (
-    <Page title="My Applications" nav={<ReturnNav fallback={<BackLink href="/independent/jobs/applications">Back to pipeline</BackLink>} />}>
+    <Page title="My Applications" nav={<ReturnNav fallback={<BreadcrumbBack href="/independent/jobs/applications">Back to pipeline</BreadcrumbBack>} />}>
       <div className="flex flex-col gap-10 pb-14">
         <div className="flex items-start justify-center gap-6">
           <div className="flex w-[576px] flex-col gap-4">
@@ -81,14 +84,19 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
 
           <div className="flex w-[385px] shrink-0 flex-col gap-4">
             {/* Stage-specific action card */}
-            {(app.stage === "invited" || app.stage === "invite_accepted") && (
+            {(app.stage === "invited" || app.stage === "invite_accepted") && (declined || cancelled) && (
+              <Card className="flex flex-col gap-2 p-4">
+                <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{declined ? "You declined this interview" : "Interview cancelled"}</p>
+                <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">
+                  {declined ? `${job.company} was told, and your application stays open. If they offer another time, it shows up here.` : `${job.company} cancelled the ${job.interview.date} slot. Your application stays open — a new time shows up here.`}
+                </p>
+              </Card>
+            )}
+
+            {(app.stage === "invited" || app.stage === "invite_accepted") && !declined && !cancelled && (
               <Card className="flex flex-col gap-4 p-4">
                 <div className="flex flex-col gap-2">
-                  {declined ? (
-                    <Button size="lg" disabled>
-                      Declined
-                    </Button>
-                  ) : app.stage === "invited" ? (
+                  {app.stage === "invited" ? (
                     <>
                       <Button size="lg" variant="primary" onClick={accept}>
                         Accept invitation
@@ -137,16 +145,26 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                     Join call
                   </Button>
                 )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(job.interview.link);
-                    setToast("Link copied");
-                  }}
-                  className="flex items-center gap-2 self-start text-[14px] font-medium text-accent-ink"
-                >
-                  <Copy size={20} aria-hidden /> Copy link
-                </button>
+                {/* Only once there's a link to copy — before accepting it reads "Shared once you accept". */}
+                {app.stage === "invite_accepted" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(job.interview.link);
+                      setToast("Link copied");
+                    }}
+                    className="flex items-center gap-2 self-start text-[14px] font-medium text-accent-ink"
+                  >
+                    <Copy size={20} aria-hidden /> Copy link
+                  </button>
+                )}
+              </Card>
+            )}
+
+            {app.stage === "interviewed" && (
+              <Card className="flex flex-col gap-2 p-4">
+                <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Interview completed</p>
+                <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">{job.company} will ask for your proposal if they want to move ahead. You get a notification when they do.</p>
               </Card>
             )}
 
@@ -160,7 +178,9 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
               </Card>
             )}
 
-            {!revision && (app.stage === "interviewed" || app.stage === "proposal_requested") && (
+            {/* IN-072: only once a proposal has been requested — finishing the interview isn't an
+                invitation to propose; the Team Builder's request (TB-103) is. */}
+            {!revision && app.stage === "proposal_requested" && (
               <Card className="flex flex-col gap-4 p-4">
                 <div className="flex flex-col gap-2">
                   <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/proposal`}>
@@ -242,7 +262,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
               size="lg"
               variant="danger"
               onClick={() => {
-                setStage(app.id, "invited", { label: "Declined", tone: "danger", meta: "--" });
+                declineInterview(app.id);
                 setDeclining(false);
                 setToast("Invitation declined");
               }}

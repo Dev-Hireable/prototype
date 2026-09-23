@@ -26,6 +26,8 @@ export type DealObjective = { id: string; title: string; kind: "kpi" | "okr" | "
  */
 export type DealProposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; objectives: { title: string; kind: DealObjective["kind"] }[] };
 
+export type InterviewOutcome = "done" | "declined" | "cancelled";
+
 export type Deal = {
   roleSlug: string;
   title: string;
@@ -33,10 +35,19 @@ export type Deal = {
   match: number;
   /** Where the pipeline has got to — the same vocabulary both portals already use. */
   stage: Stage;
+  /** When it started: the application (IN-017), or the interview invitation when the Team Builder
+   *  started it (`invited`) — someone matched or invited from Discover who never applied. */
   submitted: string;
+  invited?: boolean;
   dropped?: boolean;
   /** TB-037 / IN-070 — set when the Team Builder books one; `accepted` once the talent confirms. */
-  interview?: { when: string; format: string; link?: string; accepted?: boolean; past?: boolean };
+  /**
+   * `outcome` — how it ended, once it has: the Team Builder marked it held (IN-018 Interview
+   * completed, which is what unlocks Request Proposal), the talent declined it (IN-071), or the
+   * Team Builder cancelled it. `past` takes it off both upcoming lists. A new invitation replaces
+   * the whole record, so a declined or cancelled slot can be offered again.
+   */
+  interview?: { when: string; format: string; link?: string; accepted?: boolean; past?: boolean; outcome?: InterviewOutcome };
   /** IN-072 — what the talent proposed; absent until they submit. */
   proposal?: DealProposal;
   /** TB-106 — the Team Builder's requested changes; cleared when the talent resubmits. */
@@ -266,7 +277,13 @@ export function useHydrated() {
 }
 
 /** "12 Aug 2026" — the demo's date format, used wherever a record is created live. */
-export const today = () => new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** "23 Sep 2026". Built by hand: en-GB `toLocaleDateString` says "Sept" in Chrome, unlike every
+ *  other date in the app. */
+export const today = () => {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+};
 
 /** Day N of 30 for a trial that started on `started`, so the countdown is the real one. */
 export function trialDay(started: string, days = 30) {

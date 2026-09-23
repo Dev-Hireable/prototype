@@ -3,7 +3,6 @@
 import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import {
-  BackLink,
   Button,
   Card,
   Checkbox,
@@ -19,6 +18,7 @@ import {
   WorkStyleChart,
   useToast,
 } from "@/components/independent/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { matchFor, roleFromPosting } from "@/lib/independent/data";
 import { usePostings } from "@/lib/demo/deal";
 import { useDemo } from "@/lib/independent/store";
@@ -48,7 +48,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   };
 
   return (
-    <Page title="Discover roles" nav={<ReturnNav fallback={<BackLink href="/independent/jobs">Back to roles</BackLink>} />}>
+    <Page title="Discover roles" nav={<ReturnNav fallback={<BreadcrumbBack href="/independent/jobs">Back to roles</BreadcrumbBack>} />}>
       <div className="flex items-start gap-8">
         <div className="flex min-w-0 flex-1 flex-col gap-5">
           <div className="flex flex-wrap items-center gap-3">

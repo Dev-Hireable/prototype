@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminPage, BackLink, Button, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { AdminPage, Button, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { transactions } from "@/lib/admin/data/billing";
 import type { BreakdownLine, LinkedRecord } from "@/lib/admin/data/billing";
 
@@ -15,7 +16,7 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
 
   return (
     <AdminPage
-      nav={<BackLink href="/admin/billing">Back to all transactions</BackLink>}
+      nav={<BreadcrumbBack href="/admin/billing">Back to all transactions</BreadcrumbBack>}
       title={txn.reference}
       actions={
         <>

@@ -1,9 +1,11 @@
 "use client";
 
+import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
-import { Breadcrumb, Button, Card, Chip, Initials, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Stat, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, Initials, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Stat, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { ActivityLog } from "@/components/portal/ActivityLog";
 import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
@@ -104,13 +106,34 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
       nav={
         <ReturnNav
           fallback={
-            <Breadcrumb
-              items={[
-                { label: "All contracts", href: "/independent/contracts" },
-                `${contract.title} — ${contract.company}`,
-                ...(tab === "evaluation" ? ["Evaluation"] : tab === "contract" ? ["Contract & Payment"] : []),
-              ]}
-            />
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink render={<Link href="/independent/contracts" />}>All contracts</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                {tab === "objectives" ? (
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>
+                      {contract.title} — {contract.company}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                ) : (
+                  <>
+                    {/* On a tab, the contract crumb leads back to its default Objectives tab. */}
+                    <BreadcrumbItem>
+                      <BreadcrumbLink render={<Link href={`/independent/contracts/${contract.slug}`} />}>
+                        {contract.title} — {contract.company}
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{tab === "evaluation" ? "Evaluation" : "Contract & Payment"}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
+              </BreadcrumbList>
+            </Breadcrumb>
           }
         />
       }
@@ -131,15 +154,16 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                 <p className="flex items-center gap-2">
                   {/* IN-049 — the company name opens its profile. It sat alone in a "⋯" menu, which hid
                       the only action behind an icon and wrapped the label. */}
-                  <button
-                    type="button"
-                    onClick={() => setCompanyOpen(true)}
-                    title="View company profile"
-                    className="font-display text-[22px] leading-[1.5] font-semibold text-ink underline-offset-4 hover:text-primary hover:underline"
-                    style={DM}
-                  >
-                    {contract.company}
-                  </button>
+                  <Tip label="View company profile">
+                    <button
+                      type="button"
+                      onClick={() => setCompanyOpen(true)}
+                      className="font-display text-[22px] leading-[1.5] font-semibold text-ink underline-offset-4 hover:text-primary hover:underline"
+                      style={DM}
+                    >
+                      {contract.company}
+                    </button>
+                  </Tip>
                   <JobBadge type={contract.type} />
                   <StatusDot tone={contract.status.tone}>{contract.status.label}</StatusDot>
                 </p>

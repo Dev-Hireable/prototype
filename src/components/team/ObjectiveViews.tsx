@@ -1,5 +1,6 @@
 "use client";
 
+import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { Chip, StatusDot } from "@/components/independent/ui";
 import { HEAT, kpiProgress, kpiValue, krProgress, krValue, MANUAL_METRIC, OBJECTIVE_KIND, taskProgress } from "@/lib/team/data";
@@ -54,7 +55,9 @@ export function ManualMetrics({ metric = MANUAL_METRIC }: { metric?: typeof MANU
         {/* Bars rather than a line: no chart dependency, and the shape is what matters here. */}
         <div className="flex h-24 items-end gap-1.5" role="img" aria-label={`Progress over ${m.trend.length} updates, latest ${m.trend.at(-1)}%`}>
           {m.trend.map((v, i) => (
-            <span key={i} title={`Update ${i + 1}: ${v}%`} className="flex-1 rounded-t bg-primary/80" style={{ height: `${Math.max(4, (v / max) * 100)}%` }} />
+            <Tip key={i} label={`Update ${i + 1}: ${v}%`}>
+              <span className="flex-1 rounded-t bg-primary/80" style={{ height: `${Math.max(4, (v / max) * 100)}%` }} />
+            </Tip>
           ))}
         </div>
       </Panel>
@@ -62,7 +65,9 @@ export function ManualMetrics({ metric = MANUAL_METRIC }: { metric?: typeof MANU
       <Panel title="Performance heatmap">
         <div className="flex flex-wrap gap-1">
           {m.heatmap.map((state, i) => (
-            <span key={i} title={HEAT[state].label} className={`size-5 rounded-sm ${HEAT[state].cls}`} />
+            <Tip key={i} label={HEAT[state].label}>
+              <span className={`size-5 rounded-sm ${HEAT[state].cls}`} />
+            </Tip>
           ))}
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1.5 text-[11.5px] leading-[1.3] text-ink-2">

@@ -2,7 +2,8 @@
 
 import { notFound } from "next/navigation";
 import { use, useEffect, useState } from "react";
-import { AdminPage, BackLink, Button, Card, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { AdminPage, Button, Card, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { Button as DialogButton, Field, Modal, Select as FormSelect, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { useDeal } from "@/lib/demo/deal";
 import {
@@ -91,7 +92,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
 
   return (
     <AdminPage
-      nav={<BackLink href="/admin/disputes">Back to all disputes</BackLink>}
+      nav={<BreadcrumbBack href="/admin/disputes">Back to all disputes</BreadcrumbBack>}
       title={`${d.reason} · ${d.title}`}
       actions={
         pending ? (

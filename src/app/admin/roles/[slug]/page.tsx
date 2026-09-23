@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 import {
   AdminPage,
   Badge,
-  BackLink,
   Button,
   DataTable,
   StatCard,
   StatGrid,
 } from "@/components/admin/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { roles } from "@/lib/admin/data/roles";
 import type { Check } from "@/lib/admin/data/roles";
 
@@ -22,7 +22,7 @@ export default async function RoleDetail({ params }: PageProps<"/admin/roles/[sl
 
   return (
     <AdminPage
-      nav={<BackLink href="/admin/roles">Back to all roles</BackLink>}
+      nav={<BreadcrumbBack href="/admin/roles">Back to all roles</BreadcrumbBack>}
       title={role.role}
       actions={
         <>

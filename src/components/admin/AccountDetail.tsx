@@ -1,5 +1,6 @@
 import { DisputeHistory } from "./DisputeHistory";
-import { AdminPage, BackLink, Button, Card, DataTable, StatCard, StatGrid } from "./ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
+import { AdminPage, Button, Card, DataTable, StatCard, StatGrid } from "./ui";
 import type { ActivityEvent, Stat } from "@/lib/admin/data/users";
 
 /** Shared layout for the two account profile screens (stats row, activity log, dispute history). */
@@ -21,7 +22,7 @@ export function AccountDetail({
 }) {
   return (
     <AdminPage
-      nav={<BackLink href={backHref}>{backLabel}</BackLink>}
+      nav={<BreadcrumbBack href={backHref}>{backLabel}</BreadcrumbBack>}
       title={title}
       actions={
         <>

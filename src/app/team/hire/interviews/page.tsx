@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { Button, Checkbox, Field, Input, Modal, Page, Pills, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Checkbox, Field, LinkButton, Modal, Page, Pills, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { canJoin, DatePicker, formatDate, startOfToday } from "@/components/portal/DatePicker";
+import { INTERVIEW_TIMES } from "@/components/team/InterviewDialog";
 import { Person, Row, Table } from "@/components/team/ui";
 import { byName } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
@@ -9,17 +12,29 @@ import { useQueryState } from "@/lib/portal/query-state";
 import { useWithReturn } from "@/components/portal/return";
 import type { Interview } from "@/lib/team/data";
 
-/** Figma columns: Candidate flex · Role 165 · Date and time 205 · Format 90 · Status 135 · Actions 210. */
-const COLS = ["min-w-0 flex-1", "w-[165px]", "w-[205px]", "w-[90px]", "w-[135px]", "w-[210px]"];
+/**
+ * Candidate flex · Role · Date and time · Format · Status · Actions. The date and time sit on two
+ * lines: on one, "Tue 29 Sep 2026, 10:00 AM (PHT)" ran past its 205px cell into Format. Actions is
+ * wide enough for the three buttons an upcoming interview has.
+ */
+const COLS = ["min-w-[240px] flex-1", "w-[190px]", "w-[170px]", "w-[120px]", "w-[150px]", "w-[272px]"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 /** Figma "Interviews / Scheduled list · Reschedule interview · modal · Cancel interview · confirm · Interview availability · setup". */
 export default function Interviews() {
   const [tab, setTab] = useQueryState("tab", "upcoming", ["upcoming", "past"] as const);
   /* From the store, so an interview scheduled from a candidate profile appears here. */
-  const { interviews: items, setInterview } = useDemo();
+  const { interviews: items, rescheduleInterview, cancelInterview } = useDemo();
   const withReturn = useWithReturn();
   const [rescheduling, setRescheduling] = useState<Interview | null>(null);
+  /** The new slot. It used to be a date box that was ignored: every reschedule said Thu 17 Sep 2026, 2:00 PM. */
+  const [newDate, setNewDate] = useState<Date | undefined>();
+  const [newTime, setNewTime] = useState(INTERVIEW_TIMES[0]);
+  const closeReschedule = () => {
+    setRescheduling(null);
+    setNewDate(undefined);
+    setNewTime(INTERVIEW_TIMES[0]);
+  };
   const [cancelling, setCancelling] = useState<Interview | null>(null);
   const [availability, setAvailability] = useState(false);
   const [days, setDays] = useState(new Set(["Mon", "Tue", "Wed", "Thu"]));
@@ -47,60 +62,104 @@ export default function Interviews() {
       <Table cols={COLS} head={["Candidate", "Role", "Date and time", "Format", "Status", "Actions"]}>
         {rows.map((iv) => {
           const p = byName(iv.independent);
+          const [date, time] = iv.when.split(", ");
+          // The tracker card it was booked from, and the role's board opened at its Interview column.
+          const card = iv.roleSlug && iv.candidate ? withReturn(`/team/hire/roles/${iv.roleSlug}/candidates/${iv.candidate}`) : undefined;
+          const board = iv.roleSlug ? withReturn(`/team/hire/roles/${iv.roleSlug}?stage=interview`) : undefined;
+          const confirmed = iv.status.label === "Confirmed";
+          const joinable = confirmed && !!iv.link && canJoin(iv.when);
           return (
             <Row key={iv.id}>
               <span className={COLS[0]}>
-                <Person name={p.name} role={p.role} avatar={p.avatar} href={withReturn(`/team/discover/${p.slug}`)} />
+                <Person name={p.name} role={p.role} avatar={p.avatar} href={card ?? withReturn(`/team/discover/${p.slug}`)} />
               </span>
-              <span className={`${COLS[1]} text-[14px]`}>{iv.role}</span>
-              <span className={COLS[2]}>{iv.when}</span>
+              <span className={`${COLS[1]} truncate text-[14px]`}>
+                {board ? (
+                  <Link href={board} className="hover:text-primary hover:underline">
+                    {iv.role}
+                  </Link>
+                ) : (
+                  iv.role
+                )}
+              </span>
+              <span className={COLS[2]}>
+                <span className="block">{date}</span>
+                <span className="block text-[12px] text-ink-2">{time}</span>
+              </span>
               <span className={`${COLS[3]} text-ink-2`}>{iv.format}</span>
               <span className={COLS[4]}>
                 <StatusDot tone={iv.status.tone}>{iv.status.label}</StatusDot>
               </span>
               <span className={`${COLS[5]} flex gap-2`}>
-                <Button size="sm" variant="primary" disabled={iv.status.label !== "Starts in 12 min"} onClick={() => setToast("Opening Google Meet…")}>
-                  Join call
-                </Button>
-                {iv.status.label === "Awaiting reply" ? (
-                  <Button size="sm" disabled={iv.past} onClick={() => setCancelling(iv)}>
-                    Cancel
-                  </Button>
+                {iv.past ? (
+                  // Over, so what is left is the candidate's card in the pipeline.
+                  card && (
+                    <LinkButton size="sm" href={card}>
+                      View in pipeline
+                    </LinkButton>
+                  )
                 ) : (
-                  <Button size="sm" disabled={iv.past} onClick={() => setRescheduling(iv)}>
-                    Reschedule
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={!joinable}
+                      title={joinable ? undefined : confirmed ? "Opens 15 minutes before the start" : "Opens once they confirm the interview"}
+                      onClick={() => iv.link && window.open(iv.link, "_blank", "noopener")}
+                    >
+                      Join call
+                    </Button>
+                    <Button size="sm" onClick={() => setRescheduling(iv)}>
+                      Reschedule
+                    </Button>
+                    <Button size="sm" onClick={() => setCancelling(iv)}>
+                      Cancel
+                    </Button>
+                  </>
                 )}
               </span>
             </Row>
           );
         })}
-        {rows.length === 0 && <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">No interviews here yet. Set your availability so candidates can pick a slot.</p>}
+        {rows.length === 0 && (
+          <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">
+            {tab === "upcoming" ? "No interviews coming up. Invite a candidate to interview from their card in the pipeline." : "No past interviews yet."}
+          </p>
+        )}
       </Table>
       <p className="text-[12px] leading-[1.4] text-ink-2">Join call turns on 15 minutes before the start. Links come from your connected calendar or the link you typed in the invite.</p>
 
       <Modal
         open={!!rescheduling}
-        onClose={() => setRescheduling(null)}
+        onClose={closeReschedule}
         title={`Reschedule with ${rescheduling ? byName(rescheduling.independent).name : ""}`}
         description="They get the new slot by email and in-app. The old slot is released back to your availability."
         footer={
           <>
-            <Button size="lg" onClick={() => setRescheduling(null)}>
+            <Button size="lg" onClick={closeReschedule}>
               Cancel
             </Button>
-            <Button size="lg" variant="primary" onClick={() => { if (rescheduling) setInterview(rescheduling.id, { when: "Thu 17 Sep 2026, 2:00 PM PHT", status: { label: "Awaiting reply", tone: "neutral" } }); setRescheduling(null); setToast("New time sent"); }}>
+            <Button
+              size="lg"
+              variant="primary"
+              disabled={!newDate}
+              onClick={() => {
+                if (rescheduling && newDate) rescheduleInterview(rescheduling.id, `${formatDate(newDate)}, ${newTime}`);
+                closeReschedule();
+                setToast("New time sent");
+              }}
+            >
               Send new time
             </Button>
           </>
         }
       >
         <div className="flex gap-3">
-          <Field label="Date" className="flex-1">
-            <Input placeholder="Thu 17 Sep 2026" />
+          <Field label="Date" className="flex-1" hint={!newDate ? "Required" : undefined}>
+            <DatePicker value={newDate} onChange={setNewDate} disabled={{ before: startOfToday() }} placeholder="Pick a date" />
           </Field>
-          <Field label="Time (PHT)" className="flex-1">
-            <Select options={["2:00 PM", "9:30 AM", "4:00 PM"]} />
+          <Field label="Time" className="flex-1">
+            <Select options={INTERVIEW_TIMES} value={newTime} onChange={(e) => setNewTime(e.target.value)} />
           </Field>
         </div>
       </Modal>
@@ -115,7 +174,7 @@ export default function Interviews() {
             <Button size="lg" onClick={() => setCancelling(null)}>
               Keep it
             </Button>
-            <Button size="lg" variant="danger" onClick={() => { if (cancelling) setInterview(cancelling.id, { status: { label: "Cancelled", tone: "danger" }, past: true }); setCancelling(null); setToast("Interview cancelled"); }}>
+            <Button size="lg" variant="danger" onClick={() => { if (cancelling) cancelInterview(cancelling.id); setCancelling(null); setToast("Interview cancelled"); }}>
               Cancel interview
             </Button>
           </>

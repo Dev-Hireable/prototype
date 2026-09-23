@@ -83,10 +83,14 @@ export default function Dashboard() {
                 {upcoming.map((iv) => (
                   <li key={iv.id} className="flex items-center gap-3 rounded-lg bg-white p-3">
                     <Avatar src={avatarOf(iv.independent)} size={32} />
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] tracking-[0.2px]">
-                      <p className="truncate text-[14px] font-semibold text-ink">{nameOf(iv.independent, iv.independent)}</p>
-                      <p className="truncate text-[12px] text-ink-2">{iv.when.replace(/^\w{3} /, "")}</p>
-                    </div>
+                    {/* The candidate's card in the pipeline, as on the Interviews page. */}
+                    <Link
+                      href={iv.roleSlug && iv.candidate ? `/team/hire/roles/${iv.roleSlug}/candidates/${iv.candidate}` : "/team/hire/interviews"}
+                      className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] tracking-[0.2px]"
+                    >
+                      <span className="truncate text-[14px] font-semibold text-ink hover:text-primary">{nameOf(iv.independent, iv.independent)}</span>
+                      <span className="truncate text-[12px] text-ink-2">{iv.when.replace(/^\w{3} /, "")}</span>
+                    </Link>
                     <Link href="/team/hire/interviews" className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
                       Join
                     </Link>
@@ -97,21 +101,21 @@ export default function Dashboard() {
           </DashboardSummaryCard>
 
           <DashboardSummaryCard title="Applicants" href="/team/hire/roles">
-            <div className="flex items-center gap-4 rounded-lg bg-white px-4 py-3">
+            {/* The whole row is the link, not just the arrow, the way the contract rows beside it are. */}
+            <Link href="/team/hire/roles" className="flex items-center gap-4 rounded-lg bg-white px-4 py-3 hover:bg-surface-alt">
               <span className="flex size-10 items-center justify-center rounded-full border border-border bg-white text-ink">
                 <Work size={20} aria-hidden />
               </span>
-              <div className="flex-1 whitespace-nowrap">
-                <p className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{live.length}</p>
-                <p className="text-[13px] leading-[1.2] tracking-[0.2px] text-ink-2">{live.length === 1 ? "Applicant so far" : "Applicants so far"}</p>
-              </div>
-              <Link href="/team/hire/roles" aria-label="Open applicants" className="rounded-full bg-white p-1 text-ink">
-                <NorthEast size={24} aria-hidden />
-              </Link>
-            </div>
+              <span className="flex-1 whitespace-nowrap">
+                <span className="block text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{live.length}</span>
+                <span className="block text-[13px] leading-[1.2] tracking-[0.2px] text-ink-2">{live.length === 1 ? "Applicant so far" : "Applicants so far"}</span>
+              </span>
+              <NorthEast size={24} aria-hidden className="shrink-0 text-ink" />
+            </Link>
             <DashboardBarChart
               bars={[
-                { value: inTrial, label: "In trial", background: "bg-[#c9ccd0]" },
+                // The trial colour — the TRIAL badge's brand orange — graded like the blue bar beside it.
+                { value: inTrial, label: "In trial", background: "bg-gradient-to-b from-brand-orange to-[#ffb371]" },
                 { value: shortlisted, label: "Shortlisted", background: "bg-gradient-to-b from-primary to-[#64bceb]" },
               ]}
             />

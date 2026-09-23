@@ -142,6 +142,15 @@ export const TRACKER_COLUMNS: { key: string; label: string; stages: Stage[]; bg:
   { key: "dropped", label: "Dropped", stages: [], bg: "#fdecec", text: "#a62121", count: "#f9d5d5" },
 ];
 
+/** The tracker column a card sits in now. */
+export const columnOf = (c: Pick<Candidate, "stage" | "dropped">) => (c.dropped ? "dropped" : TRACKER_COLUMNS.find((col) => col.stages.includes(c.stage))?.key);
+
+/** The role's board opened at that column — the board centres it and frames it for a moment. */
+export const pipelineHref = (c: Pick<Candidate, "role" | "stage" | "dropped">) => {
+  const col = columnOf(c);
+  return `/team/hire/roles/${c.role}${col ? `?stage=${col}` : ""}`;
+};
+
 /** Employer-side wording for the shared pipeline tracker. */
 export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
   applied: "Interested",
@@ -152,7 +161,13 @@ export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
 
 /* ------------------------------------------------------------- interviews */
 
-export type Interview = { id: string; independent: string; role: string; when: string; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean };
+/** `roleSlug` / `candidate` — the role and tracker card it was booked from, so a row can open them. */
+export type Interview = { id: string; independent: string; role: string; roleSlug?: string; candidate?: string; when: string; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean };
+
+/** A candidate whose interview fell through — declined by them or cancelled — and can be offered a new slot. */
+export const INTERVIEW_DECLINED = "Interview declined";
+export const INTERVIEW_CANCELLED = "Interview cancelled";
+export const needsNewSlot = (c: { stage: string; status?: { label: string } }) => c.stage === "invited" && (c.status?.label === INTERVIEW_DECLINED || c.status?.label === INTERVIEW_CANCELLED);
 
 export const interviews: Interview[] = [];
 

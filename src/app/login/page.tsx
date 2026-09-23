@@ -20,10 +20,7 @@ export default function Login() {
   };
 
   return (
-    <AuthShell
-      title="Login to Hireable"
-      subtitle="Trial Drives, objectives and payments — all in one place."
-    >
+    <AuthShell title="Login to Hireable">
       <form
         className="flex flex-col gap-4"
         onSubmit={(e) => {

@@ -4,11 +4,14 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { BackLink, Card, Chip, JobBadge, KeyValue, LinkButton, MatchPill, Page, StatusDot, Tabs, Toast, useToast, WorkStyleChart } from "@/components/independent/ui";
+import { Card, Chip, JobBadge, KeyValue, LinkButton, MatchPill, Page, StatusDot, Tabs, Toast, useToast, WorkStyleChart } from "@/components/independent/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
+import { Tip } from "@/components/portal/Tip";
 import { InterviewDialog } from "@/components/team/InterviewDialog";
+import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/InterviewSteps";
 import { Avatar, MATCH_TOOLTIP } from "@/components/team/ui";
-import { byName, TRACKER_COLUMNS } from "@/lib/team/data";
+import { byName, needsNewSlot, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate } from "@/lib/team/data";
 import { PAIR, unreadChat, useLive } from "@/lib/demo/live";
 import { useDemo } from "@/lib/team/store";
@@ -34,10 +37,13 @@ export default function RolePage({ params }: { params: Promise<{ slug: string }>
  */
 function Role({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { roles, candidates, setStage, setDropped } = useDemo();
+  const { roles, candidates, interviews, setStage, setDropped, completeInterview } = useDemo();
   const withReturn = useWithReturn();
   /** TB-037 — booking happens on the board, so a first interview is one click from the column. */
   const [inviting, setInviting] = useState<Candidate | null>(null);
+  /** The two confirmations in front of a proposal request: the interview is done, then the request. */
+  const [completing, setCompleting] = useState<Candidate | null>(null);
+  const [requesting, setRequesting] = useState<Candidate | null>(null);
   const live = useLive();
   const role = roles.find((r) => r.slug === slug);
   const [tab, setTab] = useQueryState("tab", "candidates", ["candidates", "details"] as const);
@@ -79,11 +85,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
   /** A dropped candidate leaves their stage column and sits in Dropped (TB-037). */
   const inColumn = (col: (typeof TRACKER_COLUMNS)[number], c: Candidate) => (col.key === "dropped" ? !!c.dropped : !c.dropped && col.stages.includes(c.stage));
 
-  /** TB-103 — moves them to Proposal Requested and notifies them to submit one. */
-  const requestProposal = (c: Candidate) => {
-    setStage(c.id, "proposal_requested", { label: "Awaiting proposal", tone: "warn" });
-    setToast(`Proposal requested from ${byName(c.independent).name}`);
-  };
+  const firstOf = (c: Candidate) => byName(c.independent).name.split(" ")[0];
 
   return (
     <Page
@@ -93,7 +95,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
         </>
       }
       padded={false}
-      nav={<ReturnNav fallback={<BackLink href="/team/hire/roles">Back to jobs</BackLink>} />}
+      nav={<ReturnNav fallback={<BreadcrumbBack href="/team/hire/roles">Back to jobs</BreadcrumbBack>} />}
       navActions={
         tab === "candidates" ? (
           <LinkButton size="md" href={withReturn("/team/discover")} variant="primary">
@@ -123,7 +125,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
              columns up with the back link; scrolled, cards fade out at the edge rather than stopping
              short. overflow-y-hidden stops a nested vertical scrollbar. */
           <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
-            <div className="scroll-fade flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden px-10 pb-10">
+            <div className="edge-fade flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden px-10 pb-10">
               {TRACKER_COLUMNS.map((col) => {
                 const cards = list.filter((c) => inColumn(col, c));
                 return (
@@ -170,9 +172,11 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                                   )}
                                 </Link>
                               ) : (
-                                <span title="Messaging opens once you invite them to interview" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink-2 opacity-50">
-                                  <Message size={16} aria-hidden />
-                                </span>
+                                <Tip label="Messaging opens once you invite them to interview">
+                                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink-2 opacity-50">
+                                    <Message size={16} aria-hidden />
+                                  </span>
+                                </Tip>
                               )}
                             </div>
                             <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">
@@ -190,12 +194,31 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                                 Invite to interview
                               </button>
                             )}
-                            {/* TB-103: Request Proposal once the interview is under way. */}
-                            {!c.dropped && col.key === "interview" && (
-                              <button type="button" onClick={() => requestProposal(c)} className="h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
-                                Request Proposal
-                              </button>
-                            )}
+                            {/* TB-103 behind IN-018: the interview is marked done first, and only then can a
+                                proposal be requested — each step confirmed in a dialog, never on one click.
+                                Before the candidate has confirmed the interview there is nothing to mark. */}
+                            {!c.dropped && col.key === "interview" &&
+                              (c.stage === "interviewed" ? (
+                                <button type="button" onClick={() => setRequesting(c)} className="h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
+                                  Request Proposal
+                                </button>
+                              ) : needsNewSlot(c) ? (
+                                // They declined it, or it was cancelled: a new slot is the way on.
+                                <button type="button" onClick={() => setInviting(c)} className="h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
+                                  Offer a new time
+                                </button>
+                              ) : (
+                                <Tip label={c.stage === "invited" ? `Waiting for ${firstOf(c)} to confirm the interview` : undefined} wrap={c.stage === "invited"}>
+                                  <button
+                                    type="button"
+                                    disabled={c.stage === "invited"}
+                                    onClick={() => setCompleting(c)}
+                                    className="h-9 w-full rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]"
+                                  >
+                                    Mark interview done
+                                  </button>
+                                </Tip>
+                              ))}
                             {/* TB-104: Review Proposal once they've actually submitted one. */}
                             {!c.dropped && c.stage === "proposal_sent" && (
                               <LinkButton size="sm" variant="primary" href={`/team/hire/roles/${role.slug}/candidates/${c.id}`} className="justify-center">
@@ -284,7 +307,31 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
           </div>
         )}
       </div>
-      <InterviewDialog candidate={inviting} roleTitle={role.title} onClose={() => setInviting(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
+      <InterviewDialog candidate={inviting} onClose={() => setInviting(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
+      <CompleteInterviewDialog
+        open={!!completing}
+        name={completing ? firstOf(completing) : ""}
+        when={completing ? interviews.find((i) => i.independent === completing.independent && !i.past)?.when : undefined}
+        onClose={() => setCompleting(null)}
+        onConfirm={() => {
+          if (!completing) return;
+          completeInterview(completing.id);
+          setToast(`Interview with ${firstOf(completing)} marked done`);
+          setCompleting(null);
+        }}
+      />
+      {/* TB-103 — moves them to Proposal Requested and notifies them to submit one. */}
+      <RequestProposalDialog
+        open={!!requesting}
+        name={requesting ? firstOf(requesting) : ""}
+        onClose={() => setRequesting(null)}
+        onSend={() => {
+          if (!requesting) return;
+          setStage(requesting.id, "proposal_requested", { label: "Awaiting proposal", tone: "warn", meta: "Sent today" });
+          setToast(`Proposal requested from ${firstOf(requesting)}`);
+          setRequesting(null);
+        }}
+      />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

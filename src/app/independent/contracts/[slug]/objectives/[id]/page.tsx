@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Breadcrumb, Button, Chip, Field, Input, JobBadge, Modal, ObjectiveRow, Page, Progress, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Button, Chip, Field, Input, JobBadge, Modal, ObjectiveRow, Page, Progress, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { AutomaticBreakdown, DefaultTimeline, ManualMetrics, TaskList } from "@/components/team/ObjectiveViews";
 import { move, PAIR } from "@/lib/demo/live";
 import { daysLeft, ME, objectiveStatus } from "@/lib/independent/data";
@@ -228,14 +230,37 @@ function ObjectiveDashboard({ params }: { params: Promise<{ slug: string; id: st
           </>
         }
         nav={
-          <Breadcrumb
-            items={[
-              { label: "All contracts", href: "/independent/contracts" },
-              { label: contract.title, href: `/independent/contracts/${contract.slug}` },
-              { label: k.title, href: objHref },
-              ...(showTasks ? [{ label: "Key result", href: `${objHref}?kr=${kr.id}` }, "Tasks"] : ["Key result"]),
-            ]}
-          />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link href="/independent/contracts" />}>All contracts</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link href={`/independent/contracts/${contract.slug}`} />}>{contract.title}</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink render={<Link href={objHref} />}>{k.title}</BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              {showTasks ? (
+                <>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink render={<Link href={`${objHref}?kr=${kr.id}`} />}>Key result</BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Tasks</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              ) : (
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Key result</BreadcrumbPage>
+                </BreadcrumbItem>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
         }
       >
         <div className="flex items-start gap-4">
@@ -291,7 +316,25 @@ function ObjectiveDashboard({ params }: { params: Promise<{ slug: string; id: st
           {k.title} <JobBadge type={contract.type} />
         </>
       }
-      nav={<Breadcrumb items={[{ label: "All contracts", href: "/independent/contracts" }, { label: contract.title, href: `/independent/contracts/${contract.slug}` }, "Trial tracker", k.title]} />}
+      nav={
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link href="/independent/contracts" />}>All contracts</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link href={`/independent/contracts/${contract.slug}`} />}>{contract.title}</BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>Trial tracker</BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{k.title}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      }
     >
       <div className="flex items-start gap-4">
         <div className="flex min-w-0 flex-1 flex-col gap-4 rounded-lg bg-white p-6 outline -outline-offset-1 outline-[#e3e3e3]">

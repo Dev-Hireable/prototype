@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { AdminPage, BackLink, Button, Card, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { AdminPage, Button, Card, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { subscriptions } from "@/lib/admin/data/subscriptions";
 import type { PlanChange } from "@/lib/admin/data/subscriptions";
 
@@ -14,7 +15,7 @@ export default async function SubscriptionDetail({ params }: PageProps<"/admin/s
 
   return (
     <AdminPage
-      nav={<BackLink href="/admin/subscriptions">Back to all subscriptions</BackLink>}
+      nav={<BreadcrumbBack href="/admin/subscriptions">Back to all subscriptions</BreadcrumbBack>}
       title={sub.company}
       actions={
         <>

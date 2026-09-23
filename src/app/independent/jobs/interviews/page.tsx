@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Modal, Page, Pills, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, LinkButton, Modal, Page, Pills, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { canJoin } from "@/components/portal/DatePicker";
+import { Row, Table } from "@/components/team/ui";
 import type { Interview } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 import { useQueryState } from "@/lib/portal/query-state";
@@ -14,10 +16,15 @@ const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" |
   accepted: { label: "Confirmed", tone: "ok" },
   completed: { label: "Completed", tone: "neutral" },
   declined: { label: "Declined", tone: "danger" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
 };
 
-/** Figma table columns: Role flex · Company 180 · Date and time 215 · Format 120 · Status 120 · Actions 200. */
-const COLS = ["min-w-0 flex-1", "w-[180px]", "w-[215px]", "w-[120px]", "w-[120px]", "w-[200px]"];
+/**
+ * Role flex · Company · Date and time · Format · Status · Actions, on the same grid table as every
+ * other portal list (it was a hand-rolled one without column rules). Date and time take two lines,
+ * as on the Team Builder's side, so a long slot can't run into Format.
+ */
+const COLS = ["min-w-[220px] flex-1", "w-[200px]", "w-[170px]", "w-[120px]", "w-[140px]", "w-[200px]"];
 
 /** Figma "Interviews / My interviews · list": pill tabs, table (header #f2f2f2, px 16 / py 12), 12px footnote. */
 export default function Interviews() {
@@ -41,63 +48,72 @@ export default function Interviews() {
           { value: "past", label: `Past (${past.length})` },
         ]}
       />
-      <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
-        <div className="flex items-center gap-4 bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2">
-          {["Role", "Company", "Date and time", "Format", "Status", "Actions"].map((h, i) => (
-            <span key={h} className={COLS[i]}>
-              {h}
-            </span>
-          ))}
-        </div>
-        {rows.map((iv) => (
-          <div key={iv.id} className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">
-            <span className={COLS[0]}>
-              <Link href={withReturn(iv.roleHref)} className="text-[14px] font-medium text-primary hover:underline">
-                {iv.role}
-              </Link>
-            </span>
-            <span className={COLS[1]}>{iv.company}</span>
-            <span className={COLS[2]}>{iv.when}</span>
-            <span className={`${COLS[3]} text-ink-2`}>{iv.format}</span>
-            <span className={COLS[4]}>
-              <StatusDot tone={STATUS[iv.status].tone}>{STATUS[iv.status].label}</StatusDot>
-            </span>
-            <span className={`${COLS[5]} flex gap-2`}>
-              {/* IN-070 — an invitation is answered here too, not only from the application page.
-                  Join call used to be live only before accepting, and never opened the meeting. */}
-              {iv.status === "starts" && !iv.past ? (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => {
-                    setStage(iv.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: iv.when });
-                    setToast("Interview accepted");
-                  }}
-                >
-                  Accept
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  disabled={iv.status !== "accepted" || iv.past}
-                  title={iv.status === "accepted" && !iv.link ? "No meeting link yet — ask the Team Builder to share one" : undefined}
-                  onClick={() => {
-                    if (!iv.link) return setToast("No meeting link yet — ask the Team Builder to share one.");
-                    window.open(iv.link, "_blank", "noopener");
-                  }}
-                >
-                  Join call
-                </Button>
-              )}
-              <Button size="sm" disabled={iv.status === "declined" || iv.past} onClick={() => setDeclining(iv)}>
-                Decline
-              </Button>
-            </span>
-          </div>
-        ))}
-        {rows.length === 0 && <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">Nothing here.</p>}
-      </div>
+      <Table cols={COLS} head={["Role", "Company", "Date and time", "Format", "Status", "Actions"]}>
+        {rows.map((iv) => {
+          const [date, time] = iv.when.split(", ");
+          const joinable = iv.status === "accepted" && !!iv.link && canJoin(iv.when);
+          return (
+            <Row key={iv.id}>
+              <span className={`${COLS[0]} truncate`}>
+                <Link href={withReturn(iv.roleHref)} className="text-[14px] font-medium text-primary hover:underline">
+                  {iv.role}
+                </Link>
+              </span>
+              <span className={`${COLS[1]} truncate`}>{iv.company}</span>
+              <span className={COLS[2]}>
+                <span className="block">{date}</span>
+                <span className="block text-[12px] text-ink-2">{time}</span>
+              </span>
+              <span className={`${COLS[3]} text-ink-2`}>{iv.format}</span>
+              <span className={COLS[4]}>
+                <StatusDot tone={STATUS[iv.status].tone}>{STATUS[iv.status].label}</StatusDot>
+              </span>
+              <span className={`${COLS[5]} flex gap-2`}>
+                {iv.past ? (
+                  // Over — declined, cancelled or held — so what is left is the application itself.
+                  <LinkButton size="sm" href={withReturn(iv.roleHref)}>
+                    View application
+                  </LinkButton>
+                ) : (
+                  <>
+                    {/* IN-070 — an invitation is answered here too, not only from the application page. */}
+                    {iv.status === "starts" ? (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                          setStage(iv.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: iv.when });
+                          setToast("Interview accepted");
+                        }}
+                      >
+                        Accept
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        disabled={!joinable}
+                        title={joinable ? undefined : !iv.link ? "No meeting link yet — ask the Team Builder to share one" : "Opens 15 minutes before the start"}
+                        onClick={() => iv.link && window.open(iv.link, "_blank", "noopener")}
+                      >
+                        Join call
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={() => setDeclining(iv)}>
+                      Decline
+                    </Button>
+                  </>
+                )}
+              </span>
+            </Row>
+          );
+        })}
+        {rows.length === 0 && (
+          <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">
+            {tab === "upcoming" ? "No interviews coming up. Invitations from Team Builders land here." : "No past interviews yet."}
+          </p>
+        )}
+      </Table>
       <p className="text-[12px] leading-[1.4] text-ink-2">Accept to confirm the slot; Join call then opens the meeting link. Declining sends the employer a note and keeps your application open.</p>
 
       <Modal

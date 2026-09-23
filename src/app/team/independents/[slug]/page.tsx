@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, use, useState } from "react";
-import { Breadcrumb, Button, Card, Field, InfoBanner, Input, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Select, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Field, InfoBanner, Input, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Select, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Avatar, CardHeading } from "@/components/team/ui";
 import { TrialFitScore } from "@/components/team/TrialWidgets";
 import { ActivityLog } from "@/components/portal/ActivityLog";
+import { DatePicker, fromISODate, startOfToday, toISODate } from "@/components/portal/DatePicker";
 import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { CONTRACT_NAMES, byName, FT_BENEFITS, isOffTrack, KEY_RESULTS, OBJECTIVE_KIND, REVISION_REASONS } from "@/lib/team/data";
@@ -216,7 +218,23 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
           ]}
         />
       }
-      nav={<ReturnNav fallback={<Breadcrumb items={[{ label: "All independents", href: "/team/independents" }, name]} />} />}
+      nav={
+        <ReturnNav
+          fallback={
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink render={<Link href="/team/independents" />}>All independents</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{name}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          }
+        />
+      }
       /* TB-058: both stay in the header at every tab and stage of the trial. */
       navActions={
         <>
@@ -747,7 +765,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               <Input value={ft.salary} inputMode="decimal" onChange={(e) => setFt((f) => ({ ...f, salary: e.target.value.replace(/[^0-9.,]/g, "") }))} />
             </Field>
             <Field label="Start date" className="flex-1">
-              <Input type="date" value={ft.start} onChange={(e) => setFt((f) => ({ ...f, start: e.target.value }))} />
+              <DatePicker value={fromISODate(ft.start)} onChange={(d) => setFt((f) => ({ ...f, start: d ? toISODate(d) : "" }))} disabled={{ before: startOfToday() }} />
             </Field>
           </div>
           <Field label="Exclusive benefits (optional)">

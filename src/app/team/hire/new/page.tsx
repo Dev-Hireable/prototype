@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useId, useState } from "react";
 import { MdAdd, MdAttachMoney, MdBorderColor, MdOutlineCalendarToday, MdOutlineLibraryBooks, MdRemove } from "react-icons/md";
-import { BackButton, Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Modal, Page, Select, Steps, Textarea } from "@/components/independent/ui";
+import { Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Modal, Page, Select, Steps, Textarea } from "@/components/independent/ui";
+import { BreadcrumbBack } from "@/components/portal/nav";
 import { SkillPicker } from "@/components/portal/controls";
+import { Tip } from "@/components/portal/Tip";
 import { RateSourceModal, TemplateBrowser, TemplateSuggestions } from "@/components/team/RoleTemplates";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { LEVELS, levelName, suggestRange } from "@/lib/team/role-templates";
@@ -374,7 +376,7 @@ function CreateRoleWizard() {
     );
 
   return (
-    <Page title="Create Role" padded={false} nav={<BackButton onClick={back}>{backLabel}</BackButton>}>
+    <Page title="Create Role" padded={false} nav={<BreadcrumbBack onClick={back}>{backLabel}</BreadcrumbBack>}>
       <div className="flex flex-col items-center gap-6 px-10 pt-4 pb-20">
         <div className="flex w-[720px] flex-col gap-2 tracking-[0.2px]">
           {kind === "review" ? (
@@ -800,16 +802,17 @@ function DateChip({ children, tone, selected, onClick }: { children: React.React
 
 function EditButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
-    <button
-      type="button"
-      aria-label={`Edit ${label.replace(/:$/, "")}`}
-      title="Edit"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink enabled:hover:bg-surface-2 disabled:opacity-40"
-    >
-      <MdBorderColor size={16} aria-hidden />
-    </button>
+    <Tip label={disabled ? "Save or cancel your edit first" : "Edit"} wrap={disabled}>
+      <button
+        type="button"
+        aria-label={`Edit ${label.replace(/:$/, "")}`}
+        onClick={onClick}
+        disabled={disabled}
+        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink enabled:hover:bg-surface-2 disabled:opacity-40"
+      >
+        <MdBorderColor size={16} aria-hidden />
+      </button>
+    </Tip>
   );
 }
 

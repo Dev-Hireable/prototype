@@ -1,5 +1,6 @@
 "use client";
 
+import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useEffectEvent, useId, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type ReactNode, type RefObject } from "react";
@@ -117,11 +118,14 @@ export function MenuAction({
   destructive?: boolean;
   density?: MenuDensity;
 }) {
+  const { title, ...rest } = props;
   return (
-    <button {...props} role="menuitem" type="button" className={menuItemClass(density, destructive, className)}>
-      {icon}
-      {children}
-    </button>
+    <Tip label={title} wrap={!!rest.disabled} wrapClassName="w-full">
+      <button {...rest} role="menuitem" type="button" className={menuItemClass(density, destructive, className)}>
+        {icon}
+        {children}
+      </button>
+    </Tip>
   );
 }
 

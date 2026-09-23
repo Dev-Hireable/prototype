@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Chip, Field, InfoBanner, Input, KeyValue, MatchPill, Modal, ObjectiveRow, Steps } from "@/components/independent/ui";
+import { DatePicker, fromISODate, startOfToday, toISODate } from "@/components/portal/DatePicker";
 import { Avatar, MATCH_TOOLTIP } from "@/components/team/ui";
 import { OBJECTIVE_KIND } from "@/lib/team/data";
 import type { Independent, Objective, PaymentMethod, Role } from "@/lib/team/data";
@@ -29,8 +30,12 @@ function addWorkingDays(from: Date, days: number) {
   return d;
 }
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-const pretty = (s: string) => (s ? new Date(s).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
+/**
+ * Dates stay yyyy-mm-dd strings, read and written in local time. They were `toISOString()` (UTC)
+ * and `new Date("yyyy-mm-dd")` (UTC midnight), which put the start or end a day out near midnight
+ * or west of UTC.
+ */
+const pretty = (s: string) => fromISODate(s)?.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) ?? "—";
 
 /**
  * TB-105 Send Offer — the four-step flow the AC describes: Offer Letter → Start & End Dates →
@@ -55,12 +60,13 @@ export function SendOfferDialog({
   onSend: (terms: { start: string; end: string }) => void;
 }) {
   const [step, setStep] = useState(0);
-  const [start, setStart] = useState(iso(new Date()));
+  const [start, setStart] = useState(toISODate(new Date()));
   const [deposited, setDeposited] = useState(false);
   const [signature, setSignature] = useState("");
 
   const days = durationDays(role.duration);
-  const end = start ? iso(addWorkingDays(new Date(start), days)) : "";
+  const startDate = fromISODate(start);
+  const end = startDate ? toISODate(addWorkingDays(startDate, days)) : "";
   const rate = Number(proposal.rate.replace(/[^0-9.]/g, "")) || 0;
   const fee = rate * FEE_RATE;
 
@@ -148,7 +154,7 @@ export function SendOfferDialog({
           <div className="flex flex-col gap-4">
             <div className="flex gap-3">
               <Field label="Trial start date" className="flex-1">
-                <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+                <DatePicker value={startDate} onChange={(d) => setStart(d ? toISODate(d) : "")} disabled={{ before: startOfToday() }} />
               </Field>
               <Field label={`End date (${days} working days)`} className="flex-1">
                 <Input value={pretty(end)} readOnly />

@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { BackLink } from "@/components/portal/nav";
+import { BreadcrumbBack } from "@/components/portal/nav";
 
 /**
  * "Back to where I was" for pages reached through an action on another page — Message from a
@@ -23,6 +23,10 @@ const ORIGINS: [RegExp, string][] = [
   [/^\/team\/independents\/[^/]+$/, "contract"],
   [/^\/team\/independents$/, "independents"],
   [/^\/team\/notifications$/, "notifications"],
+  // "View in pipeline" leaves from these, so the board's back link can say where it goes.
+  [/^\/team\/discover\/saved$/, "saved independents"],
+  [/^\/team\/discover\/[^/]+$/, "profile"],
+  [/^\/team\/discover$/, "Discover"],
   [/^\/team$/, "dashboard"],
   [/^\/independent\/jobs\/applications\/[^/]+$/, "application"],
   [/^\/independent\/jobs\/applications$/, "applications"],
@@ -67,5 +71,5 @@ export function useReturnTo(): { href: string; label: string } | null {
  */
 export function ReturnNav({ fallback }: { fallback?: ReactNode }) {
   const back = useReturnTo();
-  return back ? <BackLink href={back.href}>{back.label}</BackLink> : (fallback ?? null);
+  return back ? <BreadcrumbBack href={back.href}>{back.label}</BreadcrumbBack> : (fallback ?? null);
 }

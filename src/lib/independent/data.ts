@@ -170,7 +170,7 @@ Important Disclaimer: This is a form provided on an "as is" basis without repres
 /* ---------------------------------------------------------- interviews ---- */
 
 /** `starts` is an invitation still waiting on the talent's answer. */
-export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined"; past?: boolean };
+export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined" | "cancelled"; past?: boolean };
 
 export const interviews: Interview[] = [];
 

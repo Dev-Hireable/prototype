@@ -1,5 +1,6 @@
 "use client";
 
+import { Tip } from "@/components/portal/Tip";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { TFP_TOOLTIP, TFP_WEIGHTS } from "@/lib/team/data";
 import type { Contract } from "@/lib/team/data";
@@ -24,9 +25,9 @@ export function TrialFitScore({ contract, final = false }: { contract: Scored; f
     <PanelCard
       title="Trial Fit Score"
       aside={
-        <span title={TFP_TOOLTIP} className="cursor-help rounded-lg bg-ink px-3 py-1.5 text-[18px] leading-[1.2] font-bold text-white">
-          {contract.tfs.overall}%
-        </span>
+        <Tip label={TFP_TOOLTIP}>
+          <span className="cursor-help rounded-lg bg-ink px-3 py-1.5 text-[18px] leading-[1.2] font-bold text-white">{contract.tfs.overall}%</span>
+        </Tip>
       }
     >
       {/* TB-074: on a full-time contract this is the trial's final score and stops moving. */}
