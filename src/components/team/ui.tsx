@@ -2,14 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useState, type ReactNode } from "react";
 import { MdBookmark, MdOutlineBookmarkBorder, MdPlayCircleFilled, MdStar } from "react-icons/md";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Chip, KeyValue, LinkButton, MatchPill, WorkStyleChart } from "@/components/independent/ui";
+import { Button, Chip, KeyValue, LinkButton, MatchPill, Toast, useToast } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
-import { evaluationsOf, useDeal } from "@/lib/demo/deal";
+import { TalentProfile } from "@/components/portal/TalentProfile";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { evaluationsOf, isFullTime, useDeal } from "@/lib/demo/deal";
+import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
+import { traitTagsFor } from "@/lib/demo/work-style";
+import { pastEvaluations, type PastEvaluation } from "@/lib/independent/data";
 import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
@@ -211,105 +215,133 @@ export function CardHeading({ children }: { children: ReactNode }) {
   );
 }
 
-/** Figma "Drawer" (800 wide, right-anchored): 18px title row px-6 py-5 with a close icon, body p-6 gap-4, dim overlay behind. */
-export function Drawer({ open, onClose, title, children, width = 800 }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; width?: number }) {
+/**
+ * Figma "Drawer" (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
+ * mount and unmount in a single frame. An 18px title row (px 24 / py 20) with an optional action
+ * beside the close, then a scrolling body (p 24, gap 16). The Sheet portals, traps focus and closes
+ * on Escape or a click outside.
+ */
+export function Drawer({ open, onClose, title, action, children, width = 800 }: { open: boolean; onClose: () => void; title: string; action?: ReactNode; children: ReactNode; width?: number }) {
   const Close = ICONS.close;
-  if (!open) return null;
-  // Portalled for the same reason as Modal — see the note there.
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
-      <aside className="flex h-full flex-col bg-white" style={{ width }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-5">
-          <h2 className="text-[18px] leading-[1.4] font-semibold text-ink">{title}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-ink">
-            <Close size={20} aria-hidden />
-          </button>
-        </div>
+  return (
+    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent side="right" showCloseButton={false} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }}>
+        <SheetHeader className="flex-row items-center justify-between gap-3 px-6 py-5">
+          <SheetTitle className="font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
+          <div className="flex items-center gap-4">
+            {action}
+            <SheetClose aria-label="Close" className="text-ink">
+              <Close size={20} aria-hidden />
+            </SheetClose>
+          </div>
+        </SheetHeader>
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
-      </aside>
-    </div>,
-    document.body,
+      </SheetContent>
+    </Sheet>
   );
 }
 
-/** Figma "Discover / Independent profile · preview drawer": profile card, match note, Save + Invite, rate, skills, View full profile. */
+/**
+ * Figma "Discover / Independent profile · preview drawer", drawn as the same Contra-style profile as
+ * the full page and the talent's own view, in a sheet that slides in: the hero (Invite / Save, the
+ * facts, the intro) and the tabs are all here, with the full page one click away in the header.
+ */
 export function ProfileDrawer({ person, onClose, onInvite }: { person: Independent | null; onClose: () => void; onInvite: (p: Independent) => void }) {
+  const withReturn = useWithReturn();
+  /** The one on screen, kept while the sheet slides out so it doesn't empty mid-animation. */
+  const [last, setLast] = useState(person);
+  if (person && person.slug !== last?.slug) setLast(person);
+  const p = person ?? last;
+  const [toast, setToast] = useToast();
+  return (
+    <>
+      <Drawer
+        open={!!person}
+        onClose={onClose}
+        title="Independent profile"
+        action={
+          p && (
+            <LinkButton size="sm" href={withReturn(`/team/discover/${p.slug}`)}>
+              View full profile
+            </LinkButton>
+          )
+        }
+      >
+        {p && <TeamProfile person={p} onInvite={() => onInvite(p)} onPlayIntro={() => setToast("Intro video plays here")} inSheet />}
+      </Drawer>
+      <Toast message={toast} onClose={() => setToast(null)} />
+    </>
+  );
+}
+
+/**
+ * A talent's profile as a Team Builder reads it (IN-060): the talent's own TalentProfile, with the
+ * match beside the name and Invite to apply / Save as the actions. Their work style is the Workplace
+ * Tags under About. The Discover page draws it full width; the preview sheet keeps its tab to itself.
+ */
+export function TeamProfile({ person, onInvite, onPlayIntro, inSheet = false }: { person: Independent; onInvite: () => void; onPlayIntro: () => void; inSheet?: boolean }) {
+  const deal = useDeal();
+  const pair = person.slug === PAIR.independent.slug;
+  /** The intro video the live pair added to their own profile, which plays here too. */
+  const introVideo = useIntroVideo();
+  /** The live pair's evaluations are the ones the talent's own profile lists; nobody else has any on Hireable yet. */
+  const history: PastEvaluation[] =
+    pair
+      ? [
+          ...(deal ? evaluationsOf(deal.contract).map((e) => ({ company: deal.company, role: deal.title, type: isFullTime(deal) ? ("full-time" as const) : ("trial" as const), date: e.date, stars: e.stars, feedback: e.feedback })) : []),
+          ...pastEvaluations,
+        ]
+      : [];
+  return (
+    <TalentProfile
+      viewer="team"
+      person={{
+        name: person.name,
+        headline: person.role,
+        photo: person.avatar,
+        intro: person.intro,
+        introVideo: pair ? (introVideo ?? undefined) : undefined,
+        rate: person.rate,
+        level: person.level,
+        location: person.location,
+        bio: person.bio,
+        skills: person.skills,
+        tags: traitTagsFor(person.workStyle.independent, "independent"),
+        links: person.links ?? { linkedin: "", portfolio: "", website: "" },
+        history,
+      }}
+      // The same gradient match pill as the Discover cards, at the header's size.
+      badge={<MatchPill pct={person.match} title={MATCH_TOOLTIP} size="lg" />}
+      actions={<TeamProfileActions person={person} onInvite={onInvite} />}
+      onPlayIntro={onPlayIntro}
+      tabInUrl={!inSheet}
+    />
+  );
+}
+
+/** Invite to apply — or their column on the role's board once they're a candidate — and Save. */
+function TeamProfileActions({ person, onInvite }: { person: Independent; onInvite: () => void }) {
   const { saved, toggleSaved, pipelineOf } = useDemo();
   const withReturn = useWithReturn();
-  const p = person;
-  const inPipeline = p ? pipelineOf(p.slug) : undefined;
-  const isSaved = !!p && saved.includes(p.slug);
+  const inPipeline = pipelineOf(person.slug);
+  const isSaved = saved.includes(person.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
-    <Drawer open={!!p} onClose={onClose} title="Independent profile">
-      {p && (
-        <>
-          <div className="flex min-h-[272px] flex-col gap-4 rounded-lg p-4 outline -outline-offset-1 outline-border">
-            <div className="flex items-start justify-between">
-              <span className="relative">
-                <Avatar src={p.avatar} size={56} />
-                <span aria-hidden className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-white bg-ok" />
-              </span>
-              <button type="button" aria-label={isSaved ? "Unsave" : "Save"} onClick={() => toggleSaved(p.slug)} className="flex size-9 items-center justify-center rounded-full border border-primary text-primary">
-                <Mark size={20} aria-hidden />
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
-              <h3 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-                {p.name}
-              </h3>
-              <p className="text-[16px] leading-[1.5] tracking-[0.2px] text-ink-2">{p.role}</p>
-            </div>
-            <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{p.bio} Available for a 30-day trial starting October.</p>
-          </div>
-          <p className="flex items-center gap-3 text-[13px] leading-[1.4] text-ink-2">
-            <MatchPill pct={p.match} /> Work style: {Math.round((p.match * 6) / 100)} of 6 traits aligned. See the full profile for the trait grid.
-          </p>
-          <div className="flex gap-4">
-            <Button size="lg" className="flex-1" onClick={() => toggleSaved(p.slug)}>
-              {isSaved ? "Saved" : "Save"}
-            </Button>
-            {inPipeline ? (
-              <LinkButton size="lg" className="flex-1" href={withReturn(pipelineHref(inPipeline))}>
-                View in pipeline
-              </LinkButton>
-            ) : (
-              <Button size="lg" variant="primary" className="flex-1" onClick={() => onInvite(p)}>
-                Invite to apply
-              </Button>
-            )}
-          </div>
-          <div className="flex flex-col gap-6 rounded-lg p-4 outline -outline-offset-1 outline-border">
-            <h4 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]">Rate &amp; details</h4>
-            <div className="flex gap-2">
-              {(
-                [
-                  ["Rate", p.rate.replace(" /month", "/mo")],
-                  ["Experience", p.level],
-                  ["Location", p.location],
-                ] as const
-              ).map(([k, v]) => (
-                <div key={k} className="flex min-w-0 flex-1 flex-col gap-3 rounded bg-surface-2 p-2 leading-[1.2] tracking-[0.2px]">
-                  <span className="h-3 text-[10px] text-ink-2">{k}</span>
-                  <span className="text-[14px] text-[#101828]">{v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-6 rounded-lg p-4 outline -outline-offset-1 outline-border">
-            <h4 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]">Skills</h4>
-            <div className="flex flex-wrap gap-2">
-              {p.skills.map((s) => (
-                <Chip key={s}>{s}</Chip>
-              ))}
-            </div>
-          </div>
-          <Link href={`/team/discover/${p.slug}`} className="flex h-11 items-center justify-center rounded-lg border border-border bg-white text-[14px] font-medium text-ink">
-            View full profile
-          </Link>
-        </>
+    <>
+      {inPipeline ? (
+        <LinkButton variant="primary" href={withReturn(pipelineHref(inPipeline))}>
+          View in pipeline
+        </LinkButton>
+      ) : (
+        <Button variant="primary" onClick={onInvite}>
+          Invite to apply
+        </Button>
       )}
-    </Drawer>
+      <Button onClick={() => toggleSaved(person.slug)}>
+        <Mark size={18} aria-hidden className={isSaved ? "text-primary" : "text-ink-2"} />
+        {isSaved ? "Saved" : "Save"}
+      </Button>
+    </>
   );
 }
 
@@ -335,7 +367,7 @@ export function IntroCard({ person, onPlay }: { person: Independent; onPlay: () 
   );
 }
 
-/** Figma candidate profile right column (512): profile card, Rate & details, Work style, Skills, History. */
+/** Figma candidate profile right column (512): profile card, Rate & details, Skills, History. Work style is the tags, not a chart. */
 export function ProfileColumn({ person: p }: { person: Independent }) {
   const { saved, toggleSaved } = useDemo();
   const isSaved = saved.includes(p.slug);
@@ -379,7 +411,6 @@ export function ProfileColumn({ person: p }: { person: Independent }) {
           <KeyValue label="Location" value={p.location} />
         </div>
       </div>
-      <WorkStyleChart builder={p.workStyle.builder} independent={p.workStyle.independent} match={p.match} />
       <div className="flex flex-col gap-6 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
         <h3 className={H4}>Skills</h3>
         <div className="flex flex-wrap gap-2">

@@ -56,11 +56,14 @@ export type Independent = {
   bio: string;
   /** Intro video still (Figma asset); others fall back to their photo. */
   intro?: string;
-  workStyle: { builder: number[]; independent: number[] };
+  /** Website, LinkedIn and portfolio as the talent typed them (IN-060 lists website and LinkedIn). */
+  links?: { linkedin: string; portfolio: string; website: string };
+  /** The talent's quiz answers — their Workplace Tags come from these. */
+  workStyle: { independent: number[] };
 };
 
-/** No quiz answers until each side takes it; `withLiveProfile` reads the pair's from storage. */
-const WS = { builder: [] as number[], independent: [] as number[] };
+/** No quiz answers until the talent takes it; `withLiveProfile` reads the pair's from storage. */
+const WS = { independent: [] as number[] };
 
 export const independents: Independent[] = [
   {
@@ -75,6 +78,7 @@ export const independents: Independent[] = [
     location: "Manila, Philippines",
     skills: ["Lead generation", "Cold calling", "CRM management", "LinkedIn prospecting", "Sales outreach"],
     bio: "Sales leader with eight years in B2B SaaS, most recently running a six-person outbound team for a US fintech. I own pipeline from first touch to signed contract, coach reps on discovery calls, and keep the CRM honest.",
+    links: { linkedin: "linkedin.com/in/juandelacruz", portfolio: "juandelacruz.notion.site", website: "juandelacruz.ph" },
     workStyle: WS,
   },
 ];
@@ -473,7 +477,7 @@ export const profile = {
 };
 
 /** What the talent keeps on their own profile (@/lib/independent/store), as far as a Team Builder sees it. */
-type TalentProfile = { name?: string; headline?: string; bio?: string; rate?: string; level?: string; location?: string; skills?: string[]; photo?: string };
+type TalentProfile = { name?: string; headline?: string; bio?: string; rate?: string; level?: string; location?: string; skills?: string[]; photo?: string; links?: Independent["links"] };
 const TALENT_PROFILE_KEY = "hireable.demo.ind.profile";
 const TALENT_SEED_PHOTO = "/independent/avatar.jpg";
 let profileCache: { raw: string | null; profile: TalentProfile | null } = { raw: null, profile: null };
@@ -492,9 +496,9 @@ function withLiveProfile(i: Independent): Independent {
   } catch {
     return i;
   }
-  // Both sides' quiz answers, so the chart moves when either of them retakes it. The match stays
-  // the seeded figure: the demo doesn't score it from the quiz (the real app's matching differs).
-  const styled = { ...i, workStyle: { builder: storedWorkStyle("team"), independent: storedWorkStyle("independent") } };
+  // The talent's quiz answers, so their tags change when they retake it. The match stays the seeded
+  // figure: the demo doesn't score it from the quiz (the real app's matching differs).
+  const styled = { ...i, workStyle: { independent: storedWorkStyle("independent") } };
   const p = profileCache.profile;
   if (!p) return styled;
   return {
@@ -506,6 +510,8 @@ function withLiveProfile(i: Independent): Independent {
     level: p.level || i.level,
     location: p.location?.trim() || i.location,
     skills: p.skills?.length ? p.skills : i.skills,
+    // A link the talent cleared stays cleared, so the saved set replaces the seed whole.
+    links: p.links ?? i.links,
     // The two portals ship different crops of the same photo; only a real change replaces it.
     avatar: p.photo && p.photo !== TALENT_SEED_PHOTO ? p.photo : i.avatar,
   };

@@ -1,7 +1,6 @@
 "use client";
 
 import { useDeal, usePostings } from "@/lib/demo/deal";
-import { storedWorkStyle } from "@/lib/demo/work-style";
 import type { Application } from "./data";
 
 /** The job behind an application, as the talent's application, proposal and offer screens show it. */
@@ -15,8 +14,6 @@ export type JobView = {
   experience: string;
   contract: "Trial" | "Full-time";
   skills: string[];
-  /** The company's work-style answers; absent once the posting has come off the board. */
-  workStyle?: number[];
   expectation: string;
   attachment?: string;
   location: string;
@@ -46,7 +43,6 @@ export function useJobView(app: Application): JobView {
     experience: posting?.level ?? "—",
     contract: posting?.type === "full-time" ? "Full-time" : "Trial",
     skills: posting?.skills ?? [],
-    workStyle: posting ? storedWorkStyle("team") : undefined,
     expectation: posting?.expectation ?? "",
     attachment: posting?.attachment,
     location: posting?.location ?? "",

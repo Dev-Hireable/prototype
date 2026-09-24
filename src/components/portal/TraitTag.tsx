@@ -4,6 +4,7 @@ import type { IconType } from "react-icons";
 import { Chip } from "@/components/independent/ui";
 import { Tip } from "@/components/portal/Tip";
 import { WORK_STYLE_TRAITS, type WorkStyleTag } from "@/lib/demo/work-style";
+import { nunitoSans } from "@/web-app/lib/fonts/nunito-sans";
 
 /**
  * Work-style trait badge, matching the real app's `WorktraitTag`: a pill coloured by the trait it
@@ -44,13 +45,23 @@ export function TagMeaning({ tag, view = "self", children }: { tag: WorkStyleTag
 /** The ring a focused badge shows, since tabbing to one is how a keyboard user reads its tooltip. */
 const FOCUS = "cursor-help outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary";
 
-export function TraitTag({ tag, view }: { tag: WorkStyleTag; view?: "self" | "other" }) {
+/**
+ * `md` is the badge the dashboards show. `lg` is Figma "Worktrait Tags" as the talent profile
+ * draws them (px 12 / py 8, gap 4, 16px icon, Nunito Sans Medium 14), in the real app's face.
+ */
+const SIZE = {
+  md: { box: "h-7 items-center gap-1.5 px-2.5", label: "text-[12px] leading-none font-semibold tracking-wide" },
+  lg: { box: "items-end gap-1 px-3 py-2", label: `${nunitoSans.className} text-[14px] leading-[1.2] font-medium tracking-[0.2px]` },
+};
+
+export function TraitTag({ tag, view, size = "md" }: { tag: WorkStyleTag; view?: "self" | "other"; size?: keyof typeof SIZE }) {
   const { icon: Icon, bg } = TRAITS[tag.trait % TRAITS.length];
+  const s = SIZE[size];
   return (
     <TagMeaning tag={tag} view={view}>
-      <span tabIndex={0} className={`inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-ink ${FOCUS}`} style={{ backgroundColor: bg }}>
+      <span tabIndex={0} className={`inline-flex justify-center rounded-full text-ink ${s.box} ${FOCUS}`} style={{ backgroundColor: bg }}>
         <Icon size={16} aria-hidden className="shrink-0" />
-        <span className="text-[12px] leading-none font-semibold tracking-wide uppercase">{tag.label}</span>
+        <span className={`${s.label} uppercase`}>{tag.label}</span>
       </span>
     </TagMeaning>
   );

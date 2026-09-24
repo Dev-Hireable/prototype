@@ -38,6 +38,7 @@ import {
   MdOutlineHome,
   MdOutlineInfo,
   MdOutlineInsertChart,
+  MdOutlineLocationOn,
   MdOutlineNotes,
   MdOutlineNotificationsNone,
   MdOutlinePeople,
@@ -46,6 +47,7 @@ import {
   MdOutlineSecurity,
   MdOutlineSettings,
   MdOutlineTrackChanges,
+  MdOutlineVideoCall,
   MdOutlineVideocam,
   MdOutlineViewCarousel,
   MdOutlineVisibility,
@@ -59,6 +61,7 @@ import {
   MdOutlinePictureAsPdf,
   MdOutlineCalendarToday,
   MdPersonOutline,
+  MdPlayCircleFilled,
   MdSearch,
   MdStar,
   MdTrendingUp,
@@ -140,6 +143,9 @@ export const ICONS = {
   calendar: MdOutlineCalendarToday,
   description: MdOutlineDescription,
   target: MdOutlineTrackChanges,
+  location: MdOutlineLocationOn,
+  play: MdPlayCircleFilled,
+  videoAdd: MdOutlineVideoCall,
 } satisfies Record<string, IconType>;
 
 export type IconName = keyof typeof ICONS;

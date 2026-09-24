@@ -41,6 +41,9 @@ export default function Transactions() {
   const [range, setRange] = useState<keyof typeof RANGES>("All time");
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<Transaction | null>(null);
+  /** The transaction on screen, kept while the drawer slides out so it doesn't empty mid-animation. */
+  const [viewing, setViewing] = useState(detail);
+  if (detail && detail !== viewing) setViewing(detail);
   const [toast, setToast] = useToast();
 
   const contracts = ["All contracts", ...new Set(transactions.map((t) => t.contract))];
@@ -214,21 +217,21 @@ export default function Transactions() {
       )}
 
       <Drawer open={!!detail} onClose={() => setDetail(null)} title="Transaction">
-        {detail && (
+        {viewing && (
           <>
             <div className="flex items-center justify-between">
               <p className="font-display text-[28px] leading-[1.5] font-semibold text-ink" style={DM}>
-                {detail.amount}
+                {viewing.amount}
               </p>
-              <StatusDot tone={detail.status.tone}>{detail.detail.drawerStatus}</StatusDot>
+              <StatusDot tone={viewing.status.tone}>{viewing.detail.drawerStatus}</StatusDot>
             </div>
             <div className="flex items-center gap-2">
-              <Chip>{detail.type}</Chip>
-              <span className="text-[13px] leading-[1.4] text-ink-2">{detail.detail.time}</span>
+              <Chip>{viewing.type}</Chip>
+              <span className="text-[13px] leading-[1.4] text-ink-2">{viewing.detail.time}</span>
             </div>
             <dl className="flex flex-col gap-2 rounded-lg bg-[#fafafa] p-4 text-[13px] leading-[1.4]">
               <dt className="font-medium text-ink-2">Details</dt>
-              {detail.detail.rows.map(([k, v]) => (
+              {viewing.detail.rows.map(([k, v]) => (
                 <div key={k} className="flex gap-4">
                   <span className="w-40 shrink-0 text-ink-2">{k}</span>
                   <span className="min-w-0 flex-1 text-ink">{v}</span>
@@ -237,7 +240,7 @@ export default function Transactions() {
             </dl>
             <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
               <dt className="font-medium text-ink-2">Breakdown</dt>
-              {detail.detail.breakdown.map(([k, v]) => (
+              {viewing.detail.breakdown.map(([k, v]) => (
                 <div key={k} className="flex gap-4">
                   <span className="w-40 shrink-0 text-ink-2">{k}</span>
                   <span className="min-w-0 flex-1 text-ink">{v}</span>
@@ -245,12 +248,12 @@ export default function Transactions() {
               ))}
               <div className="flex items-center justify-between border-t border-border pt-2 text-[14px] font-semibold text-ink">
                 <span>Total charged</span>
-                <span>{detail.detail.total}</span>
+                <span>{viewing.detail.total}</span>
               </div>
             </dl>
             <div className="flex flex-col">
               <p className="text-[13px] leading-[1.4] font-medium text-ink-2">Timeline</p>
-              {detail.detail.timeline.map((step) => (
+              {viewing.detail.timeline.map((step) => (
                 <div key={step.title} className="flex items-center gap-3 py-2.5">
                   <span className={`size-2.5 shrink-0 rounded-full ${step.done ? "bg-ok" : "bg-[#e5e5e5]"}`} />
                   <div className={`flex flex-col leading-[1.4] whitespace-nowrap ${step.done ? "" : "text-ink-2"}`}>
@@ -266,8 +269,8 @@ export default function Transactions() {
               </Button>
               {/* A payment is disputed from its contract, where the escrow and the dispute live —
                   this used to show a toast about a Messages form that doesn't exist. */}
-              {detail.contractHref && (
-                <LinkButton size="lg" className="flex-1 justify-center" href={detail.contractHref}>
+              {viewing.contractHref && (
+                <LinkButton size="lg" className="flex-1 justify-center" href={viewing.contractHref}>
                   Report a problem
                 </LinkButton>
               )}

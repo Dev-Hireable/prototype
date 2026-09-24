@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Card, Chip, JobBadge, KeyValue, LinkButton, Modal, Page, PipelineTracker, Toast, WorkStyleChart, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, JobBadge, KeyValue, LinkButton, Modal, Page, PipelineTracker, Toast, useToast } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { useDeal } from "@/lib/demo/deal";
 import { useJobView } from "@/lib/independent/job-view";
@@ -24,7 +24,7 @@ const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-de
  */
 export default function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { applications, setStage, declineInterview, workStyle } = useDemo();
+  const { applications, setStage, declineInterview } = useDemo();
   const app = applications.find((a) => a.id === id);
   if (!app) notFound();
   const job = useJobView(app);
@@ -84,7 +84,6 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
                 ))}
               </div>
             </Card>
-            {job.workStyle && <WorkStyleChart builder={job.workStyle} independent={workStyle} match={app.match} />}
           </div>
 
           <div className="flex w-[385px] shrink-0 flex-col gap-4">

@@ -1,20 +1,30 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Card, Chip, Field, JobBadge, KeyValue, LinkButton, Modal, Page, Textarea, Toast, useToast } from "@/components/independent/ui";
-import { BIO_MAX, pastEvaluations } from "@/lib/independent/data";
+import { BioEditor, HeroEditor, LinksEditor, SkillsEditor } from "@/components/independent/ProfileEditors";
+import { Button, Modal, Page, Toast, useToast } from "@/components/independent/ui";
+import { EditButton } from "@/components/portal/InlineEdit";
+import { FlatBadge, TalentProfile } from "@/components/portal/TalentProfile";
+import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
+import { ME, pastEvaluations } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
-import { WorkStyleChip } from "@/components/portal/TraitTag";
+import { useQueryState } from "@/lib/portal/query-state";
 
-const Star = ICONS.star;
-const Bookmark = ICONS.saved;
+const Eye = ICONS.visibility;
+const AddVideo = ICONS.videoAdd;
 
-const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-deep";
+/** What's open for editing. It's in the URL, so /independent/profile?edit=profile lands in the header's editor. */
+const EDITS = ["none", "profile", "bio", "skills", "links"] as const;
+type Edit = (typeof EDITS)[number];
 
-/** Figma "Profile / Talent profile · view" + "Retake quiz · confirm": two equal columns (gap 24), cards p 16 / gap 24. */
+/**
+ * IN-060 — your profile exactly as Team Builders read it (the same TalentProfile their Discover page
+ * and preview sheet draw), edited in place the way Create Role's Review is: the pencil next to a part
+ * turns it into its fields with Cancel / Save, and the other pencils wait until that's done — no
+ * modal, no separate page (IN-061, IN-062, IN-065). Your intro video is added from its own card.
+ */
 export default function Profile() {
   const { profile, setProfile, tags, contracts } = useDemo();
   const router = useRouter();
@@ -27,153 +37,135 @@ export default function Profile() {
     ...contracts.flatMap((c) => c.evaluations.map((e) => ({ company: c.company, role: c.title, type: c.type, date: e.date, stars: e.stars, feedback: e.feedback }))),
     ...pastEvaluations,
   ];
+  const [editing, setEditing] = useQueryState<Edit>("edit", "none", EDITS);
+  const done = () => setEditing("none");
   const [retake, setRetake] = useState(false);
-  /** IN-062 — the bio has its own editor, with the 500-character limit on it. */
-  const [bio, setBio] = useState<string | null>(null);
   const [toast, setToast] = useToast();
+  const introVideo = useIntroVideo();
+  const introFile = useRef<HTMLInputElement>(null);
+  /**
+   * An editor starts from the saved profile, which loads from storage just after mount; keying on it
+   * re-seeds an editor opened straight from the URL, instead of leaving it on the seed.
+   */
+  const seed = [profile.name, profile.headline, profile.rate, profile.level, profile.location, profile.bio, profile.skills.join(","), profile.photo.length, Object.values(profile.links).join(",")].join("|");
+  /** Another part is open: Save or Cancel it first, as on Create Role's Review. */
+  const locked = editing !== "none";
+  /** The pencil next to a part (its own editor replaces the part, pencil and all). */
+  const pencil = (label: string, part: Edit) => editing !== part && <EditButton label={label} onClick={() => setEditing(part)} disabled={locked} />;
 
   return (
     <Page title="Profile">
-      <div className="flex items-center justify-between gap-3">
-        {/* IN-060 — this page is the Team Builder's view of you, not a separate internal one. */}
-        <p className="text-[13px] leading-[1.4] text-ink-2">This is exactly how your profile appears to Team Builders.</p>
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-[#eef9f2] px-2.5 py-1 text-[12px] leading-4 font-semibold tracking-[0.24px] text-ok">Pro</span>
-          {/* IN-064 — the quiz is the real app's onboarding (/onboarding/talent). */}
-          {tags.length ? (
-            <Button size="lg" onClick={() => setRetake(true)}>
-              Retake quiz
-            </Button>
+      <TalentProfile
+        viewer="self"
+        person={{ ...profile, intro: ME.intro, introVideo: introVideo ?? undefined, tags, history }}
+        badge={<FlatBadge>Pro</FlatBadge>}
+        note={
+          // IN-060 — this page is the Team Builder's view of you, not a separate internal one.
+          <p className="flex items-center gap-1.5 text-[13px] leading-[1.4] text-ink-2">
+            <Eye size={16} aria-hidden className="shrink-0" />
+            This is exactly how your profile appears to Team Builders.
+          </p>
+        }
+        onPlayIntro={() => setToast("Intro video plays here")}
+        introAction={
+          <>
+            <input
+              ref={introFile}
+              type="file"
+              accept={INTRO_TYPES.join(",")}
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                const problem = checkIntro(file);
+                if (problem) return setToast(problem);
+                try {
+                  await saveIntro(file);
+                  setToast(introVideo ? "Intro video changed" : "Intro video added");
+                } catch {
+                  setToast("That video couldn't be saved. Try a shorter one.");
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => introFile.current?.click()}
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white pr-3 pl-2 text-[13px] leading-none font-medium text-ink shadow-[0_2px_8px_rgba(0,0,0,.15)] transition hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              <AddVideo size={18} aria-hidden className="text-primary" />
+              {introVideo ? "Change intro" : "Add intro"}
+            </button>
+          </>
+        }
+        edit={{
+          // IN-061 — photo, name, headline, where you are and your links, rate and experience.
+          profile: pencil("profile details", "profile"),
+          // IN-062 — the bio, 500 characters at most.
+          bio: pencil("bio", "bio"),
+          // IN-063 / IN-064 — the tags are display-only: the only way to change them is to retake the quiz, which is the
+          // real app's onboarding (/onboarding/talent), after a confirmation.
+          tags: tags.length ? (
+            <EditButton label="workplace tags" tip="Retake the quiz to change your tags" onClick={() => setRetake(true)} disabled={locked} />
           ) : (
-            <LinkButton size="lg" href="/onboarding/talent">
-              Take the quiz
-            </LinkButton>
-          )}
-          <LinkButton size="lg" variant="primary" href="/independent/profile/edit">
-            Edit profile
-          </LinkButton>
-        </div>
-      </div>
-      <div className="flex items-start gap-6">
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {/* About: p 16, gap 24 */}
-          <Card className="flex flex-col gap-6 p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col gap-3">
-                <span className="relative size-14">
-                  <Image src={profile.photo} alt="" width={112} height={112} className="size-14 rounded-full bg-white object-cover outline -outline-offset-1 outline-border" />
-                  <span className="absolute top-[43px] left-[43px] size-2.5 rounded-full bg-ok ring-2 ring-white" />
-                </span>
-                <div className="flex flex-col justify-center leading-[1.5] tracking-[0.2px] whitespace-nowrap">
-                  <p className="font-display text-[24px] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-                    {profile.name}
-                  </p>
-                  <p className="text-[16px] text-ink-2">{profile.headline}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                aria-label="Bookmark profile"
-                onClick={() => setToast("Profile bookmarked")}
-                className="flex size-7 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary"
-              >
-                <Bookmark size={16} aria-hidden />
-              </button>
-            </div>
-            <div className="flex flex-col gap-2">
-              <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink">{profile.bio}</p>
-              {/* IN-062 — edit the bio where you read it, without opening the whole form. */}
-              <Button size="sm" className="self-start" onClick={() => setBio(profile.bio)}>
-                Edit bio
-              </Button>
-            </div>
-          </Card>
-          <Card className="flex flex-col gap-6 p-4">
-            <h2 className={H2}>Skills</h2>
-            <div className="flex flex-wrap gap-2">
-              {profile.skills.map((s) => (
-                <Chip key={s}>{s.replace(/^\w/, (c) => c.toUpperCase())}</Chip>
-              ))}
-            </div>
-          </Card>
-          {/* IN-066 — company, role, contract type, date, rating and the written feedback. */}
-          <Card className="flex flex-col gap-6 p-4">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className={H2}>Performance history</h2>
-              <span className="text-[12px] leading-[1.4] text-ink-2">{history.length === 1 ? "1 evaluation" : `${history.length} evaluations`} · read-only</span>
-            </div>
-            <div className="flex flex-col gap-3">
-              {history.map((h, i) => (
-                <div key={`${h.company}-${h.date}`} className={`flex flex-col gap-2 pb-4 ${i < history.length - 1 ? "border-b border-[#e5e5e5]" : ""}`}>
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="flex min-w-0 flex-col gap-0.5">
-                      <span className="text-[13px] leading-[1.3] font-semibold text-ink">{h.company}</span>
-                      <span className="flex items-center gap-2 text-[12px] leading-[1.3] text-ink-2">
-                        {h.role} <JobBadge type={h.type} />
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 flex-col items-end gap-0.5">
-                      <span className="flex h-3 items-center gap-[3px] text-warn" aria-label={`${h.stars} out of 5 stars`}>
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <Star key={n} size={12} aria-hidden className={n <= h.stars ? "" : "text-[#d8d8d8]"} />
-                        ))}
-                      </span>
-                      <span className="text-[10px] text-[#757575]">{h.date}</span>
-                    </span>
-                  </div>
-                  <p className="text-[12px] leading-[1.45] text-ink-2 italic">&quot;{h.feedback}&quot;</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
-          <Card className="flex flex-col gap-6 p-4">
-            <h2 className={H2}>Rate &amp; details</h2>
-            <div className="flex gap-2">
-              <KeyValue label="Rate" value={`$${profile.rate}.00/mo`} />
-              <KeyValue label="Experience" value={profile.level} />
-              <KeyValue label="Location" value={profile.location} />
-            </div>
-          </Card>
-          {/* IN-063 — derived from the quiz answers and display-only: the only way to change them is to retake it. */}
-          <Card className="flex flex-col gap-4 p-6">
-            <h2 className="text-[16px] leading-[1.4] font-semibold text-ink">Work-style tags</h2>
-            <p className="text-[12px] leading-[1.4] text-ink-2">Worked out from your quiz answers, not typed in. Team Builders see these on your profile, and your match score on every role comes from the same answers.</p>
-            <div className="flex flex-wrap gap-2">
-              {tags.length ? (
-                tags.map((t) => <WorkStyleChip key={`${t.trait}-${t.label}`} tag={t} />)
-              ) : (
-                <p className="text-[13px] leading-[1.4] text-ink-2">No tags yet. Take the work-style quiz and the tags it gives you appear here.</p>
-              )}
-            </div>
-            {tags.length ? (
-              <Button size="sm" className="self-start" onClick={() => setRetake(true)}>
-                Retake quiz to change them
-              </Button>
-            ) : (
-              <LinkButton size="sm" variant="primary" className="self-start" href="/onboarding/talent">
-                Take the work-style quiz
-              </LinkButton>
-            )}
-          </Card>
-          <Card className="flex flex-col gap-4 p-6 text-[13px] leading-[1.4]">
-            <h2 className="text-[16px] font-semibold text-ink">Links</h2>
-            {Object.entries({ LinkedIn: profile.links.linkedin, Portfolio: profile.links.portfolio, Website: profile.links.website }).map(([k, v]) => (
-              <div key={k} className="flex gap-3">
-                <span className="w-[90px] font-medium text-ink-2">{k}</span>
-                {v ? (
-                  <a href={`https://${v}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                    {v}
-                  </a>
-                ) : (
-                  <span className="text-ink-2">Not added</span>
-                )}
-              </div>
-            ))}
-          </Card>
-        </div>
-      </div>
+            <EditButton label="workplace tags" tip="Take the work-style quiz" href="/onboarding/talent" disabled={locked} />
+          ),
+          // IN-065 — Create Role's skill picker.
+          skills: pencil("skills", "skills"),
+          portfolio: pencil("portfolio links", "links"),
+        }}
+        editor={{
+          profile: editing === "profile" && (
+            <HeroEditor
+              key={seed}
+              profile={profile}
+              onCancel={done}
+              onMessage={setToast}
+              onSave={(patch) => {
+                setProfile(patch);
+                done();
+                setToast("Profile saved");
+              }}
+            />
+          ),
+          bio: editing === "bio" && (
+            <BioEditor
+              key={seed}
+              value={profile.bio}
+              onCancel={done}
+              onSave={(bio) => {
+                setProfile({ bio });
+                done();
+                setToast("Bio saved");
+              }}
+            />
+          ),
+          skills: editing === "skills" && (
+            <SkillsEditor
+              key={seed}
+              skills={profile.skills}
+              onCancel={done}
+              onSave={(skills) => {
+                setProfile({ skills });
+                done();
+                setToast("Skills saved");
+              }}
+            />
+          ),
+          portfolio: editing === "links" && (
+            <LinksEditor
+              key={seed}
+              links={profile.links}
+              onCancel={done}
+              onSave={(links) => {
+                setProfile({ links });
+                done();
+                setToast("Links saved");
+              }}
+            />
+          ),
+        }}
+      />
 
       {/* IN-064 — confirm before restarting; the current tags stand until the new answers are in. */}
       <Modal
@@ -192,37 +184,6 @@ export default function Profile() {
           </>
         }
       />
-
-      {/* IN-062 — 500 characters, saved the moment you press save. */}
-      <Modal
-        open={bio !== null}
-        onClose={() => setBio(null)}
-        title="Edit bio"
-        description="Team Builders read this first, above your skills and history."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setBio(null)}>
-              Cancel
-            </Button>
-            <Button
-              size="lg"
-              variant="primary"
-              disabled={!bio?.trim()}
-              onClick={() => {
-                setProfile({ bio: (bio ?? "").trim() });
-                setBio(null);
-                setToast("Bio saved");
-              }}
-            >
-              Save bio
-            </Button>
-          </>
-        }
-      >
-        <Field label={`Bio · ${(bio ?? "").length} / ${BIO_MAX}`}>
-          <Textarea rows={6} maxLength={BIO_MAX} value={bio ?? ""} onChange={(e) => setBio(e.target.value)} />
-        </Field>
-      </Modal>
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

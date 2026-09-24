@@ -280,11 +280,11 @@ export function JobBadge({ type }: { type: "trial" | "full-time" }) {
  * `coded` switches to the TB-012 traffic light — yellow (medium), grey (low) — used on the
  * Discover talent cards where the AC asks for it. The high band keeps the gradient so a strong
  * score looks the same here as on the profile sheet. `title` carries the tooltip explaining
- * what the score is based on.
+ * what the score is based on. `lg` is the same pill at the profile header's size, beside a 32px name.
  */
-export function MatchPill({ pct, coded = false, title }: { pct: number; coded?: boolean; title?: string }) {
+export function MatchPill({ pct, coded = false, title, size = "md" }: { pct: number; coded?: boolean; title?: string; size?: "md" | "lg" }) {
   const tone = pct >= 60 ? "bg-[#f2c94c] text-[#5c4708]" : "bg-[#e5e5e5] text-[#616161]";
-  const base = "inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap";
+  const base = `inline-flex items-center rounded leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${size === "lg" ? "h-8 px-3 text-[14px]" : "h-6 px-2 text-[12px]"}`;
   if (coded && pct && pct < 80) {
     return (
       <Tip label={title}>
@@ -769,53 +769,4 @@ export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { sta
   );
 }
 
-/* ---------------------------------------------------------- work style ---- */
-
-const TRAITS = ["Decision Making", "Adaptability", "Responsiveness", "Time Management", "Cooperativeness", "Communication"];
-
-/**
- * Figma "Work style" card: six equal-width columns of five 80px cells that overlap by 32px (48px pitch), a
- * #e5e5e5 grid (column rules + a rule through each cell's centre) and a 64px bubble per party centred
- * on that rule — Team Builder #22d3ee, Independent #fbbf24, both at 90% with multiply so overlaps read green.
- */
-export function WorkStyleChart({ builder, independent, match }: { builder: number[]; independent: number[]; match: number }) {
-  return (
-    <Card className="flex flex-col gap-6 p-4">
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-ink-deep">Work style</CardTitle>
-          <MatchPill pct={match} />
-        </div>
-        <p className="w-full text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">See How Your Work Style Aligns With Independent Contractors.</p>
-      </div>
-      <div className="flex items-center gap-4 text-[10px] leading-[1.2] tracking-[0.2px] text-ink-2">
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-full bg-[#22d3ee]" /> Team Builder
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-full bg-[#fbbf24]" /> Independent contractor
-        </span>
-      </div>
-      <div className="flex w-full items-start">
-        {TRAITS.map((t, col) => (
-          <div key={t} className="flex min-w-0 flex-[1_0_0] flex-col items-start">
-            {[5, 4, 3, 2, 1].map((level, r) => (
-              <div key={level} className={`relative flex h-20 w-full shrink-0 items-center justify-center border-x border-[#e5e5e5] ${r < 4 ? "-mb-8" : ""}`}>
-                <span aria-hidden className="absolute top-[39px] right-0 left-0 h-px bg-[#e5e5e5]" />
-                {builder[col] === level && <Bubble color="#22d3ee" />}
-                {independent[col] === level && <Bubble color="#fbbf24" />}
-              </div>
-            ))}
-            <div className="flex h-14 w-full shrink-0 items-start justify-center border-x border-[#e5e5e5] px-2 pt-3 pb-6 text-center">
-              <span className="min-w-0 flex-[1_0_0] text-[8px] leading-[1.2] tracking-[0.2px] text-ink-2">{t}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-function Bubble({ color }: { color: string }) {
-  return <span className="absolute size-16 rounded-full opacity-90 mix-blend-multiply" style={{ background: color }} aria-hidden />;
-}
+/* Work style is the talent's Workplace Tags (TraitTag), not a chart of its own. */

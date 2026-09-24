@@ -16,7 +16,6 @@ import {
   Page,
   Textarea,
   Toast,
-  WorkStyleChart,
   useToast,
 } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
@@ -31,7 +30,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   const postings = usePostings();
   const posting = postings.find((p) => p.slug === slug);
   const search = useSearchParams();
-  const { saved, toggleSaved, apply, applications, withdrawnRoleSlugs, declinedRoleSlugs, workStyle, engagement } = useDemo();
+  const { saved, toggleSaved, apply, applications, withdrawnRoleSlugs, declinedRoleSlugs, engagement } = useDemo();
   const [open, setOpen] = useState(search.get("apply") === "1");
   const [note, setNote] = useState("");
   const [includeQuiz, setIncludeQuiz] = useState(true);
@@ -91,8 +90,6 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
               ))}
             </div>
           </section>
-          {/* The independent's own side of the chart is their quiz answers, not a copy stored per role. */}
-          <WorkStyleChart builder={role.workStyle.builder} independent={workStyle} match={match} />
           {/* A trial's expectations are shared once a proposal is requested (not on the public post),
               so the section only shows what the posting actually lists — it used to be an empty
               heading on every role, full-time ones included. */}

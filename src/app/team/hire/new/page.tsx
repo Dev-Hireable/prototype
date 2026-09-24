@@ -4,11 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useId, useState } from "react";
-import { MdAdd, MdAttachMoney, MdBorderColor, MdOutlineCalendarToday, MdOutlineLibraryBooks, MdRemove } from "react-icons/md";
+import { MdAdd, MdAttachMoney, MdOutlineCalendarToday, MdOutlineLibraryBooks, MdRemove } from "react-icons/md";
 import { Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Modal, Page, Select, Steps, Textarea } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { SkillPicker } from "@/components/portal/controls";
-import { Tip } from "@/components/portal/Tip";
+import { EditButton, EditPanel } from "@/components/portal/InlineEdit";
 import { RateSourceModal, TemplateBrowser, TemplateSuggestions } from "@/components/team/RoleTemplates";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { LEVELS, levelName, suggestRange } from "@/lib/team/role-templates";
@@ -825,22 +825,6 @@ function DateChip({ children, tone, selected, onClick }: { children: React.React
   );
 }
 
-function EditButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
-  return (
-    <Tip label={disabled ? "Save or cancel your edit first" : "Edit"} wrap={disabled}>
-      <button
-        type="button"
-        aria-label={`Edit ${label.replace(/:$/, "")}`}
-        onClick={onClick}
-        disabled={disabled}
-        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink enabled:hover:bg-surface-2 disabled:opacity-40"
-      >
-        <MdBorderColor size={16} aria-hidden />
-      </button>
-    </Tip>
-  );
-}
-
 function Line({ label, value, onEdit, disabled }: { label: string; value?: React.ReactNode; onEdit: () => void; disabled?: boolean }) {
   return (
     <div className="flex items-center gap-2">
@@ -885,22 +869,9 @@ function ReviewItem({
 }) {
   if (editing)
     return (
-      <div
-        className="-mx-5 flex flex-col gap-4 rounded-xl border border-primary bg-accent-bg/40 p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape" && !e.defaultPrevented) onCancel();
-        }}
-      >
-        <span className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{label.replace(/:$/, "")}</span>
+      <EditPanel label={label.replace(/:$/, "")} error={error} canSave={canSave} saveTip="This field can't be left empty" onSave={onSave} onCancel={onCancel}>
         {editor}
-        {error && <p className="text-[12px] leading-[1.2] tracking-[0.2px] text-danger">{error}</p>}
-        <div className="flex justify-end gap-3">
-          <Button onClick={onCancel}>Cancel</Button>
-          <Button variant="primary" onClick={onSave} disabled={!canSave} title={canSave ? undefined : "This field can't be left empty"}>
-            Save
-          </Button>
-        </div>
-      </div>
+      </EditPanel>
     );
   return (
     <div className="flex flex-col gap-4">

@@ -32,14 +32,14 @@ export default function Dashboard() {
         <DashboardHero>
           <DashboardGreeting name={ME.first}>
             <DashboardQuickAction title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
-            <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile/edit" icon={<Account size={20} aria-hidden />} />
+            <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile?edit=profile" icon={<Account size={20} aria-hidden />} />
           </DashboardGreeting>
 
           <DashboardSetupCard
             avatarSrc={profile.photo}
             title="Finish setting up your profile"
             description="Complete your profile to boost role matches."
-            completionHref="/independent/profile/edit"
+            completionHref="/independent/profile?edit=profile"
             items={setupSteps({ payouts, applications, workStyle, bio: profile.bio })}
             traits={traitTagsFor(workStyle, "independent")}
             completeDescription="Your profile is live. These are the work-style traits companies match you on."

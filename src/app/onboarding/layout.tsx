@@ -1,15 +1,9 @@
 import type { ReactNode } from 'react';
-import { Nunito_Sans } from 'next/font/google';
 
 import { OnboardingSplashGate } from './_components/shared/splash-gate';
 import { Toaster } from '@/web-app/components/ui/toaster';
-
 /** The real app's third face, for the trait tags on the results screen. */
-const nunitoSans = Nunito_Sans({
-  variable: '--font-nunito-sans',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-});
+import { nunitoSans } from '@/web-app/lib/fonts/nunito-sans';
 
 /**
  * The real app's onboarding, ported unchanged (src/app/onboarding, src/web-app). What its root

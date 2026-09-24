@@ -1,0 +1,471 @@
+"use client";
+
+import Image from "next/image";
+import { useState, type ReactNode } from "react";
+import { ICONS } from "@/components/admin/icons";
+import { Chip, EmptyState, Modal, Tabs } from "@/components/independent/ui";
+import { Tip } from "@/components/portal/Tip";
+import { TraitTag } from "@/components/portal/TraitTag";
+import type { WorkStyleTag } from "@/lib/demo/work-style";
+import type { PastEvaluation } from "@/lib/independent/data";
+import { useQueryState } from "@/lib/portal/query-state";
+
+const Star = ICONS.star;
+const Pin = ICONS.location;
+const Play = ICONS.play;
+const Out = ICONS.northEast;
+const Work = ICONS.work;
+const Close = ICONS.close;
+
+/** A talent profile as both sides read it: the independent's own view and every Team Builder view (IN-060). */
+export type TalentProfileData = {
+  name: string;
+  headline: string;
+  photo: string;
+  /** The intro-video still (Figma "IntroCardThumbnail"). */
+  intro?: string;
+  /** The intro video the talent added themselves (@/lib/demo/intro), which plays for real. */
+  introVideo?: string;
+  /** The monthly rate as each side keeps it: "1,600" on the talent's, "$1,600 /month" on the Team Builder's. */
+  rate: string;
+  level: string;
+  location: string;
+  bio: string;
+  skills: string[];
+  tags: WorkStyleTag[];
+  links: { website: string; linkedin: string; portfolio: string };
+  /** IN-066 — every evaluation received, the live engagement first. */
+  history: PastEvaluation[];
+};
+
+type Viewer = "self" | "team";
+type Tab = "about" | "history" | "portfolio";
+/** Work style is the Workplace Tags under About — there's no tab of its own. */
+const TABS: { value: Tab; label: string }[] = [
+  { value: "about", label: "About" },
+  { value: "history", label: "History" },
+  { value: "portfolio", label: "Portfolio" },
+];
+const TAB_KEYS = TABS.map((t) => t.value);
+
+/** Figma "Text-S-B" titles and "Text-Paragraph" copy; sections keep the frame's 768 column (Section), so it stays readable. */
+const TITLE = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink";
+const BODY = "text-[14px] leading-[1.2] tracking-[0.2px] text-ink";
+const QUIET = "text-[14px] leading-[1.4] text-ink-2";
+const DM = { fontVariationSettings: '"opsz" 14' };
+
+/** The Figma link icons, drawn at their own size. */
+const WEBSITE = <Image src="/independent/website.svg" alt="" width={20} height={20} />;
+const LINKEDIN = <Image src="/independent/linkedin.svg" alt="" width={14} height={14} />;
+
+/** Links are saved as typed, with or without a scheme ("linkedin.com/in/…" or "https://…"). */
+const hrefOf = (v: string) => (/^https?:\/\//i.test(v) ? v : `https://${v}`);
+const bare = (v: string) => v.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
+
+/**
+ * Figma "Talent Profile_Full" (5324:85998) laid out like a Contra profile. The hero holds who they
+ * are (photo, name, headline, then where they are with their website and LinkedIn — the Figma row
+ * under the name), the facts a Team Builder weighs at a glance (rate, experience, rating) and what
+ * you can do about it, with About / History / Portfolio under them. The intro video runs down the
+ * right beside all of it to the divider along the tab row. On the talent's own view each part is
+ * edited in place: the pencil beside it opens an editor where the part was (`editor`).
+ */
+export function TalentProfile({
+  person: p,
+  viewer,
+  badge,
+  actions,
+  note,
+  onPlayIntro,
+  edit = {},
+  editor = {},
+  introAction,
+  tabInUrl = true,
+}: {
+  person: TalentProfileData;
+  /** Who is reading: the talent themselves, or a Team Builder. Sets the empty-state copy and what a tag's tooltip says. */
+  viewer: Viewer;
+  /** Beside the name — "Pro" on the talent's own view, the match on a Team Builder's. */
+  badge?: ReactNode;
+  /** A Team Builder's Invite to apply / Save, under the facts. */
+  actions?: ReactNode;
+  /** A line under the facts and actions. */
+  note?: ReactNode;
+  /** The still has no video behind it, so the page says what playing it does; a video the talent added plays here. */
+  onPlayIntro: () => void;
+  /** The talent's own pencils (@/components/portal/InlineEdit), each right beside what it edits: `profile` by the name, the rest by their section titles. */
+  edit?: Partial<Record<"profile" | "bio" | "tags" | "skills" | "portfolio", ReactNode>>;
+  /** An EditPanel open in place of the whole part it edits (@/components/independent/ProfileEditors). */
+  editor?: Partial<Record<"profile" | "bio" | "skills" | "portfolio", ReactNode>>;
+  /** The talent's own Add / Change intro, over the card's corner. */
+  introAction?: ReactNode;
+  /** A page keeps the tab in its URL; a sheet over another page keeps it to itself. */
+  tabInUrl?: boolean;
+}) {
+  const [urlTab, setUrlTab] = useQueryState<Tab>("tab", "about", TAB_KEYS);
+  const [ownTab, setOwnTab] = useState<Tab>("about");
+  const [playing, setPlaying] = useState(false);
+  const tab = tabInUrl ? urlTab : ownTab;
+  const self = viewer === "self";
+  const first = p.name.split(" ")[0];
+  const hasIntro = !!(p.intro || p.introVideo);
+
+  return (
+    <div className="@container flex flex-col gap-6">
+      {/* One frame for the hero and the tabs, closed by the divider along the tab row (Figma's #c3c3c3): who they are on
+          the left with the tabs under them, the intro on the right running down beside them. Narrower, the intro is a 4:5
+          card beside the header and the tabs take the full width; narrowest, it drops under the header. */}
+      <div
+        className={`grid gap-y-10 shadow-[inset_0_-1px_0_#c3c3c3] ${
+          // Beside the header alone the card stays small, so the facts strip keeps its room; running down beside the tabs it
+          // grows to 320, near the 4:5 of the header's height.
+          hasIntro ? "@lg:grid-cols-[minmax(0,1fr)_clamp(160px,30%,240px)] @lg:gap-x-8 @2xl:grid-cols-[minmax(0,1fr)_clamp(200px,34%,320px)] @2xl:gap-x-10" : ""
+        }`}
+      >
+        <header className="flex min-w-0 flex-col gap-6">
+          {editor.profile || (
+            // Kept to the facts strip's width: the header reads as one block beside the intro.
+            <div className="flex max-w-[480px] flex-col gap-6">
+              {/* Figma "Candidate Information": 80px photo, the name (DM Sans 32) with its badge — and the talent's edit
+                  pencil — then the headline, then where they are with their links (gap 12). */}
+              <div className="flex flex-col gap-3">
+                <Image src={p.photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <h2 className="font-display text-[32px] leading-[1.5] font-semibold break-words text-ink" style={DM}>
+                      {p.name}
+                    </h2>
+                    {(badge || edit.profile) && (
+                      <span className="flex items-center gap-2">
+                        {badge}
+                        {edit.profile}
+                      </span>
+                    )}
+                  </div>
+                  {p.headline && <p className="text-[16px] leading-[1.5] tracking-[0.2px] text-ink-2">{p.headline}</p>}
+                </div>
+                {(p.location || p.links.website || p.links.linkedin) && (
+                  <div className="flex flex-wrap items-center gap-4">
+                    {p.location && (
+                      <span className="flex items-center gap-2 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
+                        <Pin size={20} aria-hidden className="shrink-0 text-ink-2" />
+                        {p.location}
+                      </span>
+                    )}
+                    {p.links.website && <IconLink label="Website" value={p.links.website} icon={WEBSITE} />}
+                    {p.links.linkedin && <IconLink label="LinkedIn" value={p.links.linkedin} icon={LINKEDIN} />}
+                  </div>
+                )}
+              </div>
+              <Facts rate={p.rate} level={p.level} history={p.history} />
+              {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+              {note}
+            </div>
+          )}
+        </header>
+
+        {hasIntro && (
+          // Running down beside the tabs, it stops where the tab row starts (mb 36, the row's height), so there's room
+          // between the card and the divider instead of the card sitting on it.
+          <div className="relative aspect-[4/5] w-full max-w-[280px] @lg:col-start-2 @lg:row-start-1 @lg:max-w-none @lg:self-center @2xl:row-[1/span_2] @2xl:mb-9 @2xl:aspect-auto @2xl:self-stretch">
+            <IntroVideo still={p.intro} video={p.introVideo} name={first} onPlay={() => (p.introVideo ? setPlaying(true) : onPlayIntro())} />
+            {/* Beside the card's play button, not inside it: a button can't hold another. */}
+            {introAction && <div className="absolute top-3 right-3">{introAction}</div>}
+          </div>
+        )}
+
+        {/* The active tab's underline sits on the divider. */}
+        <div className={`min-w-0 ${hasIntro ? "@lg:col-span-2 @2xl:col-span-1 @2xl:col-start-1" : ""}`}>
+          <Tabs value={tab} onChange={tabInUrl ? setUrlTab : setOwnTab} options={TABS} />
+        </div>
+      </div>
+
+      {tab === "about" && (
+        <div className="flex flex-col gap-10">
+          <Section title="Bio" edit={edit.bio} editor={editor.bio}>
+            {p.bio ? <p className={BODY}>{p.bio}</p> : <p className={QUIET}>{self ? "No bio yet. Team Builders read it first, so a few lines on what you do go a long way." : `${first} hasn't written a bio yet.`}</p>}
+          </Section>
+          {/* IN-063 — derived from the quiz answers and display-only. */}
+          <Section title="Workplace Tags" edit={edit.tags}>
+            {p.tags.length ? (
+              <div className="flex flex-wrap gap-2">
+                {p.tags.map((t) => (
+                  <TraitTag key={`${t.trait}-${t.label}`} tag={t} size="lg" view={self ? "self" : "other"} />
+                ))}
+              </div>
+            ) : (
+              <p className={QUIET}>{self ? "No tags yet. Take the work-style quiz and the tags it gives you appear here." : `No tags yet. They appear once ${first} takes the work-style quiz.`}</p>
+            )}
+          </Section>
+          <Section title="Skills" edit={edit.skills} editor={editor.skills}>
+            {p.skills.length ? (
+              <div className="flex flex-wrap gap-2">
+                {p.skills.map((s) => (
+                  <Chip key={s}>{s.replace(/^\w/, (c) => c.toUpperCase())}</Chip>
+                ))}
+              </div>
+            ) : (
+              <p className={QUIET}>{self ? "No skills yet. Add the ones you want Team Builders to find you by." : "No skills listed yet."}</p>
+            )}
+          </Section>
+        </div>
+      )}
+
+      {/* IN-066 — company, role, contract type, date, rating and the written feedback; read-only. */}
+      {tab === "history" && (
+        <Section title="Performance History" action={p.history.length > 0 && <Rating history={p.history} />}>
+          {p.history.length ? (
+            <div className="flex flex-col">
+              {p.history.map((h, i) => (
+                <Evaluation key={`${h.company}-${h.date}-${i}`} evaluation={h} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="No evaluations yet"
+              body={self ? "When a Team Builder evaluates your trial or full-time work, the company, role, rating and feedback show up here, read-only." : `${first} hasn't been evaluated on Hireable yet. Evaluations appear here once a Team Builder sends one.`}
+            />
+          )}
+        </Section>
+      )}
+
+      {tab === "portfolio" && (
+        <Section title="Portfolio" edit={edit.portfolio} editor={editor.portfolio}>
+          <LinkList
+            links={[
+              { label: "Portfolio", value: p.links.portfolio, icon: <Work size={20} aria-hidden className="text-ink-2" /> },
+              { label: "Website", value: p.links.website, icon: WEBSITE },
+              { label: "LinkedIn", value: p.links.linkedin, icon: LINKEDIN },
+            ]}
+          />
+        </Section>
+      )}
+
+      {/* The video the talent added, played for real (the still only stands in for one). */}
+      {p.introVideo && (
+        <Modal open={playing} onClose={() => setPlaying(false)} title={`${first}'s intro video`} bare width={720}>
+          <div className="relative bg-black">
+            <video src={p.introVideo} controls autoPlay playsInline className="block max-h-[80vh] w-full" />
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setPlaying(false)}
+              className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+            >
+              <Close size={18} aria-hidden />
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/** Figma "Large Badge Flat" beside the name — the talent's "Pro". A Team Builder's view has the gradient MatchPill there. */
+export function FlatBadge({ tone = "ok", children }: { tone?: "ok" | "warn" | "neutral"; children: ReactNode }) {
+  const TONE = { ok: "bg-[#eef9f2] text-ok", warn: "bg-warn-bg text-[#8e6f12]", neutral: "bg-surface-2 text-ink-2" };
+  return <span className={`inline-flex h-8 items-center rounded px-3 text-[14px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${TONE[tone]}`}>{children}</span>;
+}
+
+/**
+ * Contra's stat strip in the Figma face: rate, experience and rating, read at a glance before the
+ * detail. A rating needs evaluations, so a talent without any reads as new to Hireable.
+ */
+function Facts({ rate, level, history }: { rate: string; level: string; history: PastEvaluation[] }) {
+  const [, tier = level, years = "Experience"] = level.match(/^(.*?)\s*\((.+)\)$/) ?? [];
+  const average = history.length ? history.reduce((n, h) => n + h.stars, 0) / history.length : 0;
+  const cells: { label: string; value: ReactNode }[] = [
+    { value: `$${rate.replace(/^\$\s*/, "").replace(/\s*\/\s*mo(nth)?$/i, "").trim()}`, label: "per month" },
+    { value: tier, label: years },
+    history.length
+      ? {
+          value: (
+            <>
+              <Star size={18} aria-hidden className="shrink-0 text-[#f2c94c]" />
+              {average.toFixed(1)}
+            </>
+          ),
+          label: plural(history.length, "evaluation"),
+        }
+      : { value: "New", label: "Not rated yet" },
+  ];
+  return (
+    <dl className="grid w-full max-w-[480px] grid-cols-3 rounded-lg bg-white outline -outline-offset-1 outline-border">
+      {cells.map((c, i) => (
+        <div key={c.label} className={`flex min-w-0 flex-col-reverse gap-1 px-4 py-3 ${i ? "shadow-[inset_1px_0_0_#e5e5e5]" : ""}`}>
+          <dt className="truncate text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{c.label}</dt>
+          <dd className="flex items-center gap-1 truncate font-display text-[18px] leading-[1.3] font-semibold text-ink" style={DM}>
+            {c.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * Figma "IntroCardThumbnail": the talent's own video when they've added one, the still otherwise; the
+ * whole card plays it. It fills the box the hero gives it — 4:5 beside the header, or running down beside the tabs.
+ */
+function IntroVideo({ still, video, name, onPlay }: { still?: string; video?: string; name: string; onPlay: () => void }) {
+  const zoom = "transition duration-300 group-hover:scale-[1.03]";
+  return (
+    <button
+      type="button"
+      onClick={onPlay}
+      aria-label={`Play ${name}'s intro video`}
+      className="group absolute inset-0 block overflow-hidden rounded-lg bg-[#d2d8db] outline -outline-offset-1 outline-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+    >
+      {video ? (
+        // A frame from the talent's own video (a tenth of a second in, so there's a picture rather than black).
+        <video src={`${video}#t=0.1`} muted playsInline preload="metadata" className={`absolute inset-0 size-full object-cover ${zoom}`} />
+      ) : (
+        // Above the fold and the page's largest paint: load it straight away rather than lazily.
+        still && <Image src={still} alt="" fill sizes="384px" loading="eager" className={`object-cover object-top ${zoom}`} />
+      )}
+      <span aria-hidden className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-black/45 to-transparent" />
+      <span aria-hidden className="absolute bottom-4 left-4 inline-flex h-9 items-center gap-1.5 rounded-full bg-white pr-3.5 pl-1.5 text-[13px] leading-none font-medium text-ink shadow-[0_2px_8px_rgba(0,0,0,.15)]">
+        <Play size={24} className="text-primary" />
+        Watch intro
+      </span>
+    </button>
+  );
+}
+
+/** Figma "div_bio" / "div_skills" …: a Text-S-B title (with the talent's own edit pencil beside it), 16 above the content. */
+function Section({
+  title,
+  edit,
+  editor,
+  action,
+  children,
+}: {
+  title: string;
+  /** The talent's pencil, right beside the title (Create Role's Line). */
+  edit?: ReactNode;
+  /** An EditPanel standing in for the whole section while it's edited — it carries the title itself. */
+  editor?: ReactNode;
+  /** Anything else on the title row, on its right (History's rating). */
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  // The frame's 768 column, so the copy stays readable.
+  if (editor) return <section className="max-w-[768px]">{editor}</section>;
+  return (
+    <section className="flex max-w-[768px] flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <h3 className={TITLE}>{title}</h3>
+          {edit}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Figma's link buttons beside the location: a 28px white circle, p 4, around the site's own icon, with a faint ring so it reads as a button. */
+function IconLink({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
+  return (
+    <Tip label={bare(value)}>
+      <a
+        href={hrefOf(value)}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`${label}: ${bare(value)}`}
+        className="flex size-7 items-center justify-center rounded-full bg-white p-1 outline -outline-offset-1 outline-[#e5e5e5] transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        {icon}
+      </a>
+    </Tip>
+  );
+}
+
+/** Contra's review summary: the average rating and how many evaluations it is over. */
+function Rating({ history }: { history: PastEvaluation[] }) {
+  const average = history.reduce((n, h) => n + h.stars, 0) / history.length;
+  return (
+    <span className="flex items-center gap-1 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-nowrap text-ink-2">
+      <Star size={16} aria-hidden className="text-[#f2c94c]" />
+      <span className="font-semibold text-ink">{average.toFixed(1)}</span>
+      <span>· {plural(history.length, "evaluation")}</span>
+    </span>
+  );
+}
+
+/** Figma "Performance": p 24, gap 12 — role (Text-Medium-B) and contract badge, then who and when with the stars (gap 24), then the feedback. */
+function Evaluation({ evaluation: e }: { evaluation: PastEvaluation }) {
+  return (
+    <article className="flex flex-col gap-3 p-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <h4 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{e.role}</h4>
+        <ContractBadge type={e.type} />
+      </div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+        <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-[#757575]">
+          {e.company} · {e.date}
+        </p>
+        <Stars value={e.stars} />
+      </div>
+      <p className={BODY}>{e.feedback}</p>
+    </article>
+  );
+}
+
+/** Figma "Badge with border": orange for a trial, the brand blue for full-time. */
+function ContractBadge({ type }: { type: PastEvaluation["type"] }) {
+  return (
+    <span
+      className={`inline-flex h-6 items-center rounded border-[0.5px] px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap uppercase ${
+        type === "trial" ? "border-brand-orange bg-[#fff5ec] text-brand-orange" : "border-brand-blue bg-[#ebf8fe] text-brand-blue"
+      }`}
+    >
+      {type}
+    </span>
+  );
+}
+
+/** Figma "star": five 16px stars, 2.667 apart, Denotive/Yellow; the ones not earned go grey. */
+function Stars({ value }: { value: number }) {
+  return (
+    <span role="img" aria-label={`${value} out of 5 stars`} className="flex items-center gap-[2.667px]">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <Star key={n} size={16} aria-hidden className={n <= value ? "text-[#f2c94c]" : "text-[#d8d8d8]"} />
+      ))}
+    </span>
+  );
+}
+
+/** The links Team Builders can open from the profile, one row each, or a note that one hasn't been added. */
+function LinkList({ links }: { links: { label: string; value: string; icon: ReactNode }[] }) {
+  return (
+    <ul className="flex max-w-[768px] flex-col rounded-lg bg-white outline -outline-offset-1 outline-border">
+      {links.map(({ label, value, icon }, i) => {
+        const row = (
+          <>
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2">{icon}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-1">
+              <span className="text-[12px] leading-[1.2] font-medium tracking-[0.2px] text-ink-2">{label}</span>
+              <span className={`truncate text-[14px] leading-[1.2] font-medium tracking-[0.2px] ${value ? "text-primary" : "text-ink-2"}`}>{value ? bare(value) : "Not added"}</span>
+            </span>
+            {value && <Out size={16} aria-hidden className="shrink-0 text-ink-2 transition group-hover:text-primary" />}
+          </>
+        );
+        const box = `flex items-center gap-3 px-4 py-3 ${i ? "shadow-[inset_0_1px_0_#e5e5e5]" : ""}`;
+        return (
+          <li key={label}>
+            {value ? (
+              <a href={hrefOf(value)} target="_blank" rel="noreferrer" className={`group transition hover:bg-surface-alt ${box} ${i === 0 ? "rounded-t-lg" : ""} ${i === links.length - 1 ? "rounded-b-lg" : ""}`}>
+                {row}
+              </a>
+            ) : (
+              <div className={box}>{row}</div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

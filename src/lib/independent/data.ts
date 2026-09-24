@@ -1,12 +1,12 @@
 /** Seed content transcribed from the "[DRAFT] Independent Portal" Figma canvas. */
 
 import type { Stage } from "@/components/independent/ui";
-import { storedWorkStyle } from "@/lib/demo/work-style";
 /** The Off Track rule and the objective-type wording are the same spec on both sides of a trial. */
 import { isOffTrack } from "@/lib/team/data";
 import type { DealEvaluation, DealKeyResult, ObjectiveComment, Posting } from "@/lib/demo/deal";
 
-export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Sales Manager", avatar: "/independent/avatar.jpg" };
+/** `intro` is the intro-video still Team Builders see on the profile — the same file as on their side. */
+export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Sales Manager", avatar: "/independent/avatar.jpg", intro: "/team/intro-juan.jpg" };
 
 /* --------------------------------------------------------------- roles ---- */
 
@@ -40,7 +40,6 @@ export type Role = {
   description: string[];
   objectives: string[];
   about: { blurb: string; location: string; industry: string; size: string };
-  workStyle: { builder: number[]; independent: number[] };
   /** "30 Days" for a trial; the start timing for a full-time role. */
   duration: string;
   hires: number;
@@ -70,8 +69,6 @@ export function roleFromPosting(p: Posting): Role {
     description: p.description,
     objectives: p.objectives,
     about: { blurb: p.companyBlurb, location: p.location, industry: p.industry, size: p.size },
-    // The Team Builder's current quiz answers, read live, not a copy frozen when the role was posted.
-    workStyle: { builder: storedWorkStyle("team"), independent: storedWorkStyle("independent") },
     duration: p.duration ?? "30 Days",
     hires: p.hires ?? 1,
     filled: !!p.filled,
@@ -383,7 +380,7 @@ export function setupSteps({ payouts, applications, workStyle = [], bio = profil
     // Nothing in the demo tracks email confirmation, so this one is simply already true.
     { label: "Verify email", done: true, href: "/independent/settings", hint: "Confirm the address we send role alerts to." },
     { label: "Answer Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/talent", hint: "Drives your match score against every open role." },
-    { label: "Setup profile", done: bio.trim() !== "" && profile.skills.length > 0 && profile.rate.trim() !== "", href: "/independent/profile/edit", hint: "Bio, skills and rate — Team Builders see this first." },
+    { label: "Setup profile", done: bio.trim() !== "" && profile.skills.length > 0 && profile.rate.trim() !== "", href: "/independent/profile?edit=profile", hint: "Bio, skills and rate — Team Builders see this first." },
     { label: "Setup payment method", done: payouts.length > 0, href: "/independent/settings/payout", hint: "Where your trial and salary payments are released." },
     // No point applying before there is a profile to send or an account to be paid into.
     { label: "Apply to a role", done: applications.length > 0, href: "/independent/jobs", hint: "Browse matched roles and send your first application.", requires: ["Setup profile", "Setup payment method"] },

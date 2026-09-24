@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Card, Chip, JobBadge, KeyValue, LinkButton, MatchPill, Page, StatusDot, Tabs, Toast, useToast, WorkStyleChart } from "@/components/independent/ui";
+import { Card, Chip, JobBadge, KeyValue, LinkButton, MatchPill, Page, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
 import { Tip } from "@/components/portal/Tip";
@@ -82,7 +82,6 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
   if (!role) notFound();
 
   const list = candidates.filter((c) => c.role === role.slug);
-  const workStyle = byName(list[0]?.independent ?? "juan-dela-cruz");
   const unread = unreadChat(live, "team");
 
   /** A dropped candidate leaves their stage column and sits in Dropped (TB-037). */
@@ -291,7 +290,6 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                   ))}
                 </div>
               </Card>
-              <WorkStyleChart builder={workStyle.workStyle.builder} independent={workStyle.workStyle.independent} match={workStyle.match} />
               <div className="flex flex-col gap-6 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
                 <div className="flex flex-col gap-3">
                   <h3 className="font-semibold">{role.type === "trial" ? "Trial expectation" : "Responsibilities"}</h3>
