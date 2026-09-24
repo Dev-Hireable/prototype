@@ -46,22 +46,17 @@ export function TagMeaning({ tag, view = "self", children }: { tag: WorkStyleTag
 const FOCUS = "cursor-help outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary";
 
 /**
- * `md` is the badge the dashboards show. `lg` is Figma "Worktrait Tags" as the talent profile
- * draws them (px 12 / py 8, gap 4, 16px icon, Nunito Sans Medium 14), in the real app's face.
+ * Figma "Worktrait Tags" (px 12 / py 8, gap 4, 16px icon, Nunito Sans Medium 14), in the real app's
+ * face — one badge on the profiles and the dashboards alike. The dashboards had a smaller 12px
+ * semibold one of their own, so the same tag read differently on the home screen.
  */
-const SIZE = {
-  md: { box: "h-7 items-center gap-1.5 px-2.5", label: "text-[12px] leading-none font-semibold tracking-wide" },
-  lg: { box: "items-end gap-1 px-3 py-2", label: `${nunitoSans.className} text-[14px] leading-[1.2] font-medium tracking-[0.2px]` },
-};
-
-export function TraitTag({ tag, view, size = "md" }: { tag: WorkStyleTag; view?: "self" | "other"; size?: keyof typeof SIZE }) {
+export function TraitTag({ tag, view }: { tag: WorkStyleTag; view?: "self" | "other" }) {
   const { icon: Icon, bg } = TRAITS[tag.trait % TRAITS.length];
-  const s = SIZE[size];
   return (
     <TagMeaning tag={tag} view={view}>
-      <span tabIndex={0} className={`inline-flex justify-center rounded-full text-ink ${s.box} ${FOCUS}`} style={{ backgroundColor: bg }}>
+      <span tabIndex={0} className={`inline-flex items-end justify-center gap-1 rounded-full px-3 py-2 text-ink ${FOCUS}`} style={{ backgroundColor: bg }}>
         <Icon size={16} aria-hidden className="shrink-0" />
-        <span className={`${s.label} uppercase`}>{tag.label}</span>
+        <span className={`${nunitoSans.className} text-[14px] leading-[1.2] font-medium tracking-[0.2px] uppercase`}>{tag.label}</span>
       </span>
     </TagMeaning>
   );

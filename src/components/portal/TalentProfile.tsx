@@ -81,6 +81,8 @@ export function TalentProfile({
   edit = {},
   editor = {},
   introAction,
+  aside,
+  photoAction,
   tabInUrl = true,
 }: {
   person: TalentProfileData;
@@ -100,6 +102,10 @@ export function TalentProfile({
   editor?: Partial<Record<"profile" | "bio" | "skills" | "portfolio", ReactNode>>;
   /** The talent's own Add / Change intro, over the card's corner. */
   introAction?: ReactNode;
+  /** A column beside the tab's content, under the intro: the candidate page's interview, notes and pipeline tracker. */
+  aside?: ReactNode;
+  /** Right beside the photo, level with its bottom edge: the preview sheet's View profile link. */
+  photoAction?: ReactNode;
   /** A page keeps the tab in its URL; a sheet over another page keeps it to itself. */
   tabInUrl?: boolean;
 }) {
@@ -130,7 +136,11 @@ export function TalentProfile({
               {/* Figma "Candidate Information": 80px photo, the name (DM Sans 32) with its badge — and the talent's edit
                   pencil — then the headline, then where they are with their links (gap 12). */}
               <div className="flex flex-col gap-3">
-                <Image src={p.photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />
+                {/* The link sits level with the photo's bottom edge rather than halfway up it. */}
+                <div className="flex items-end gap-4">
+                  <Image src={p.photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />
+                  {photoAction}
+                </div>
                 <div className="flex flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                     <h2 className="font-display text-[32px] leading-[1.5] font-semibold break-words text-ink" style={DM}>
@@ -181,66 +191,72 @@ export function TalentProfile({
         </div>
       </div>
 
-      {tab === "about" && (
-        <div className="flex flex-col gap-10">
-          <Section title="Bio" edit={edit.bio} editor={editor.bio}>
-            {p.bio ? <p className={BODY}>{p.bio}</p> : <p className={QUIET}>{self ? "No bio yet. Team Builders read it first, so a few lines on what you do go a long way." : `${first} hasn't written a bio yet.`}</p>}
-          </Section>
-          {/* IN-063 — derived from the quiz answers and display-only. */}
-          <Section title="Workplace Tags" edit={edit.tags}>
-            {p.tags.length ? (
-              <div className="flex flex-wrap gap-2">
-                {p.tags.map((t) => (
-                  <TraitTag key={`${t.trait}-${t.label}`} tag={t} size="lg" view={self ? "self" : "other"} />
-                ))}
-              </div>
-            ) : (
-              <p className={QUIET}>{self ? "No tags yet. Take the work-style quiz and the tags it gives you appear here." : `No tags yet. They appear once ${first} takes the work-style quiz.`}</p>
-            )}
-          </Section>
-          <Section title="Skills" edit={edit.skills} editor={editor.skills}>
-            {p.skills.length ? (
-              <div className="flex flex-wrap gap-2">
-                {p.skills.map((s) => (
-                  <Chip key={s}>{s.replace(/^\w/, (c) => c.toUpperCase())}</Chip>
-                ))}
-              </div>
-            ) : (
-              <p className={QUIET}>{self ? "No skills yet. Add the ones you want Team Builders to find you by." : "No skills listed yet."}</p>
-            )}
-          </Section>
-        </div>
-      )}
-
-      {/* IN-066 — company, role, contract type, date, rating and the written feedback; read-only. */}
-      {tab === "history" && (
-        <Section title="Performance History" action={p.history.length > 0 && <Rating history={p.history} />}>
-          {p.history.length ? (
-            <div className="flex flex-col">
-              {p.history.map((h, i) => (
-                <Evaluation key={`${h.company}-${h.date}-${i}`} evaluation={h} />
-              ))}
+      {/* With an aside, the content and the aside share the hero's columns, so the aside lines up under the intro. */}
+      <div className={aside ? "grid items-start gap-10 @2xl:grid-cols-[minmax(0,1fr)_clamp(200px,34%,320px)]" : "flex flex-col"}>
+        <div className="flex min-w-0 flex-col gap-10">
+          {tab === "about" && (
+            <div className="flex flex-col gap-10">
+              <Section title="Bio" edit={edit.bio} editor={editor.bio}>
+                {p.bio ? <p className={BODY}>{p.bio}</p> : <p className={QUIET}>{self ? "No bio yet. Team Builders read it first, so a few lines on what you do go a long way." : `${first} hasn't written a bio yet.`}</p>}
+              </Section>
+              {/* IN-063 — derived from the quiz answers and display-only. */}
+              <Section title="Workplace Tags" edit={edit.tags}>
+                {p.tags.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {p.tags.map((t) => (
+                      <TraitTag key={`${t.trait}-${t.label}`} tag={t} view={self ? "self" : "other"} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className={QUIET}>{self ? "No tags yet. Take the work-style quiz and the tags it gives you appear here." : `No tags yet. They appear once ${first} takes the work-style quiz.`}</p>
+                )}
+              </Section>
+              <Section title="Skills" edit={edit.skills} editor={editor.skills}>
+                {p.skills.length ? (
+                  <div className="flex flex-wrap gap-2">
+                    {p.skills.map((s) => (
+                      <Chip key={s}>{s.replace(/^\w/, (c) => c.toUpperCase())}</Chip>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={QUIET}>{self ? "No skills yet. Add the ones you want Team Builders to find you by." : "No skills listed yet."}</p>
+                )}
+              </Section>
             </div>
-          ) : (
-            <EmptyState
-              title="No evaluations yet"
-              body={self ? "When a Team Builder evaluates your trial or full-time work, the company, role, rating and feedback show up here, read-only." : `${first} hasn't been evaluated on Hireable yet. Evaluations appear here once a Team Builder sends one.`}
-            />
           )}
-        </Section>
-      )}
 
-      {tab === "portfolio" && (
-        <Section title="Portfolio" edit={edit.portfolio} editor={editor.portfolio}>
-          <LinkList
-            links={[
-              { label: "Portfolio", value: p.links.portfolio, icon: <Work size={20} aria-hidden className="text-ink-2" /> },
-              { label: "Website", value: p.links.website, icon: WEBSITE },
-              { label: "LinkedIn", value: p.links.linkedin, icon: LINKEDIN },
-            ]}
-          />
-        </Section>
-      )}
+          {/* IN-066 — company, role, contract type, date, rating and the written feedback; read-only. */}
+          {tab === "history" && (
+            <Section title="Performance History" action={p.history.length > 0 && <Rating history={p.history} />}>
+              {p.history.length ? (
+                <div className="flex flex-col">
+                  {p.history.map((h, i) => (
+                    <Evaluation key={`${h.company}-${h.date}-${i}`} evaluation={h} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No evaluations yet"
+                  body={self ? "When a Team Builder evaluates your trial or full-time work, the company, role, rating and feedback show up here, read-only." : `${first} hasn't been evaluated on Hireable yet. Evaluations appear here once a Team Builder sends one.`}
+                />
+              )}
+            </Section>
+          )}
+
+          {tab === "portfolio" && (
+            <Section title="Portfolio" edit={edit.portfolio} editor={editor.portfolio}>
+              <LinkList
+                links={[
+                  { label: "Portfolio", value: p.links.portfolio, icon: <Work size={20} aria-hidden className="text-ink-2" /> },
+                  { label: "Website", value: p.links.website, icon: WEBSITE },
+                  { label: "LinkedIn", value: p.links.linkedin, icon: LINKEDIN },
+                ]}
+              />
+            </Section>
+          )}
+        </div>
+        {aside && <aside className="flex min-w-0 flex-col gap-4">{aside}</aside>}
+      </div>
 
       {/* The video the talent added, played for real (the still only stands in for one). */}
       {p.introVideo && (

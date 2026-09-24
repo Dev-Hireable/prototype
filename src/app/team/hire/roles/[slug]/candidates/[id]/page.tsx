@@ -2,10 +2,11 @@
 
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { MdOutlineFlag, MdOutlineThumbDown } from "react-icons/md";
-import { Button, Field, JobBadge, LinkButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { MdOutlineThumbDown } from "react-icons/md";
+import { ICONS } from "@/components/admin/icons";
+import { Button, Card, CardTitle, Field, JobBadge, LinkButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
-import { IntroCard, ProfileColumn } from "@/components/team/ui";
+import { SaveButton, TeamProfile } from "@/components/team/ui";
 import { InterviewDialog } from "@/components/team/InterviewDialog";
 import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/InterviewSteps";
 import { SendOfferDialog } from "@/components/team/SendOfferDialog";
@@ -70,12 +71,16 @@ const PROPOSAL: Proposal = {
 };
 
 const ThumbDown = MdOutlineThumbDown;
+const Flag = ICONS.flag;
 
 type Dialog = null | "invite" | "complete" | "drop" | "flag" | "request" | "proposal" | "decline" | "revision" | "offer";
 
 /**
- * Figma "Candidate tracker / Candidate profile · matched … Hired": role header with tabs, "Back to pipeline",
- * left column 384 (intro video, two CTAs, pipeline tracker, flag) + right column 512 (profile, rate, work style, skills, history).
+ * Figma "Candidate tracker / Candidate profile · matched … Hired": the role's header with its tabs and
+ * "Back to pipeline", then the candidate as the same Contra-style profile Discover and the talent
+ * themselves read (TeamProfile). The Figma frame's two CTAs are the hero's actions, with what they're
+ * waiting on under them; the interview, the notes, the pipeline tracker and Flag / Drop run down the
+ * column under the intro, beside About / History / Portfolio.
  */
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
@@ -110,29 +115,25 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
   const link = booked?.link;
   const pipeline = `/team/hire/roles/${role.slug}`;
 
-  /** CTA pair per Figma frame (primary, secondary). */
+  /** The Figma frame's CTA pair (primary, secondary): the hero's actions, as Invite to apply is on Discover. */
   const cta = (() => {
-    const message = <LinkButton size="lg" href={withReturn("/team/messages")} className="w-full">Message</LinkButton>;
+    const message = <LinkButton href={withReturn("/team/messages")}>Message</LinkButton>;
     const request = (
-      <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("request")}>
+      <Button variant="primary" onClick={() => setDialog("request")}>
         Request proposal
       </Button>
     );
+    // "Back to pipeline" used to be the second button here; the page's own back link is right above.
     if (cand.dropped)
       return (
-        <>
-          <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("drop")}>
-            Undrop candidate
-          </Button>
-          <LinkButton size="lg" href={pipeline} className="w-full">
-            Back to pipeline
-          </LinkButton>
-        </>
+        <Button variant="primary" onClick={() => setDialog("drop")}>
+          Undrop candidate
+        </Button>
       );
     if (offerDeclined && proposal)
       return (
         <>
-          <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("proposal")}>
+          <Button variant="primary" onClick={() => setDialog("proposal")}>
             Send a new offer
           </Button>
           {message}
@@ -144,11 +145,11 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       case "matched":
         return (
           <>
-            <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("invite")}>
+            <Button variant="primary" onClick={() => setDialog("invite")}>
               Invite to interview
             </Button>
             {/* The thread opens with the interview invite; before that there is no one to message. */}
-            <Button size="lg" className="w-full" disabled title="Messaging opens once you invite them to interview">
+            <Button disabled title="Messaging opens once you invite them to interview">
               Message
             </Button>
           </>
@@ -161,7 +162,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         if (needsNewSlot(cand))
           return (
             <>
-              <Button size="lg" variant="primary" className="w-full" onClick={() => setDialog("invite")}>
+              <Button variant="primary" onClick={() => setDialog("invite")}>
                 Offer a new time
               </Button>
               {message}
@@ -170,9 +171,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         return (
           <>
             <Button
-              size="lg"
               variant="primary"
-              className="w-full"
               disabled={cand.stage === "invited"}
               title={cand.stage === "invited" ? `Waiting for ${first} to confirm the interview` : undefined}
               onClick={() => setDialog("complete")}
@@ -195,7 +194,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
             {/* TB-106 — once a revision has been asked for there is a submitted proposal to track,
                 so the button stays live and opens it read-only. Before the first submission there
                 is nothing to open, and it stays disabled. */}
-            <Button size="lg" variant="primary" className="w-full" disabled={!awaitingRevision || !proposal} onClick={() => setDialog("proposal")}>
+            <Button variant="primary" disabled={!awaitingRevision || !proposal} onClick={() => setDialog("proposal")}>
               Review proposal
             </Button>
             {message}
@@ -204,7 +203,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       case "proposal_sent":
         return (
           <>
-            <Button size="lg" variant="primary" className="w-full" disabled={!proposal} onClick={() => setDialog("proposal")}>
+            <Button variant="primary" disabled={!proposal} onClick={() => setDialog("proposal")}>
               Review proposal
             </Button>
             {message}
@@ -214,7 +213,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       case "offer_accepted":
         return (
           <>
-            <LinkButton size="lg" variant="primary" href={withReturn("/team/hire/offers")} className="w-full">
+            <LinkButton variant="primary" href={withReturn("/team/hire/offers")}>
               Track offer
             </LinkButton>
             {message}
@@ -223,7 +222,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       default:
         return (
           <>
-            <LinkButton size="lg" variant="primary" href={withReturn(`/team/independents/${p.slug}`)} className="w-full">
+            <LinkButton variant="primary" href={withReturn(`/team/independents/${p.slug}`)}>
               Track trial progress
             </LinkButton>
             {message}
@@ -231,6 +230,11 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         );
     }
   })();
+
+  /** Booked and not declined or cancelled: when it is, and the link to join. */
+  const interviewSet = (cand.stage === "invited" || cand.stage === "invite_accepted") && !cand.dropped && !needsNewSlot(cand);
+  /** What either side wrote along the way — the talent wrote some of these for you. */
+  const notes = live && (live.note || live.interview?.note || live.proposalRequest?.note || live.offer?.declineReason || live.proposalDeclined?.reason) ? live : null;
 
   return (
     <Page
@@ -253,69 +257,87 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       }
       nav={<BreadcrumbBack href={pipeline}>Back to pipeline</BreadcrumbBack>}
     >
-      <div className="flex flex-col gap-10 pb-14">
-        <div className="flex items-start justify-center gap-6">
-          {/* Left column */}
-          <div className="flex w-[384px] shrink-0 flex-col gap-4">
-            <IntroCard person={p} onPlay={() => setToast("Intro video plays here")} />
-            <div className="flex flex-col gap-2">{cta}</div>
-            {!cand.dropped && (cand.stage === "invited" || cand.stage === "invite_accepted") && (
-              <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">
-                {needsNewSlot(cand)
-                  ? `${cand.status?.label === INTERVIEW_DECLINED ? `${first} declined the interview` : "The interview was cancelled"}. Offer a new time to keep going.`
-                  : `${cand.stage === "invited" ? `Waiting for ${first} to confirm the interview. ` : ""}You can request a proposal once the interview is done.`}
-              </p>
-            )}
-            {(cand.stage === "invited" || cand.stage === "invite_accepted") && !cand.dropped && !needsNewSlot(cand) && (
-              <dl className="flex flex-col gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
-                <div className="flex flex-col gap-2">
-                  <dt className="font-semibold">Date:</dt>
-                  <dd>{when}</dd>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <dt className="font-semibold">Time:</dt>
-                  <dd>{at}</dd>
-                </div>
-                {link && (
-                  <>
-                    <div className="flex flex-col gap-2">
+      <TeamProfile
+        person={p}
+        onPlayIntro={() => setToast("Intro video plays here")}
+        actions={
+          <>
+            {cta}
+            <SaveButton person={p} />
+          </>
+        }
+        note={
+          !cand.dropped &&
+          (cand.stage === "invited" || cand.stage === "invite_accepted") && (
+            <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">
+              {needsNewSlot(cand)
+                ? `${cand.status?.label === INTERVIEW_DECLINED ? `${first} declined the interview` : "The interview was cancelled"}. Offer a new time to keep going.`
+                : `${cand.stage === "invited" ? `Waiting for ${first} to confirm the interview. ` : ""}You can request a proposal once the interview is done.`}
+            </p>
+          )
+        }
+        aside={
+          <>
+            {interviewSet && (
+              <Card className="flex flex-col gap-4 p-4">
+                <CardTitle>Interview</CardTitle>
+                <dl className="grid grid-cols-2 gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
+                  <div className="flex flex-col gap-2">
+                    <dt className="font-semibold">Date</dt>
+                    <dd>{when}</dd>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <dt className="font-semibold">Time</dt>
+                    <dd>{at}</dd>
+                  </div>
+                  {link && (
+                    <div className="col-span-2 flex flex-col gap-2">
                       <dt className="font-semibold">Meeting link</dt>
-                      <dd className="flex h-11 items-center truncate rounded-lg bg-[#e5e5e5] px-4 text-ink-2 outline -outline-offset-1 outline-border">{link}</dd>
+                      <dd className="h-11 truncate rounded-lg bg-[#e5e5e5] px-4 leading-[44px] text-ink-2 outline -outline-offset-1 outline-border">{link}</dd>
                     </div>
-                    <button type="button" onClick={() => { navigator.clipboard?.writeText(link); setToast("Meeting link copied"); }} className="flex items-center gap-1 self-start font-medium text-accent-ink">
-                      Copy link
-                    </button>
-                  </>
+                  )}
+                </dl>
+                {link && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(link);
+                      setToast("Meeting link copied");
+                    }}
+                    className="self-start text-[14px] leading-[1.2] font-medium tracking-[0.2px] text-accent-ink hover:underline"
+                  >
+                    Copy link
+                  </button>
                 )}
-              </dl>
+              </Card>
             )}
-            {/* What came with the application, the request and the answers — the talent wrote these for you. */}
-            {live && (live.note || live.interview?.note || live.proposalRequest?.note || live.offer?.declineReason || live.proposalDeclined?.reason) && (
-              <dl className="flex flex-col gap-3 rounded-lg bg-surface-2 p-4 text-[13px] leading-[1.4]">
-                {live.note && <Note label={`${first}'s note with the application`} text={live.note} />}
-                {live.quiz && <p className="text-ink-2">Hireable quiz results were shared with the application.</p>}
-                {live.interview?.note && <Note label="Your note with the interview invite" text={live.interview.note} />}
-                {live.proposalRequest?.note && <Note label="Your note with the proposal request" text={live.proposalRequest.note} />}
-                {live.proposalDeclined?.reason && <Note label="Why you declined the proposal" text={live.proposalDeclined.reason} />}
-                {live.offer?.status === "declined" && <Note label={`Why ${first} declined the offer`} text={live.offer.declineReason ?? "No reason given."} />}
-              </dl>
+            {notes && (
+              <Card className="flex flex-col gap-4 p-4">
+                <CardTitle>Notes</CardTitle>
+                <dl className="flex flex-col gap-3 text-[13px] leading-[1.4]">
+                  {notes.note && <Note label={`${first}'s note with the application`} text={notes.note} />}
+                  {notes.interview?.note && <Note label="Your note with the interview invite" text={notes.interview.note} />}
+                  {notes.proposalRequest?.note && <Note label="Your note with the proposal request" text={notes.proposalRequest.note} />}
+                  {notes.proposalDeclined?.reason && <Note label="Why you declined the proposal" text={notes.proposalDeclined.reason} />}
+                  {notes.offer?.status === "declined" && <Note label={`Why ${first} declined the offer`} text={notes.offer.declineReason ?? "No reason given."} />}
+                </dl>
+                {notes.quiz && <p className="text-[13px] leading-[1.4] text-ink-2">Hireable quiz results were shared with the application.</p>}
+              </Card>
             )}
             <PipelineTracker stage={cand.stage} labels={EMPLOYER_STAGE_LABELS} mode="milestone" />
-            <div className="flex items-center gap-4 text-[14px] leading-[1.2] tracking-[0.2px] font-medium">
-              <button type="button" onClick={() => setDialog("flag")} className="flex items-center gap-2 text-accent-ink">
-                <MdOutlineFlag size={20} aria-hidden /> Flag candidate
+            <div className="flex items-center gap-4 text-[14px] leading-[1.2] font-medium tracking-[0.2px]">
+              <button type="button" onClick={() => setDialog("flag")} className="flex items-center gap-2 text-accent-ink hover:underline">
+                <Flag size={20} aria-hidden /> Flag candidate
               </button>
               {!cand.dropped && (
-                <button type="button" onClick={() => setDialog("drop")} className="text-danger">
+                <button type="button" onClick={() => setDialog("drop")} className="text-danger hover:underline">
                   Drop candidate
                 </button>
               )}
             </div>
-          </div>
-
-          <ProfileColumn person={p} />
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <InterviewDialog candidate={dialog === "invite" ? cand : null} onClose={() => setDialog(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
 

@@ -11,7 +11,7 @@ import { ReturnNav } from "@/components/portal/return";
 
 /**
  * Full independent profile — the same Contra-style profile the talent sees as their own (IN-060),
- * with the match, Invite to apply / Save and the work-style comparison as a Team Builder's.
+ * with the match and Invite to apply / Save as a Team Builder's.
  */
 export default function IndependentProfile({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);

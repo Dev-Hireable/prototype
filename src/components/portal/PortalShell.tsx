@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Modal } from "@/components/independent/ui";
+import { Tip } from "@/components/portal/Tip";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
 import { unseenByAdmin, useDisputes } from "@/lib/demo/disputes";
@@ -90,9 +91,13 @@ export function PortalShell({
                   <Link
                     href={s.href}
                     aria-current={active ? "page" : undefined}
-                    className={`relative flex h-[68px] w-full flex-col items-center gap-1 px-2 py-4 text-[10px] leading-[1.2] tracking-[0.2px] whitespace-nowrap
-                      ${active ? "font-semibold text-accent-ink" : "font-normal text-ink-2"}`}
+                    className={`group relative flex h-[68px] w-full flex-col items-center gap-1 px-2 py-4 text-[10px] leading-[1.2] tracking-[0.2px] whitespace-nowrap transition-colors
+                      ${active ? "font-semibold text-accent-ink" : "font-normal text-ink-2 hover:text-ink"}`}
                   >
+                    {/* On hover a white card comes up behind the glyph and label, a lighter take on the open
+                        section's white tab, so a section reads as something to click. -z-10 keeps it behind
+                        them, inside the li's own z-20. */}
+                    {!active && <span aria-hidden className="absolute inset-1 -z-10 rounded-xl transition-colors group-hover:bg-white" />}
                     <RailGlyph icon={s.icon} active={active} />
                     {badge > 0 && (
                       <span aria-label={`${badge} unread`} className="pointer-events-none absolute top-2.5 right-[22px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white">
@@ -106,23 +111,27 @@ export function PortalShell({
             })}
           </ul>
           {/* z-20: paints above the active tab when Profile is open */}
-          <Link
-            href={profileHref}
-            aria-label="My profile"
-            aria-current={activeIndex === -1 ? "page" : undefined}
-            className="absolute bottom-0 left-5 z-20 flex h-[68px] w-16 items-center justify-center rounded-lg px-2 py-4"
-          >
-            <span className="rounded-full p-[4.8px]">
-              <Image
-                src={avatar}
-                alt=""
-                width={128}
-                height={128}
-                priority
-                className="size-[38.4px] rounded-full bg-[#d2d8db] object-cover"
-              />
-            </span>
-          </Link>
+          <Tip label="My profile" side="right">
+            <Link
+              href={profileHref}
+              aria-label="My profile"
+              aria-current={activeIndex === -1 ? "page" : undefined}
+              className="group absolute bottom-0 left-5 z-20 flex h-[68px] w-16 items-center justify-center rounded-lg px-2 py-4"
+            >
+              {/* The sections' hover card, as wide as theirs (x 12 → 92), unless Profile is the open tab */}
+              {activeIndex !== -1 && <span aria-hidden className="absolute -inset-x-2 inset-y-1 -z-10 rounded-xl transition-colors group-hover:bg-white" />}
+              <span className="rounded-full p-[4.8px]">
+                <Image
+                  src={avatar}
+                  alt=""
+                  width={128}
+                  height={128}
+                  priority
+                  className="size-[38.4px] rounded-full bg-[#d2d8db] object-cover"
+                />
+              </span>
+            </Link>
+          </Tip>
         </nav>
 
         {/* Active tab — one outline with the panel's edge, above the panel so it hides that stroke where
@@ -147,7 +156,7 @@ export function PortalShell({
             onClick={() => setCollapsed((c) => !c)}
             aria-label={collapsed ? "Expand menu" : "Collapse menu"}
             aria-expanded={!collapsed}
-            className={`absolute flex size-6 items-center justify-center rounded-lg text-ink-2 ${EASE} transition-[left,top]`}
+            className={`absolute flex size-6 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink ${EASE} transition-[left,top,background-color,color]`}
             style={{ left: collapsed ? 15 : 200, top: collapsed ? 15 : 16 }}
           >
             <CollapseIcon size={20} aria-hidden className={`${EASE} transition-transform ${collapsed ? "rotate-180" : ""}`} />
@@ -161,8 +170,9 @@ export function PortalShell({
             {section.menu.map((item) => {
               const active = item.href === activeMenuHref;
               const Glyph = ICONS[item.icon];
-              const cls = `flex items-center gap-2 overflow-hidden rounded-lg p-2 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${EASE} transition-[width,height] ${
-                active ? "bg-accent-bg font-semibold text-accent-ink" : "font-normal text-ink-2"
+              // Hover greys an item in and press darkens it, so the list reads as links; the open one keeps its blue
+              const cls = `flex items-center gap-2 overflow-hidden rounded-lg p-2 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${EASE} transition-[width,height,background-color,color] ${
+                active ? "bg-accent-bg font-semibold text-accent-ink" : "font-normal text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-black/8"
               }`;
               const style = collapsed ? { width: 40, height: 40 } : { width: 208, height: 34 };
               const body = (
@@ -193,21 +203,24 @@ export function PortalShell({
                       {badge > 9 ? "9+" : badge}
                     </span>
                   )}
-                  {item.action === "logout" ? (
-                    <button type="button" onClick={() => setLogout(item.href)} aria-label={collapsed ? item.label : undefined} className={cls} style={style}>
-                      {body}
-                    </button>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      aria-label={collapsed ? item.label : undefined}
-                      aria-current={active ? "page" : undefined}
-                      className={cls}
-                      style={style}
-                    >
-                      {body}
-                    </Link>
-                  )}
+                  {/* Collapsed to its icon, an item names itself on hover */}
+                  <Tip label={item.label} side="right" off={!collapsed}>
+                    {item.action === "logout" ? (
+                      <button type="button" onClick={() => setLogout(item.href)} aria-label={collapsed ? item.label : undefined} className={cls} style={style}>
+                        {body}
+                      </button>
+                    ) : (
+                      <Link
+                        href={item.href}
+                        aria-label={collapsed ? item.label : undefined}
+                        aria-current={active ? "page" : undefined}
+                        className={cls}
+                        style={style}
+                      >
+                        {body}
+                      </Link>
+                    )}
+                  </Tip>
                 </li>
               );
             })}

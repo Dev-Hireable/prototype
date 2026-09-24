@@ -12,6 +12,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  * the trigger is a span around it: the control is made transparent to the pointer so the span is
  * what's hovered, and the span shows the not-allowed cursor and carries whatever lays the control
  * out (`wrapClassName` — `w-full`, `flex-1`, …) so it sits where the control did.
+ *
+ * `off` silences the tip but keeps the trigger mounted, for a control that only needs it some of the
+ * time and must not be swapped for a new element when that changes (a sidebar link mid-morph).
  */
 export function Tip({
   label,
@@ -19,16 +22,18 @@ export function Tip({
   side = "top",
   wrap = false,
   wrapClassName = "",
+  off = false,
 }: {
   label?: ReactNode;
   children: ReactElement;
   side?: "top" | "bottom" | "left" | "right";
   wrap?: boolean;
   wrapClassName?: string;
+  off?: boolean;
 }) {
   if (!label) return children;
   return (
-    <Tooltip>
+    <Tooltip disabled={off}>
       {wrap ? (
         <TooltipTrigger render={<span className={`inline-flex cursor-not-allowed [&>*]:pointer-events-none ${wrapClassName}`} />}>{children}</TooltipTrigger>
       ) : (

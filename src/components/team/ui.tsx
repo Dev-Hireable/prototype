@@ -3,9 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { MdBookmark, MdOutlineBookmarkBorder, MdPlayCircleFilled, MdStar } from "react-icons/md";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Chip, KeyValue, LinkButton, MatchPill, Toast, useToast } from "@/components/independent/ui";
+import { Button, Chip, LinkButton, MatchPill, Toast, useToast } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
 import { TalentProfile } from "@/components/portal/TalentProfile";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -217,23 +216,20 @@ export function CardHeading({ children }: { children: ReactNode }) {
 
 /**
  * Figma "Drawer" (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
- * mount and unmount in a single frame. An 18px title row (px 24 / py 20) with an optional action
- * beside the close, then a scrolling body (p 24, gap 16). The Sheet portals, traps focus and closes
- * on Escape or a click outside.
+ * mount and unmount in a single frame. An 18px title row (px 24 / py 20) with the close, then a
+ * scrolling body (p 24, gap 16). The Sheet portals, traps focus and closes on Escape or a click
+ * outside.
  */
-export function Drawer({ open, onClose, title, action, children, width = 800 }: { open: boolean; onClose: () => void; title: string; action?: ReactNode; children: ReactNode; width?: number }) {
+export function Drawer({ open, onClose, title, children, width = 800 }: { open: boolean; onClose: () => void; title: string; children: ReactNode; width?: number }) {
   const Close = ICONS.close;
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent side="right" showCloseButton={false} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }}>
         <SheetHeader className="flex-row items-center justify-between gap-3 px-6 py-5">
           <SheetTitle className="font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
-          <div className="flex items-center gap-4">
-            {action}
-            <SheetClose aria-label="Close" className="text-ink">
-              <Close size={20} aria-hidden />
-            </SheetClose>
-          </div>
+          <SheetClose aria-label="Close" className="text-ink">
+            <Close size={20} aria-hidden />
+          </SheetClose>
         </SheetHeader>
         <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
       </SheetContent>
@@ -244,7 +240,7 @@ export function Drawer({ open, onClose, title, action, children, width = 800 }: 
 /**
  * Figma "Discover / Independent profile · preview drawer", drawn as the same Contra-style profile as
  * the full page and the talent's own view, in a sheet that slides in: the hero (Invite / Save, the
- * facts, the intro) and the tabs are all here, with the full page one click away in the header.
+ * facts, the intro) and the tabs are all here, with the full page one click away beside the photo.
  */
 export function ProfileDrawer({ person, onClose, onInvite }: { person: Independent | null; onClose: () => void; onInvite: (p: Independent) => void }) {
   const withReturn = useWithReturn();
@@ -253,21 +249,33 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
   if (person && person.slug !== last?.slug) setLast(person);
   const p = person ?? last;
   const [toast, setToast] = useToast();
+  const Out = ICONS.northEast;
   return (
     <>
-      <Drawer
-        open={!!person}
-        onClose={onClose}
-        title="Independent profile"
-        action={
-          p && (
-            <LinkButton size="sm" href={withReturn(`/team/discover/${p.slug}`)}>
-              View full profile
-            </LinkButton>
-          )
-        }
-      >
-        {p && <TeamProfile person={p} onInvite={() => onInvite(p)} onPlayIntro={() => setToast("Intro video plays here")} inSheet />}
+      <Drawer open={!!person} onClose={onClose} title="Independent profile">
+        {p && (
+          <TeamProfile
+            person={p}
+            onInvite={() => onInvite(p)}
+            onPlayIntro={() => setToast("Intro video plays here")}
+            inSheet
+            // A plain ink link by the photo, not a button or the brand blue: it leaves the preview for the full page.
+            // No underline on hover — the arrow nudges the way it points instead.
+            photoAction={
+              <Link
+                href={withReturn(`/team/discover/${p.slug}`)}
+                className="group inline-flex items-center gap-1 rounded-sm text-[14px] leading-[1.2] font-medium tracking-[0.2px] text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                View profile
+                <Out
+                  size={16}
+                  aria-hidden
+                  className="transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-focus-visible:translate-x-0.5 group-focus-visible:-translate-y-0.5 motion-reduce:transition-none"
+                />
+              </Link>
+            }
+          />
+        )}
       </Drawer>
       <Toast message={toast} onClose={() => setToast(null)} />
     </>
@@ -277,9 +285,33 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
 /**
  * A talent's profile as a Team Builder reads it (IN-060): the talent's own TalentProfile, with the
  * match beside the name and Invite to apply / Save as the actions. Their work style is the Workplace
- * Tags under About. The Discover page draws it full width; the preview sheet keeps its tab to itself.
+ * Tags under About. The Discover page draws it full width; the preview sheet keeps its tab to itself;
+ * a role's candidate page puts its stage buttons in the hero and its pipeline in the aside.
  */
-export function TeamProfile({ person, onInvite, onPlayIntro, inSheet = false }: { person: Independent; onInvite: () => void; onPlayIntro: () => void; inSheet?: boolean }) {
+export function TeamProfile({
+  person,
+  onInvite,
+  onPlayIntro,
+  inSheet = false,
+  actions,
+  note,
+  aside,
+  photoAction,
+}: {
+  person: Independent;
+  /** Discover's Invite to apply. */
+  onInvite?: () => void;
+  onPlayIntro: () => void;
+  inSheet?: boolean;
+  /** In place of Invite to apply / Save: the candidate page's next step for the candidate. */
+  actions?: ReactNode;
+  /** A line under the actions, e.g. what the candidate page is waiting on. */
+  note?: ReactNode;
+  /** A column under the intro, beside the tab's content (TalentProfile). */
+  aside?: ReactNode;
+  /** Beside the photo: the preview sheet's View profile link. */
+  photoAction?: ReactNode;
+}) {
   const deal = useDeal();
   const pair = person.slug === PAIR.independent.slug;
   /** The intro video the live pair added to their own profile, which plays here too. */
@@ -312,20 +344,21 @@ export function TeamProfile({ person, onInvite, onPlayIntro, inSheet = false }: 
       }}
       // The same gradient match pill as the Discover cards, at the header's size.
       badge={<MatchPill pct={person.match} title={MATCH_TOOLTIP} size="lg" />}
-      actions={<TeamProfileActions person={person} onInvite={onInvite} />}
+      actions={actions ?? <TeamProfileActions person={person} onInvite={onInvite} />}
+      note={note}
       onPlayIntro={onPlayIntro}
+      aside={aside}
+      photoAction={photoAction}
       tabInUrl={!inSheet}
     />
   );
 }
 
 /** Invite to apply — or their column on the role's board once they're a candidate — and Save. */
-function TeamProfileActions({ person, onInvite }: { person: Independent; onInvite: () => void }) {
-  const { saved, toggleSaved, pipelineOf } = useDemo();
+function TeamProfileActions({ person, onInvite }: { person: Independent; onInvite?: () => void }) {
+  const { pipelineOf } = useDemo();
   const withReturn = useWithReturn();
   const inPipeline = pipelineOf(person.slug);
-  const isSaved = saved.includes(person.slug);
-  const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
     <>
       {inPipeline ? (
@@ -337,110 +370,20 @@ function TeamProfileActions({ person, onInvite }: { person: Independent; onInvit
           Invite to apply
         </Button>
       )}
-      <Button onClick={() => toggleSaved(person.slug)}>
-        <Mark size={18} aria-hidden className={isSaved ? "text-primary" : "text-ink-2"} />
-        {isSaved ? "Saved" : "Save"}
-      </Button>
+      <SaveButton person={person} />
     </>
   );
 }
 
-/* ------------------------------------------------ candidate / talent profile -- */
-
-const H4 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]";
-/** Sample work history for the seeded independents; the live pair shows the evaluations they actually received. */
-const HISTORY = [
-  { role: "Content Marketing Manager", date: "January 1, 2020", quote: "“{first} exceeded expectations on every campaign. His ability to analyze data and pivot strategy mid-flight saved us thousands in ad spend.”" },
-  { role: "Growth Marketing Lead", date: "January 1, 2020", quote: "“Incredible attention to detail and a natural sense for what resonates with audiences. Our email open rates doubled under {first}’s watch.”" },
-  { role: "Senior Marketing Specialist", date: "January 1, 2020", quote: "“Solid performer with strong fundamentals. Sometimes needed guidance on prioritization, but always delivered quality work on time.”" },
-];
-
-/** Figma "IntroCardThumbnail": 384×480 video still with the play button top-right. */
-export function IntroCard({ person, onPlay }: { person: Independent; onPlay: () => void }) {
-  return (
-    <div className="relative h-[480px] w-[384px] overflow-hidden rounded-lg border border-border">
-      <Image src={person.intro ?? person.avatar} alt="" width={768} height={960} className="size-full object-cover object-top" />
-      <button type="button" aria-label="Play intro" onClick={onPlay} className="absolute top-[15px] right-[17px] text-white">
-        <MdPlayCircleFilled size={28} aria-hidden />
-      </button>
-    </div>
-  );
-}
-
-/** Figma candidate profile right column (512): profile card, Rate & details, Skills, History. Work style is the tags, not a chart. */
-export function ProfileColumn({ person: p }: { person: Independent }) {
+/** Save / Saved beside a profile's other actions. */
+export function SaveButton({ person }: { person: Independent }) {
   const { saved, toggleSaved } = useDemo();
-  const isSaved = saved.includes(p.slug);
-  const first = p.name.split(" ")[0];
-  const deal = useDeal();
-  /**
-   * The talent's profile promises "exactly how your profile appears to Team Builders", and lists
-   * only the evaluations they have received. This column showed Juan, a sales lead, three marketing
-   * reviews dated 1 January 2020 that his own profile never had.
-   */
-  const history =
-    p.slug === PAIR.independent.slug
-      ? evaluationsOf(deal?.contract).map((e) => ({ role: deal?.title ?? "", date: e.date, stars: e.stars, quote: `“${e.feedback}”` }))
-      : HISTORY.map((h) => ({ ...h, stars: 5, quote: h.quote.replace(/\{first\}/g, first) }));
+  const isSaved = saved.includes(person.slug);
+  const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
-    <div className="flex w-[512px] shrink-0 flex-col gap-4">
-      <div className="flex min-h-[440px] flex-col gap-4 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
-        <div className="flex items-start justify-between">
-          <span className="relative">
-            <Avatar src={p.avatar} size={56} />
-            <span aria-hidden className="absolute right-0 bottom-0 size-3 rounded-full border-2 border-white bg-ok" />
-          </span>
-          <button type="button" aria-label={isSaved ? "Unsave" : "Save"} onClick={() => toggleSaved(p.slug)} className="flex size-9 items-center justify-center rounded-full border border-primary text-primary">
-            {isSaved ? <MdBookmark size={20} aria-hidden /> : <MdOutlineBookmarkBorder size={20} aria-hidden />}
-          </button>
-        </div>
-        <div className="flex flex-col gap-1">
-          <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-            {p.name}
-          </h2>
-          <p className="text-[16px] leading-[1.5] tracking-[0.2px] text-ink-2">{p.role}</p>
-        </div>
-        {/* The talent's own bio (byName follows their profile) — it was swapped for a marketing one here. */}
-        <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{p.bio}</p>
-      </div>
-      <div className="flex flex-col gap-6 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
-        <h3 className={H4}>Rate &amp; details</h3>
-        <div className="flex gap-2">
-          <KeyValue label="Rate" value={p.rate.replace(" /month", "/mo")} />
-          <KeyValue label="Experience" value={p.level} />
-          <KeyValue label="Location" value={p.location} />
-        </div>
-      </div>
-      <div className="flex flex-col gap-6 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
-        <h3 className={H4}>Skills</h3>
-        <div className="flex flex-wrap gap-2">
-          {p.skills.map((s) => (
-            <Chip key={s}>{s}</Chip>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col gap-6 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
-        <h3 className={H4}>History</h3>
-        {history.length === 0 && <p className="text-[13px] leading-[1.4] text-ink-2">No evaluations on Hireable yet. They appear here once a Team Builder sends one.</p>}
-        <div className="flex flex-col gap-3">
-          {history.map((h, i) => (
-            <div key={`${h.role}-${h.date}-${i}`} className={`flex flex-col gap-3 pb-4 ${i < history.length - 1 ? "border-b border-[#e5e5e5]" : ""}`}>
-              <div className="flex items-center justify-between">
-                <p className="text-[12px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{h.role}</p>
-                <span className="flex items-center gap-4">
-                  <span className="flex gap-[3px] text-warn">
-                    {[0, 1, 2, 3, 4].map((k) => (
-                      <MdStar key={k} size={12} aria-hidden className={k < h.stars ? "" : "text-[#d8d8d8]"} />
-                    ))}
-                  </span>
-                  <span className="text-[10px] leading-[1.2] tracking-[0.2px] text-[#757575]">{h.date}</span>
-                </span>
-              </div>
-              <p className="text-[10px] leading-[1.2] tracking-[0.2px] text-ink-2 italic">{h.quote}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <Button onClick={() => toggleSaved(person.slug)}>
+      <Mark size={18} aria-hidden className={isSaved ? "text-primary" : "text-ink-2"} />
+      {isSaved ? "Saved" : "Save"}
+    </Button>
   );
 }
