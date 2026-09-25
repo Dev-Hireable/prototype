@@ -46,7 +46,7 @@ export default function PayoutSettings() {
                     Set as default
                   </Button>
                 )}
-                <Button size="sm" disabled={only || m.isDefault} onClick={() => setRemoving(m)}>
+                <Button size="sm" variant="danger" disabled={only || m.isDefault} onClick={() => setRemoving(m)}>
                   Remove
                 </Button>
               </>

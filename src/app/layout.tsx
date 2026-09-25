@@ -26,7 +26,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${inter.variable} ${dmSans.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
         <TooltipProvider>
-          {children}
+          {/* The laptop UI scale (globals.css .ui-zoom); portalled popups scale themselves. */}
+          <div className="ui-zoom flex min-h-full flex-1 flex-col">{children}</div>
           <DemoReset />
         </TooltipProvider>
       </body>

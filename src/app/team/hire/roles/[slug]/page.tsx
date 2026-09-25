@@ -4,15 +4,21 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Card, Chip, JobBadge, KeyValue, LinkButton, MatchPill, Page, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, JobBadge, LinkButton, MatchPill, Modal, Page, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
+import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board";
+import { FactStrip } from "@/components/portal/PageParts";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
+import { TaskPlanList } from "@/components/portal/tasks/TaskPlan";
 import { Tip } from "@/components/portal/Tip";
+import { DropDialog } from "@/components/team/DropDialog";
 import { InterviewDialog } from "@/components/team/InterviewDialog";
+import { ProposalReviewDialog } from "@/components/team/ProposalReviewDialog";
 import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/InterviewSteps";
 import { Avatar, MATCH_TOOLTIP } from "@/components/team/ui";
-import { byName, needsNewSlot, TRACKER_COLUMNS } from "@/lib/team/data";
+import { awaitsApplication, byName, columnOf, needsNewSlot, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate } from "@/lib/team/data";
+import { jobFacts } from "@/lib/demo/job-types";
 import { PAIR, unreadChat, useLive } from "@/lib/demo/live";
 import { useDemo } from "@/lib/team/store";
 import { useQueryState } from "@/lib/portal/query-state";
@@ -37,13 +43,20 @@ export default function RolePage({ params }: { params: Promise<{ slug: string }>
  */
 function Role({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { roles, candidates, interviews, requestProposal, setDropped, completeInterview } = useDemo();
+  const { roles, candidates, interviews, requestProposal, deleteCandidate, completeInterview } = useDemo();
+  /** The card being dropped or undropped, while its confirmation is open (TB-044: never on one click). */
+  const [dropping, setDropping] = useState<Candidate | null>(null);
+  /** The dropped card being deleted, while its confirmation is open. */
+  const [deleting, setDeleting] = useState<Candidate | null>(null);
   const withReturn = useWithReturn();
   /** TB-037 — booking happens on the board, so a first interview is one click from the column. */
   const [inviting, setInviting] = useState<Candidate | null>(null);
   /** The two confirmations in front of a proposal request: the interview is done, then the request. */
   const [completing, setCompleting] = useState<Candidate | null>(null);
   const [requesting, setRequesting] = useState<Candidate | null>(null);
+  /** TB-104 — the proposal opens from its card, without a detour through the profile. */
+  const [reviewingId, setReviewing] = useState<string | null>(null);
+  const reviewing = candidates.find((x) => x.id === reviewingId);
   const live = useLive();
   const role = roles.find((r) => r.slug === slug);
   const [tab, setTab] = useQueryState("tab", "candidates", ["candidates", "details"] as const);
@@ -84,8 +97,10 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
   const list = candidates.filter((c) => c.role === role.slug);
   const unread = unreadChat(live, "team");
 
-  /** A dropped candidate leaves their stage column and sits in Dropped (TB-037). */
-  const inColumn = (col: (typeof TRACKER_COLUMNS)[number], c: Candidate) => (col.key === "dropped" ? !!c.dropped : !c.dropped && col.stages.includes(c.stage));
+  /** A dropped candidate sits in Dropped (TB-037) and a closed trial in Trial Ended, not their stage's column. */
+  const inColumn = (col: (typeof TRACKER_COLUMNS)[number], c: Candidate) => columnOf(c) === col.key;
+  /** Trial Ended only means something on a trial role — unless a card is already in it. */
+  const columns = TRACKER_COLUMNS.filter((col) => col.key !== "trial_ended" || role.type === "trial" || list.some((c) => c.trialEnded));
 
   const firstOf = (c: Candidate) => byName(c.independent).name.split(" ")[0];
 
@@ -107,7 +122,6 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
       }
       tabs={
         <Tabs
-          className="px-4"
           value={tab}
           onChange={setTab}
           options={[
@@ -127,30 +141,25 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
              columns up with the back link; scrolled, cards fade out at the edge rather than stopping
              short. overflow-y-hidden stops a nested vertical scrollbar. */
           <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
-            <div ref={boardRef} className="edge-fade flex w-full min-w-0 gap-2 overflow-x-auto overflow-y-hidden px-10 pb-10">
-              {TRACKER_COLUMNS.map((col) => {
+            <div ref={boardRef} className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-10 pb-10">
+              {columns.map((col) => {
                 const cards = list.filter((c) => inColumn(col, c));
                 return (
-                  <section
+                  <KanbanColumn
                     key={col.key}
                     ref={(el) => {
                       columnRefs.current[col.key] = el;
                     }}
-                    /* The frame is a real border inside a constant p-1, transparent until focused, so
-                       it sits around the header and cards instead of under them and the layout
-                       doesn't shift when it appears. */
-                    className={`flex h-full min-h-0 w-[320px] shrink-0 flex-col gap-3 rounded-xl border-2 p-1 transition-colors duration-500 ${focused === col.key ? "border-accent-soft bg-accent-bg" : "border-transparent"}`}
+                    label={col.label}
+                    count={cards.length}
+                    colors={col}
+                    unit={["candidate", "candidates"]}
+                    // The frame lights up round the column a `?stage=` link opened, then fades.
+                    frame={focused === col.key ? "focused" : "rest"}
+                    width="min-w-[300px] max-w-[380px] flex-1"
+                    className="duration-500"
                   >
-                    <header
-                      className="flex items-center justify-between rounded px-3 py-2 text-[14px] leading-[1.2] font-medium tracking-[0.2px]"
-                      style={{ background: col.bg, color: col.text }}
-                    >
-                      {col.label}
-                      <span className="min-w-9 rounded p-1 text-center" style={{ background: col.count }}>
-                        {cards.length}
-                      </span>
-                    </header>
-                    <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+                    <KanbanList>
                       {cards.map((c) => {
                         const p = byName(c.independent);
                         const isPair = c.independent === PAIR.independent.slug;
@@ -170,7 +179,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                                 <Link href={withReturn("/team/messages")} aria-label={`Message ${p.name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
                                   <Message size={16} aria-hidden />
                                   {isPair && unread > 0 && (
-                                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>
+                                    <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white"><span className="badge-count">{unread > 9 ? "9+" : unread}</span></span>
                                   )}
                                 </Link>
                               ) : (
@@ -190,11 +199,19 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                             </div>
                             <p className="text-[11.5px] leading-[1.2] text-ink-2">{c.status?.meta ?? c.submitted}</p>
 
-                            {/* TB-037: book the interview from the column, without opening a profile. */}
+                            {/* TB-037: book the interview from the column, without opening a profile — once
+                                they've applied. A match invited to apply hasn't yet, so it waits on them. */}
                             {!c.dropped && (col.key === "candidates" || col.key === "matched") && (
-                              <button type="button" onClick={() => setInviting(c)} className="h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
-                                Invite to interview
-                              </button>
+                              <Tip label={awaitsApplication(c) ? `${firstOf(c)} hasn't applied yet — you can invite them to interview once they do` : undefined} wrap={awaitsApplication(c)}>
+                                <button
+                                  type="button"
+                                  disabled={awaitsApplication(c)}
+                                  onClick={() => setInviting(c)}
+                                  className="h-9 w-full rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]"
+                                >
+                                  Invite to interview
+                                </button>
+                              </Tip>
                             )}
                             {/* TB-103 behind IN-018: the interview is marked done first, and only then can a
                                 proposal be requested — each step confirmed in a dialog, never on one click.
@@ -221,11 +238,13 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                                   </button>
                                 </Tip>
                               ))}
-                            {/* TB-104: Review Proposal once they've actually submitted one. */}
-                            {!c.dropped && c.stage === "proposal_sent" && (
-                              <LinkButton size="sm" variant="primary" href={`/team/hire/roles/${role.slug}/candidates/${c.id}`} className="justify-center">
+                            {/* TB-104: Review Proposal once they've actually submitted one — it opens right
+                                here on the board, the same dialog the profile opens — and while a revision
+                                is out, so its history stays one click away. */}
+                            {!c.dropped && (c.stage === "proposal_sent" || (c.stage === "proposal_requested" && c.status?.label === "Revision requested")) && (
+                              <button type="button" onClick={() => setReviewing(c.id)} className="h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
                                 Review Proposal
-                              </LinkButton>
+                              </button>
                             )}
                             {/* TB-037: the sent offer is reviewable but not editable. */}
                             {!c.dropped && col.key === "offer" && (
@@ -236,12 +255,18 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                             {/* TB-044: drop from any stage, undrop back to where they were.
                                 Hired candidates can't be dropped (TB-037). */}
                             {c.dropped ? (
-                              <button type="button" onClick={() => setDropped(c.id, false)} className="h-9 rounded-lg border border-border bg-white text-[13px] leading-[1.2] font-medium text-ink hover:bg-surface-alt">
-                                Undrop
-                              </button>
+                              // Undrop, or delete for good so the Dropped column doesn't pile up.
+                              <div className="grid grid-cols-2 gap-2">
+                                <button type="button" onClick={() => setDropping(c)} className="h-9 rounded-lg border border-border bg-white text-[13px] leading-[1.2] font-medium text-ink hover:bg-surface-alt">
+                                  Undrop
+                                </button>
+                                <button type="button" onClick={() => setDeleting(c)} className="h-9 rounded-lg bg-danger text-[13px] leading-[1.2] font-medium text-white hover:bg-danger-hover">
+                                  Delete
+                                </button>
+                              </div>
                             ) : (
                               c.stage !== "hired" && (
-                                <button type="button" onClick={() => setDropped(c.id, true)} className="h-9 rounded-lg border border-border bg-white text-[13px] leading-[1.2] font-medium text-ink-2 hover:bg-surface-alt hover:text-danger">
+                                <button type="button" onClick={() => setDropping(c)} className="h-9 rounded-lg bg-danger text-[13px] leading-[1.2] font-medium text-white hover:bg-danger-hover">
                                   Drop
                                 </button>
                               )
@@ -249,9 +274,9 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                           </li>
                         );
                       })}
-                      {cards.length === 0 && <li className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-[12px] leading-[1.4] text-ink-2">Nothing here yet</li>}
-                    </ul>
-                  </section>
+                      {cards.length === 0 && <KanbanEmpty>Nothing here yet</KanbanEmpty>}
+                    </KanbanList>
+                  </KanbanColumn>
                 );
               })}
             </div>
@@ -272,14 +297,21 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                 </p>
                 <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{role.description}</p>
               </Card>
-              <Card className="flex flex-col gap-6 p-4">
+              <Card className="flex flex-col gap-4 p-4">
                 <h3 className={H3}>Budget &amp; details</h3>
-                <div className="flex gap-2">
-                  <KeyValue label="Budget" value={role.budget} />
-                  <KeyValue label="Duration" value={role.duration} />
-                  <KeyValue label="Experience" value={role.experience} />
-                </div>
+                {/* The facts strip the talent's job page shows, so the post reads the same on both sides. */}
+                <FactStrip size="sm" cells={jobFacts({ type: role.type, pay: role.budget, duration: role.duration, hours: role.hours, level: role.experience })} />
               </Card>
+              {/* TB-025 — the trial's tasks, as the job post sets them; each offer starts from them. */}
+              {role.type === "trial" && (
+                <Card className="flex flex-col gap-4 p-4">
+                  <div className="flex flex-col gap-1">
+                    <h3 className={H3}>Trial tasks</h3>
+                    <p className="text-[13px] leading-[1.4] text-ink-2">Shared with candidates you match with or invite. Each offer starts from these, and you can adjust them per candidate.</p>
+                  </div>
+                  <TaskPlanList tasks={role.tasks ?? []} empty="No trial tasks yet — add them when you send an offer." />
+                </Card>
+              )}
               <Card className="flex flex-col gap-6 p-4">
                 <h3 className={H3}>Skills</h3>
                 <div className="flex flex-wrap gap-2">
@@ -291,10 +323,12 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
                 </div>
               </Card>
               <div className="flex flex-col gap-6 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
-                <div className="flex flex-col gap-3">
-                  <h3 className="font-semibold">{role.type === "trial" ? "Trial expectation" : "Responsibilities"}</h3>
-                  <p>{role.expectation}</p>
-                </div>
+                {role.expectation && (
+                  <div className="flex flex-col gap-3">
+                    <h3 className="font-semibold">{role.type === "trial" ? "Notes for candidates" : "Responsibilities"}</h3>
+                    <p className="leading-[1.4] whitespace-pre-line">{role.expectation}</p>
+                  </div>
+                )}
                 {role.attachment && (
                   <div className="flex flex-col gap-3">
                     <h3 className="font-semibold">Attachment</h3>
@@ -308,6 +342,35 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
           </div>
         )}
       </div>
+      <DropDialog candidate={dropping} role={role.title} onClose={() => setDropping(null)} onDone={setToast} />
+      {deleting && (
+        <Modal
+          open
+          tone="danger"
+          onClose={() => setDeleting(null)}
+          title={`Delete ${byName(deleting.independent).name} from this role?`}
+          description={`Their card comes off ${role.title}'s tracker for good, so it can't be undropped. Nothing is sent to ${firstOf(deleting)}, and any past interview stays on the Interviews page.`}
+          footer={
+            <>
+              <Button size="lg" onClick={() => setDeleting(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="lg"
+                variant="danger"
+                onClick={() => {
+                  const name = byName(deleting.independent).name;
+                  deleteCandidate(deleting.id);
+                  setDeleting(null);
+                  setToast(`Deleted ${name} from ${role.title}`);
+                }}
+              >
+                Delete
+              </Button>
+            </>
+          }
+        />
+      )}
       <InterviewDialog candidate={inviting} onClose={() => setInviting(null)} onSent={(name) => setToast(`Interview invitation sent to ${name}`)} />
       <CompleteInterviewDialog
         open={!!completing}
@@ -333,6 +396,8 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
           setRequesting(null);
         }}
       />
+      {/* TB-104 — looked up by id, so it follows the candidate as a revision or decline moves them. */}
+      {reviewing && <ProposalReviewDialog candidate={reviewing} role={role} open onClose={() => setReviewing(null)} onToast={setToast} />}
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );

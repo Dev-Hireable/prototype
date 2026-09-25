@@ -22,7 +22,7 @@ export default function Login() {
   return (
     <AuthShell title="Login to Hireable">
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-4 [@media(max-height:760px)]:gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           submit();

@@ -1,3 +1,4 @@
+import type { PlannedTask } from "@/lib/demo/tasks";
 import type { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { independents } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
@@ -10,8 +11,8 @@ export const TEMPLATE_CATEGORIES = ["Admin & Support", "Sales", "Marketing", "De
 export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number];
 
 /**
- * A starting point for the Create Role wizard: everything step one asks for, the trial
- * expectations, a suggested monthly range and trial length. Picking one fills the form; every
+ * A starting point for the Create Role wizard: everything step one asks for, the trial's tasks, a
+ * suggested monthly range and trial length. Picking one fills the form; every
  * field stays editable. Skills come from the picker's own catalogue so they show up as chips.
  */
 export type RoleTemplate = {
@@ -23,8 +24,8 @@ export type RoleTemplate = {
   description: string;
   skills: (typeof GENERAL_SKILLS)[number][];
   level: string;
-  /** Trial Expectations — measurable deliverables for a trial of `days`. */
-  trial: string;
+  /** TB-024 — the trial's tasks: measurable deliverables for a trial of `days`, due by week. */
+  tasks: PlannedTask[];
   days: 30 | 60 | 90;
   /** Suggested monthly range in USD, in line with remote rates for the role. */
   budget: { min: number; max: number };
@@ -42,8 +43,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Keep our day-to-day running smoothly: manage inboxes and calendars, schedule meetings across time zones, prepare documents, and keep trackers and records up to date so the team can focus on their core work.",
     skills: ["Virtual assistance", "Calendar management", "Email management", "Data entry", "Google Workspace"],
     level: INTERMEDIATE,
-    trial:
-      "Take over inbox triage and calendar scheduling for two team members, keep our shared task tracker current every working day, and clean up and de-duplicate the client contact sheet (about 300 rows) by the end of week two.",
+    tasks: [
+      { title: "Take over inbox triage for two team members", week: 1, priority: "high" },
+      { title: "Run both calendars, scheduling across time zones", week: 2, priority: "high" },
+      { title: "Clean up and de-duplicate the client contact sheet", week: 2, priority: "medium", description: "About 300 rows. Merge duplicates and fill in missing emails." },
+      { title: "Keep the shared task tracker current every working day", week: 6, priority: "medium" },
+    ],
     days: 30,
     budget: { min: 600, max: 1000 },
     popular: true,
@@ -57,8 +62,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Be the right hand to our founder: own the calendar and inbox, prepare meeting briefs and follow-ups, coordinate travel, and keep projects and priorities moving between leadership and the team.",
     skills: ["Calendar management", "Email management", "Project management", "Communication", "Google Workspace"],
     level: ADVANCED,
-    trial:
-      "Run the founder's calendar and inbox end to end, prepare a one-page brief before every external meeting, send follow-ups within 24 hours, and deliver a written priorities summary every Friday.",
+    tasks: [
+      { title: "Take over the founder's calendar and inbox", week: 1, priority: "high" },
+      { title: "Prepare a one-page brief before every external meeting", week: 2, priority: "high" },
+      { title: "Send meeting follow-ups within 24 hours", week: 4, priority: "medium" },
+      { title: "Deliver a written priorities summary every Friday", week: 6, priority: "medium" },
+    ],
     days: 30,
     budget: { min: 1000, max: 1600 },
   },
@@ -71,8 +80,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Be the first voice our customers hear. Answer tickets and chats, solve account and billing questions, log issues clearly for the product team, and follow up until every customer has an answer.",
     skills: ["Customer service", "Communication", "Email management", "Problem solving", "Time management"],
     level: BEGINNER,
-    trial:
-      "Handle our email and chat queue during your shift with a first response under 2 hours, resolve at least 80% of tickets without escalation, keep satisfaction at 4.5/5 or higher, and draft 5 help-centre answers from repeat questions.",
+    tasks: [
+      { title: "Handle the email and chat queue during your shift", week: 1, priority: "high", description: "First response in under 2 hours." },
+      { title: "Resolve 80% of tickets without escalation", week: 4, priority: "high" },
+      { title: "Keep customer satisfaction at 4.5/5 or higher", week: 6, priority: "medium" },
+      { title: "Draft 5 help-centre answers from repeat questions", week: 6, priority: "low" },
+    ],
     days: 30,
     budget: { min: 600, max: 950 },
     popular: true,
@@ -86,8 +99,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Keep our records accurate and up to date: enter and verify data across our spreadsheets and CRM, clean up duplicates, and flag anything that doesn't add up.",
     skills: ["Data entry", "Microsoft Excel", "Google Workspace", "Research", "Time management"],
     level: BEGINNER,
-    trial:
-      "Enter and verify 1,500 product or contact records from our source files into the CRM at 99% accuracy, remove duplicates from the existing sheet, and document the steps so the process can be repeated.",
+    tasks: [
+      { title: "Remove duplicates from the existing sheet", week: 2, priority: "medium" },
+      { title: "Enter 1,500 records from the source files into the CRM", week: 4, priority: "high", description: "Verified at 99% accuracy." },
+      { title: "Document the steps so the process can be repeated", week: 6, priority: "low" },
+    ],
     days: 30,
     budget: { min: 500, max: 800 },
   },
@@ -100,8 +116,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Open doors for our sales team. Research target accounts, run cold outreach by phone, email and LinkedIn, qualify leads, and book discovery calls for our account executives.",
     skills: ["Lead generation", "Cold calling", "Sales prospecting", "HubSpot", "Communication"],
     level: INTERMEDIATE,
-    trial:
-      "Build a list of 200 qualified prospects in our target segment, run a multi-touch outreach sequence (calls, email and LinkedIn), and book at least 10 qualified discovery calls, logging every touch in HubSpot.",
+    tasks: [
+      { title: "Build a list of 200 qualified prospects", week: 1, priority: "high", description: "In our target segment." },
+      { title: "Run a multi-touch outreach sequence", week: 3, priority: "high", description: "Calls, email and LinkedIn, with every touch logged in HubSpot." },
+      { title: "Book 10 qualified discovery calls", week: 6, priority: "high" },
+    ],
     days: 30,
     budget: { min: 900, max: 1500 },
     popular: true,
@@ -115,8 +134,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Own our pipeline from first touch to signed contract. Lead outbound and inbound deals, coach reps on discovery and closing, forecast accurately, and keep the CRM honest.",
     skills: ["Lead generation", "Cold calling", "Negotiation", "Account management", "Salesforce"],
     level: ADVANCED,
-    trial:
-      "Take ownership of the current pipeline, run at least 15 discovery calls, move 5 opportunities to proposal stage, and deliver a 30-day pipeline review with a forecast and a playbook the reps can follow.",
+    tasks: [
+      { title: "Take ownership of the current pipeline", week: 1, priority: "high" },
+      { title: "Run 15 discovery calls", week: 4, priority: "high" },
+      { title: "Move 5 opportunities to proposal stage", week: 5, priority: "medium" },
+      { title: "Deliver a pipeline review with a forecast and a playbook", week: 6, priority: "medium", description: "A playbook the reps can follow." },
+    ],
     days: 30,
     budget: { min: 1500, max: 2500 },
     popular: true,
@@ -130,8 +153,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Look after our existing clients: run check-ins and business reviews, spot renewal and upsell opportunities, and make sure every account is healthy and heard.",
     skills: ["Account management", "Customer service", "Negotiation", "Communication", "HubSpot"],
     level: INTERMEDIATE,
-    trial:
-      "Take over 15 client accounts, run a check-in with each within the first two weeks, log account health in HubSpot, and identify at least 3 renewal or upsell opportunities with a plan for each.",
+    tasks: [
+      { title: "Take over 15 client accounts", week: 1, priority: "high" },
+      { title: "Run a check-in with every account", week: 2, priority: "high", description: "Log account health in HubSpot after each one." },
+      { title: "Find 3 renewal or upsell opportunities, with a plan for each", week: 6, priority: "medium" },
+    ],
     days: 30,
     budget: { min: 1000, max: 1700 },
   },
@@ -144,8 +170,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Grow our brand on social. Plan and publish content across our channels, write captions, design simple graphics, engage with our community, and report on what's working.",
     skills: ["Social media marketing", "Content writing", "Canva", "Facebook Ads", "Marketing strategy"],
     level: INTERMEDIATE,
-    trial:
-      "Build a 30-day content calendar for Instagram, LinkedIn and Facebook, publish at least 20 posts with on-brand graphics, reply to comments within a day, and report reach and engagement growth at the end.",
+    tasks: [
+      { title: "Build a 30-day content calendar", week: 1, priority: "high", description: "Instagram, LinkedIn and Facebook." },
+      { title: "Publish 20 posts with on-brand graphics", week: 5, priority: "high" },
+      { title: "Reply to comments within a day", week: 6, priority: "medium" },
+      { title: "Report reach and engagement growth", week: 6, priority: "medium" },
+    ],
     days: 30,
     budget: { min: 800, max: 1400 },
     popular: true,
@@ -159,8 +189,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Run our paid and owned channels end to end: plan campaigns, manage Google and Meta ads, send email campaigns, and report on leads and cost per acquisition every week.",
     skills: ["Digital marketing", "Google Ads", "Facebook Ads", "Email marketing", "SEO"],
     level: INTERMEDIATE,
-    trial:
-      "Audit our Google and Meta ad accounts, relaunch two campaigns with a clear test plan, send two email campaigns, and cut cost per lead by 15% or show why not, with a results report every week.",
+    tasks: [
+      { title: "Audit the Google and Meta ad accounts", week: 1, priority: "high" },
+      { title: "Relaunch two campaigns with a test plan", week: 2, priority: "high" },
+      { title: "Send two email campaigns", week: 4, priority: "medium" },
+      { title: "Cut cost per lead by 15%, or show why not", week: 6, priority: "high", description: "With a results report every week." },
+    ],
     days: 30,
     budget: { min: 1000, max: 1800 },
   },
@@ -173,8 +207,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Write clear, useful content that brings the right people to us: blog posts, landing pages, newsletters and case studies, researched properly and optimized for search.",
     skills: ["Content writing", "Copywriting", "SEO", "Research", "WordPress"],
     level: INTERMEDIATE,
-    trial:
-      "Write and publish 6 SEO-optimized blog posts (1,200+ words each) from our topic list, refresh 3 existing landing pages, and draft one customer case study, all edited to our style guide.",
+    tasks: [
+      { title: "Refresh 3 existing landing pages", week: 3, priority: "medium" },
+      { title: "Write and publish 6 SEO blog posts", week: 5, priority: "high", description: "1,200+ words each, from our topic list, edited to our style guide." },
+      { title: "Draft one customer case study", week: 6, priority: "medium" },
+    ],
     days: 30,
     budget: { min: 700, max: 1200 },
   },
@@ -187,8 +224,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Get us found. Run keyword research and technical audits, improve on-page SEO, plan content around search intent, and track rankings and organic traffic.",
     skills: ["SEO", "Content writing", "Research", "WordPress", "Marketing strategy"],
     level: INTERMEDIATE,
-    trial:
-      "Deliver a technical SEO audit with a prioritized fix list, fix the top 10 on-page issues, map 30 target keywords to pages, and set up a weekly ranking and organic traffic report.",
+    tasks: [
+      { title: "Deliver a technical SEO audit with a prioritized fix list", week: 1, priority: "high" },
+      { title: "Set up a weekly ranking and organic traffic report", week: 2, priority: "low" },
+      { title: "Fix the top 10 on-page issues", week: 3, priority: "high" },
+      { title: "Map 30 target keywords to pages", week: 4, priority: "medium" },
+    ],
     days: 30,
     budget: { min: 900, max: 1500 },
   },
@@ -201,8 +242,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Make our brand look sharp everywhere. Design social posts, ads, presentations and marketing collateral that follow our brand guidelines, and turn requests around quickly.",
     skills: ["Graphic design", "Canva", "Adobe Photoshop", "Figma", "Communication"],
     level: INTERMEDIATE,
-    trial:
-      "Design a set of 15 social media templates, 5 ad creatives in three sizes each, and one sales presentation, all on-brand, with editable source files delivered in Figma or Canva.",
+    tasks: [
+      { title: "Design 15 social media templates", week: 2, priority: "high", description: "On-brand, with editable source files in Figma or Canva." },
+      { title: "Design 5 ad creatives in three sizes each", week: 4, priority: "high" },
+      { title: "Design one sales presentation", week: 6, priority: "medium" },
+    ],
     days: 30,
     budget: { min: 800, max: 1400 },
     popular: true,
@@ -216,8 +260,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Turn raw footage into content people finish watching. Edit short-form clips, product videos and webinars, add captions and simple motion graphics, and deliver on schedule.",
     skills: ["Video editing", "Social media marketing", "Canva", "Adobe Photoshop", "Time management"],
     level: INTERMEDIATE,
-    trial:
-      "Edit 12 short-form videos (under 60 seconds) for Reels and TikTok, cut one 10-minute webinar into 5 captioned clips, and set up a reusable intro, outro and caption style.",
+    tasks: [
+      { title: "Set up a reusable intro, outro and caption style", week: 1, priority: "medium" },
+      { title: "Cut one 10-minute webinar into 5 captioned clips", week: 3, priority: "medium" },
+      { title: "Edit 12 short-form videos for Reels and TikTok", week: 5, priority: "high", description: "Under 60 seconds each." },
+    ],
     days: 30,
     budget: { min: 800, max: 1400 },
   },
@@ -230,8 +277,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Design product experiences our users love. Turn requirements into flows, wireframes and polished UI in Figma, test with real users, and work closely with our developers through handoff.",
     skills: ["UI/UX design", "Figma", "Research", "Graphic design", "Communication"],
     level: ADVANCED,
-    trial:
-      "Redesign our onboarding flow: map the current journey, run 5 user interviews, deliver wireframes and a high-fidelity Figma prototype, and hand off specs our developers can build from.",
+    tasks: [
+      { title: "Map the current onboarding journey", week: 2, priority: "high" },
+      { title: "Run 5 user interviews", week: 4, priority: "high" },
+      { title: "Deliver wireframes and a high-fidelity Figma prototype", week: 9, priority: "high" },
+      { title: "Hand off specs the developers can build from", week: 12, priority: "medium" },
+    ],
     days: 60,
     budget: { min: 1500, max: 2500 },
   },
@@ -244,8 +295,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Build and ship the web app our customers use every day. Write clean React and TypeScript, turn Figma designs into fast, accessible pages, and review and test code with the team.",
     skills: ["React", "TypeScript", "Next.js", "JavaScript", "QA testing"],
     level: ADVANCED,
-    trial:
-      "Build two features from our backlog in React and TypeScript, ship them to production through code review, fix 10 open UI bugs, and add tests for the code you touch.",
+    tasks: [
+      { title: "Fix 10 open UI bugs", week: 3, priority: "medium" },
+      { title: "Build the first backlog feature", week: 6, priority: "high", description: "React and TypeScript, shipped to production through code review." },
+      { title: "Build the second backlog feature", week: 11, priority: "high" },
+      { title: "Add tests for the code you touch", week: 12, priority: "medium" },
+    ],
     days: 60,
     budget: { min: 1800, max: 3000 },
   },
@@ -258,8 +313,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Keep our website fast, secure and easy to update. Build and customize WordPress pages and themes, manage plugins, and fix issues as they come up.",
     skills: ["WordPress", "JavaScript", "SEO", "Shopify", "Problem solving"],
     level: INTERMEDIATE,
-    trial:
-      "Rebuild our homepage and two landing pages from the Figma designs, get Core Web Vitals into the green, update and audit every plugin, and document how the team can edit each page.",
+    tasks: [
+      { title: "Update and audit every plugin", week: 1, priority: "medium" },
+      { title: "Rebuild the homepage and two landing pages from Figma", week: 4, priority: "high" },
+      { title: "Get Core Web Vitals into the green", week: 5, priority: "high" },
+      { title: "Document how the team can edit each page", week: 6, priority: "low" },
+    ],
     days: 30,
     budget: { min: 1000, max: 1800 },
   },
@@ -272,8 +331,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Keep our books accurate and on time. Record transactions, reconcile accounts, manage invoices and bills, and prepare clean monthly reports for our accountant.",
     skills: ["Bookkeeping", "Microsoft Excel", "Data entry", "Google Workspace", "Time management"],
     level: INTERMEDIATE,
-    trial:
-      "Reconcile last quarter's bank and card accounts, clear the backlog of uncategorized transactions, send and chase this month's invoices, and deliver a month-end report with a profit and loss summary.",
+    tasks: [
+      { title: "Reconcile last quarter's bank and card accounts", week: 2, priority: "high" },
+      { title: "Clear the backlog of uncategorized transactions", week: 3, priority: "medium" },
+      { title: "Send and chase this month's invoices", week: 4, priority: "medium" },
+      { title: "Deliver a month-end report with a profit and loss summary", week: 6, priority: "high" },
+    ],
     days: 30,
     budget: { min: 900, max: 1500 },
   },
@@ -286,8 +349,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       "Keep projects on time and everyone on the same page. Plan timelines, run stand-ups and status updates, manage risks and scope, and make sure the work ships.",
     skills: ["Project management", "Communication", "Time management", "Problem solving", "Google Workspace"],
     level: ADVANCED,
-    trial:
-      "Take over one live project: build the plan and timeline, run weekly status meetings with written updates, keep the task board current, and deliver the next milestone on time with a risk log.",
+    tasks: [
+      { title: "Build the plan and timeline for the live project", week: 1, priority: "high" },
+      { title: "Run weekly status meetings with written updates", week: 6, priority: "medium" },
+      { title: "Keep the task board and a risk log current", week: 6, priority: "low" },
+      { title: "Deliver the next milestone on time", week: 6, priority: "high" },
+    ],
     days: 30,
     budget: { min: 1400, max: 2200 },
   },

@@ -7,10 +7,10 @@ import { workstyleResultsContent } from "@/web-app/lib/workstyle/results-content
  * src/app/onboarding). Its script (_data/quiz-config.json) and its results copy
  * (src/web-app/lib/workstyle/results-content.json) are the one source for the questions, the tag
  * each answer earns and what that tag means; this module reads them for everything outside the
- * quiz — badges and their tooltips, and the work-style chart.
+ * quiz — badges and their tooltips, and how two sides line up trait by trait (traitFit).
  *
  * Nobody has traits until they take the quiz, and a portal sends its side there before anything
- * else (QuizGate). An answer is kept as a value on the 1–5 scale the chart plots: the real quiz's
+ * else (QuizGate). An answer is kept as a value on a 1–5 scale: the real quiz's
  * position 1 (fastest) to 4 (most deliberate). The match percentage is not scored from them — the
  * real app's matching works differently, so the demo keeps its seeded figure.
  */
@@ -23,7 +23,7 @@ export type WorkStyleQuestion = { trait: string; question: string; answers: Work
 /** A tag someone earned: the trait it came from, what it means and the answer that earned it. */
 export type WorkStyleTag = { label: string; trait: number; meaning: string; answer: string };
 
-/** The six traits in quiz order — the chart's axes, and each tag's colour and icon. */
+/** The six traits in quiz order — the rows of a work-style match, and each tag's colour and icon. */
 export const WORK_STYLE_TRAITS = ["Decision Making", "Adaptability", "Responsiveness", "Time Management", "Cooperativeness", "Communication"];
 
 /** The real quiz's answer positions 1–4 on the 1–5 scale. */
@@ -51,6 +51,22 @@ export const WORK_STYLE_QUIZ: Record<WorkStyleSide, WorkStyleQuestion[]> = { tea
 
 /** The value an answer at this position of the real quiz is kept as. */
 export const valueForPosition = (position: number) => VALUES[position - 1] ?? OTHER_VALUE;
+
+/** How two sides' answers on one trait line up: the same approach, the next one over, or further apart. */
+export type TraitFit = "same" | "close" | "apart";
+
+/**
+ * Where two answers on a trait sit against each other — what the old chart showed as overlapping
+ * bubbles. The two quizzes word their tags for their own side ("Decisive" for a Team Builder is
+ * "Proactive" for an Independent), so a trait lines up on the answer's position, never the tag's name.
+ */
+export function traitFit(a: number | undefined, b: number | undefined): TraitFit | null {
+  const pa = a === undefined ? -1 : VALUES.indexOf(a);
+  const pb = b === undefined ? -1 : VALUES.indexOf(b);
+  if (pa < 0 || pb < 0) return null;
+  const gap = Math.abs(pa - pb);
+  return gap === 0 ? "same" : gap === 1 ? "close" : "apart";
+}
 
 /** Answers for all six traits — anything shorter is a quiz not taken. */
 const complete = (answers: readonly number[]) => answers.length === WORKSTYLE_DIMENSIONS.length;

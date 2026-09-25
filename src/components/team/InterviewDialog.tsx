@@ -64,7 +64,7 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
             <DatePicker value={date} onChange={setDate} disabled={{ before: startOfToday() }} placeholder="Pick a date" />
           </Field>
           <Field label="Time" className="flex-1">
-            <Select options={["", ...INTERVIEW_TIMES]} value={time} onChange={(e) => setTime(e.target.value)} />
+            <Select options={["", ...INTERVIEW_TIMES]} placeholder="Pick a time" value={time} onChange={(e) => setTime(e.target.value)} />
           </Field>
         </div>
         {/* A blank link used to go out, and the talent had nothing to join. */}

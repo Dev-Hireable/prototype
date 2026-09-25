@@ -2,13 +2,15 @@
 
 import { useState, type ReactNode } from "react";
 import { MdArrowForward, MdCheckCircle, MdClose } from "react-icons/md";
-import { Button, Chip, Modal, SearchBox } from "@/components/independent/ui";
+import { ICON_BUTTON } from "@/components/portal/styles";
+import { Button, Chip, Modal, Pills, SearchBox } from "@/components/independent/ui";
+import { Badge } from "@/components/portal/Badge";
 import { levelName, ROLE_TEMPLATES, searchTemplates, TEMPLATE_CATEGORIES, templateRange } from "@/lib/team/role-templates";
 import type { RateSuggestion, RoleTemplate, TemplateCategory } from "@/lib/team/role-templates";
 
 /**
  * Create Role templates: the most common roles, ready to post. Picking one fills step one, the
- * trial expectations and a suggested budget; the wizard decides whether that needs a confirm.
+ * trial's tasks and a suggested budget; the wizard decides whether that needs a confirm.
  * They live in a dialog behind "Use a template", so the form itself stays uncluttered.
  */
 
@@ -38,7 +40,7 @@ export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { o
               <p className="text-[20px] leading-[1.4] font-semibold text-ink">Role templates</p>
               <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">The most common roles, ready to post. Click one to fill in the form — every field stays editable.</p>
             </div>
-            <button type="button" onClick={close} aria-label="Close" className="flex size-8 shrink-0 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink">
+            <button type="button" onClick={close} aria-label="Close" className={`${ICON_BUTTON} size-8`}>
               <MdClose size={20} aria-hidden />
             </button>
           </div>
@@ -56,19 +58,19 @@ export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { o
             </div>
           )}
           <SearchBox value={q} onChange={setQ} placeholder="Search roles, e.g. assistant, sales, designer" />
-          <div className="flex flex-wrap gap-2">
-            {(["All", ...TEMPLATE_CATEGORIES] as const).map((c) => (
-              <button
-                key={c}
-                type="button"
-                aria-pressed={category === c}
-                onClick={() => setCategory(c)}
-                className={`h-8 rounded-full px-3 text-[13px] leading-none font-medium tracking-[0.2px] ${category === c ? "bg-primary text-white" : "bg-surface-2 text-ink-2 hover:text-ink"}`}
-              >
-                {c} <span className="opacity-70">{inCategory(c).length}</span>
-              </button>
-            ))}
-          </div>
+          <Pills
+            aria-label="Template category"
+            value={category}
+            onChange={setCategory}
+            options={(["All", ...TEMPLATE_CATEGORIES] as const).map((c) => ({
+              value: c,
+              label: (
+                <>
+                  {c} <span className="opacity-70">{inCategory(c).length}</span>
+                </>
+              ),
+            }))}
+          />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
@@ -94,10 +96,10 @@ export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { o
                       <span className="flex flex-col gap-0.5">
                         <span className="flex items-center gap-2 text-[15px] leading-[1.3] font-semibold text-ink">
                           {t.title}
-                          {t.popular && <span className="rounded bg-[#fff5ec] px-1.5 py-0.5 text-[11px] leading-none font-semibold text-brand-orange">Popular</span>}
+                          {t.popular && <Badge tone="trial">Popular</Badge>}
                         </span>
                         <span className="text-[12px] leading-[1.3] text-ink-2">
-                          {t.category} · {levelName(t.level)} · {templateRange(t)} · {t.days}-day trial
+                          {t.category} · {levelName(t.level)} · {templateRange(t)} · {t.days}-day trial, {t.tasks.length} tasks
                         </span>
                       </span>
                       <span className="line-clamp-3 text-[13px] leading-[1.4] text-ink-2">{t.description}</span>

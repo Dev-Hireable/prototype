@@ -3,13 +3,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Modal } from "@/components/independent/ui";
 import { Tip } from "@/components/portal/Tip";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
-import { unseenByAdmin, useDisputes } from "@/lib/demo/disputes";
+import { useContractClock } from "@/lib/demo/contract";
+import { unseenByAdmin, useDisputeDeadlines, useDisputes } from "@/lib/demo/disputes";
 import { unreadChat, useLive } from "@/lib/demo/live";
 import { menuItemFor, sectionFor } from "@/lib/portal/nav";
 import type { Section } from "@/lib/portal/nav";
@@ -48,10 +49,22 @@ export function PortalShell({
   const rail = sections.filter((s) => !s.hidden);
   const activeIndex = rail.indexOf(section); // -1 when a hidden section (Profile) is open
   const activeMenuHref = menuItemFor(section, pathname);
-  const [collapsed, setCollapsed] = useState(false);
+  // Collapsed by default below 1440px — 14" laptops at 125–150% scaling (1280–1400 wide), where
+  // the full 336px panel left the page ~930px and boards, tables and workspaces scrolled sideways.
+  // The Figma frame (1512, a 14" MacBook) keeps it open. The toggle overrides that for the session.
+  // On a phone only the rail is left.
+  const narrow = useMedia("(max-width: 1439px)");
+  const tiny = useMedia("(max-width: 639px)");
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const collapsed = chosen ?? narrow;
+  const setCollapsed = (fn: (c: boolean) => boolean) => setChosen(fn(collapsed));
   /** Destination of a pending log-out, held while the confirm dialog is open. */
   const [logout, setLogout] = useState<string | null>(null);
   const hydrated = useHydrated();
+  // A dispute turn that runs out closes the case — whichever portal happens to be open checks.
+  useDisputeDeadlines();
+  // The contract's own clock: the evaluation reminder, the escrow's release when the window closes, monthly pay.
+  useContractClock();
   const router = useRouter();
 
   /* Live unread counts on the Messages and Notifications nav items (TB-007/008, IN-007/008). */
@@ -66,26 +79,36 @@ export function PortalShell({
     : {
         [`${root}/messages`]: unreadChat(live, side),
         [`${root}/notifications`]: live[side].filter((n) => n.unread).length,
-        /* TB-008 / IN-008 — the rail carries a section's total too, so unread messages are visible
-           from every section, not only the one whose submenu happens to list Messages. */
-        [root]: unreadChat(live, side),
       };
+  /* TB-008 / IN-008 — the rail carries a section's total too, so unread messages are visible from
+     every section, not only the one whose submenu happens to list Messages. Rail only: the Home
+     section and its Dashboard item share a href, and the count belongs on Messages, not Dashboard. */
+  const railBadges: Record<string, number> = pathname.startsWith("/admin") ? badges : { ...badges, [root]: unreadChat(live, side) };
+  /** On a phone the sidebar is just the rail. */
+  const railOnly = tiny;
+  /** A bare page (Messages) draws its own panels, so the shell draws no page panel around them. */
+  const bare = section.menu.find((m) => m.href === activeMenuHref)?.bare;
 
   return (
-    // min-h keeps the rail + avatar intact on short viewports (the page scrolls instead of squashing)
-    <div className="flex h-dvh min-h-[700px] gap-1 bg-surface-2 p-1 font-sans text-ink">
-      {/* Sidebar width eases 336 ↔ 152; main is flex-1 so it follows the same curve. */}
+    // min-h keeps the rail (7 × 68) + avatar intact on short viewports; 560 lets a 14" laptop window
+    // (600–650 tall once the browser toolbars take theirs) fit without the whole app scrolling
+    <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink">
+      {/* Sidebar width eases 336 ↔ 152, or just the rail on a phone; main is flex-1 so it follows the same curve.
+          Rail only, there's no section panel for the active tab to join, so main's own panel takes its
+          place: the sidebar keeps the tab's 12px reach (108) and main tucks under it (-mr-4 undoes that
+          and the 4px gap), so main's edge sits on x 96 where the section panel's would, and the tab runs
+          into it. The sidebar floats above main there, click-through except the rail itself. */}
       <div
-        className={`relative h-full shrink-0 overflow-hidden transition-[width] ${EASE} ${
-          collapsed ? "w-[152px]" : "w-[336px]"
+        className={`relative h-full shrink-0 overflow-hidden transition-[width,margin] ${EASE} ${
+          railOnly ? "pointer-events-none z-10 -mr-4 w-[108px]" : collapsed ? "w-[152px]" : "w-[336px]"
         }`}
       >
         {/* Icon rail */}
-        <nav aria-label="Sections" className="absolute top-0 left-0 h-full w-24 overflow-clip rounded-lg">
+        <nav aria-label="Sections" className="pointer-events-auto absolute top-0 left-0 h-full w-24 overflow-clip rounded-lg">
           <ul className="flex flex-col pl-2">
             {rail.map((s, i) => {
               const active = i === activeIndex;
-              const badge = badges[s.href] ?? 0;
+              const badge = railBadges[s.href] ?? 0;
               return (
                 <li key={s.href} className="relative z-20">
                   <Link
@@ -101,7 +124,7 @@ export function PortalShell({
                     <RailGlyph icon={s.icon} active={active} />
                     {badge > 0 && (
                       <span aria-label={`${badge} unread`} className="pointer-events-none absolute top-2.5 right-[22px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white">
-                        {badge > 9 ? "9+" : badge}
+                        <span className="badge-count">{badge > 9 ? "9+" : badge}</span>
                       </span>
                     )}
                     {s.label}
@@ -138,10 +161,12 @@ export function PortalShell({
             they join. Profile (hidden section, reached from the avatar) is the same shape flipped to the bottom. */}
         <ActiveTab index={activeIndex >= 0 ? activeIndex : "profile"} />
 
-        {/* Section panel — ONE set of DOM nodes for both states so items morph instead of swapping. */}
+        {/* Section panel — ONE set of DOM nodes for both states so items morph instead of swapping.
+            On a phone it stays mounted at no width. */}
         <div
+          inert={railOnly}
           className={`absolute top-0 left-24 h-full overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] ${EASE} transition-[width] ${
-            collapsed ? "w-14" : "w-60"
+            railOnly ? "w-0" : collapsed ? "w-14" : "w-60"
           }`}
         >
           <h2
@@ -200,7 +225,7 @@ export function PortalShell({
                       className={`pointer-events-none absolute z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white ${EASE} transition-[left,top]`}
                       style={collapsed ? { left: 24, top: 2 } : { left: 178, top: 8 }}
                     >
-                      {badge > 9 ? "9+" : badge}
+                      <span className="badge-count">{badge > 9 ? "9+" : badge}</span>
                     </span>
                   )}
                   {/* Collapsed to its icon, an item names itself on hover */}
@@ -228,7 +253,7 @@ export function PortalShell({
         </div>
       </div>
 
-      <div className="flex h-full min-w-0 flex-1 flex-col overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]">
+      <div className={`flex h-full min-w-0 flex-1 flex-col ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]"}`}>
         {/* The demo's records live in localStorage, so the page waits one paint for them rather
             than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
         {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
@@ -254,6 +279,19 @@ export function PortalShell({
         }
       />
     </div>
+  );
+}
+
+/** Whether a media query matches — false on the server and the first paint, then live. */
+function useMedia(query: string) {
+  return useSyncExternalStore(
+    (fn) => {
+      const m = matchMedia(query);
+      m.addEventListener("change", fn);
+      return () => m.removeEventListener("change", fn);
+    },
+    () => matchMedia(query).matches,
+    () => false,
   );
 }
 

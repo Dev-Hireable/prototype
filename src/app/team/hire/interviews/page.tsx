@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Checkbox, Field, LinkButton, Modal, Page, Pills, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Checkbox, Field, LinkButton, Modal, Page, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { canJoin, DatePicker, formatDate, startOfToday } from "@/components/portal/DatePicker";
 import { INTERVIEW_TIMES } from "@/components/team/InterviewDialog";
-import { Person, Row, Table } from "@/components/team/ui";
+import { ICONS } from "@/components/admin/icons";
+import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
+import { ViewSwitch } from "@/components/portal/ViewSwitch";
+import { Avatar, Row, Table } from "@/components/team/ui";
 import { byName } from "@/lib/team/data";
 import { useDemo } from "@/lib/team/store";
 import { useQueryState } from "@/lib/portal/query-state";
@@ -17,7 +20,7 @@ import type { Interview } from "@/lib/team/data";
  * lines: on one, "Tue 29 Sep 2026, 10:00 AM (PHT)" ran past its 205px cell into Format. Actions is
  * wide enough for the three buttons an upcoming interview has.
  */
-const COLS = ["min-w-[240px] flex-1", "w-[190px]", "w-[170px]", "w-[120px]", "w-[150px]", "w-[272px]"];
+const COLS = ["min-w-[200px] flex-1", "w-[180px]", "w-[150px]", "w-[110px]", "w-[120px]", "w-[248px]"];
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 
 /** Figma "Interviews / Scheduled list · Reschedule interview · modal · Cancel interview · confirm · Interview availability · setup". */
@@ -45,19 +48,21 @@ export default function Interviews() {
 
   return (
     <Page title="Interviews">
-      <div className="flex items-center gap-3">
-        <Pills
+      {/* One 36px toolbar: the same switch and button as every list's toolbar. */}
+      <div className="flex items-center gap-2" role="toolbar" aria-label="Interviews">
+        <ViewSwitch
+          label="Show"
           value={tab}
           onChange={setTab}
           options={[
-            { value: "upcoming", label: `Upcoming (${upcoming.length})` },
-            { value: "past", label: `Past (${past.length})` },
+            { value: "upcoming", label: `Upcoming (${upcoming.length})`, icon: "schedule" },
+            { value: "past", label: `Past (${past.length})`, icon: "history" },
           ]}
         />
         <span className="flex-1" />
-        <Button size="lg" onClick={() => setAvailability(true)}>
-          Set availability
-        </Button>
+        <button type="button" onClick={() => setAvailability(true)} className={TOOLBAR_BUTTON}>
+          <ICONS.calendar size={16} aria-hidden /> Set availability
+        </button>
       </div>
       <Table cols={COLS} head={["Candidate", "Role", "Date and time", "Format", "Status", "Actions"]}>
         {rows.map((iv) => {
@@ -69,17 +74,22 @@ export default function Interviews() {
           const confirmed = iv.status.label === "Confirmed";
           const joinable = confirmed && !!iv.link && canJoin(iv.when);
           return (
-            <Row key={iv.id}>
-              <span className={COLS[0]}>
-                <Person name={p.name} role={p.role} avatar={p.avatar} href={card ?? withReturn(`/team/discover/${p.slug}`)} />
+            // The whole row opens the candidate's card; the role's board link and the buttons stay their own.
+            <Row key={iv.id} className="relative">
+              <span className={`${COLS[0]} flex gap-3`}>
+                <Avatar src={p.avatar} size={36} />
+                <Link href={card ?? withReturn(`/team/discover/${p.slug}`)} className={`flex min-w-0 flex-col gap-0.5 leading-[1.3] ${ROW_LINK}`}>
+                  <span className="truncate text-[14px] font-semibold text-ink">{p.name}</span>
+                  <span className="truncate text-[12.5px] text-ink-2">{p.role}</span>
+                </Link>
               </span>
-              <span className={`${COLS[1]} truncate text-[14px]`}>
+              <span className={`${COLS[1]} relative z-10 !whitespace-normal text-[13.5px] leading-[1.35]`}>
                 {board ? (
-                  <Link href={board} className="hover:text-primary hover:underline">
+                  <Link href={board} className="line-clamp-2 hover:text-primary hover:underline">
                     {iv.role}
                   </Link>
                 ) : (
-                  iv.role
+                  <span className="line-clamp-2">{iv.role}</span>
                 )}
               </span>
               <span className={COLS[2]}>
@@ -90,7 +100,7 @@ export default function Interviews() {
               <span className={COLS[4]}>
                 <StatusDot tone={iv.status.tone}>{iv.status.label}</StatusDot>
               </span>
-              <span className={`${COLS[5]} flex gap-2`}>
+              <span className={`${COLS[5]} relative z-10 flex gap-2`}>
                 {iv.past ? (
                   // Over, so what is left is the candidate's card in the pipeline.
                   card && (
@@ -112,7 +122,7 @@ export default function Interviews() {
                     <Button size="sm" onClick={() => setRescheduling(iv)}>
                       Reschedule
                     </Button>
-                    <Button size="sm" onClick={() => setCancelling(iv)}>
+                    <Button size="sm" variant="danger" onClick={() => setCancelling(iv)}>
                       Cancel
                     </Button>
                   </>

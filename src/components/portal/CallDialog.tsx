@@ -46,7 +46,7 @@ export function CallDialog({ open, link, withWhom, onEnd }: { open: boolean; lin
           >
             {cameraOff ? "Camera on" : "Camera off"}
           </button>
-          <button type="button" onClick={onEnd} className="flex h-11 items-center gap-2 rounded-lg bg-danger px-4 text-[14px] leading-[1.2] font-medium text-white hover:brightness-110">
+          <button type="button" onClick={onEnd} className="flex h-11 items-center gap-2 rounded-lg bg-danger px-4 text-[14px] leading-[1.2] font-medium text-white hover:bg-danger-hover">
             <Close size={18} aria-hidden /> End call
           </button>
         </div>

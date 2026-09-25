@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Chip, EmptyState, Modal, Tabs } from "@/components/independent/ui";
+import { Chip, EmptyState, JobBadge, Modal, Tabs } from "@/components/independent/ui";
+import { FactStrip, Section } from "@/components/portal/PageParts";
 import { Tip } from "@/components/portal/Tip";
 import { TraitTag } from "@/components/portal/TraitTag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";
@@ -48,8 +49,7 @@ const TABS: { value: Tab; label: string }[] = [
 ];
 const TAB_KEYS = TABS.map((t) => t.value);
 
-/** Figma "Text-S-B" titles and "Text-Paragraph" copy; sections keep the frame's 768 column (Section), so it stays readable. */
-const TITLE = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink";
+/** Figma "Text-Paragraph" copy; sections keep the frame's 768 column (PageParts' Section), so it stays readable. */
 const BODY = "text-[14px] leading-[1.2] tracking-[0.2px] text-ink";
 const QUIET = "text-[14px] leading-[1.4] text-ink-2";
 const DM = { fontVariationSettings: '"opsz" 14' };
@@ -262,7 +262,7 @@ export function TalentProfile({
       {p.introVideo && (
         <Modal open={playing} onClose={() => setPlaying(false)} title={`${first}'s intro video`} bare width={720}>
           <div className="relative bg-black">
-            <video src={p.introVideo} controls autoPlay playsInline className="block max-h-[80vh] w-full" />
+            <video src={p.introVideo} controls autoPlay playsInline className="block max-h-[calc(80vh/var(--ui-scale))] w-full" />
             <button
               type="button"
               aria-label="Close"
@@ -306,18 +306,7 @@ function Facts({ rate, level, history }: { rate: string; level: string; history:
         }
       : { value: "New", label: "Not rated yet" },
   ];
-  return (
-    <dl className="grid w-full max-w-[480px] grid-cols-3 rounded-lg bg-white outline -outline-offset-1 outline-border">
-      {cells.map((c, i) => (
-        <div key={c.label} className={`flex min-w-0 flex-col-reverse gap-1 px-4 py-3 ${i ? "shadow-[inset_1px_0_0_#e5e5e5]" : ""}`}>
-          <dt className="truncate text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{c.label}</dt>
-          <dd className="flex items-center gap-1 truncate font-display text-[18px] leading-[1.3] font-semibold text-ink" style={DM}>
-            {c.value}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <FactStrip cells={cells} className="max-w-[480px]" />;
 }
 
 /**
@@ -346,39 +335,6 @@ function IntroVideo({ still, video, name, onPlay }: { still?: string; video?: st
         Watch intro
       </span>
     </button>
-  );
-}
-
-/** Figma "div_bio" / "div_skills" …: a Text-S-B title (with the talent's own edit pencil beside it), 16 above the content. */
-function Section({
-  title,
-  edit,
-  editor,
-  action,
-  children,
-}: {
-  title: string;
-  /** The talent's pencil, right beside the title (Create Role's Line). */
-  edit?: ReactNode;
-  /** An EditPanel standing in for the whole section while it's edited — it carries the title itself. */
-  editor?: ReactNode;
-  /** Anything else on the title row, on its right (History's rating). */
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  // The frame's 768 column, so the copy stays readable.
-  if (editor) return <section className="max-w-[768px]">{editor}</section>;
-  return (
-    <section className="flex max-w-[768px] flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <h3 className={TITLE}>{title}</h3>
-          {edit}
-        </div>
-        {action}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -417,7 +373,7 @@ function Evaluation({ evaluation: e }: { evaluation: PastEvaluation }) {
     <article className="flex flex-col gap-3 p-6">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{e.role}</h4>
-        <ContractBadge type={e.type} />
+        <JobBadge type={e.type} />
       </div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
         <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-[#757575]">
@@ -427,19 +383,6 @@ function Evaluation({ evaluation: e }: { evaluation: PastEvaluation }) {
       </div>
       <p className={BODY}>{e.feedback}</p>
     </article>
-  );
-}
-
-/** Figma "Badge with border": orange for a trial, the brand blue for full-time. */
-function ContractBadge({ type }: { type: PastEvaluation["type"] }) {
-  return (
-    <span
-      className={`inline-flex h-6 items-center rounded border-[0.5px] px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap uppercase ${
-        type === "trial" ? "border-brand-orange bg-[#fff5ec] text-brand-orange" : "border-brand-blue bg-[#ebf8fe] text-brand-blue"
-      }`}
-    >
-      {type}
-    </span>
   );
 }
 

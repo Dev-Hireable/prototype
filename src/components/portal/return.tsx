@@ -35,6 +35,10 @@ const ORIGINS: [RegExp, string][] = [
   [/^\/independent\/contracts\/[^/]+$/, "contract"],
   [/^\/independent\/notifications$/, "notifications"],
   [/^\/independent$/, "dashboard"],
+  [/^\/admin\/disputes\/[^/]+$/, "dispute"],
+  [/^\/admin\/users\/independents\/[^/]+$/, "account"],
+  [/^\/admin\/users\/[^/]+$/, "account"],
+  [/^\/admin\/contracts\/[^/]+$/, "contract"],
 ];
 
 function labelFor(path: string) {

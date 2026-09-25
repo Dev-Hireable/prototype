@@ -3,10 +3,14 @@
 import { Tip } from "@/components/portal/Tip";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { TFP_TOOLTIP, TFP_WEIGHTS } from "@/lib/team/data";
-import type { Contract } from "@/lib/team/data";
+import type { FitScore } from "@/lib/team/data";
 
-/** Both portals show the same score for the same trial, so the widget takes the numbers, not a contract. */
-type Scored = Pick<Contract, "tfs" | "phase">;
+/**
+ * Both portals show the same score for the same trial, so the widget takes the numbers, not a
+ * contract. A direct full-time or part-time hire has no trial and so no score — callers show the
+ * match at hire instead.
+ */
+type Scored = { tfs: FitScore; phase: 3 | 4 };
 
 /**
  * TB-058 Trial Fit Score. The three live components each get a bar, and the weight beside each
@@ -60,6 +64,18 @@ export function TrialFitScore({ contract, final = false }: { contract: Scored; f
           </p>
         )}
       </div>
+    </PanelCard>
+  );
+}
+
+/**
+ * Where the Trial Fit Score sits on a direct full-time or part-time hire, which never had a trial to
+ * score: the match the application started on. `who` is how the reader refers to the talent.
+ */
+export function MatchAtHire({ match, who, className = "" }: { match: number; who: string; className?: string }) {
+  return (
+    <PanelCard title="Match at hire" className={className} aside={<span className="rounded-lg bg-ink px-3 py-1.5 text-[18px] leading-[1.2] font-bold text-white">{match}%</span>}>
+      <p className="-mt-2 text-[12.5px] leading-[1.4] text-ink-2">{who} hired straight onto this role, with no trial, so there is no Trial Fit Score. This is the work-style and profile match the application started on.</p>
     </PanelCard>
   );
 }

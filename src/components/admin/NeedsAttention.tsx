@@ -3,7 +3,8 @@
 import { Badge, DataTable } from "@/components/admin/ui";
 import type { Tone } from "@/components/admin/ui";
 import type { AttentionItem } from "@/lib/admin/data/home";
-import { ageOf, holds, partyName, useDisputes } from "@/lib/demo/disputes";
+import { ageOf, holds, partyName, useDisputes, waitingOn } from "@/lib/demo/disputes";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 
 /**
  * AD-001 "Needs attention" — every dispute still waiting on Hireable (pending, or ruled for the
@@ -14,11 +15,11 @@ export function NeedsAttention({ items }: { items: AttentionItem[] }) {
   const open: AttentionItem[] = useDisputes()
     .filter(holds)
     .map((d) => ({
-      item: `${d.reason} — ${d.title} ${d.type === "trial" ? "trial" : "full-time"}`,
+      item: `${d.reason} — ${d.title} ${JOB_TYPE_LABEL[d.type].toLowerCase()}`,
       type: "Dispute",
       raisedBy: partyName(d, d.filedBy),
       age: ageOf(d),
-      status: d.status === "Pending" ? "Pending review" : "Awaiting release",
+      status: d.status !== "Pending" ? "Awaiting release" : waitingOn(d) === "support" ? "Waiting on support" : `Waiting on ${partyName(d, waitingOn(d) as "team" | "independent")}`,
       tone: "warn" satisfies Tone,
       href: `/admin/disputes/${d.id}`,
     }));

@@ -4,7 +4,11 @@ import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
 import { Initials, JobBadge, Page } from "@/components/independent/ui";
 import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardStat, DashboardSummaryCard, DashboardSummaryGrid } from "@/components/portal/dashboard";
-import { daysLeftLabel, sinceOrFrom } from "@/lib/demo/dates";
+import { DashboardTasks } from "@/components/portal/DashboardTasks";
+import { trialClosed } from "@/lib/contract/lifecycle";
+import { dayLabel, daysLeftLabel, sinceOrFrom } from "@/lib/demo/dates";
+import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { usePersisted } from "@/lib/demo/live";
 import { MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
 import { traitTagsFor } from "@/lib/demo/work-style";
@@ -22,6 +26,21 @@ export default function Dashboard() {
   const active = contracts.filter((c) => c.status.label !== "Ended" && c.status.label !== "Contract complete");
   /** The interviews actually booked on the engagement — this read an empty seed, so it never showed one. */
   const upcoming = interviews.filter((iv) => !iv.past && (iv.status === "starts" || iv.status === "accepted"));
+  /** The contract with a work list (the live engagement), while it runs — its tasks get their own card. */
+  const deal = useDeal();
+  const working = deal?.contract ? active.find((c) => c.slug === deal.roleSlug) : undefined;
+  /** Where the contract is: once the trial is over its work waits on the evaluation, or on the offer. */
+  const life = working ? lifecycleOfDeal(deal) : null;
+  const offer = life?.phase === "offer" && deal?.conversion ? deal.conversion : undefined;
+  const lead = offer && working ? { href: `/independent/contracts/${working.slug}/offer`, title: `Review your ${JOB_TYPE_LABEL[offer.type].toLowerCase()} offer`, meta: `From ${working.company}` } : undefined;
+  const frozen =
+    life && working && trialClosed(life)
+      ? life.phase === "evaluation"
+        ? `Your trial ended — your work is with ${working.managerFirst} for the evaluation${life.trial ? `, due ${dayLabel(life.trial.evaluationDue)}` : ""}.`
+        : life.phase === "offer"
+          ? "Your work reopens when you accept the offer."
+          : `Your trial is complete and ${working.managerFirst} has sent your evaluation.`
+      : undefined;
 
   return (
     <Page title="Dashboard" padded={false}>
@@ -41,78 +60,94 @@ export default function Dashboard() {
             description="Complete your profile to boost role matches."
             completionHref="/independent/profile?edit=profile"
             items={setupSteps({ payouts, applications, workStyle, bio: profile.bio })}
+            profileHref="/independent/profile"
             traits={traitTagsFor(workStyle, "independent")}
             completeDescription="Your profile is live. These are the work-style traits companies match you on."
           />
         </DashboardHero>
 
-        <DashboardSummaryGrid>
-          {/* The next interviews actually on the books, not one fixed row. */}
-          <DashboardSummaryCard title="Interviews" href="/independent/jobs/interviews">
-            {upcoming.length === 0 ? (
-              <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No interviews scheduled. Apply to a role and a Team Builder can invite you.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {upcoming.slice(0, 3).map((iv) => (
-                  <li key={iv.id} className="flex items-center gap-4 rounded-lg bg-white p-3">
-                    <div className="flex min-w-0 flex-1 flex-col gap-1 tracking-[0.2px]">
-                      <p className="truncate text-[14px] font-semibold text-ink">{iv.role}</p>
-                      <p className="truncate text-[12px] text-ink-2">{iv.when}</p>
-                    </div>
-                    <Link href={iv.roleHref} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
-                      {iv.status === "starts" ? "Respond" : "Open"}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </DashboardSummaryCard>
+        <DashboardSummaryGrid
+          main={[
+            // IN-090 — straight to the work: their open tasks, most pressing first, each a click from its sheet.
+            working && (
+              <DashboardTasks key="tasks"
+                side="independent"
+                base={`/independent/contracts/${working.slug}`}
+                allHref={`/independent/contracts/${working.slug}?assignee=independent`}
+                about={`${working.title} at ${working.company}`}
+                counterpart={working.managerFirst}
+                lead={lead}
+                frozen={frozen}
+              />
+            ),
 
-          <DashboardSummaryCard title="Applications" href="/independent/jobs/applications">
-            {/* Counted from the applications you've actually sent. */}
-            <DashboardStat href="/independent/jobs/applications" icon={<Work size={20} aria-hidden />} value={applications.length} label={applications.length === 1 ? "Application sent" : "Applications sent"} />
-            {/* Split by where they've actually got to, rather than two fixed bars. */}
-            <DashboardBarChart
-              bars={[
-                { value: applications.filter((a) => a.stage !== "hired" && a.stage !== "offer_accepted").length, label: "In progress", background: "bg-[#c9ccd0]" },
-                { value: applications.filter((a) => a.stage === "hired" || a.stage === "offer_accepted").length, label: "Hired", background: "bg-gradient-to-b from-primary to-[#64bceb]" },
-              ]}
-            />
-          </DashboardSummaryCard>
-
-          {/* IN-004 — every ongoing engagement with the company, role, type and where it's up to. */}
-          <DashboardSummaryCard title="Active contracts" href="/independent/contracts">
-            {active.length === 0 ? (
-              <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No active contracts yet. Apply to a role and your engagements appear here.</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {active.slice(0, 3).map((c) => {
-                  const left = c.left;
-                  return (
-                    <li key={c.slug}>
-                      <Link href={`/independent/contracts/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-white p-3 hover:bg-surface-alt">
-                        <Initials text={c.initials} className="size-8 shrink-0 text-[11px]" />
-                        <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.2] tracking-[0.2px]">
-                          <span className="truncate text-[14px] font-semibold text-ink">{c.company}</span>
-                          <span className="truncate text-[12px] text-ink-2">
-                            {c.title} · {left === null ? `${sinceOrFrom(c.started)} ${c.started}` : daysLeftLabel(left)}
-                          </span>
-                        </span>
-                        <JobBadge type={c.type} />
+            <DashboardSummaryCard key="Applications" title="Applications" href="/independent/jobs/applications">
+              {/* Counted from the applications you've actually sent. */}
+              <DashboardStat href="/independent/jobs/applications" icon={<Work size={20} aria-hidden />} value={applications.length} label={applications.length === 1 ? "Application sent" : "Applications sent"} />
+              {/* Split by where they've actually got to, rather than two fixed bars. */}
+              <DashboardBarChart
+                bars={[
+                  { value: applications.filter((a) => a.stage !== "hired" && a.stage !== "offer_accepted").length, label: "In progress", background: "bg-[#c9ccd0]" },
+                  { value: applications.filter((a) => a.stage === "hired" || a.stage === "offer_accepted").length, label: "Hired", background: "bg-gradient-to-b from-primary to-[#64bceb]" },
+                ]}
+              />
+            </DashboardSummaryCard>,
+          ]}
+          side={[
+            // The next interviews actually on the books, not one fixed row.
+            <DashboardSummaryCard key="Interviews" title="Interviews" href="/independent/jobs/interviews">
+              {upcoming.length === 0 ? (
+                <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No interviews scheduled. Apply to a role and a Team Builder can invite you.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {upcoming.slice(0, 3).map((iv) => (
+                    <li key={iv.id} className="flex items-center gap-4 rounded-lg bg-white p-3">
+                      <div className="flex min-w-0 flex-1 flex-col gap-1 tracking-[0.2px]">
+                        <p className="truncate text-[14px] font-semibold text-ink">{iv.role}</p>
+                        <p className="truncate text-[12px] text-ink-2">{iv.when}</p>
+                      </div>
+                      <Link href={iv.roleHref} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
+                        {iv.status === "starts" ? "Respond" : "Open"}
                       </Link>
                     </li>
-                  );
-                })}
-              </ul>
-            )}
-            {active.length > 3 && (
-              <Link href="/independent/contracts" className="mt-2 text-center text-[13px] leading-[1.2] font-medium tracking-[0.2px] text-primary hover:underline">
-                View all {active.length} contracts
-              </Link>
-            )}
-          </DashboardSummaryCard>
+                  ))}
+                </ul>
+              )}
+            </DashboardSummaryCard>,
 
-        </DashboardSummaryGrid>
+            // IN-004 — every ongoing engagement with the company, role, type and where it's up to.
+            <DashboardSummaryCard key="Active contracts" title="Active contracts" href="/independent/contracts">
+              {active.length === 0 ? (
+                <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No active contracts yet. Apply to a role and your engagements appear here.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {active.slice(0, 3).map((c) => {
+                    const left = c.left;
+                    return (
+                      <li key={c.slug}>
+                        <Link href={`/independent/contracts/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-white p-3 hover:bg-surface-alt">
+                          <Initials text={c.initials} className="size-8 shrink-0 text-[11px]" />
+                          <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.2] tracking-[0.2px]">
+                            <span className="truncate text-[14px] font-semibold text-ink">{c.company}</span>
+                            <span className="truncate text-[12px] text-ink-2">
+                              {c.title} · {left === null ? `${sinceOrFrom(c.started)} ${c.started}` : daysLeftLabel(left)}
+                            </span>
+                          </span>
+                          <JobBadge type={c.type} />
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {active.length > 3 && (
+                <Link href="/independent/contracts" className="mt-2 text-center text-[13px] leading-[1.2] font-medium tracking-[0.2px] text-primary hover:underline">
+                  View all {active.length} contracts
+                </Link>
+              )}
+            </DashboardSummaryCard>,
+          ]}
+        />
       </DashboardFrame>
     </Page>
   );

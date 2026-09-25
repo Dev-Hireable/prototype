@@ -3,11 +3,14 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { dayLabel, dayStamp, momentLabel, reviewQuarter, sinceOrFrom, today } from "@/lib/demo/dates";
-import { activityOf, canMessage, clearDeal, evaluationsOf, fillPosting, fitScoreOf, getDeal, isFullTime, keyResultPercent, objectiveFrom, stageOf, startDeal, trialStateOf, updateDeal, useDeal, withLog } from "@/lib/demo/deal";
-import type { ContractObjective, Deal, DealProposal } from "@/lib/demo/deal";
+import { statusOf, trialClosed } from "@/lib/contract/lifecycle";
+import { activityOf, canMessage, clearDeal, consumeInvite, contractTypeOf, converted, evaluationsOf, fillPosting, fitScoreOf, getDeal, lifecycleOfDeal, proposalSource, stageOf, startDeal, startedAsTrial, trialStateOf, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
+import type { Deal, DealProposal } from "@/lib/demo/deal";
 import { escrowOf, getDisputes, usd } from "@/lib/demo/disputes";
-import { markRead as markLiveRead, move, recordPayment, useLive, usePersisted } from "@/lib/demo/live";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { markRead as markLiveRead, move, recordPayment, sendChat, sendFile, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
+import { donePercent, taskFromOffer } from "@/lib/demo/tasks";
 import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, interviews as seedInterviews, ME, payoutMethods as seedPayouts, profile as seedProfile, transactions as seedTransactions } from "./data";
 import { traitTagsFor, type WorkStyleTag } from "@/lib/demo/work-style";
 import type { Application, Contract, Interview, Notification, PayoutMethod, Transaction } from "./data";
@@ -44,20 +47,17 @@ type Demo = {
   apply: (roleSlug: string, title: string, company: string, match: number, extras?: { note?: string; quiz?: boolean }) => boolean;
   /** IN-072 / IN-073 — only while a proposal is actually requested; false otherwise. */
   submitProposal: (id: string, proposal: Omit<DealProposal, "version" | "sent">) => boolean;
+  /** TB-106 — a note on the proposal's history; it goes to the thread too, so the Team Builder reads it either way. */
+  commentOnProposal: (text: string, file?: File) => void;
   withdrawnRoleSlugs: string[];
   /** Roles whose Team Builder declined this talent's proposal. A new application replaces that record, so this is what keeps the role from being applied to again. */
   declinedRoleSlugs: string[];
   /** IN-076 — the contracts, derived from the shared engagement. */
   contracts: Contract[];
-  /** IN-026 / IN-041 / IN-077 — a progress update (a value, or a % when there is no target) or Mark as done. */
-  submitObjective: (slug: string, objectiveId: string, submission: { value?: number; percent?: number; note?: string; done?: boolean }) => void;
-  /** IN-028 / IN-030 — ticking an Automatic objective's key result; the last one sends it for approval. */
-  completeKeyResult: (slug: string, objectiveId: string, keyResultId: string) => void;
-  /** IN-026 — the objective's discussion, which the Team Builder reads on their side. */
-  commentOnObjective: (slug: string, objectiveId: string, text: string) => void;
-  /** IN-046 — the full-time offer that follows the trial. */
-  acceptFullTime: () => void;
-  declineFullTime: (reason?: string) => void;
+  /* The live contract's work items change through the work repository (@/lib/work), shared with the Team Builder's portal. */
+  /** IN-084 — the full-time or part-time offer that follows the trial. */
+  acceptConversion: () => void;
+  declineConversion: (reason?: string) => void;
   /* Disputes live in @/lib/demo/disputes, where the Team Builder and Admin see the same record. */
   /** IN-051 / IN-052 / IN-053 — the seeded ledger plus anything recorded this session, newest first. */
   transactions: Transaction[];
@@ -133,11 +133,17 @@ const applicationFromDeal = (deal: Deal): Application => ({
 /** The talent's status line for the deal, most advanced fact first. */
 function dealStatus(deal: Deal): Application["status"] {
   if (deal.stage === "hired") {
-    if (isFullTime(deal)) return { label: "Hired · full-time", tone: "ok" };
-    if (deal.fullTime?.status === "sent") return { label: "Full-time offer received", tone: "ok" };
-    return deal.contract?.ended ? { label: "Trial ended", tone: "neutral" } : { label: "Hired · trial running", tone: "ok" };
+    const type = contractTypeOf(deal);
+    if (type !== "trial") return deal.contract?.ended ? { label: "Contract ended", tone: "neutral" } : { label: `Hired · ${JOB_TYPE_LABEL[type].toLowerCase()}`, tone: "ok" };
+    if (deal.conversion?.status === "sent") return { label: `${JOB_TYPE_LABEL[deal.conversion.type]} offer received`, tone: "ok" };
+    const l = lifecycleOfDeal(deal);
+    if (deal.contract?.ended || (l && trialClosed(l))) return { label: "Trial ended", tone: "neutral" };
+    return l?.phase === "starts" ? { label: `Starts ${dayLabel(l.since)}`, tone: "info" } : { label: "Hired · trial running", tone: "ok" };
   }
   if (deal.proposalDeclined) return { label: "Proposal declined", tone: "danger", meta: deal.proposalDeclined.date };
+  // TB-044 — dropped by the company: not notified, but the application says where it stands rather
+  // than carrying on as if it were still being reviewed. Undropping brings the stage's status back.
+  if (deal.dropped) return { label: "Not moving forward", tone: "neutral" };
   if (deal.offer?.status === "declined") return { label: "Offer declined", tone: "danger" };
   if (deal.offer?.status === "withdrawn") return { label: "Offer withdrawn", tone: "neutral" };
   if (deal.offer?.status === "sent") return deal.offer.updated ? { label: "Offer updated", tone: "warn", meta: deal.offer.updated } : { label: "Offer received", tone: "ok" };
@@ -154,50 +160,61 @@ function dealStatus(deal: Deal): Application["status"] {
 }
 
 /**
- * The deal's contract as the talent's tracker reads it: a trial, or the full-time engagement it
- * became. Dates are shown the way every other date reads, the countdown is in working days, and
- * the fit score, heatmap and evaluation come off the record rather than sitting at zero.
+ * The deal's contract as the talent's tracker reads it: a trial, the full-time or part-time role it
+ * became, or one they were hired straight onto. Dates are shown the way every other date reads, the
+ * countdown is in working days, and the fit score, heatmap and evaluation come off the record rather
+ * than sitting at zero.
  */
 const contractFromDeal = (deal: Deal): Contract | null => {
   const c = deal.contract;
   if (!c) return null;
-  const fullTime = isFullTime(deal) && !!deal.fullTime;
+  const type = contractTypeOf(deal);
+  const ongoing = type !== "trial";
+  const fromTrial = startedAsTrial(deal);
   const trial = trialStateOf(c);
   const evaluations = evaluationsOf(c);
-  const done = c.objectives.filter((o) => o.status === "complete").length;
   const score = fitScoreOf(deal);
   const { activity, streak } = activityOf(c);
-  const started = dayLabel(fullTime ? deal.fullTime!.start : c.started);
-  const rate = fullTime ? `${deal.fullTime!.salary} /month` : c.rate;
+  const conversion = converted(deal) ? deal.conversion : undefined;
+  const started = dayLabel(conversion?.start ?? c.started);
+  const rate = conversion ? `${conversion.salary} /month` : c.rate;
+  const hours = conversion?.hours ?? c.hours;
+  const l = lifecycleOfDeal(deal);
+  const upcoming = l?.phase === "starts";
   return {
     slug: deal.roleSlug,
     title: deal.title,
     company: deal.company,
     initials: deal.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
-    type: fullTime ? "full-time" : "trial",
+    type,
+    origin: fromTrial ? "trial" : "direct",
     location: "Remote",
-    line: fullTime ? `Full-time ${sinceOrFrom(started)} ${started} · ${rate}` : `Started ${started} · ${trial.day} · ${rate}`,
-    status: c.ended ? { label: "Ended", tone: "neutral" } : fullTime ? { label: "Active", tone: "ok" } : evaluations.length ? { label: "Evaluation received", tone: "ok" } : trial.over ? { label: "Awaiting evaluation", tone: "neutral" } : { label: "On track", tone: "ok" },
-    progressLabel: fullTime ? "Objectives complete" : "Trial progress",
-    progress: c.objectives.length ? Math.round((done / c.objectives.length) * 100) : 0,
+    line: ongoing ? `${JOB_TYPE_LABEL[type]} ${sinceOrFrom(started)} ${started} · ${rate}${hours ? ` · ${hoursLabel(hours)}` : ""}` : `Started ${started} · ${l?.trial?.day ?? trial.day} · ${rate}`,
+    // One lifecycle for every tab and list (@/lib/contract/lifecycle).
+    status: l ? statusOf(l, "independent") : { label: "On track", tone: "ok" },
+    startsOn: upcoming && l ? dayLabel(l.since) : undefined,
+    progressLabel: "Tasks done",
+    progress: donePercent(c.tasks),
     progressTone: "primary",
     manager: PAIR_MANAGER,
     managerFirst: PAIR_MANAGER.split(" ")[0],
     started,
-    day: fullTime ? reviewQuarter(deal.fullTime!.start) : trial.day,
-    ends: fullTime ? "Ongoing" : dayLabel(c.ends),
-    left: fullTime ? null : trial.left,
-    over: !fullTime && trial.over,
+    day: ongoing ? reviewQuarter(conversion?.start ?? c.started) : (l?.trial?.day ?? trial.day),
+    ends: ongoing ? (c.ended && c.endedOn ? c.endedOn : "Ongoing") : dayLabel(c.ends),
+    left: ongoing ? null : trial.left,
+    over: !ongoing && trial.over,
     endedOn: c.ended ? c.endedOn : undefined,
-    workingDays: fullTime ? undefined : trial.total,
+    workingDays: ongoing ? undefined : trial.total,
     rate,
-    objectives: c.objectives.map((o) => ({ ...o, due: fullTime ? undefined : dayLabel(c.ends) })),
-    tfs: { overall: score.overall, performance: score.performance, profile: score.profile, workStyle: score.workStyle, evaluation: score.evaluation },
-    phase: fullTime ? 4 : score.phase,
+    hours,
+    tasks: c.tasks,
+    tfs: fromTrial ? { overall: score.overall, performance: score.performance, profile: score.profile, workStyle: score.workStyle, evaluation: score.evaluation } : null,
+    phase: ongoing ? 4 : score.phase,
     activity,
     streak,
     evaluations,
     deposit: c.deposit,
+    match: deal.match,
   };
 };
 
@@ -288,27 +305,17 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   const allApplications: Application[] = dealApplication ? [dealApplication, ...applications] : applications;
   const allContracts: Contract[] = dealContract ? [dealContract, ...contracts] : contracts;
 
-  /** Rewrites one objective of the live contract; anything else is left alone. */
-  const patchObjective = (slug: string, objectiveId: string, fn: (o: ContractObjective) => ContractObjective, logged = true) =>
-    updateDeal((d) => {
-      if (!d.contract || d.roleSlug !== slug) return d;
-      return {
-        ...d,
-        contract: {
-          ...d.contract,
-          logs: logged ? withLog(d.contract.logs, objectiveId) : d.contract.logs,
-          objectives: d.contract.objectives.map((o) => (o.id === objectiveId ? fn(o) : o)),
-        },
-      };
-    });
-
   /**
    * A talent whose proposal was declined is free to apply elsewhere. They used to stay locked to
    * that engagement until they "withdrew" an application the Team Builder had already turned down,
    * which also sent that Team Builder a withdrawal notice. A plain drop is silent (the talent is not
    * told), so it keeps the lock rather than giving itself away.
    */
-  const releasedDeal = !!deal?.dropped && !!deal.proposalDeclined && !deal.contract;
+  /** Turned down before any hire (dropped, or its proposal declined): it no longer holds the talent. */
+  const releasedDeal = !!deal?.dropped && !deal.contract;
+  /** Roles the company invited them to apply to — which reopens a role that turned them down. */
+  const invites = useInvites();
+  const reopened = (slugs: string[]) => slugs.filter((s) => !invites[s]);
 
   const value: Demo = {
     saved,
@@ -321,7 +328,8 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       if (id === DEAL_ID) {
         const d = getDeal();
         // IN-074 — only an open offer can be signed; a declined or withdrawn one stays that way.
-        if (!d || (stage === "hired" && d.offer?.status !== "sent")) return;
+        // Nothing moves on an application the company has dropped (TB-044).
+        if (!d || d.dropped || (stage === "hired" && d.offer?.status !== "sent")) return;
         const kind = notify === undefined ? STAGE_MOVE[stage as keyof typeof STAGE_MOVE] : notify || undefined;
         if (kind && app) move(kind, { slug: app.roleSlug, title: app.title });
         // The shared engagement moves in the shared store, so the Team Builder's tracker moves with it.
@@ -329,18 +337,24 @@ export function DemoProvider({ children }: { children: ReactNode }) {
           // IN-070 — confirming is what the Team Builder's schedule reads as Confirmed.
           if (stage === "invite_accepted" && x.interview) return { ...x, stage, interview: { ...x.interview, accepted: true } };
           if (stage !== "hired" || !x.offer) return { ...x, stage };
-          // Accepting turns the offer's objectives into the trial both trackers now work from, and
-          // the escrow funded with the offer is what the contract holds.
+          // IN-074 — accepting starts the contract the offer was for: its agreed tasks become the
+          // list both trackers work from (due weeks turned into dates), and a trial holds the escrow
+          // funded with the offer. A full-time or part-time offer starts that contract directly.
+          const o = x.offer;
+          const trial = o.type === "trial";
           return {
             ...x,
             stage,
-            offer: { ...x.offer, status: "accepted" },
+            offer: { ...o, status: "accepted" },
             contract: x.contract ?? {
-              started: x.offer.start,
-              ends: x.offer.end,
-              rate: x.offer.rate,
-              deposit: x.offer.deposit?.escrow,
-              objectives: x.offer.objectives.map(objectiveFrom),
+              started: o.start,
+              ends: trial ? o.end : undefined,
+              rate: o.rate,
+              hours: o.type === "part-time" ? o.hours : undefined,
+              benefits: o.type === "full-time" ? o.benefits : undefined,
+              deposit: trial ? o.deposit?.escrow : undefined,
+              tasks: o.tasks.map((t, i) => taskFromOffer(t, i, o.start, { trialEnd: trial ? o.end : undefined, created: today(), name: PAIR_MANAGER })),
+              nextNumber: o.tasks.length + 1,
               activity: [],
               streak: 0,
             },
@@ -379,16 +393,26 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       return true;
     },
     apply: (roleSlug, title, company, match, extras) => {
-      if (withdrawnRoleSlugs.includes(roleSlug) || declinedRoleSlugs.includes(roleSlug) || allApplications.some((x) => x.roleSlug === roleSlug)) return false; // IN-017: cannot apply twice
+      // IN-017: cannot apply twice — unless the company invited them to apply again (TB-017).
+      const invited = !!invites[roleSlug];
+      if (!invited && (withdrawnRoleSlugs.includes(roleSlug) || declinedRoleSlugs.includes(roleSlug))) return false;
+      if (allApplications.some((x) => x.roleSlug === roleSlug && !(x.id === DEAL_ID && releasedDeal))) return false;
       // IN-017 — applying starts the engagement the Team Builder sees in their candidate tracker. A
       // declined one no longer holds the talent, so the new application takes its place.
       if (releasedDeal && deal) {
         const declinedRole = deal.roleSlug;
-        setDeclinedRoleSlugs((slugs) => (slugs.includes(declinedRole) ? slugs : [...slugs, declinedRole]));
+        if (declinedRole !== roleSlug) setDeclinedRoleSlugs((slugs) => (slugs.includes(declinedRole) ? slugs : [...slugs, declinedRole]));
         clearDeal();
       }
       const started = startDeal({ roleSlug, title, company, match, submitted: today(), note: extras?.note?.trim() || undefined, quiz: extras?.quiz });
-      if (started) move("applied", { slug: roleSlug, title });
+      if (started) {
+        move("applied", { slug: roleSlug, title });
+        if (invited) {
+          consumeInvite(roleSlug);
+          setDeclinedRoleSlugs((slugs) => slugs.filter((s) => s !== roleSlug));
+          setWithdrawnRoleSlugs((slugs) => slugs.filter((s) => s !== roleSlug));
+        }
+      }
       return started;
     },
     submitProposal: (id, proposal) => {
@@ -396,93 +420,53 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const d = getDeal();
       // Only an open request can be answered — the wizard used to reach the deal at any stage and
       // move a signed, even ended, contract back to "Proposal submitted".
-      if (!d || d.stage !== "proposal_requested") return false;
+      if (!d || d.stage !== "proposal_requested" || d.dropped) return false;
       move("proposal_sent", { slug: d.roleSlug, title: d.title });
-      updateDeal((x) => ({
-        ...x,
-        stage: "proposal_sent",
-        proposal: { ...proposal, version: (x.proposal?.version ?? 0) + 1, sent: today() },
-        revision: undefined,
-      }));
+      updateDeal((x) => {
+        const sent: DealProposal = { ...proposal, version: (x.proposal?.version ?? 0) + 1, sent: today() };
+        // TB-106 — each version stays on the history, so the Team Builder can read it against the last.
+        return { ...withProposalEvent(x, { kind: "proposal", at: momentLabel(), proposal: sent }), stage: "proposal_sent", proposal: sent, revision: undefined };
+      });
       return true;
     },
-    withdrawnRoleSlugs,
-    declinedRoleSlugs,
+    commentOnProposal: (text, file) => {
+      const body = file ? `Sent an attachment: ${file.name}` : text.trim();
+      const source = proposalSource(getDeal());
+      if (!body || !source) return;
+      // It goes to the thread too, marked as written on the proposal so the inbox links back to it.
+      // The chat message's id, so the note shows the same sent / seen receipt as the thread.
+      const chatId = file ? sendFile("independent", file, source) : sendChat("independent", body, source);
+      updateDeal((x) => withProposalEvent(x, { kind: "comment", at: momentLabel(), by: "independent", text: body, chatId }));
+    },
+    withdrawnRoleSlugs: reopened(withdrawnRoleSlugs),
+    declinedRoleSlugs: reopened(declinedRoleSlugs),
     contracts: allContracts,
-    submitObjective: (slug, objectiveId, { value: amount, percent, note, done }) => {
+    acceptConversion: () => {
       const d = getDeal();
-      if (!d?.contract || d.roleSlug !== slug) return;
-      const at = momentLabel();
-      const text = note?.trim();
-      patchObjective(slug, objectiveId, (o) => {
-        const pct = done ? 100 : o.target ? Math.min(100, Math.round(((amount ?? 0) / o.target) * 100)) : Math.min(100, Math.max(0, Math.round(percent ?? o.progress)));
-        const summary = done ? "Marked as done" : o.target ? `Logged ${amount}${o.unit ? ` ${o.unit}` : ""} of ${o.target} — ${pct}%` : `Reported ${pct}% progress`;
-        return {
-          ...o,
-          status: "pending",
-          progress: pct,
-          current: o.target && !done ? amount : o.current,
-          meta: done ? "Marked as done · awaiting approval" : `${summary} · sent for review`,
-          updated: today(),
-          trend: done ? o.trend : [...(o.trend ?? []), pct],
-          lastUpdate: { date: at, text: text || summary, value: o.target && !done ? amount : undefined, done },
-          activity: [{ at, text: `${summary}${text ? ` — “${text}”` : ""}, sent for review` }, ...(o.activity ?? [])],
-        };
-      });
-      move(done ? "objective_done" : "objective_update", { slug: d.roleSlug, title: d.title });
-    },
-    completeKeyResult: (slug, objectiveId, keyResultId) => {
-      const d = getDeal();
-      const objective = d?.contract?.objectives.find((o) => o.id === objectiveId);
-      const kr = objective?.keyResults?.find((k) => k.id === keyResultId);
-      if (!d || d.roleSlug !== slug || !objective?.keyResults || !kr || kr.done) return;
-      const krs = objective.keyResults.map((k) => (k.id === keyResultId ? { ...k, done: true } : k));
-      const pct = keyResultPercent(krs);
-      const all = pct === 100;
-      const at = momentLabel();
-      patchObjective(slug, objectiveId, (o) => ({
-        ...o,
-        keyResults: krs,
-        progress: pct,
-        status: all ? "pending" : o.status,
-        meta: all ? "All key results done · awaiting approval" : `${krs.filter((k) => k.done).length} of ${krs.length} key results done`,
-        updated: today(),
-        trend: [...(o.trend ?? []), pct],
-        lastUpdate: all ? { date: at, text: "All key results done — sent for approval", done: true } : o.lastUpdate,
-        activity: [{ at, text: `Key result “${kr.title}” marked done — ${pct}%${all ? ", sent for approval" : ""}` }, ...(o.activity ?? [])],
-      }));
-      // The last key result is what puts the objective in front of the Team Builder.
-      if (all) move("objective_done", { slug: d.roleSlug, title: d.title });
-    },
-    commentOnObjective: (slug, objectiveId, text) => {
-      const body = text.trim();
-      if (!body) return;
-      patchObjective(slug, objectiveId, (o) => ({ ...o, comments: [...(o.comments ?? []), { side: "independent", name: profile.name, at: momentLabel(), text: body }] }), false);
-    },
-    acceptFullTime: () => {
-      const d = getDeal();
-      if (!d?.contract || d.fullTime?.status !== "sent") return;
-      // "Escrow closes and salary is charged monthly once they accept": what the trial still holds
-      // is released to the talent now, except anything an open dispute is keeping.
+      const offer = d?.conversion;
+      if (!d?.contract || offer?.status !== "sent" || d.contract.ended) return;
+      // The escrow is normally paid out with the trial's evaluation; anything it still holds
+      // (less what an open dispute is keeping) is released now.
       const escrow = escrowOf(d, getDisputes());
       const release = escrow ? Math.max(0, escrow.held - escrow.onHold) : 0;
       updateDeal((x) =>
-        x.contract && x.fullTime
+        x.contract && x.conversion
           ? {
               ...x,
-              fullTime: { ...x.fullTime, status: "accepted", accepted: today() },
-              contract: { ...x.contract, ended: false, endedOn: undefined, escrow: { released: (x.contract.escrow?.released ?? 0) + release, refunded: x.contract.escrow?.refunded ?? 0 } },
+              conversion: { ...x.conversion, status: "accepted", accepted: today() },
+              contract: { ...x.contract, escrow: { released: (x.contract.escrow?.released ?? 0) + release, refunded: x.contract.escrow?.refunded ?? 0 } },
             }
           : x,
       );
-      if (release > 0) recordPayment({ contract: d.roleSlug, title: d.title, company: d.company, amount: usd(release), period: "Trial complete — converted to full-time" });
-      move("fulltime_accepted", { slug: d.roleSlug, title: d.title });
+      if (release > 0) recordPayment({ contract: d.roleSlug, title: d.title, company: d.company, amount: usd(release), period: `Trial complete — hired ${JOB_TYPE_LABEL[offer.type].toLowerCase()}`, chapter: "trial" });
+      move("hire_accepted", { slug: d.roleSlug, title: d.title }, { type: offer.type });
     },
-    declineFullTime: (reason) => {
+    declineConversion: (reason) => {
       const d = getDeal();
-      if (d?.fullTime?.status !== "sent") return;
-      updateDeal((x) => (x.fullTime ? { ...x, fullTime: { ...x.fullTime, status: "declined", declineReason: reason?.trim() || undefined } } : x));
-      move("fulltime_declined", { slug: d.roleSlug, title: d.title });
+      const offer = d?.conversion;
+      if (!d || offer?.status !== "sent") return;
+      updateDeal((x) => (x.conversion ? { ...x, conversion: { ...x.conversion, status: "declined", declineReason: reason?.trim() || undefined } } : x));
+      move("hire_declined", { slug: d.roleSlug, title: d.title }, { type: offer.type, note: reason?.trim() || undefined });
     },
     transactions,
     interviews: dealInterview ? [dealInterview, ...seedInterviews] : seedInterviews,

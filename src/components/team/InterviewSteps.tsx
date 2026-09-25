@@ -58,7 +58,7 @@ export function RequestProposalDialog({ open, name, onClose, onSend }: { open: b
       open={open}
       onClose={close}
       title={`Request a proposal from ${name}`}
-      description="They see the trial objectives and expectation, then propose a rate and cover letter. You can accept, request a revision or decline."
+      description="They read the role and its tasks, then send their pay and a cover letter. You can then send an offer with the tasks, request a revision or decline."
       footer={
         <>
           <Button size="lg" onClick={close}>
@@ -78,7 +78,7 @@ export function RequestProposalDialog({ open, name, onClose, onSend }: { open: b
       }
     >
       <Field label="Note (optional)" hint={`${name} reads it beside the request.`}>
-        <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything to add to the trial expectation" />
+        <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything they should know before they propose" />
       </Field>
     </Modal>
   );

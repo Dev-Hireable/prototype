@@ -1,71 +1,109 @@
 "use client";
 
 import { useState } from "react";
-import { EmptyState, Initials, JobBadge, LinkButton, Page, Progress, SearchBox, Select, StatusDot } from "@/components/independent/ui";
+import { Button, EmptyState, Initials, LinkButton, Page, StatusDot } from "@/components/independent/ui";
+import { CONTRACT_LAYOUTS, ContractList, ContractListToolbar, type ContractTypeFilter } from "@/components/portal/ContractCard";
+import { useWithReturn } from "@/components/portal/return";
+import { useQueryState } from "@/lib/portal/query-state";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { PAIR } from "@/lib/demo/live";
 import { useDemo } from "@/lib/independent/store";
+import type { Contract } from "@/lib/independent/data";
 
-/** Figma "Contracts / All contracts · list / · empty": toolbar (search 360, status 170, type 150) + 2-column cards p 20 / gap 12. */
+const isInactive = (c: Contract) => c.status.label === "Ended";
+
+/**
+ * All contracts, laid out as the Team Builder's All independents is: the same toolbar, active-only by
+ * default with a Show inactive toggle, and the same cards or rows (@/components/portal/ContractCard)
+ * with the task list's breakdown — the two sides of one contract read alike.
+ */
 export default function Contracts() {
   const { contracts } = useDemo();
+  const withReturn = useWithReturn();
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("Status: All");
-  const [type, setType] = useState("Type: All");
+  const [type, setType] = useState<ContractTypeFilter>("All");
+  const [showInactive, setShowInactive] = useState(false);
+  /** Cards or rows, kept in the URL so coming back from a contract keeps it. */
+  const [layout, setLayout] = useQueryState("view", "grid", CONTRACT_LAYOUTS);
+
   const list = contracts.filter((c) => {
+    if (!showInactive && isInactive(c)) return false;
     if (q && !`${c.title} ${c.company}`.toLowerCase().includes(q.toLowerCase())) return false;
-    if (type !== "Type: All" && c.type !== (type === "Type: Trial" ? "trial" : "full-time")) return false;
-    if (status !== "Status: All" && c.status.label !== status.replace("Status: ", "")) return false;
+    if (type !== "All" && JOB_TYPE_LABEL[c.type] !== type) return false;
     return true;
   });
 
+  const filtering = q.trim() !== "" || type !== "All";
+  const clearAll = () => {
+    setQ("");
+    setType("All");
+  };
+
   return (
     <Page title="All contracts">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <SearchBox value={q} onChange={setQ} placeholder="Search contracts" className="w-[360px]" />
-          <Select
-            options={["Status: All", "Status: On track", "Status: Active", "Status: Update pending review", "Status: Evaluation received", "Status: Ended", "Status: Off track"]}
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className="!w-[170px]"
-          />
-          <Select options={["Type: All", "Type: Trial", "Type: Full-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[150px]" />
-        </div>
-        <span className="text-[14px] leading-[1.4] text-ink-2">{list.length === 1 ? "1 contract" : `${list.length} contracts`}</span>
-      </div>
-      {list.length === 0 ? (
-        <EmptyState title="No contracts yet" body="When you accept an offer, the contract and its trial tracker appear here." />
+      <ContractListToolbar
+        q={q}
+        onQ={setQ}
+        placeholder="Search by role or company"
+        type={type}
+        onType={setType}
+        showInactive={showInactive}
+        onShowInactive={setShowInactive}
+        count={list.length === 1 ? "1 contract" : `${list.length} contracts`}
+        layout={layout}
+        onLayout={setLayout}
+      />
+
+      {contracts.length === 0 ? (
+        <EmptyState
+          title="No contracts yet"
+          body="When you accept an offer, the contract and its task list appear here."
+          action={
+            <LinkButton href="/independent/jobs" variant="primary" size="lg">
+              Discover roles
+            </LinkButton>
+          }
+        />
+      ) : list.length === 0 ? (
+        <EmptyState
+          title="No contracts match"
+          body={filtering ? "Try a different filter, or clear the search to see every contract." : "Turn on Show inactive to include ended contracts."}
+          action={
+            <div className="flex gap-2">
+              {filtering && (
+                <Button size="lg" variant="primary" onClick={clearAll}>
+                  Clear search
+                </Button>
+              )}
+              {!showInactive && (
+                <Button size="lg" onClick={() => setShowInactive(true)}>
+                  Show inactive
+                </Button>
+              )}
+            </div>
+          }
+        />
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {list.map((c) => (
-            <article key={c.slug} className="flex h-[216px] flex-col gap-3 rounded-lg bg-white p-5 outline -outline-offset-1 outline-border">
-              <div className="flex items-start gap-3">
-                <Initials text={c.initials} />
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[18px] leading-[1.4] font-semibold text-ink">
-                    {c.title} <JobBadge type={c.type} />
-                  </p>
-                  <p className="text-[14px] leading-[1.4] text-ink-2">
-                    {c.company} · {c.location}
-                  </p>
-                </div>
-              </div>
-              <p className="text-[13px] leading-[1.4] text-ink-2">{c.line}</p>
-              <div className="flex items-center gap-3 text-[13px] leading-[1.4] text-ink-2">
-                <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>
-                <span>{c.progressLabel}</span>
-                <Progress value={c.progress} tone={c.progressTone} label />
-              </div>
-              <div className="mt-auto flex gap-2">
-                <LinkButton size="sm" variant="primary" href={`/independent/contracts/${c.slug}`}>
-                  Open tracker
-                </LinkButton>
-                <LinkButton size="sm" href={`/independent/contracts/${c.slug}/offer`}>
-                  View contract
-                </LinkButton>
-              </div>
-            </article>
-          ))}
-        </div>
+        <ContractList
+          layout={layout}
+          items={list.map((c) => ({
+            id: c.slug,
+            avatar: (size: number) => <Initials text={c.initials} className={size < 44 ? "size-9 text-[12.5px]" : undefined} />,
+            name: c.company,
+            sub: c.title,
+            href: `/independent/contracts/${c.slug}`,
+            // The live thread is with the demo's Team Builder; anyone else lands on the inbox.
+            messageHref: withReturn(c.manager === PAIR.team.name ? "/independent/messages?with=c1" : "/independent/messages"),
+            type: c.type,
+            tasks: c.tasks,
+            tfs: c.tfs?.overall ?? null,
+            left: c.left,
+            inactive: isInactive(c),
+            ended: c.endedOn ?? c.ends,
+            started: c.started,
+            status: isInactive(c) ? undefined : <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>,
+          }))}
+        />
       )}
     </Page>
   );

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Badge as SharedBadge } from "@/components/portal/Badge";
 import type { ReactNode } from "react";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
@@ -14,12 +15,18 @@ export function AdminPage({
   actions,
   nav,
   children,
+  bleed = false,
 }: {
   title: string;
   actions?: ReactNode;
   /** A back link or breadcrumb: the same fixed row the portals give it, not a line in the content. */
   nav?: ReactNode;
   children: ReactNode;
+  /**
+   * The content takes the rest of the panel as a plain flex column and does its own scrolling (a
+   * workspace) — no page scroller, no 1200px column, no edge fade over its sticky headers.
+   */
+  bleed?: boolean;
 }) {
   return (
     <>
@@ -44,13 +51,17 @@ export function AdminPage({
       )}
       {/* Side and bottom gutters are padding inside the scroller (see Page), so its scrollbar sits at
           the panel's edge and content fades out there. */}
-      <div className="flex min-h-0 flex-1 pt-2">
-        <ScrollFade className="flex w-full min-w-0">
-          <div className="edge-fade w-full overflow-y-auto px-2">
-            <PortalContent className="pb-5">{children}</PortalContent>
-          </div>
-        </ScrollFade>
-      </div>
+      {bleed ? (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col pt-2">{children}</div>
+      ) : (
+        <div className="flex min-h-0 flex-1 pt-2">
+          <ScrollFade className="flex w-full min-w-0">
+            <div className="edge-fade w-full overflow-y-auto px-2">
+              <PortalContent className="pb-5">{children}</PortalContent>
+            </div>
+          </ScrollFade>
+        </div>
+      )}
     </>
   );
 }
@@ -83,24 +94,9 @@ export function StatGrid({ children }: { children: ReactNode }) {
 
 export type Tone = "warn" | "ok" | "danger" | "accent" | "neutral" | "trial";
 
-/** warn/ok/danger sampled from the Figma renders; the rest follow the same recipe. */
-const TONES: Record<Tone, string> = {
-  warn: "bg-warn-bg text-warn",
-  ok: "bg-[#eef9f2] text-ok",
-  danger: "bg-[#fcf2f2] text-[#eb5757]",
-  accent: "bg-accent-bg text-accent",
-  neutral: "bg-surface-alt text-muted",
-  trial: "bg-[#fff3e8] text-[#f08a24]",
-};
-
-/** Figma "Badge": h 24, px 8, radius 4, Inter Medium 12 / 0.2. The leading dot was dropped — the
- *  tint and text colour already carry the status, matching the portals' StatusDot. */
+/** Figma "Badge" — the portals' shared Badge, tinted by status. */
 export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
-  return (
-    <span className={`inline-flex h-6 items-center justify-center rounded px-2 py-1 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${TONES[tone]}`}>
-      {children}
-    </span>
-  );
+  return <SharedBadge tone={tone}>{children}</SharedBadge>;
 }
 
 /* -------------------------------------------------------------- controls -- */
@@ -158,14 +154,15 @@ export function Button({
   const styles = {
     primary: "bg-accent text-white",
     secondary: "border border-border text-ink",
-    danger: "border border-[#f4a4a4] text-[#eb5757]",
+    // The standard solid red, as on the portals' Button.
+    danger: "bg-danger text-white hover:bg-danger-hover",
   }[variant];
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`h-9 rounded-lg px-4 text-[13px] leading-none font-semibold tracking-[0.2px] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
+      className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] leading-none font-semibold tracking-[0.2px] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
     >
       {children}
     </button>

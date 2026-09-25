@@ -36,7 +36,9 @@
   --muted-foreground: #616161; /* ink-2 */
   --accent: #f2f2f2; /* surface-2 */
   --accent-foreground: #212121;
-  --destructive: #dc2626; /* danger */
+  /* Danger: a deeper brick red (2026's muted signal reds, around L 0.5 in OKLCH) rather than the bright
+     red-600 it was — still unmistakable, less alarming on a solid button. White on it is 5.4:1. */
+  --destructive: #c4352c; /* danger */
   --border: #c3c3c3; /* border */
   --input: #c3c3c3; /* border */
   --ring: #007acc; /* focus = primary, as focus:border-primary / focus-visible:outline-primary */
@@ -82,7 +84,8 @@
   --color-ok: #27ae60;
   --color-warn: #f7ba00;
   --color-warn-bg: #fff9e7;
-  --color-danger: var(--destructive); /* #dc2626 */
+  --color-danger: var(--destructive); /* #c4352c */
+  --color-danger-hover: #a92d25;
 
   /* shadcn/ui semantic colours that don't clash with a Hireable token (values in :root above).
      No --radius-* overrides: the app is drawn on Tailwind's default radius scale, and shadcn's
@@ -367,4 +370,78 @@ summary {
   html {
     @apply font-sans;
   }
+}
+
+/* A success badge (role published, …) growing in from small with a little overshoot and a turn, so
+   it lands instead of popping in. Started once the image has loaded (see `.badge-pop` users).
+   Without motion it simply fades in. */
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-18deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.12) rotate(4deg);
+  }
+  75% {
+    transform: scale(0.95) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes badge-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.badge-pop {
+  animation: badge-pop 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-pop {
+    animation: badge-fade 200ms ease-out both;
+  }
+}
+
+/*
+ * UI scale. On a laptop — a window 1024–1535px wide, or one under 820px tall (a 14" screen at
+ * 125–150% scaling, once the browser's toolbars take their share) — the whole app draws at 90%, the
+ * size it reads best at there; big screens stay at 100%. `zoom` scales everything, the many fixed
+ * pixel sizes included, where scaling the root font would only move rem-based ones. Phones and
+ * tablets have their own layouts and aren't scaled.
+ *
+ * It's on the app's wrapper (.ui-zoom, in the root layout), not on <html>: menus, tooltips and
+ * dialogs are portalled to <body>, where Floating UI measures an unzoomed page in every browser (on a
+ * zoomed <html> it placed menus a different wrong way per Chrome version). Each of those scales its
+ * own content instead — the popup inside a positioner, the panel inside an overlay.
+ *
+ * Viewport units inside a zoomed box are zoomed too, so anything sized to the window divides by the
+ * scale: `calc(100dvh / var(--ui-scale))` is the full window height at any scale.
+ */
+:root {
+  --ui-scale: 1;
+}
+@media (min-width: 1024px) and (max-width: 1535px), (min-width: 1024px) and (max-height: 820px) {
+  :root {
+    --ui-scale: 0.9;
+  }
+}
+.ui-zoom {
+  zoom: var(--ui-scale);
+}
+
+/*
+ * A count in a badge (unread, filters on): trimmed to the digits' cap height, so they sit in the
+ * middle of the pill. With the font's full line box they sat off-centre — the box counts the
+ * ascender and descender room digits don't use.
+ */
+.badge-count {
+  text-box: trim-both cap alphabetic;
+  font-variant-numeric: tabular-nums;
 }

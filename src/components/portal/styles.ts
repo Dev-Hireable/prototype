@@ -10,3 +10,11 @@ export const FORM_CONTROL =
  * round, so it sits at the same spot on every screen.
  */
 export const CLEAR_DEMO_RESET = "pr-36";
+
+/**
+ * Every icon-only button — a kebab (⋮ ⋯), a close ×, a + — looks the same: a circle, grey at rest,
+ * a grey wash on hover, the accent tint while the menu it opens is open. Only the size changes with
+ * where it sits (pass `size-*`). Chip and filter × stay as they are: they're part of the chip.
+ */
+export const ICON_BUTTON =
+  "flex shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-accent-bg data-popup-open:text-accent-ink";

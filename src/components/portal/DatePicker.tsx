@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Matcher } from "react-day-picker";
 import { ICONS } from "@/components/admin/icons";
 import { FORM_CONTROL } from "@/components/portal/styles";
@@ -57,7 +57,11 @@ export function canJoin(when: string, now = Date.now()) {
   return start !== undefined && now >= start - 15 * 60_000 && now <= start + 60 * 60_000;
 }
 
-/** A date input: picking a day closes the calendar and hands back a local Date. */
+/**
+ * A date input: picking a day closes the calendar and hands back a local Date. It is a form field
+ * by default; pass `children` (with `triggerClassName`) for a compact control that shows its own
+ * face instead — the task list's due dates — and `clearLabel` to offer clearing the date.
+ */
 export function DatePicker({
   value,
   onChange,
@@ -66,6 +70,9 @@ export function DatePicker({
   format = formatDate,
   id,
   "aria-label": ariaLabel,
+  children,
+  triggerClassName,
+  clearLabel,
 }: {
   value: Date | undefined;
   onChange: (date: Date | undefined) => void;
@@ -75,19 +82,24 @@ export function DatePicker({
   format?: (d: Date) => string;
   id?: string;
   "aria-label"?: string;
+  /** The trigger's face, in place of the field's formatted date and icon. */
+  children?: ReactNode;
+  triggerClassName?: string;
+  /** Shows a clear action under the calendar, e.g. "Clear due date". */
+  clearLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const Icon = ICONS.calendar;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        id={id}
-        aria-label={ariaLabel}
-        className={`${FORM_CONTROL} flex items-center justify-between gap-2 text-left data-popup-open:border-primary`}
-      >
-        <span className={`truncate ${value ? "" : "text-ink-2"}`}>{value ? format(value) : placeholder}</span>
-        <Icon size={18} aria-hidden className="shrink-0 text-ink-2" />
+      <PopoverTrigger id={id} aria-label={ariaLabel} className={children ? triggerClassName : `${FORM_CONTROL} flex items-center justify-between gap-2 text-left data-popup-open:border-primary`}>
+        {children ?? (
+          <>
+            <span className={`truncate ${value ? "" : "text-ink-2"}`}>{value ? format(value) : placeholder}</span>
+            <Icon size={18} aria-hidden className="shrink-0 text-ink-2" />
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar
@@ -105,6 +117,20 @@ export function DatePicker({
           // rounded like every other control (8px, not 6px).
           className="p-3 [--cell-radius:var(--radius-lg)] [--cell-size:--spacing(9)]"
         />
+        {clearLabel && value && (
+          <div className="border-t border-border p-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                onChange(undefined);
+                setOpen(false);
+              }}
+              className="w-full rounded-md px-2.5 py-2 text-left text-[14px] leading-[1.2] text-ink hover:bg-surface-2"
+            >
+              {clearLabel}
+            </button>
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

@@ -21,7 +21,7 @@ export function OnboardingStepShell({
   hideProgress = false,
 }: OnboardingStepShellProps) {
   return (
-    <div className="bg-background flex min-h-screen w-full flex-col">
+    <div className="bg-background flex min-h-[calc(100dvh/var(--ui-scale))] w-full flex-col">
       {!hideHeader ? (
         <header
           aria-label="Onboarding"

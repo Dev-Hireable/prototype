@@ -11,12 +11,38 @@ import { useSearchParams } from "next/navigation";
 export function useQueryState<T extends string>(key: string, fallback: T, allowed: readonly T[]): [T, (next: T) => void] {
   const raw = useSearchParams().get(key);
   const value = allowed.includes(raw as T) ? (raw as T) : fallback;
-  const set = (next: T) => {
-    const query = new URLSearchParams(window.location.search);
-    if (next === fallback) query.delete(key);
-    else query.set(key, next);
-    const search = query.toString();
-    window.history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}`);
-  };
+  const set = (next: T) => writeParam(key, next === fallback ? null : next);
   return [value, set];
+}
+
+/**
+ * The same for an open-ended value, like the task whose panel is open (`?task=…`): a notification
+ * can link straight to it, and a refresh keeps it open. Null means the key is absent.
+ */
+export function useQueryParam(key: string): [string | null, (next: string | null) => void] {
+  return [useSearchParams().get(key), (next) => writeParam(key, next)];
+}
+
+function writeParam(key: string, value: string | null) {
+  writeParams({ [key]: value });
+}
+
+/**
+ * Several keys at once, null removing one. It starts from `window.location` — updated the moment
+ * the history call returns — rather than useSearchParams, which only catches up on the next render,
+ * so two quick writes can't undo each other. `push` adds a history entry (a view switch, so Back
+ * returns to the previous view); otherwise the current entry is replaced. A write that changes
+ * nothing is skipped, and the #hash is kept. Next patches both history calls to keep
+ * useSearchParams in sync, and restores the state on Back/Forward.
+ */
+export function writeParams(patch: Record<string, string | null>, opts: { push?: boolean } = {}) {
+  const url = new URL(window.location.href);
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) url.searchParams.delete(k);
+    else url.searchParams.set(k, v);
+  }
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  if (next === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
+  if (opts.push) window.history.pushState(null, "", next);
+  else window.history.replaceState(null, "", next);
 }

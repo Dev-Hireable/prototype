@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
+import { Tip } from "@/components/portal/Tip";
 import { Row, Table, Toolbar } from "@/components/team/ui";
-import { TRACKER_COLUMNS, ROLE_STATUS } from "@/lib/team/data";
+import { columnOf, ROLE_STATUS } from "@/lib/team/data";
 import type { Role, RoleStatus } from "@/lib/team/data";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { shortDayLabel } from "@/lib/demo/dates";
 import { useDemo } from "@/lib/team/store";
 import { draftReady } from "@/app/team/hire/new/page";
 
@@ -25,20 +28,27 @@ const STATS = [
   { key: "proposal", label: "Proposals", tone: "bg-[#fff3fb] text-[#6e0e52]" },
   { key: "offer", label: "Offers", tone: "bg-[#f6ecff] text-[#6b21a8]" },
   { key: "hired", label: "Hired", tone: "bg-[#e7f7ed] text-[#1b6b3a]" },
+  { key: "trial_ended", label: "Trial ended", tone: "bg-[#eef2f6] text-[#34465a]" },
   { key: "dropped", label: "Dropped", tone: "bg-[#fdecec] text-[#a62121]" },
 ];
 
 /* The pipeline columns share the spare width equally (flex-1 over a floor) so they spread across
-   the row instead of bunching up against Updated. Everything but Role is centred, header and cell
-   alike; a long title reads badly centred. */
-const STAT = "min-w-[88px] flex-1 text-center";
-const COL = { role: "w-[280px] shrink-0", status: "w-[112px] shrink-0 text-center", updated: "w-[108px] shrink-0 text-center", actions: "w-[80px] shrink-0 text-center" };
-const COLS = [COL.role, COL.status, ...STATS.map(() => STAT), COL.updated, COL.actions];
-const HEAD = ["Role", "Status", ...STATS.map((s) => s.label), "Updated", "Actions"];
+   the row instead of bunching up against Updated. Role, Type and Status read left-aligned as the
+   row's label; the numbers and everything after them are centred, header and cell alike. */
+// A count needs little room; its label wraps to two lines ("Trial / ended") rather than widening the
+// table past a 14" laptop.
+const STAT = "min-w-[64px] flex-1 text-center whitespace-normal leading-tight";
+const COL = { role: "w-[160px] shrink-0", type: "w-[96px] shrink-0", status: "w-[88px] shrink-0", updated: "w-[88px] shrink-0 text-center", actions: "w-[80px] shrink-0 text-center" };
+const COLS = [COL.role, COL.type, COL.status, ...STATS.map(() => STAT), COL.updated, COL.actions];
+const HEAD = ["Role", "Type", "Status", ...STATS.map((s) => s.label), "Updated", "Actions"];
 const Edit = ICONS.edit;
 const Copy = ICONS.copy;
 const Trash = ICONS.trash;
 const Check = ICONS.check;
+const People = ICONS.people;
+const Lock = ICONS.lock;
+const Reopen = ICONS.retry;
+const Archive = ICONS.archive;
 
 type Confirm = { role: Role; action: "close" | "reopen" | "archive" | "delete" };
 
@@ -60,12 +70,37 @@ function Stat({ value, tone, href, label }: { value: number | null; tone: string
   );
 }
 
+/**
+ * The Role column is kept narrow so the pipeline gets the width; a long title ellipsises and shows
+ * in full on hover or focus. The tip only arms when the text is actually clipped, so a short title
+ * doesn't pop a bubble repeating what's already there. It's measured up front (and on resize) rather
+ * than on pointer-enter: a tip still off when the pointer arrives never opens on that hover.
+ */
+function RoleTitle({ role }: { role: Role }) {
+  const ref = useRef<HTMLAnchorElement>(null);
+  const [clipped, setClipped] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setClipped(el.scrollWidth > el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [role.title]);
+  return (
+    <Tip label={role.title} off={!clipped}>
+      <Link ref={ref} href={`/team/hire/roles/${role.slug}`} className="min-w-0 truncate text-[14px] font-medium text-primary hover:underline">
+        {role.title}
+      </Link>
+    </Tip>
+  );
+}
+
 /** Figma "Hire / All roles · list / · draft filter / · archived filter" + close / reopen / archive / delete confirms. */
 export default function AllRoles() {
   const { roles, candidates, setRoleStatus, removeRole, duplicateRole, canPublish } = useDemo();
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("All statuses");
-  const [type, setType] = useState("Trial and full-time");
+  const [type, setType] = useState("All types");
   const [menu, setMenu] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [toast, setToast] = useToast();
@@ -74,23 +109,23 @@ export default function AllRoles() {
   const list = roles.filter((r) => {
     if (q && !r.title.toLowerCase().includes(q.toLowerCase())) return false;
     if (status !== "All statuses" && r.status !== status) return false;
-    if (type === "Trial" && r.type !== "trial") return false;
-    if (type === "Full-time" && r.type !== "full-time") return false;
+    if (type !== "All types" && JOB_TYPE_LABEL[r.type] !== type) return false;
     return true;
   });
   const count = (s: RoleStatus) => roles.filter((r) => r.status === s).length;
   /** Live, from the tracker itself: a draft has no pipeline, so its row stays em-dashed. */
   const live = (r: Role) => (r.status === "Draft" ? null : candidates.filter((c) => c.role === r.slug));
   /**
-   * Exactly what that column holds on the role's tracker — same rule as the board: a dropped
-   * candidate counts only under Dropped, everyone else under their current stage's column.
+   * Exactly what that column holds on the role's tracker — same rule as the board (`columnOf`): a
+   * dropped candidate counts only under Dropped, a closed trial only under Trial ended, everyone
+   * else under their current stage's column. Trial ended is a dash on a role that has no trial,
+   * as the board leaves that column out.
    */
   const inColumn = (r: Role, key: string) => {
     const rows = live(r);
     if (!rows) return null;
-    if (key === "dropped") return rows.filter((c) => c.dropped).length;
-    const stages = TRACKER_COLUMNS.find((col) => col.key === key)?.stages ?? [];
-    return rows.filter((c) => !c.dropped && stages.includes(c.stage)).length;
+    const n = rows.filter((c) => columnOf(c) === key).length;
+    return key === "trial_ended" && r.type !== "trial" && n === 0 ? null : n;
   };
 
   const duplicate = (r: Role) => {
@@ -152,7 +187,7 @@ export default function AllRoles() {
         >
           <SearchBox value={q} onChange={setQ} placeholder="Search roles" className="w-[320px]" />
           <Select options={["All statuses", "Active", "Draft", "Closed", "Archived"]} value={status} onChange={(e) => setStatus(e.target.value)} className="!w-[160px]" />
-          <Select options={["Trial and full-time", "Trial", "Full-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[190px]" />
+          <Select options={["All types", "Trial", "Full-time", "Part-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[190px]" />
         </Toolbar>
 
         {/* TB-026: nothing posted yet is a different situation from a filter that matched nothing. */}
@@ -170,11 +205,10 @@ export default function AllRoles() {
         <Table cols={COLS} head={HEAD}>
           {list.map((r) => (
             <Row key={r.slug}>
-              <span className={`${COL.role} flex items-center gap-2`}>
-                {/* min-w-0 + truncate: a long title ellipsises instead of pushing the badge over Status. */}
-                <Link href={`/team/hire/roles/${r.slug}`} className="min-w-0 truncate text-[14px] font-medium text-primary hover:underline">
-                  {r.title}
-                </Link>
+              <span className={`${COL.role} flex items-center`}>
+                <RoleTitle role={r} />
+              </span>
+              <span className={`${COL.type} flex`}>
                 <JobBadge type={r.type} />
               </span>
               <span className={COL.status}>
@@ -184,7 +218,8 @@ export default function AllRoles() {
                   isn't, so a closed role doesn't look like it's still collecting people. */}
               {STATS.map((s) => (
                 /* !p-0 + items-stretch: the fill covers the grid cell edge to edge. */
-                <span key={s.key} className={`${STAT} flex !items-stretch !p-0`}>
+                // A white hairline between the fills keeps the band reading column by column.
+                <span key={s.key} className={`${STAT} flex !items-stretch border-l border-white !p-0`}>
                   <Stat
                     value={inColumn(r, s.key)}
                     tone={r.status === "Active" ? s.tone : "bg-[#eeeeee] text-ink-2"}
@@ -194,16 +229,15 @@ export default function AllRoles() {
                 </span>
               ))}
               {/* TB-026: a draft has no posted date. */}
-              <span className={`${COL.updated} text-ink-2`}>{r.status === "Draft" ? "—" : r.updated}</span>
+              <span className={`${COL.updated} text-ink-2`}>{r.status === "Draft" ? "—" : shortDayLabel(r.updated)}</span>
               <span className={`${COL.actions} flex justify-center`}>
                 <KebabMenu
                   label="Role actions"
                   open={menu === r.slug}
                   onOpenChange={(open) => setMenu(open ? r.slug : null)}
-                  itemCount={r.status === "Draft" ? 4 : r.status === "Archived" ? 3 : 4}
                   iconSize={20}
                   menuWidth={220}
-                  buttonClassName="!size-7 !rounded-full"
+                  buttonClassName="!size-7"
                 >
                   {r.status === "Draft" ? (
                     <>
@@ -223,24 +257,24 @@ export default function AllRoles() {
                     </>
                   ) : (
                     <>
-                      <MenuLink density="compact" href={`/team/hire/roles/${r.slug}`}>
+                      <MenuLink href={`/team/hire/roles/${r.slug}`} icon={<People size={18} aria-hidden />}>
                         View candidates
                       </MenuLink>
                       {/* TB-032: duplicating is offered on any post, not just drafts. */}
-                      <MenuAction density="compact" onClick={() => duplicate(r)}>
+                      <MenuAction onClick={() => duplicate(r)} icon={<Copy size={18} aria-hidden />}>
                         Duplicate
                       </MenuAction>
                       {r.status === "Active" ? (
-                        <MenuAction density="compact" onClick={() => { setConfirm({ role: r, action: "close" }); setMenu(null); }}>
+                        <MenuAction onClick={() => { setConfirm({ role: r, action: "close" }); setMenu(null); }} icon={<Lock size={18} aria-hidden />}>
                           Close role
                         </MenuAction>
                       ) : (
-                        <MenuAction density="compact" onClick={() => { setConfirm({ role: r, action: "reopen" }); setMenu(null); }}>
+                        <MenuAction onClick={() => { setConfirm({ role: r, action: "reopen" }); setMenu(null); }} icon={<Reopen size={18} aria-hidden />}>
                           Reopen role
                         </MenuAction>
                       )}
                       {r.status !== "Archived" && (
-                        <MenuAction density="compact" onClick={() => { setConfirm({ role: r, action: "archive" }); setMenu(null); }}>
+                        <MenuAction onClick={() => { setConfirm({ role: r, action: "archive" }); setMenu(null); }} icon={<Archive size={18} aria-hidden />}>
                           Archive role
                         </MenuAction>
                       )}

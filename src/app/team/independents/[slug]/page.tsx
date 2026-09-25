@@ -1,53 +1,63 @@
 "use client";
 
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { Suspense, use, useState } from "react";
-import { Button, Card, Field, InfoBanner, Input, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Select, Stat, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Checkbox, Field, Input, JobBadge, LinkButton, MessageButton, Modal, Page, Pills, Select, StatusDot, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { Avatar, CardHeading } from "@/components/team/ui";
-import { TrialFitScore } from "@/components/team/TrialWidgets";
+import { CardHeading } from "@/components/team/ui";
+import { MatchAtHire, TrialFitScore } from "@/components/team/TrialWidgets";
 import { ActivityLog } from "@/components/portal/ActivityLog";
 import { DatePicker, fromISODate, startOfToday, toISODate } from "@/components/portal/DatePicker";
-import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
+import { DisputeForm, DisputeRows } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
-import { kindIndex } from "@/components/team/ObjectiveViews";
-import { CONTRACT_NAMES, byName, FT_BENEFITS, isOffTrack, OBJECTIVE_KIND, REVISION_REASONS } from "@/lib/team/data";
-import { sinceOrFrom } from "@/lib/demo/dates";
-import { useDeal } from "@/lib/demo/deal";
-import { dealContract, escrowLine, escrowOf, fileBlock, fileDispute, holds, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
+import { Callout } from "@/components/portal/Callout";
+import { ContractOverview, payLabel } from "@/components/portal/ContractOverview";
+import { firstName } from "@/components/portal/tasks/task-bits";
+import { ICONS } from "@/components/admin/icons";
+import { SummaryStat } from "@/components/workspace/meta";
+import { ProjectWorkspace } from "@/components/workspace/ProjectWorkspace";
+import { UnreadableGate } from "@/components/workspace/UnreadableGate";
+import { CONTRACT_NAMES, byName, FT_BENEFITS } from "@/lib/team/data";
+import { trialClosed as isTrialClosed } from "@/lib/contract/lifecycle";
+import { payScheduleOf } from "@/lib/demo/contract";
+import { dayLabel, sinceOrFrom } from "@/lib/demo/dates";
+import { lifecycleOfDeal, trialEvaluationOf, useDeal } from "@/lib/demo/deal";
+import { Tip } from "@/components/portal/Tip";
+import { caseHref, dealContract, escrowInPlay, escrowLine, escrowOf, fileBlock, fileBlockHint, fileDispute, holds, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef } from "@/lib/demo/disputes";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import type { OngoingType } from "@/lib/demo/job-types";
 import { PAIR } from "@/lib/demo/live";
-import type { Objective } from "@/lib/team/data";
-import { useDemo } from "@/lib/team/store";
-import { useQueryState } from "@/lib/portal/query-state";
+import { trackerClosed } from "@/lib/demo/tasks";
+import { CONVERSION_ID, useDemo } from "@/lib/team/store";
+import { useQueryState, writeParams } from "@/lib/portal/query-state";
+import { accessOf } from "@/lib/work/access";
+import { isArchived, refOf } from "@/lib/work/model";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
-const OBJ_STATUS: Record<Objective["status"], { label: string; tone: "warn" | "ok" | "trial" | "danger"; bar: "primary" | "ok" | "warn" }> = {
-  pending: { label: "Update pending", tone: "warn", bar: "primary" },
-  complete: { label: "Complete", tone: "ok", bar: "ok" },
-  risk: { label: "At risk", tone: "trial", bar: "warn" },
-  revision: { label: "Revision requested", tone: "danger", bar: "warn" },
-  on: { label: "On track", tone: "ok", bar: "primary" },
-};
 const SCORES = ["Quality of work", "Communication", "Reliability", "Initiative", "Collaboration"];
+const RECOMMENDATIONS = ["Select a recommendation", "Hire full-time", "Hire part-time", "End the engagement"];
 
 export default function TrackerPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
     <Suspense>
-      <EmployerTracker params={params} />
+      <UnreadableGate title="Contract">
+        <EmployerTracker params={params} />
+      </UnreadableGate>
     </Suspense>
   );
 }
 
 /**
- * Figma "Independents / Trial tracker · employer view / Full-time tracker / Objective review · approve · request revision · reject /
- * Send evaluation · locked / form / submitted / Convert to full-time · confirm".
+ * Figma "Independents / Trial tracker · employer view / Full-time tracker / Send evaluation · locked /
+ * form / submitted / Convert to full-time · confirm", with the objectives replaced by the contract's
+ * shared task list (TB-058 / TB-061…065 / TB-109…111): the talent works it, the Team Builder reviews it.
  */
 function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, endContract, evaluations, addEvaluation, sendFullTimeOffer, transactions, reviewObjective, createObjective: assignObjective } = useDemo();
+  const { contracts, endContract, evaluations, addEvaluation, sendConversionOffer, withdrawOffer, transactions, profile } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
   if (!contract) notFound();
   const p = byName(contract.independent);
@@ -56,68 +66,38 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   /** Messages opened on this person's thread — only the live pair has one in the demo. */
   const withReturn = useWithReturn();
   const thread = withReturn(contract.independent === PAIR.independent.slug ? "/team/messages?with=juan" : "/team/messages");
-  // In the URL rather than state, so leaving from the Evaluation tab comes back to it.
-  const [tab, setTab] = useQueryState("tab", "dashboard", ["dashboard", "contract", "evaluation"] as const);
-  const objectives = contract.objectives;
-  const [review, setReview] = useState<Objective | null>(null);
-  const [adding, setAdding] = useState(false);
+  // In the URL rather than state, so leaving from the Evaluation tab comes back to it. "tasks" is
+  // the Work tab: the key links and notifications have always used.
+  const [tab, setTab] = useQueryState("tab", "tasks", ["tasks", "overview", "contract", "evaluation"] as const);
+  /** Opens an item in the Work tab — the Overview's Review button opens the first one waiting. */
+  const openTask = (id: string) => writeParams({ tab: null, task: id });
+  const tasks = contract.tasks;
   const [converting, setConverting] = useState(false);
-  const [title, setTitle] = useState("");
   const [scores, setScores] = useState<number[]>([4, 5, 4, 3, 4]);
-  /** TB-067 — an evaluation on file is what unlocks End Contract and Hire for Full-Time. */
+  /** TB-067 — an evaluation on file is what unlocks End Contract and Hire. */
   const history = evaluations[slug] ?? [];
   const submitted = history.length > 0;
   const latest = history[0];
   const [feedback, setFeedback] = useState("");
   const [recommendation, setRecommendation] = useState("");
   const [ending, setEnding] = useState(false);
-  /** Pre-filled from the trial rate so the offer starts from what they already earn. */
-  const [ft, setFt] = useState({ salary: String(rateAmount(contract.rate).toLocaleString("en-US")), start: "", benefits: [] as string[] });
-  /** TB-075 — the new objective being composed; what's required depends on its type. */
-  const [newObj, setNewObj] = useState({ description: "", type: "Manual", target: "", unit: "", krs: [] as string[], kr: "" });
-  const objectiveReady =
-    title.trim().length > 1 &&
-    newObj.description.trim().length > 0 &&
-    (newObj.type === "Manual" ? Number(newObj.target) > 0 && !!newObj.unit.trim() : newObj.type === "Automatic" ? newObj.krs.length > 0 : true);
+  /** TB-072 — the post-trial offer, pre-filled from what they earn on the trial. */
+  const [hire, setHire] = useState({ type: "full-time" as OngoingType, salary: String(rateAmount(contract.rate).toLocaleString("en-US")), start: "", benefits: [...FT_BENEFITS], hours: "20" });
   const [disputing, setDisputing] = useState(false);
-  /** TB-110 / TB-111 — a reason is mandatory for anything that isn't an approval. */
-  const [note, setNote] = useState("");
-  const [reasonCode, setReasonCode] = useState("");
-  /**
-   * TB-111 / TB-116 — only one revision request per objective per reporting period. Read off the
-   * objective rather than held in local state: a guard that a refresh clears isn't a guard. A
-   * resubmission starts a new period.
-   */
-  const revisedThisPeriod = (o: Objective | null) => !!o && objectives.find((x) => x.id === o.id)?.meta.startsWith("Revision requested") === true;
   const [toast, setToast] = useToast();
 
-  const createObjective = () => {
-    const kind = newObj.type === "Manual" ? "kpi" : newObj.type === "Automatic" ? "okr" : "task";
-    assignObjective(slug, { title: title.trim(), description: newObj.description.trim(), kind, target: kind === "kpi" ? Number(newObj.target) : undefined, unit: kind === "kpi" ? newObj.unit.trim() : undefined, keyResults: kind === "okr" ? newObj.krs : undefined });
-    setTitle("");
-    setNewObj({ description: "", type: "Manual", target: "", unit: "", krs: [], kr: "" });
-    setAdding(false);
-    setToast(`Objective created and assigned — ${first} has been told`);
-  };
   const isTrial = contract.type === "trial";
-  /** Working days remaining drives both the Days left stat and the automatic Off Track rule. */
+  /** Working days remaining — the Days left stat and the trial's close. */
   const left = contract.left;
   /**
-   * TB-067 — the trial is over when its end date comes, or sooner once every objective has been
-   * approved. It used to wait for 100% approval alone, so a trial with one objective still open
-   * could never be evaluated, ended or converted, whatever the date.
+   * TB-067 — the trial is over when its end date comes, or sooner once every trial task is Done.
+   * TB-117 — on a full-time or part-time contract the evaluation is ongoing feedback, available
+   * whenever the Team Builder wants to give it; a trial's is a one-off verdict after it ends.
    */
-  const ended = isTrial && (contract.over || contract.progress === 100);
-  /**
-   * TB-117 — on a full-time contract the evaluation is ongoing feedback, available whenever the
-   * Team Builder wants to give it. A trial's is a one-off verdict, so it waits for the trial to end.
-   */
-  const canEvaluate = !isTrial || ended;
-  const completed = objectives.filter((o) => o.status === "complete").length;
+  const ended = isTrial && contract.over;
   /** TB-066 — this contract's slice of the transaction ledger. */
   const payments = transactions.filter((t) => t.independent === name);
-  const waiting = objectives.filter((o) => o.status === "pending");
-  const pending = waiting.length;
+  const waiting = tasks.filter((t) => t.status === "review" && t.assignee === "independent" && !isArchived(t));
 
   /**
    * TB-073 / TB-118 / TB-093 — a dispute is one record per contract that the independent and Admin
@@ -130,57 +110,114 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const onDeal = !!liveRef && liveRef.links.team === contract.slug;
   const ref: ContractRef = onDeal ? liveRef : { key: `team:${contract.slug}`, links: { team: contract.slug, independent: contract.slug }, title: contract.role, type: contract.type, rate: contract.rate, started: contract.started, ends: contract.ends };
   const escrow = onDeal ? escrowOf(deal, allDisputes) : null;
+  /** What a dispute is about: the trial's escrow while there's one in play, else the pay (TB-118). */
+  const inPlay = onDeal ? escrowInPlay(deal, allDisputes) : null;
   const here = allDisputes.filter((d) => d.contract === ref.key);
-  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "team", escrow);
-  /** TB-073 — on a trial, filing opens once it ends; TB-058 keeps the button in view before that. */
-  const trialOver = !isTrial || contract.over || contract.status.label === "Ended";
-  /** TB-072 — one full-time offer at a time: while one is out or has been accepted, there is nothing to send. */
-  const fullTimeOffer = onDeal ? deal?.fullTime : undefined;
-  const fullTimeLocked = fullTimeOffer?.status === "sent" || fullTimeOffer?.status === "accepted";
-  /** A new full-time offer starts from the last one: the talent turned down its terms, not the idea. A start date that has passed is dropped. */
+  /** TB-072 — one post-trial offer at a time: while one is out or has been accepted, there is nothing to send. */
+  const conversion = onDeal ? deal?.conversion : undefined;
+  const conversionLocked = conversion?.status === "sent" || conversion?.status === "accepted";
+  /** Where the live contract is in its lifecycle (@/lib/contract/lifecycle): every tab reads the same phase. */
+  const life = onDeal ? lifecycleOfDeal(deal) : null;
+  const phase = life?.phase;
+  const closedTrial = !!life && isTrialClosed(life);
+  /**
+   * TB-073 / TB-118 — filing opens when the trial ends and stays open while the contract runs: not
+   * before its first day, not after it ends (fileBlock). TB-058 keeps the button in view throughout.
+   * A contract the demo only lists has no lifecycle, so its status stands in for one.
+   */
+  const disputePhase = phase ?? (contract.status.label === "Ended" ? "ended" : contract.status.label.startsWith("Starts") ? "starts" : isTrial && !contract.over ? "trial" : "ongoing");
+  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "team", inPlay, disputePhase);
+  const fileHint = fileBlockHint(block, "team", { starts: life ? dayLabel(life.since) : contract.started, trialEnds: contract.ends });
+  /** When the trial's evaluation is due. */
+  const due = life?.trial ? dayLabel(life.trial.evaluationDue) : undefined;
+  /** The trial's own evaluation, apart from later reviews of the role it became. */
+  const trialEval = onDeal ? trialEvaluationOf(deal) : undefined;
+  /** A full-time or part-time role's pay: a month's worth, and the next payday. */
+  const pay = onDeal ? payScheduleOf(deal) : null;
+  /** What escrow will release now: what it holds, less what a dispute is keeping. */
+  const releasable = escrow ? Math.max(0, escrow.held - escrow.onHold) : 0;
+  const offerType = conversion ? JOB_TYPE_LABEL[conversion.type].toLowerCase() : "";
+  /**
+   * Who can evaluate, when: the trial's evaluation once it's over (one, final), and reviews of a
+   * full-time or part-time role while it runs (TB-117) — never before it starts or after it ends.
+   */
+  const canEvaluate = life ? phase === "evaluation" || phase === "ongoing" : !isTrial || ended;
+  /** A trial's evaluation shows the scores it was sent with, not this page's defaults. */
+  const shownScores = isTrial && submitted && latest?.scores ? SCORES.map((label, i) => latest.scores?.find((s) => s.label === label)?.value ?? scores[i]) : scores;
+  /** On a trial that became a role, its first evaluation is the trial's; the rest review the role. */
+  const trialFirst = contract.origin === "trial" && !isTrial && history.length > 0 ? history[history.length - 1] : undefined;
+  /**
+   * A new post-trial offer starts from the last one: the talent turned down its terms, not the idea.
+   * A start date that has passed is dropped. The first one starts on the kind of role the
+   * evaluation recommended.
+   */
   const openConvert = () => {
-    if (fullTimeOffer) setFt({ salary: fullTimeOffer.salary.replace(/^\$/, ""), start: fullTimeOffer.start >= toISODate(startOfToday()) ? fullTimeOffer.start : "", benefits: fullTimeOffer.benefits });
+    if (conversion)
+      setHire({
+        type: conversion.type,
+        salary: conversion.salary.replace(/^\$/, ""),
+        start: conversion.start >= toISODate(startOfToday()) ? conversion.start : "",
+        benefits: conversion.benefits.length ? conversion.benefits : [...FT_BENEFITS],
+        hours: String(conversion.hours ?? 20),
+      });
+    else if (latest?.recommendation === "Hire part-time" || latest?.recommendation === "Hire full-time") setHire((h) => ({ ...h, type: latest.recommendation === "Hire part-time" ? "part-time" : "full-time" }));
     setConverting(true);
   };
-  const fileHint = !trialOver ? `Available once the trial ends on ${contract.ends}` : block === "withdrawn" ? "You withdrew a dispute on this contract, so it can't be disputed again" : block === "settled" ? "Nothing is left in escrow on this contract" : undefined;
-  const flow = useDisputeFlow("team", setToast);
+  const hireHours = Number(hire.hours);
+  const hireReady = rateAmount(hire.salary) > 0 && !!hire.start.trim() && (hire.type === "full-time" || (Number.isInteger(hireHours) && hireHours >= 1 && hireHours <= 40));
+  const router = useRouter();
   /** One button everywhere it appears: file one, open the one already running, or say why not. */
   const disputeButton = (size: "md" | "lg") =>
     block === "open" && running ? (
-      <Button size={size} onClick={() => flow.view(running)}>
+      <LinkButton size={size} href={caseHref("team", running.id)}>
         View dispute
-      </Button>
+      </LinkButton>
     ) : (
-      <Button size={size} disabled={!trialOver || !!block} title={fileHint} onClick={() => setDisputing(true)}>
-        {block === "withdrawn" ? "Dispute withdrawn" : "File a Dispute"}
-      </Button>
+      <Tip label={fileHint} wrap>
+        <Button size={size} disabled={!!block} onClick={() => setDisputing(true)}>
+          {block === "withdrawn" ? "Dispute withdrawn" : "File a Dispute"}
+        </Button>
+      </Tip>
     );
   /** TB-071 — End Contract can't release money a dispute is holding. */
   const endBlocked = here.some(holds);
   const contractEnded = contract.status.label === "Ended";
-  const escrowText = isTrial ? (escrow ? escrowLine(escrow, contract.started, { releasedTo: first, refundedTo: "you" }) : `Held since ${contract.started}`) : null;
+  const fromTrial = contract.origin === "trial";
+  /** Held since the trial began — `contract.started` is the role's first day once it converts. */
+  const trialStart = life?.trial ? dayLabel(life.trial.started) : contract.started;
+  const escrowText = fromTrial ? (escrow ? escrowLine(escrow, trialStart, { releasedTo: first, refundedTo: "you" }) : `Held since ${trialStart}`) : null;
+  const typeLabel = JOB_TYPE_LABEL[contract.type];
+  /** The benefits the signed offer carried — a full-time role's own, not a fixed list. */
+  const benefits = onDeal ? ((conversion?.status === "accepted" ? conversion.benefits : (deal?.offer?.benefits ?? deal?.contract?.benefits)) ?? []) : FT_BENEFITS;
 
-  /**
-   * TB-109 / TB-110 / TB-111 — the three verdicts differ in more than wording:
-   *   approve  → Achieved, retired from the activity tracker, streak keeps running
-   *   reject   → back to Active and still feeding the tracker; a reason is required
-   *   revise   → Revision Requested; a reason code AND a note are required, once per period
-   */
-  const decide = (verdict: "approve" | "revise" | "reject") => {
-    if (!review) return;
-    if (verdict !== "approve" && !note.trim()) return;
-    if (verdict === "revise" && !reasonCode) return;
-    // TB-111 — the reason code and the note travel together; the talent reads both.
-    reviewObjective(slug, review.id, verdict, verdict === "revise" ? `${reasonCode} — ${note.trim()}` : note.trim());
-    setReview(null);
-    setNote("");
-    setReasonCode("");
-    setToast({ approve: "Objective approved", revise: `Revision requested from ${first}`, reject: "Sent back to " + first }[verdict]);
+  /** The work, on the shared engagement: planned and reviewed here as this Team Builder, worked by the talent. */
+  const people = { team: { name: profile.name, avatar: profile.photo }, independent: { name, avatar: p.avatar } };
+  const actor = { role: "manager" as const, name: profile.name };
+  const closedNote = contractEnded
+    ? "This contract has ended, so its work is read-only."
+    : phase === "evaluation"
+      ? `The trial ${life?.trial?.closedEarly ? "closed early, every trial task approved" : `ended on ${contract.ends}`}. Approve what's still in review, then send your evaluation by ${due}.`
+      : phase === "decision"
+        ? `The trial is over and evaluated. Hire ${first} to carry on the work, or end the contract.`
+        : phase === "offer"
+          ? `Your ${offerType} offer is with ${first}. The work reopens when they accept.`
+          : isTrial && contract.over
+            ? "The trial has closed, so no new work can be added. Anything still in review can be approved."
+            : undefined;
+
+  const sendEvaluation = () => {
+    const r = addEvaluation(slug, { stars: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), scores: SCORES.map((label, i) => ({ label, value: scores[i] })), feedback: feedback.trim(), recommendation });
+    if (!r.ok) return setToast(r.error);
+    if (!isTrial) {
+      setFeedback("");
+      setRecommendation("");
+    }
+    setToast(r.trial ? `Evaluation sent — ${first}'s Trial Fit Score is final${r.released > 0 ? ` and ${usd(r.released)} was released to them` : ""}` : `Evaluation sent — ${first} can read it now`);
   };
 
   return (
     <Page
-     
+      fill={tab === "tasks"}
       title={
         <>
           {name} <JobBadge type={contract.type} />
@@ -190,11 +227,12 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
       }
       tabs={
         <Tabs
-          className="px-4"
           value={tab}
           onChange={setTab}
+          aria-label="Contract sections"
           options={[
-            { value: "dashboard", label: "Objectives" },
+            { value: "tasks", label: "Work" },
+            { value: "overview", label: "Overview" },
             { value: "contract", label: "Contract & Payment" },
             { value: "evaluation", label: "Evaluation" },
           ]}
@@ -217,16 +255,12 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
           }
         />
       }
-      /* TB-058: both stay in the header at every tab and stage of the trial. */
+      /* TB-058: both stay in the header at every tab and stage of the contract. */
       navActions={
         <>
-          {/* TB-058 keeps messaging in the header on every tab. It goes to the conversation itself,
-              where the history is and where the reply arrives — this used to open a separate
-              compose box, beside a second "Message" button that navigated instead. */}
-          <LinkButton size="md" href={thread}>
+          <MessageButton size="md" href={thread}>
             Message {first}
-          </LinkButton>
-          {/* TB-058 keeps it in the header; TB-073 opens it at trial end; TB-093 closes it after a withdrawal. */}
+          </MessageButton>
           {disputeButton("md")}
         </>
       }
@@ -240,8 +274,9 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               {(
                 [
                   ["Agreed role", contract.role],
-                  ["Type", isTrial ? "Trial" : "Full-time"],
-                  [isTrial ? "Rate" : "Base salary", contract.rate],
+                  ["Type", fromTrial && !isTrial ? `${typeLabel}, after a trial` : typeLabel],
+                  [contract.type === "full-time" ? "Base salary" : "Rate", contract.rate],
+                  ...(contract.hours ? ([["Hours", hoursLabel(contract.hours)]] as const) : []),
                   [isTrial ? "Trial window" : "Start date", isTrial ? `${contract.started} – ${contract.ends}` : contract.started],
                   ["Manager", contract.manager],
                   ["Status", contract.status.label],
@@ -254,15 +289,15 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               ))}
             </dl>
           </Card>
-          {!isTrial && (
+          {contract.type === "full-time" && (
             <Card className="flex flex-col gap-4 p-5">
               <CardHeading>Exclusive benefits</CardHeading>
-              <p className="text-[13px] leading-[1.4] text-ink-2">Included with every full-time engagement, on top of base salary.</p>
+              <p className="text-[13px] leading-[1.4] text-ink-2">What the signed offer includes, on top of base salary.</p>
               <ul className="flex flex-col gap-3 text-[14px] leading-[1.4]">
                 {FT_BENEFITS.map((b) => (
                   <li key={b} className="flex items-center justify-between gap-4 border-t border-border pt-3 first:border-t-0 first:pt-0">
                     <span className="text-ink">{b}</span>
-                    <StatusDot tone="ok">Included</StatusDot>
+                    {benefits.includes(b) ? <StatusDot tone="ok">Included</StatusDot> : <StatusDot tone="neutral">Not included</StatusDot>}
                   </li>
                 ))}
               </ul>
@@ -273,9 +308,10 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
             <dl className="flex flex-col gap-3 text-[14px] leading-[1.4]">
               {(
                 [
-                  ["Agreed budget", contract.rate],
-                  ["Payment schedule", isTrial ? "Held in escrow, released at trial end" : "Monthly, on the 1st"],
-                  ["Escrow status", escrowText ?? "Not applicable to full-time"],
+                  ["Agreed pay", contract.rate],
+                  ["Payment schedule", isTrial ? `Held in escrow, released to ${first} with your evaluation${due ? ` (due ${due}), or on its own once that has passed` : ""}` : "Monthly, on the last day of each month — pro rata for a part month"],
+                  ...(!isTrial ? ([["Next payment", pay?.next ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}` : contractEnded ? "None — the contract has ended" : "—"]] as const) : []),
+                  ...(isTrial || !fromTrial ? ([["Escrow status", escrowText ?? "No escrow — hired directly"]] as const) : []),
                   ...(isTrial ? ([["Trial duration", `${contract.started} – ${contract.ends}`]] as const) : []),
                 ] as const
               ).map(([k, v]) => (
@@ -286,19 +322,38 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               ))}
             </dl>
           </Card>
+          {/* The trial it began as, kept as the contract's first chapter once it became a role. */}
+          {life?.converted && life.trial && (
+            <Card className="flex flex-col gap-4 p-5">
+              <CardHeading>The trial</CardHeading>
+              <dl className="flex flex-col gap-3 text-[14px] leading-[1.4]">
+                {(
+                  [
+                    ["Dates", `${dayLabel(life.trial.started)} – ${dayLabel(life.trial.ends)}`],
+                    ["Escrow", escrowText ?? "—"],
+                    ...(contract.tfs ? ([["Trial Fit Score", `${contract.tfs.overall}% · final`]] as const) : []),
+                    ...(trialEval ? ([["Evaluated", trialEval.date]] as const) : []),
+                  ] as const
+                ).map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4">
+                    <dt className="text-ink-2">{k}</dt>
+                    <dd className="font-medium text-ink">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+          )}
           {/* TB-066 payment history: date, amount, type and status, read only. */}
           <Card className="flex flex-col gap-3 p-5">
             <CardHeading>Payment history</CardHeading>
             {payments.length === 0 ? (
-              <p className="text-[13px] leading-[1.4] text-ink-2">No transactions yet. The escrow deposit appears here once the trial starts.</p>
+              <p className="text-[13px] leading-[1.4] text-ink-2">{fromTrial ? "No transactions yet. The escrow deposit appears here once the trial starts." : pay?.next ? `No payments yet. The first, ${usd(pay.next.amount)}, is paid on ${dayLabel(pay.next.to)}.` : "No transactions yet. Monthly payments appear here as they are paid."}</p>
             ) : (
               <ul className="flex flex-col">
                 {payments.map((t) => (
                   <li key={t.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border py-3 text-[13px] leading-[1.4] first:border-t-0">
                     <span className="w-[100px] shrink-0 text-ink-2">{t.date}</span>
-                    {/* `desc`, not `type`: the three canonical types are for the Payments ledger,
-                        where you filter by them. On one contract they'd read "Payment Released" on
-                        every row, which tells you less than the line it replaced. */}
+                    {/* `desc`, not `type`: on one contract "Payment Released" on every row would tell you less than the line. */}
                     <span className="min-w-0 flex-1 text-ink">{t.desc}</span>
                     <span className="font-semibold text-ink">{t.amount}</span>
                     <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
@@ -315,12 +370,14 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
             </div>
             {here.length === 0 ? (
               <p className="text-[13px] leading-[1.4] text-ink-2">
-                {trialOver
-                  ? "No disputes on this contract. If a payment or the agreed process went wrong, file one — the amount in question stays in escrow while Hireable support reviews it."
-                  : `No disputes. Filing opens when the trial ends on ${contract.ends}; until then, raise anything with ${first} in Messages.`}
+                {block === "trial" || block === "starts"
+                  ? `No disputes. ${fileHint}; until then, raise anything with ${first} in Messages.`
+                  : fileHint
+                    ? `No disputes. ${fileHint}.`
+                    : "No disputes on this contract. If a payment or the agreed process went wrong, file one — Hireable support reviews the task log and the payment record."}
               </p>
             ) : (
-              <DisputeRows disputes={here} side="team" onView={flow.view} />
+              <DisputeRows disputes={here} side="team" />
             )}
           </Card>
         </div>
@@ -332,7 +389,11 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 {isTrial && submitted ? `Your evaluation of ${name}` : `Evaluate ${name}`}
               </h2>
               <p className="text-[14px] leading-[1.4] text-ink-2">
-                {!isTrial ? "Send one whenever you have feedback — every evaluation is kept and the independent is notified." : ended || submitted ? "Scores are final once sent and feed the independent’s trial fit score." : `Locked until the trial ends on ${contract.ends}. You can prepare notes from the objectives in the meantime.`}
+                {!isTrial
+                  ? "Send one whenever you have feedback — every evaluation is kept and the independent is notified."
+                  : ended || submitted
+                    ? "Scores are final once sent and feed the independent’s trial fit score."
+                    : `Locked until the trial ends on ${contract.ends}, or until every trial task is done.`}
               </p>
             </div>
             <Card className={`flex flex-col gap-4 p-5 ${!canEvaluate && !submitted ? "opacity-60" : ""}`}>
@@ -346,7 +407,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                         type="button"
                         disabled={!canEvaluate || (isTrial && submitted)}
                         onClick={() => setScores((s) => s.map((v, k) => (k === i ? n : v)))}
-                        className={`flex h-9 w-11 items-center justify-center rounded-md text-[14px] leading-[1.4] font-medium ${n === scores[i] ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"}`}
+                        className={`flex h-9 w-11 items-center justify-center rounded-md text-[14px] leading-[1.4] font-medium ${n === shownScores[i] ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"}`}
                       >
                         {n}
                       </button>
@@ -357,7 +418,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               <div className="flex flex-col gap-2 pt-2">
                 <p className="text-[14px] leading-[1.4] font-medium text-ink">Recommendation</p>
                 <Select
-                  options={["Select a recommendation", "Hire full-time", "Extend the trial", "End the engagement"]}
+                  aria-label="Recommendation"
+                  options={isTrial ? RECOMMENDATIONS : ["Select a recommendation", "Keep going as is", "Change the scope", "End the engagement"]}
                   value={isTrial && submitted ? latest.recommendation : recommendation || "Select a recommendation"}
                   disabled={!canEvaluate || (isTrial && submitted)}
                   onChange={(e) => setRecommendation(e.target.value === "Select a recommendation" ? "" : e.target.value)}
@@ -377,54 +439,46 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                     )}
                     {/* TB-071 / TB-072 unlock only once the evaluation is on file — and ending
                         waits for any dispute, since the escrow it would release is on hold. */}
-                    <Button size="lg" disabled={endBlocked || contractEnded} title={endBlocked ? "A dispute is holding the escrow" : undefined} onClick={() => setEnding(true)}>
+                    <Button size="lg" variant="danger" disabled={endBlocked || contractEnded} title={endBlocked ? "A dispute is holding the escrow" : undefined} onClick={() => setEnding(true)}>
                       {contractEnded ? "Contract ended" : "End contract"}
                     </Button>
-                    <Button size="lg" variant="primary" disabled={fullTimeLocked} onClick={openConvert}>
-                      {fullTimeOffer?.status === "sent" ? "Full-time offer sent" : fullTimeOffer?.status === "declined" || fullTimeOffer?.status === "withdrawn" ? "Send a new full-time offer" : "Hire for full-time"}
+                    <Button size="lg" variant="primary" disabled={conversionLocked || contractEnded} title={contractEnded ? "The contract has ended" : undefined} onClick={openConvert}>
+                      {contractEnded ? `Hire ${first}` : conversion?.status === "sent" ? `${JOB_TYPE_LABEL[conversion.type]} offer sent` : conversion?.status === "declined" || conversion?.status === "withdrawn" ? "Send a new offer" : `Hire ${first}`}
                     </Button>
                   </>
                 ) : isTrial ? (
                   <>
                     {/* TB-071 / TB-072 want these visible but greyed out before the evaluation,
                         so it's clear what submitting one unlocks rather than hiding it. */}
-                    <Button size="lg" disabled>
+                    <Button size="lg" variant="danger" disabled title="Send your evaluation first">
                       End contract
                     </Button>
-                    <Button size="lg" disabled>
-                      Hire for full-time
+                    <Button size="lg" disabled title="Send your evaluation first">
+                      Hire {first}
                     </Button>
-                    <Button
-                      size="lg"
-                      variant="primary"
-                      disabled={!canEvaluate || !feedback.trim() || !recommendation}
-                      onClick={() => {
-                        addEvaluation(slug, { stars: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), scores: SCORES.map((label, i) => ({ label, value: scores[i] })), feedback: feedback.trim(), recommendation, tfp: contract.tfs.overall });
-                        setToast(`Evaluation sent — ${first} can read it now`);
-                      }}
-                    >
+                    {canEvaluate && waiting.length > 0 && (
+                      <p className="w-full text-right text-[13px] leading-[1.4] text-[#8e6f12]">
+                        {waiting.length === 1 ? "An item is" : `${waiting.length} items are`} still waiting on your review. Approve {waiting.length === 1 ? "it" : "them"} first: the Trial Fit Score is final once this is sent.
+                      </p>
+                    )}
+                    <Button size="lg" variant="primary" disabled={!canEvaluate || !feedback.trim() || !recommendation} onClick={sendEvaluation}>
                       Send evaluation
                     </Button>
                   </>
                 ) : (
-                  <Button
-                    size="lg"
-                    variant="primary"
-                    disabled={!canEvaluate || !feedback.trim() || !recommendation}
-                    onClick={() => {
-                      addEvaluation(slug, { stars: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length), scores: SCORES.map((label, i) => ({ label, value: scores[i] })), feedback: feedback.trim(), recommendation, tfp: contract.tfs.overall });
-                      if (!isTrial) {
-                        setFeedback("");
-                        setRecommendation("");
-                      }
-                      setToast("Evaluation sent");
-                    }}
-                  >
-                    Send evaluation
-                  </Button>
+                  <>
+                    {!contractEnded && (
+                      <Button size="lg" variant="danger" onClick={() => setEnding(true)} disabled={endBlocked} title={endBlocked ? "A dispute is open on this contract" : undefined}>
+                        End contract
+                      </Button>
+                    )}
+                    <Button size="lg" variant="primary" disabled={!canEvaluate || !feedback.trim() || !recommendation} onClick={sendEvaluation}>
+                      Send evaluation
+                    </Button>
+                  </>
                 )}
               </div>
-              {canEvaluate && (!feedback.trim() || !recommendation) && <p className="text-right text-[12.5px] leading-[1.4] text-ink-2">Add a recommendation and written feedback to send.</p>}
+              {canEvaluate && !(isTrial && submitted) && (!feedback.trim() || !recommendation) && <p className="text-right text-[12.5px] leading-[1.4] text-ink-2">Add a recommendation and written feedback to send.</p>}
             </Card>
 
             {/* TB-068 / TB-081 — every evaluation on file, newest first, read-only after sending. */}
@@ -432,13 +486,15 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               <CardHeading>Evaluation history</CardHeading>
               {history.length === 0 ? (
                 <Card className="p-5 text-[13px] leading-[1.4] text-ink-2">
-                  {isTrial ? "No evaluation submitted yet. Once the trial ends and you send yours, it is listed here and cannot be edited." : `No evaluation submitted yet. Send one whenever you have feedback for ${first} — each is listed here and cannot be edited.`}
+                  {isTrial ? "No evaluation submitted yet. Once the trial ends and you send yours, it is listed here and cannot be edited." : contractEnded ? "No evaluations were sent on this contract." : `No evaluation submitted yet. Send one whenever you have feedback for ${first} — each is listed here and cannot be edited.`}
                 </Card>
               ) : (
                 history.map((h, i) => (
                   <Card key={`${h.date}-${i}`} className="flex flex-col gap-2 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[13px] leading-[1.4] text-ink-2">Submitted {h.date}</span>
+                      <span className="text-[13px] leading-[1.4] text-ink-2">
+                        {h === trialFirst || isTrial ? "Trial evaluation · " : ""}Submitted {h.date}
+                      </span>
                       <span className="flex items-center gap-1 text-[14px] leading-[1.2] text-[#f2994a]" aria-label={`${h.stars} out of 5 stars`}>
                         {"★".repeat(h.stars)}
                         <span className="text-ink-2">{"★".repeat(5 - h.stars)}</span>
@@ -446,316 +502,241 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                     </div>
                     <p className="text-[13.5px] leading-[1.5] text-ink">{h.feedback}</p>
                     <p className="text-[12.5px] leading-[1.4] text-ink-2">
-                      Recommendation: {h.recommendation} · {isTrial ? "Final" : ""} Trial Fit Score at submission: {h.tfp}%
+                      Recommendation: {h.recommendation}
+                      {h.tfp !== undefined && (isTrial || h === trialFirst) && ` · Final Trial Fit Score: ${h.tfp}%`}
                     </p>
                   </Card>
                 ))
               )}
             </div>
           </div>
-          <div className="flex w-[320px] shrink-0 flex-col gap-3 rounded-lg bg-[#f3faf6] p-5 outline -outline-offset-1 outline-[#bfe3cc]">
-            <p className="text-[14px] leading-[1.4] font-medium text-ink-2">Trial fit score · {submitted ? "final" : "so far"}</p>
-            <p className="font-display text-[40px] leading-[1.5] font-semibold text-ink" style={DM}>
-              {/* From the contract, not a fixed pair of numbers — this sat beside the real score
-                  in the history card and disagreed with it. */}
-              {contract.tfs.overall}%
-            </p>
-            <p className="max-w-[280px] text-[13px] leading-[1.4] text-ink-2">{submitted ? `Locked at phase 4 on ${contract.ends}, after your evaluation.` : "Locks after your evaluation. Performance updates as you approve objectives."}</p>
-            {(
-              [
-                ["Performance", contract.tfs.performance, "objectives and evaluation"],
-                ["Profile", contract.tfs.profile, "profile vs role alignment"],
-                ["Work style", contract.tfs.workStyle, "from the work-style quiz"],
-              ] as const
-            ).map(([k, v, s]) => (
-              <div key={k} className="flex flex-col gap-1.5 rounded-md bg-white p-3">
-                <p className="text-[13px] leading-[1.4] font-medium text-ink">{k}</p>
-                <span className="block h-1.5 w-full overflow-hidden rounded-[3px] bg-[#e6e6e6]">
-                  <span className="block h-full rounded-[3px] bg-[#2e9e5b]" style={{ width: `${v}%` }} />
-                </span>
-                <p className="text-[12px] leading-[1.4] text-ink-2">
-                  {v}% · {s}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <>
-          <Card className="flex flex-col gap-3 p-5">
-            <div className="flex items-center gap-4">
-              <Avatar src={p.avatar} size={56} />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <p className="flex items-center gap-2">
-                  <span className="font-display text-[22px] leading-[1.5] font-semibold text-ink" style={DM}>
-                    {name}
+          {contract.tfs ? (
+            <div className="flex w-[320px] shrink-0 flex-col gap-3 rounded-lg bg-[#f3faf6] p-5 outline -outline-offset-1 outline-[#bfe3cc]">
+              <p className="text-[14px] leading-[1.4] font-medium text-ink-2">Trial fit score · {submitted || !isTrial ? "final" : "so far"}</p>
+              <p className="font-display text-[40px] leading-[1.5] font-semibold text-ink" style={DM}>
+                {contract.tfs.overall}%
+              </p>
+              <p className="max-w-[280px] text-[13px] leading-[1.4] text-ink-2">{submitted || !isTrial ? "Locked at phase 4 after the trial's evaluation." : "Locks after your evaluation. Performance moves as you approve the trial's tasks."}</p>
+              {(
+                [
+                  ["Performance", contract.tfs.performance, "trial tasks done"],
+                  ["Profile", contract.tfs.profile, "profile vs role alignment"],
+                  ["Work style", contract.tfs.workStyle, "from the work-style quiz"],
+                  ...(contract.tfs.evaluation !== undefined ? ([["Evaluation", contract.tfs.evaluation, "from your evaluation"]] as const) : []),
+                ] as const
+              ).map(([k, v, s]) => (
+                <div key={k} className="flex flex-col gap-1.5 rounded-md bg-white p-3">
+                  <p className="text-[13px] leading-[1.4] font-medium text-ink">{k}</p>
+                  <span className="block h-1.5 w-full overflow-hidden rounded-[3px] bg-[#e6e6e6]">
+                    <span className="block h-full rounded-[3px] bg-[#2e9e5b]" style={{ width: `${v}%` }} />
                   </span>
-                  <JobBadge type={contract.type} />
-                  <StatusDot tone={contract.status.tone}>{contract.status.label}</StatusDot>
-                </p>
-                <p className="text-[14px] leading-[1.4] text-ink-2">{contract.role}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button size="lg" variant="primary" onClick={() => (pending ? setReview(objectives.find((o) => o.status === "pending") ?? null) : setTab("evaluation"))}>
-                  {pending ? "Review update" : isTrial && submitted ? "View evaluation" : "Send evaluation"}
-                </Button>
-              </div>
+                  <p className="text-[12px] leading-[1.4] text-ink-2">
+                    {v}% · {s}
+                  </p>
+                </div>
+              ))}
             </div>
-            <p className="flex gap-6 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">
-              <span>
-                {isTrial ? "Trial started" : `Full-time ${sinceOrFrom(contract.started)}`} {contract.started}
-              </span>
-              {isTrial ? !contract.endedOn && <span>{contract.day}</span> : <span>Quarter: {contract.day}</span>}
-              {isTrial && <span>{contract.endedOn ? `Ended ${contract.endedOn}` : `Ends ${contract.ends}`}</span>}
-              <span>{contract.rate}</span>
-              <span>Manager: {contract.manager}</span>
-            </p>
-          </Card>
-
-          {/* TB-109: a banner when something is waiting on you, so approvals don't sit unseen. */}
-          {pending > 0 && (
-            <InfoBanner tone="warn">
-              {first} sent {pending === 1 ? "an objective" : `${pending} objectives`} for review. Approve to retire {pending === 1 ? "it" : "them"} from the activity tracker, or send {pending === 1 ? "it" : "them"} back with a reason.
-            </InfoBanner>
+          ) : (
+            <MatchAtHire match={contract.match} who={`${first} was`} className="w-[320px]" />
           )}
-
-          {/* Stats bar: TB-058 wants committed + days left for a trial, TB-074 wants assigned +
-              completed for full-time, where objectives are added as the engagement goes on. */}
-          <div className="flex gap-4">
-            <Stat
-              label={isTrial ? "Committed objectives" : "Assigned objectives"}
-              value={String(objectives.length)}
-              sub={isTrial ? "Locked at offer — cannot be changed mid-trial" : "Add or change these at any time"}
-            />
-            <Stat label="Completed objectives" value={String(completed)} sub={`${objectives.length - completed} still open`} />
-            {isTrial ? (
-              <Stat label="Days left" value={String(left ?? 0)} sub={`${contract.started} – ${contract.ends}`} />
-            ) : (
-              <Stat label={`Full-time ${sinceOrFrom(contract.started)}`} value={contract.started} sub={contract.day} />
-            )}
-            <Stat label="Updates to review" value={String(pending)} sub={pending ? `Latest ${waiting.map((o) => o.lastUpdate?.date.split(",")[0] ?? o.updated).find(Boolean) ?? "today"} by ${first}` : "Nothing waiting"} />
-          </div>
-
-          <div className="flex items-start gap-6">
-            <section className="flex min-w-0 flex-1 flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={DM}>
-                  Objectives
-                </h2>
-                {/* TB-075: always available on a full-time contract. Trial objectives are
-                    locked at the offer (TB-058), so there is nothing to add there. */}
-                {isTrial ? (
-                  <span className="text-[12.5px] leading-[1.4] text-ink-2">Locked for the trial</span>
-                ) : (
-                  <Button size="sm" variant="primary" onClick={() => setAdding(true)}>
-                    Create objective
-                  </Button>
+        </div>
+      ) : tab === "tasks" ? (
+        onDeal ? (
+          <ProjectWorkspace
+            actor={actor}
+            people={people}
+            closedNote={closedNote}
+            context={
+              <>
+                {isTrial && !contract.endedOn && <SummaryStat mark={<ICONS.clock size={15} aria-hidden />}>{contract.day}</SummaryStat>}
+                {!isTrial && life && (
+                  <SummaryStat>
+                    {typeLabel} {phase === "starts" ? "from" : "since"} {dayLabel(life.since)}
+                  </SummaryStat>
                 )}
-              </div>
-              {objectives.map((o) => {
-                // TB-058: Off Track is derived, not stored — ≤7 days left and behind target.
-                const auto = isOffTrack(o, left ?? 99);
-                const st = auto ? { label: "Off Track", tone: "trial" as const, bar: "warn" as const } : OBJ_STATUS[o.status];
-                const href = `/team/independents/${contract.slug}/objectives/${o.id}`;
-                return (
-                  <Card key={o.id} className="flex flex-col gap-3 p-4">
-                    <Link href={href} className="block hover:opacity-80">
-                      <ObjectiveRow index={kindIndex(o.kind)}>{o.title}</ObjectiveRow>
-                    </Link>
-                    {/* Type, progress, status, due date, key results and last update (TB-058). */}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] leading-[1.4] text-ink-2">
-                      <span className="rounded-md bg-surface-2 px-2 py-0.5 text-[12px] font-medium text-ink">{OBJECTIVE_KIND[o.kind]}</span>
-                      <Progress value={o.progress} tone={st.bar} label />
-                      <StatusDot tone={st.tone}>{st.label}</StatusDot>
-                      {o.due && <span>Due {o.due}</span>}
-                      {!!o.keyResults?.length && <span>{o.keyResults.filter((k) => k.done).length}/{o.keyResults.length} key results</span>}
-                      {o.target && <span>Target {o.target} {o.unit}</span>}
-                      {o.updated && <span>Updated {o.updated}</span>}
-                    </div>
-                    <div className="flex justify-end">
-                      {o.status === "pending" ? (
-                        <Button size="sm" variant="primary" onClick={() => setReview(o)}>
-                          Review
-                        </Button>
-                      ) : (
-                        <LinkButton size="sm" href={href}>
-                          View
-                        </LinkButton>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })}
-            </section>
-
-            <aside className="flex w-[420px] shrink-0 flex-col gap-4">
-              {/* TB-058 live during a trial; TB-074 keeps it visible on a full-time contract as
-                  the final score carried over from the trial, where it no longer moves. */}
-              <TrialFitScore contract={contract} final={!isTrial} />
-              <ActivityLog activity={contract.activity} streak={contract.streak} feeding={objectives.filter((o) => !o.retired && o.status !== "complete").length} />
-              {/* It used to read "Send your evaluation" after one was sent, and "Opens on Ongoing,
-                  once the trial ends" on a full-time contract. */}
-              <PanelCard title={isTrial ? "Trial evaluation" : "Quarterly review"}>
+                {contract.tfs && (
+                  <SummaryStat>
+                    Trial Fit Score <b className="font-semibold text-ink">{contract.tfs.overall}%</b>
+                    {(submitted || !isTrial) && " · final"}
+                  </SummaryStat>
+                )}
+              </>
+            }
+          />
+        ) : (
+          <p className="px-10 py-8 text-[14px] text-ink-2">This contract's work list isn't available.</p>
+        )
+      ) : (
+        /* TB-058 / TB-074 / TB-109 — the contract at a glance: its terms, how far the work has got,
+           what's waiting on you (reviews don't sit unseen), what's due next and what changed. */
+        <ContractOverview
+          viewer="team"
+          work={onDeal ? accessOf(deal) : undefined}
+          tasks={tasks}
+          names={{ team: firstName(profile.name), independent: first }}
+          people={people}
+          trial={isTrial}
+          facts={[
+            { label: "Role", value: contract.role },
+            { label: isTrial ? "Trial started" : `${typeLabel} ${sinceOrFrom(contract.started)}`, value: contract.started },
+            ...(isTrial
+              ? [
+                  { label: contract.over ? "Trial" : `${left ?? 0} working ${left === 1 ? "day" : "days"} left`, value: contract.day },
+                  // Once over, the Trial cell says how it ended; the scheduled end would only repeat it (or, closed early, contradict it).
+                  ...(contract.over && !contract.endedOn ? [] : [{ label: contract.endedOn ? "Ended" : "Ends", value: contract.endedOn ?? contract.ends }]),
+                ]
+              : [{ label: "Review period", value: contract.day }]),
+            { label: payLabel(contract.type), value: contract.rate },
+            ...(contract.hours ? [{ label: "Hours", value: hoursLabel(contract.hours) }] : []),
+          ]}
+          callouts={
+            <>
+              {waiting.length > 0 && !contractEnded && (
+                <Callout
+                  tone="warn"
+                  action={
+                    <Button size="sm" variant="primary" onClick={() => openTask(waiting[0].id)}>
+                      Review
+                    </Button>
+                  }
+                >
+                  {/* Says which item, not "an item": the button opens that one. The how-to lives in the review sheet. */}
+                  {first} sent{" "}
+                  <span className="font-semibold">
+                    {refOf(waiting[0])} {waiting[0].title}
+                  </span>
+                  {waiting.length > 1 && ` and ${waiting.length - 1} more`} for review.
+                  {closedTrial && ` Approve ${waiting.length === 1 ? "it" : "them"} before your evaluation — the trial is over, so nothing can be sent back.`}
+                </Callout>
+              )}
+              {(life ? phase === "evaluation" : ended && !submitted) && (
+                <Callout
+                  tone={life?.trial?.evaluationOverdue ? "warn" : "info"}
+                  action={
+                    <Button size="sm" variant="primary" onClick={() => setTab("evaluation")}>
+                      Send evaluation
+                    </Button>
+                  }
+                >
+                  {life?.trial?.evaluationOverdue
+                    ? `Your evaluation of ${first} was due ${due}.${releasable > 0 ? "" : ` The escrow has been released to ${first}.`} Send it to make the Trial Fit Score final and decide what's next.`
+                    : `The trial has ended. Send your evaluation of ${first}${due ? ` by ${due}` : ""}: it makes the Trial Fit Score final${releasable > 0 ? ` and releases the ${usd(releasable)} in escrow to ${first}` : ""}.`}
+                </Callout>
+              )}
+              {phase === "decision" && !contractEnded && (
+                <Callout
+                  action={
+                    <span className="flex gap-2">
+                      <Button size="sm" variant="danger" onClick={() => setEnding(true)}>
+                        End contract
+                      </Button>
+                      <Button size="sm" variant="primary" onClick={openConvert}>
+                        {conversion ? "Send a new offer" : `Hire ${first}`}
+                      </Button>
+                    </span>
+                  }
+                >
+                  {conversion?.status === "declined"
+                    ? `${first} declined your ${offerType} offer${conversion.declineReason ? `: “${conversion.declineReason}”` : "."} Send a new offer, or end the contract.`
+                    : conversion?.status === "withdrawn"
+                      ? `You withdrew your ${offerType} offer. Send a new one, or end the contract.`
+                      : `The trial is evaluated. Hire ${first} full-time or part-time to keep working together, or end the contract.`}
+                </Callout>
+              )}
+              {phase === "offer" && conversion && (
+                <Callout
+                  action={
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        withdrawOffer(CONVERSION_ID);
+                        setToast(`Offer withdrawn — ${first} has been told`);
+                      }}
+                    >
+                      Withdraw offer
+                    </Button>
+                  }
+                >
+                  Your {offerType} offer — {conversion.salary} /month{conversion.hours ? `, ${hoursLabel(conversion.hours)}` : ""}, from {dayLabel(conversion.start)} — is with {first}. The work reopens when they accept.
+                </Callout>
+              )}
+              {phase === "starts" && life?.converted && (
+                <Callout>
+                  {first} starts {typeLabel.toLowerCase()} on {dayLabel(life.since)}. Plan the work now — {first} can start on it then.
+                </Callout>
+              )}
+            </>
+          }
+          aside={
+            <>
+              {/* TB-058 live during a trial; TB-074 keeps it visible once it converts, as the final
+                  score from the trial. A direct hire had no trial, so it shows the match instead. */}
+              {contract.tfs ? <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} final={!isTrial || submitted} /> : <MatchAtHire match={contract.match} who={`${first} was`} />}
+              <ActivityLog activity={contract.activity} streak={contract.streak} feeding={tasks.filter((t) => t.status !== "done").length} closed={trackerClosed(tasks, { ended: contractEnded, trialOver: isTrial && contract.over })} starts={contract.startsOn} />
+              <PanelCard title={isTrial ? "Trial evaluation" : "Evaluations"}>
                 <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">
                   {!isTrial
-                    ? `Send feedback whenever you have it. Every evaluation is kept and ${first} is notified.`
+                    ? contractEnded
+                      ? "The contract has ended; its evaluations stay on file."
+                      : phase === "starts"
+                        ? `Reviews open once ${first} starts.`
+                        : `Send feedback whenever you have it. Every evaluation is kept and ${first} is notified.`
                     : submitted
-                      ? `You sent your evaluation on ${latest.date}. End the contract or hire ${first} for full-time from the Evaluation tab.`
+                      ? contractEnded
+                        ? `The contract has ended. Your evaluation from ${latest.date} stays on file.`
+                        : phase === "offer"
+                          ? `You sent your evaluation on ${latest.date}. Your ${offerType} offer is with ${first}.`
+                          : `You sent your evaluation on ${latest.date}. Hire ${first} or end the contract.`
                       : ended
-                        ? "The trial has ended. Send your evaluation to unlock the full-time decision."
-                        : `Opens on ${contract.ends}, once the trial ends. Your objective reviews feed the fit score until then.`}
+                        ? `The trial has ended. Send your evaluation${due ? ` by ${due}` : ""}: it makes the Trial Fit Score final and pays out the escrow.`
+                        : `Opens on ${contract.ends}, or sooner once every trial task is done. Your reviews feed the fit score until then.`}
                 </p>
-                <Button size="lg" variant={!isTrial || ended ? "primary" : "secondary"} onClick={() => setTab("evaluation")}>
-                  {isTrial && (submitted || !ended) ? "View evaluation" : "Send evaluation"}
+                <Button size="lg" variant={canEvaluate && !(isTrial && submitted) ? "primary" : "secondary"} onClick={() => setTab("evaluation")}>
+                  {canEvaluate && !(isTrial && submitted) ? "Send evaluation" : "View evaluation"}
                 </Button>
               </PanelCard>
               <PanelCard title="Contract & payment">
-                {/* Own wrapper so the rows stay tight while the card keeps the shared 16px rhythm. */}
                 <div className="flex flex-col gap-2">
-                {(
-                  [
-                    ["Rate", contract.rate],
-                    [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
-                    ["Escrow", escrowText ?? `Charged monthly from ${contract.started}`],
-                    ["Payout", isTrial ? "Released at trial end on your approval" : "End of each month"],
-                  ] as const
-                ).map(([k, v]) => (
-                  <div key={k} className="flex gap-2.5 leading-[1.45]">
-                    <span className="w-14 shrink-0 text-[11.5px] text-ink-2">{k}</span>
-                    <span className="min-w-0 flex-1 text-[12px] text-ink">{v}</span>
-                  </div>
-                ))}
+                  {(
+                    [
+                      ["Pay", contract.rate],
+                      [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
+                      [fromTrial && !isTrial ? "Trial escrow" : "Escrow", escrowText ?? "None — paid monthly"],
+                      [
+                        "Payout",
+                        contractEnded
+                          ? "Settled"
+                          : isTrial
+                            ? releasable > 0
+                              ? `With your evaluation${due ? `, or on its own after ${due}` : ""}`
+                              : escrow && escrow.onHold > 0
+                                ? "Held for a dispute"
+                                : `Paid to ${first}`
+                            : pay?.next
+                              ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}`
+                              : "End of each month",
+                      ],
+                    ] as const
+                  ).map(([k, v]) => (
+                    <div key={k} className="flex gap-2.5 leading-[1.45]">
+                      <span className="w-14 shrink-0 text-[11.5px] text-ink-2">{k}</span>
+                      <span className="min-w-0 flex-1 text-[12px] text-ink">{v}</span>
+                    </div>
+                  ))}
                 </div>
-                {/* It used to show a toast about a Messages form that doesn't exist; it is the same
-                    dispute button as the header now. */}
                 {disputeButton("lg")}
               </PanelCard>
-            </aside>
-          </div>
-        </>
+            </>
+          }
+        />
       )}
 
-      {/* Objective review — Figma "Independents / Objective review · approve update / request revision / reject update" */}
-      <Modal
-        open={!!review}
-        onClose={() => setReview(null)}
-        title={`Review update: ${review?.title ?? ""}`}
-        description={`${first} sent this for review. Approve to move the objective forward, request a revision, or reject it.`}
-        footer={
-          <>
-            <Button size="lg" variant="ghost" disabled={!note.trim()} onClick={() => decide("reject")}>
-              Reject
-            </Button>
-            <Button size="lg" disabled={!note.trim() || !reasonCode || revisedThisPeriod(review)} onClick={() => decide("revise")}>
-              Request revision
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => decide("approve")}>
-              Approve
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          {/* What the talent actually submitted — the value, the percentage and their own words. */}
-          <div className="flex flex-col gap-1.5 rounded-lg bg-[#fafafa] p-4 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">
-            <span className="text-[12.5px] text-ink-2">
-              {review?.lastUpdate?.date ?? review?.updated} · {review?.meta}
-            </span>
-            <span>{review?.lastUpdate?.text ?? "No note was added to this update."}</span>
-          </div>
-          {/* TB-111: a reason code is required to request a revision, and only one per period. */}
-          <Field label="Reason code (required to request a revision)">
-            <Select options={["Select a reason", ...REVISION_REASONS]} value={reasonCode || "Select a reason"} onChange={(e) => setReasonCode(e.target.value === "Select a reason" ? "" : e.target.value)} />
-          </Field>
-          {/* TB-110 / TB-111: rejecting or requesting a revision both need a written reason. */}
-          <Field label="Reason (required to reject or request a revision)">
-            <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should change, or what was missing" />
-          </Field>
-          {revisedThisPeriod(review) && <InfoBanner tone="warn">You have already requested a revision for this objective this period. Approve it or reject it instead.</InfoBanner>}
-          <InfoBanner>Approving retires the objective from the activity tracker and keeps the streak running. If you do not respond within 24 hours of a revised submission, the period auto-approves.</InfoBanner>
-        </div>
-      </Modal>
-
-      {/* TB-075 — title, description and type are always required; each type then asks for
-          only what it actually needs. Default asks for nothing else: it is binary. */}
-      <Modal
-        open={adding}
-        onClose={() => setAdding(false)}
-        title="Create an objective"
-        description={`${first} is notified and commits to it from their tracker. Keep it measurable.`}
-        footer={
-          <>
-            <Button size="lg" onClick={() => setAdding(false)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" disabled={!objectiveReady} onClick={createObjective}>
-              Create objective
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <Field label="Title">
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Book 12 discovery calls per week" />
-          </Field>
-          <Field label="Description">
-            <Textarea rows={2} className="h-[64px]" value={newObj.description} onChange={(e) => setNewObj((n) => ({ ...n, description: e.target.value }))} placeholder="What does good look like?" />
-          </Field>
-          <Field label="Type">
-            <Select options={["Manual", "Automatic", "Default"]} value={newObj.type} onChange={(e) => setNewObj((n) => ({ ...n, type: e.target.value }))} />
-          </Field>
-
-          {newObj.type === "Manual" && (
-            <div className="flex gap-3">
-              <Field label="Target value" className="flex-1">
-                <Input value={newObj.target} inputMode="numeric" onChange={(e) => setNewObj((n) => ({ ...n, target: e.target.value.replace(/[^0-9]/g, "") }))} placeholder="20" />
-              </Field>
-              <Field label="Counted in" className="flex-1">
-                <Input value={newObj.unit} onChange={(e) => setNewObj((n) => ({ ...n, unit: e.target.value }))} placeholder="e.g. demos" />
-              </Field>
-            </div>
-          )}
-
-          {/* TB-062 — the objective's own key results; its progress is the share of them done. */}
-          {newObj.type === "Automatic" && (
-            <Field label="Key results" hint="Add at least one. The last one marked done sends the objective to you for approval.">
-              <div className="flex flex-col gap-2">
-                {newObj.krs.map((kr, i) => (
-                  <span key={`${kr}-${i}`} className="flex items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-[14px] leading-[1.3] text-ink">
-                    <span className="min-w-0 flex-1">{kr}</span>
-                    <button type="button" aria-label={`Remove ${kr}`} onClick={() => setNewObj((n) => ({ ...n, krs: n.krs.filter((_, k) => k !== i) }))} className="text-ink-2 hover:text-ink">
-                      ✕
-                    </button>
-                  </span>
-                ))}
-                <div className="flex gap-2">
-                  <Input
-                    value={newObj.kr}
-                    onChange={(e) => setNewObj((n) => ({ ...n, kr: e.target.value }))}
-                    onKeyDown={(e) => {
-                      if (e.key !== "Enter" || !newObj.kr.trim()) return;
-                      e.preventDefault();
-                      setNewObj((n) => ({ ...n, krs: [...n.krs, n.kr.trim()], kr: "" }));
-                    }}
-                    placeholder="e.g. Qualify 8 opportunities over $10k"
-                  />
-                  <Button disabled={!newObj.kr.trim()} onClick={() => setNewObj((n) => ({ ...n, krs: [...n.krs, n.kr.trim()], kr: "" }))}>
-                    Add
-                  </Button>
-                </div>
-              </div>
-            </Field>
-          )}
-
-          {newObj.type === "Default" && <InfoBanner>A default objective is binary — {first} marks it done and you approve it. No target to set.</InfoBanner>}
-        </div>
-      </Modal>
-
+      {/* TB-072 — after an evaluated trial: a full-time or a part-time role, on the same engagement. */}
       <Modal
         open={converting}
         onClose={() => setConverting(false)}
-        title={`Hire ${first} for full-time`}
-        description="Pre-filled from their trial. Escrow closes and salary is charged monthly once they accept."
+        title={`Hire ${first} after the trial`}
+        description="Pre-filled from their trial. Escrow closes and pay is charged monthly once they accept."
         footer={
           <>
             <Button size="lg" onClick={() => setConverting(false)}>
@@ -764,54 +745,69 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
             <Button
               size="lg"
               variant="primary"
-              disabled={!(rateAmount(ft.salary) > 0) || !ft.start.trim()}
+              disabled={!hireReady}
               onClick={() => {
-                // TB-072 — on the shared engagement, so the talent can open it, sign it or decline it.
-                sendFullTimeOffer({ salary: ft.salary, start: ft.start, benefits: ft.benefits });
+                sendConversionOffer({ type: hire.type, salary: hire.salary, start: hire.start, benefits: hire.benefits, hours: hire.type === "part-time" ? hireHours : undefined });
                 setConverting(false);
-                setToast(`Full-time offer sent to ${first}`);
+                setToast(`${JOB_TYPE_LABEL[hire.type]} offer sent to ${first}`);
               }}
             >
-              Send full-time offer
+              Send {JOB_TYPE_LABEL[hire.type].toLowerCase()} offer
             </Button>
           </>
         }
       >
-        {/* TB-072: salary, exclusive benefits and start date, pre-filled from the trial. */}
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
+          <Pills
+            aria-label="Kind of role"
+            value={hire.type}
+            onChange={(type) => setHire((h) => ({ ...h, type }))}
+            options={[
+              { value: "full-time", label: "Full-time" },
+              { value: "part-time", label: "Part-time" },
+            ]}
+          />
           <div className="flex gap-3">
-            <Field label="Salary (USD / month)" className="flex-1">
-              <Input value={ft.salary} inputMode="decimal" onChange={(e) => setFt((f) => ({ ...f, salary: e.target.value.replace(/[^0-9.,]/g, "") }))} />
+            <Field label={hire.type === "full-time" ? "Salary (USD / month)" : "Rate (USD / month)"} className="flex-1">
+              <Input value={hire.salary} inputMode="decimal" onChange={(e) => setHire((h) => ({ ...h, salary: e.target.value.replace(/[^0-9.,]/g, "") }))} />
             </Field>
             <Field label="Start date" className="flex-1">
-              <DatePicker value={fromISODate(ft.start)} onChange={(d) => setFt((f) => ({ ...f, start: d ? toISODate(d) : "" }))} disabled={{ before: startOfToday() }} />
+              <DatePicker value={fromISODate(hire.start)} onChange={(d) => setHire((h) => ({ ...h, start: d ? toISODate(d) : "" }))} disabled={{ before: startOfToday() }} />
             </Field>
           </div>
-          <Field label="Exclusive benefits (optional)">
-            <div className="flex flex-col gap-2">
-              {FT_BENEFITS.map((b) => (
-                <label key={b} className="flex items-center gap-3 text-[14px] leading-[1.3] text-ink">
-                  <input type="checkbox" checked={ft.benefits.includes(b)} onChange={() => setFt((f) => ({ ...f, benefits: f.benefits.includes(b) ? f.benefits.filter((x) => x !== b) : [...f.benefits, b] }))} className="size-5 accent-primary" />
-                  {b}
-                </label>
-              ))}
-            </div>
-          </Field>
+          {hire.type === "part-time" ? (
+            <Field label="Hours a week" error={hire.hours.trim() && !(Number.isInteger(hireHours) && hireHours >= 1 && hireHours <= 40) ? "Enter whole hours between 1 and 40." : undefined}>
+              <Input value={hire.hours} inputMode="numeric" onChange={(e) => setHire((h) => ({ ...h, hours: e.target.value.replace(/[^0-9]/g, "") }))} className="!w-[160px]" />
+            </Field>
+          ) : (
+            <Field label="Exclusive benefits (optional)">
+              <div className="flex flex-col gap-2">
+                {FT_BENEFITS.map((b) => (
+                  <Checkbox key={b} checked={hire.benefits.includes(b)} onChange={(on) => setHire((h) => ({ ...h, benefits: on ? [...h.benefits, b] : h.benefits.filter((x) => x !== b) }))}>
+                    {b}
+                  </Checkbox>
+                ))}
+              </div>
+            </Field>
+          )}
         </div>
       </Modal>
+
       {/* TB-073 / TB-118 — the shared form: a reason must be chosen, and the amount has to be a
           real sum no bigger than what the escrow still holds. */}
       <DisputeForm
         open={disputing}
         onClose={() => setDisputing(false)}
         title={`File a dispute about ${name}`}
-        description="Hireable support reviews the contract, the objective history and the escrow record — the process, not the quality of the work. The amount in question stays in escrow until they rule, and both sides are notified."
-        cap={escrow ? escrow.held : rateAmount(contract.rate)}
-        capNote={escrow ? "what is still held in escrow" : "the contract rate"}
-        onFile={(draft) => {
-          const filed = fileDispute({ ref, filedBy: "team", ...draft });
+        description="Hireable support reviews the contract, the task log and the payment record — the process, not the quality of the work. The amount in question stays put until they rule, and both sides are notified."
+        cap={inPlay ? inPlay.held : rateAmount(contract.rate)}
+        capNote={inPlay ? "what is still held in escrow" : "a month's pay"}
+        onFile={async (draft) => {
+          const filed = await fileDispute({ ref, filedBy: "team", ...draft });
           setDisputing(false);
-          setToast(filed ? "Dispute filed — Hireable support is reviewing it and has notified " + first : "A dispute is already open on this contract");
+          // Straight to the case, where it now waits on the independent to respond.
+          if (filed) router.push(caseHref("team", filed.id));
+          else setToast("A dispute is already open on this contract");
         }}
       />
 
@@ -821,13 +817,17 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
         onClose={() => setEnding(false)}
         tone="danger"
         title={`End the contract with ${name}?`}
-        description={`${escrow ? `${usd(escrow.held)} still in escrow is released` : "The escrowed payment is released"} to ${first} and the contract moves to your inactive list. Filing a dispute instead keeps the funds held while support reviews it.`}
+        description={
+          fromTrial && isTrial
+            ? `${releasable > 0 ? `${usd(releasable)} still in escrow is released to ${first}` : "The trial's money has already been paid out"}${conversion?.status === "sent" ? `, your ${offerType} offer is withdrawn,` : ""} and the contract moves to your inactive list — it can't be reopened.${releasable > 0 ? " Filing a dispute instead keeps the funds held while support reviews it." : ""}`
+            : `The ${typeLabel.toLowerCase()} engagement ends today${pay?.next ? ` and ${first}'s pay for this month so far is recorded` : ""}. It moves to your inactive list and can't be reopened; ${first} is told, and the task list and evaluations stay on file.`
+        }
         footer={
           <>
             <Button size="lg" onClick={() => setEnding(false)}>
               Cancel
             </Button>
-            {!block && trialOver && (
+            {!block && isTrial && releasable > 0 && (
               <Button
                 size="lg"
                 onClick={() => {
@@ -842,11 +842,10 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               size="lg"
               variant="danger"
               onClick={() => {
-                const released = escrow?.held ?? 0;
-                const ended = endContract(slug);
+                const r = endContract(slug);
                 setEnding(false);
-                if (!ended) return setToast("A dispute is holding the escrow, so the contract can't end until Hireable support rules");
-                setToast(released > 0 ? `Contract ended — ${usd(released)} released to ${first}` : "Contract ended");
+                if (!r.ok) return setToast(r.error);
+                setToast(r.released > 0 ? `Contract ended — ${usd(r.released)} released to ${first}` : r.paid > 0 ? `Contract ended — ${usd(r.paid)} paid to ${first} for this month` : "Contract ended");
               }}
             >
               End contract
@@ -855,9 +854,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
         }
       />
 
-      {flow.modals}
-
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
+

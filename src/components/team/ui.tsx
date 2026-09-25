@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
+import { ICON_BUTTON } from "@/components/portal/styles";
 import { Button, Chip, LinkButton, MatchPill, Toast, useToast } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
 import { TalentProfile } from "@/components/portal/TalentProfile";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { evaluationsOf, isFullTime, useDeal } from "@/lib/demo/deal";
+import { contractTypeOf, evaluationsOf, useDeal } from "@/lib/demo/deal";
 import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
 import { traitTagsFor } from "@/lib/demo/work-style";
@@ -38,21 +39,31 @@ export function Person({ name, role, avatar, href }: { name: string; role: strin
 
 /**
  * Grid cells: every direct child of a header or row is a cell. Each one stretches to the full row
- * height so the column rules run top to bottom, and `content-center` centres it vertically while
- * keeping it a block, so `truncate` and `text-right` still work inside. `items-center` only
- * affects cells that are themselves flex rows. A cell that wants to fill edge to edge (a coloured
- * stat) opts out of the padding with `!p-0`.
+ * height, and `content-center` centres it vertically while keeping it a block, so `truncate` and
+ * `text-right` still work inside. `items-center` only affects cells that are themselves flex rows
+ * (a stacked cell asks for `!items-start`). Rows are split by a light rule and columns by space
+ * alone: a rule between every cell read as a spreadsheet. A cell that wants to fill edge to edge (a
+ * coloured stat) opts out of the padding with `!p-0`.
  */
-const CELLS = "[&>*]:self-stretch [&>*]:content-center [&>*]:items-center [&>*]:px-3 [&>*]:py-3 [&>*+*]:border-l [&>*+*]:border-[#e5e5e5]";
+const CELLS = "[&>*]:self-stretch [&>*]:content-center [&>*]:items-center [&>*]:px-3 [&>*]:py-3";
 
-/** Figma "Table", as a grid: #f2f2f2 header (13 medium), light #e5e5e5 row and column rules. `cols` are Tailwind width classes. */
+/**
+ * The narrowest a table can be before its columns crowd: its fixed widths (`w-[Npx]`), plus each
+ * flexible column's floor (`min-w-[Npx]`, or 200px without one). Wider than that the flexible
+ * columns take the room; narrower, the table scrolls sideways.
+ */
+function minWidthOf(cols: string[]) {
+  return cols.reduce((sum, c) => sum + Number(c.match(/(?:^|\s)w-\[(\d+)px\]/)?.[1] ?? c.match(/min-w-\[(\d+)px\]/)?.[1] ?? 200), 0);
+}
+
+/** Figma "Table", as a grid: #f2f2f2 header (13 medium), light #e5e5e5 row rules. `cols` are Tailwind width classes. */
 export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
   return (
-    // overflow-x-auto + min-w-max: the columns are fixed widths, so a narrow pane used to crush
-    // the flexible first column into its neighbour. Now the table keeps its natural width and
-    // scrolls sideways instead.
+    // It sized itself to its longest text (min-w-max), so payments and offers scrolled sideways on
+    // a laptop whatever room they had. It fills the page now, and only scrolls once the page is
+    // narrower than its columns need — which still keeps a narrow pane from crushing them together.
     <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
-      <div className="min-w-max">
+      <div style={{ minWidth: minWidthOf(cols) }}>
         <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 ${CELLS}`}>
           {head.map((h, i) => (
             <span key={h} className={cols[i]}>
@@ -66,8 +77,8 @@ export function Table({ cols, head, children }: { cols: string[]; head: string[]
   );
 }
 
-export function Row({ children }: { children: ReactNode }) {
-  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS}`}>{children}</div>;
+export function Row({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${className}`}>{children}</div>;
 }
 
 /** Figma "Toolbar": search + dropdowns on the left, a count (14 #616161) or a button on the right. */
@@ -129,7 +140,7 @@ export function IndependentCard({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {variant === "saved" ? (
-            <Button size="sm" onClick={() => (onRemove ? onRemove() : toggleSaved(person.slug))}>
+            <Button size="sm" variant="danger" onClick={() => (onRemove ? onRemove() : toggleSaved(person.slug))}>
               Remove
             </Button>
           ) : (
@@ -219,19 +230,64 @@ export function CardHeading({ children }: { children: ReactNode }) {
  * mount and unmount in a single frame. An 18px title row (px 24 / py 20) with the close, then a
  * scrolling body (p 24, gap 16). The Sheet portals, traps focus and closes on Escape or a click
  * outside.
+ *
+ * `header` swaps the visible title for other content in that row (the title stays the dialog's
+ * accessible name), `actions` sit beside the close, and `footer` pins below the body — the task
+ * panel uses all three. A `header` may run to several lines (an eyebrow such as "#4", a name that
+ * wraps), so its row aligns to the top, with the actions and the close centred on its first 20px
+ * line, and a hairline under it: the body scrolls beneath it.
+ *
+ * Opening moves the focus to the first control inside, unless one was already focused (autoFocus).
+ * `initialFocus="close"` starts on the close button instead — for a header whose first control is a
+ * field, which shouldn't look mid-edit every time the sheet opens.
  */
-export function Drawer({ open, onClose, title, children, width = 800 }: { open: boolean; onClose: () => void; title: string; children: ReactNode; width?: number }) {
+export function Drawer({
+  open,
+  onClose,
+  title,
+  children,
+  width = 800,
+  header,
+  actions,
+  footer,
+  testId,
+  initialFocus = "first",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  width?: number;
+  header?: ReactNode;
+  actions?: ReactNode;
+  footer?: ReactNode;
+  testId?: string;
+  initialFocus?: "first" | "close";
+}) {
   const Close = ICONS.close;
+  const closeRef = useRef<HTMLButtonElement>(null);
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent side="right" showCloseButton={false} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }}>
-        <SheetHeader className="flex-row items-center justify-between gap-3 px-6 py-5">
-          <SheetTitle className="font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
-          <SheetClose aria-label="Close" className="text-ink">
-            <Close size={20} aria-hidden />
-          </SheetClose>
+      <SheetContent side="right" showCloseButton={false} initialFocus={initialFocus === "close" ? closeRef : true} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
+        <SheetHeader className={`flex-row justify-between gap-3 px-6 py-5 ${header ? "items-start border-b border-border" : "items-center"}`}>
+          {header ? (
+            <>
+              <SheetTitle className="sr-only">{title}</SheetTitle>
+              <div className="flex min-w-0 flex-1 items-center gap-2">{header}</div>
+            </>
+          ) : (
+            <SheetTitle className="font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
+          )}
+          <div className={`flex shrink-0 items-center gap-1 ${header ? "h-5" : ""}`}>
+            {actions}
+            {/* The negative margin gives the icon a hover box without making the row taller. */}
+            <SheetClose ref={closeRef} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
+              <Close size={20} aria-hidden />
+            </SheetClose>
+          </div>
         </SheetHeader>
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
+        {footer && <div className="shrink-0 border-t border-border px-6 py-4">{footer}</div>}
       </SheetContent>
     </Sheet>
   );
@@ -320,7 +376,7 @@ export function TeamProfile({
   const history: PastEvaluation[] =
     pair
       ? [
-          ...(deal ? evaluationsOf(deal.contract).map((e) => ({ company: deal.company, role: deal.title, type: isFullTime(deal) ? ("full-time" as const) : ("trial" as const), date: e.date, stars: e.stars, feedback: e.feedback })) : []),
+          ...(deal ? evaluationsOf(deal.contract).map((e) => ({ company: deal.company, role: deal.title, type: contractTypeOf(deal), date: e.date, stars: e.stars, feedback: e.feedback })) : []),
           ...pastEvaluations,
         ]
       : [];

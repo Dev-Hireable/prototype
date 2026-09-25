@@ -31,6 +31,18 @@ export function dayLabel(d: Date | string | undefined): string {
   return `${pad(date.getDate())} ${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
 }
 
+/**
+ * "23 Sep" this year, "23 Sep 25" in any other — for tight table columns where the full label
+ * would take the width of two. Strings `parseDay` can't read pass through.
+ */
+export function shortDayLabel(d: Date | string | undefined, now = new Date()): string {
+  if (d === undefined) return "";
+  const date = typeof d === "string" ? parseDay(d) : d;
+  if (!date) return typeof d === "string" ? d : "";
+  const day = `${pad(date.getDate())} ${MONTHS[date.getMonth()]}`;
+  return date.getFullYear() === now.getFullYear() ? day : `${day} ${String(date.getFullYear()).slice(-2)}`;
+}
+
 /** Today in the demo's date format — the stamp every live record carries. */
 export const today = () => dayLabel(new Date());
 
@@ -54,7 +66,7 @@ const startOfDay = (d: Date) => {
 
 export const isWeekday = (d: Date) => d.getDay() !== 0 && d.getDay() !== 6;
 
-/** TB-105 — a trial counts working days only, so "30 Days" ends thirty weekdays after the start. */
+/** TB-105 — the date `days` working days after `from`. A trial counts working days only, and its start day is day one. */
 export function addWorkingDays(from: Date, days: number) {
   const d = startOfDay(from);
   let left = days;
@@ -93,10 +105,19 @@ export function trialClock(started: string, ends: string, now = new Date()) {
   const from = parseDay(started);
   const to = parseDay(ends);
   if (!from || !to) return { label: "Day 1 of 30", left: 30, over: false, total: 30 };
-  const total = Math.max(1, workingDaysBetween(from, to));
-  const over = startOfDay(now) >= to;
-  const elapsed = Math.min(total, workingDaysBetween(from, now));
-  return { label: `Day ${over ? total : Math.min(total, elapsed + 1)} of ${total}`, left: over ? 0 : total - elapsed, over, total };
+  // The trial runs from its first day through its last, both counted: "Ends 30 Oct" is a working
+  // day, so work due that day can still be done and sent — it closes the day after.
+  const today = startOfDay(now);
+  const total = Math.max(1, weekdaysThrough(from, to));
+  const over = today > to;
+  const done = today < from ? 0 : weekdaysThrough(from, today < to ? today : to);
+  const left = over ? 0 : Math.max(1, weekdaysThrough(today < from ? from : today, to));
+  return { label: `Day ${Math.min(total, Math.max(1, done))} of ${total}`, left, over, total };
+}
+
+/** Weekdays from `from` through `to`, both included. */
+function weekdaysThrough(from: Date, to: Date) {
+  return (isWeekday(from) ? 1 : 0) + workingDaysBetween(from, to);
 }
 
 /** "1 day left" or "12 days remaining"; a closed trial says so instead of "0 days left". */

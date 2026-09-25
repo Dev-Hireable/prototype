@@ -4,9 +4,9 @@ import { Tip } from "@/components/portal/Tip";
 import { StatusDot } from "@/components/independent/ui";
 import { PanelCard } from "@/components/portal/PanelCard";
 
-/** Figma "Activity": grey nothing logged, light green a partial log, green a full one. */
+/** Figma "Activity": grey nothing logged, light green worked on tasks, green sent a task for review. */
 const TILE = ["bg-[#eeeeee]", "bg-[#a3dfb5]", "bg-ok"];
-const TILE_LABEL = ["nothing logged", "some objectives logged", "all objectives logged"];
+const TILE_LABEL = ["nothing logged", "worked on tasks", "sent a task for review"];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 /** One column per week across the quarter — the grid is always this wide, per the design. */
 const WEEKS = 14;
@@ -24,12 +24,19 @@ const streakLabel = (streak: number) => (streak === 0 ? "No streak · Unresponsi
  * Shared by both portals: the Team tracker used to draw its own version with different greens,
  * different tile sizes and a legend the design doesn't have, so the two sides of the same trial
  * disagreed about what was logged.
+ *
+ * TB-109 — `closed` says why the tracker has stopped (a trial that is over, a contract that has
+ * ended) and freezes it on a final streak. On a full-time or part-time contract an empty task list
+ * is only a quiet spell: either side can add the next task, so the tracker keeps running.
+ *
+ * `starts` is the first day of a contract signed ahead of it: nothing counts until then, so the
+ * tracker waits rather than reading Unresponsive for days the talent wasn't due to work.
  */
-export function ActivityLog({ activity, streak, feeding }: { activity: number[]; streak: number; feeding?: number }) {
-  /** TB-109 — every objective approved and retired closes the tracker on a final streak. */
-  const finished = feeding === 0;
+export function ActivityLog({ activity, streak, feeding, closed, starts }: { activity: number[]; streak: number; feeding?: number; closed?: string; starts?: string }) {
+  const finished = !!closed;
+  const aside = starts ? <StatusDot tone="info">Starts {starts}</StatusDot> : <StatusDot tone={finished ? "ok" : streak === 0 ? "neutral" : "ok"}>{finished ? `Final streak · ${streak} ${streak === 1 ? "day" : "days"}` : streakLabel(streak)}</StatusDot>;
   return (
-    <PanelCard title="Activity" aside={<StatusDot tone={finished ? "ok" : streak === 0 ? "neutral" : "ok"}>{finished ? `Final streak · ${streak} ${streak === 1 ? "day" : "days"}` : streakLabel(streak)}</StatusDot>}>
+    <PanelCard title="Activity" aside={aside}>
       <div className="flex flex-col gap-[3px]">
         {WEEKDAYS.map((d, r) => (
           <div key={d} className="flex items-center gap-[3px]">
@@ -58,9 +65,9 @@ export function ActivityLog({ activity, streak, feeding }: { activity: number[];
       </div>
 
       <p className="text-[11px] leading-[1.45] text-ink-2">
-        Mon–Fri, one column per week across the quarter. Green is a full log, light green a partial one, grey nothing yet. Any log keeps the streak alive; only an empty weekday breaks it.
-        {/* TB-109 — an approved objective stops feeding the grid; pending ones keep feeding it. */}
-        {finished ? " Every objective has been approved and retired, so the tracker is closed on the streak above." : feeding !== undefined ? ` ${feeding} ${feeding === 1 ? "objective is" : "objectives are"} still feeding it.` : ""}
+        Mon–Fri, one column per week across the quarter. Green is a day a task went for review, light green a day of work on tasks, grey nothing yet. Any activity keeps the streak alive; only an empty weekday breaks it.
+        {/* TB-109 — an approved task is off the list of open work; one in review still counts. */}
+        {starts ? ` It starts counting on ${starts}, the contract's first day.` : finished ? ` ${closed}, so the tracker is closed on the streak above.` : feeding === 0 ? " Nothing is open right now." : feeding !== undefined ? ` ${feeding} ${feeding === 1 ? "task is" : "tasks are"} still open.` : ""}
       </p>
     </PanelCard>
   );

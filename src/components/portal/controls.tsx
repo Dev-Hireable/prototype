@@ -3,9 +3,11 @@
 import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useEffect, useEffectEvent, useId, useRef, useState, type ButtonHTMLAttributes, type ChangeEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { FORM_CONTROL } from "@/components/portal/styles";
+import { FORM_CONTROL, ICON_BUTTON } from "@/components/portal/styles";
+import { uiZoom } from "@/lib/portal/zoom";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type MenuPosition = { top: number; left: number; width: number };
 type MenuDensity = "compact" | "regular";
@@ -56,7 +58,8 @@ function FloatingMenu({
       const anchor = anchorRef.current;
       if (!anchor) return;
       const rect = anchor.getBoundingClientRect();
-      setPosition(getMenuPosition(rect, width ?? rect.width, itemCount, align));
+      // Placed in screen pixels (it's portalled outside the app's UI scale); its content is scaled below.
+      setPosition(getMenuPosition(rect, width !== undefined ? width * uiZoom() : rect.width, itemCount, align));
     };
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -91,40 +94,52 @@ function FloatingMenu({
       role={role}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledBy}
-      className={`fixed z-[60] max-h-[min(320px,calc(100vh-16px))] overflow-y-auto rounded-lg border border-border bg-white py-1 text-[14px] shadow-[0_8px_24px_rgba(0,0,0,.14)] ${className}`}
+      className={`fixed z-[60] max-h-[min(320px,calc(100vh-16px))] overflow-y-auto rounded-lg border border-border bg-white shadow-[0_8px_24px_rgba(0,0,0,.14)] ${className}`}
       style={position}
     >
-      {children}
+      {/* Drawn at the app's UI scale, like everything else. */}
+      <div className="ui-zoom py-1 text-[14px]">{children}</div>
     </div>,
     document.body,
   );
 }
 
+/** Row spacing on top of the dropdown item's own look: `regular` for icon rows, `compact` for plain ones. */
 function menuItemClass(density: MenuDensity, destructive: boolean, className: string) {
-  const spacing = density === "regular" ? "gap-2.5 px-3.5 py-[9px]" : "gap-2 px-3 py-2";
-  return `flex w-full items-center ${spacing} text-left ${destructive ? "text-danger" : "text-ink"} hover:bg-surface-alt focus-visible:bg-surface-alt focus-visible:outline-none disabled:cursor-not-allowed disabled:text-[#c3c3c3] ${className}`;
+  const spacing = density === "regular" ? "gap-2.5 px-3 py-[9px]" : "gap-2 px-3 py-2";
+  return `w-full text-left ${spacing} ${destructive ? "text-danger" : "text-ink"} ${className}`;
 }
 
+/**
+ * A row in a KebabMenu — shadcn's DropdownMenuItem, so it takes the arrow keys, typeahead and
+ * closes the menu when picked. A disabled row keeps its reason as a tooltip (`title`).
+ */
 export function MenuAction({
   children,
   icon,
   destructive = false,
   density = "regular",
   className = "",
-  ...props
-}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children" | "type" | "role"> & {
+  onClick,
+  disabled,
+  title,
+}: {
   children: ReactNode;
   icon?: ReactNode;
   destructive?: boolean;
   density?: MenuDensity;
+  className?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  /** Why the row is disabled, shown as the app's tooltip. */
+  title?: string;
 }) {
-  const { title, ...rest } = props;
   return (
-    <Tip label={title} wrap={!!rest.disabled} wrapClassName="w-full">
-      <button {...rest} role="menuitem" type="button" className={menuItemClass(density, destructive, className)}>
+    <Tip label={title} wrap={!!disabled} wrapClassName="w-full">
+      <DropdownMenuItem onClick={onClick} disabled={disabled} variant={destructive ? "destructive" : "default"} className={menuItemClass(density, destructive, className)}>
         {icon}
         {children}
-      </button>
+      </DropdownMenuItem>
     </Tip>
   );
 }
@@ -145,10 +160,10 @@ export function MenuLink({
   className?: string;
 }) {
   return (
-    <Link role="menuitem" href={href} className={menuItemClass(density, destructive, className)}>
+    <DropdownMenuItem render={<Link href={href} />} variant={destructive ? "destructive" : "default"} className={menuItemClass(density, destructive, className)}>
       {icon}
       {children}
-    </Link>
+    </DropdownMenuItem>
   );
 }
 
@@ -164,10 +179,17 @@ export type SelectProps = {
   required?: boolean;
   "aria-label"?: string;
   "aria-labelledby"?: string;
+  /** Shown, muted, while nothing is picked (the value is ""). */
+  placeholder?: string;
 };
 
+/**
+ * A blank option ("") means nothing picked yet: it shows as the placeholder in the box and never
+ * as a row in the list — it used to draw an empty row at the top of the menu.
+ */
 export function Select({
-  options,
+  options: all,
+  placeholder = "Select",
   value,
   defaultValue,
   onChange,
@@ -180,11 +202,12 @@ export function Select({
   "aria-labelledby": ariaLabelledBy,
 }: SelectProps) {
   const Chevron = ICONS.chevron;
+  const options = all.filter((o) => o !== "");
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const controlled = value !== undefined;
-  const [internalValue, setInternalValue] = useState(() => String(defaultValue ?? options[0] ?? ""));
+  const [internalValue, setInternalValue] = useState(() => String(defaultValue ?? all[0] ?? ""));
   const selected = controlled ? String(value ?? "") : internalValue;
   const selectedIndex = Math.max(0, options.indexOf(selected));
   const [open, setOpen] = useState(false);
@@ -228,7 +251,7 @@ export function Select({
         }}
         className={`${FORM_CONTROL} appearance-none pr-11 text-left focus-visible:ring-2 focus-visible:ring-primary/30 ${className}`}
       >
-        <span className="block truncate">{selected}</span>
+        <span className={`block truncate ${selected ? "" : "text-muted-2"}`}>{selected || placeholder}</span>
       </button>
       {name && <input type="hidden" name={name} value={selected} required={required} />}
       <Chevron size={24} aria-hidden className="pointer-events-none absolute top-2.5 right-4 text-ink" />
@@ -272,58 +295,48 @@ export function Select({
   );
 }
 
+/**
+ * The "⋮" actions menu on cards and table rows: shadcn's DropdownMenu (Base UI) behind the kebab
+ * button, filled with MenuAction / MenuLink rows. `open` is controlled so a page can close it
+ * after an action; picking a row, Escape and a click outside close it on their own.
+ */
 export function KebabMenu({
   label,
   open,
   onOpenChange,
   children,
-  itemCount,
   iconSize = 18,
   menuWidth = 192,
+  icon = "vertical",
   buttonClassName = "",
   menuClassName = "",
 }: {
   label: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
-  itemCount: number;
   iconSize?: number;
   menuWidth?: number;
+  /** ⋮ on cards and rows; ⋯ in a panel's header. */
+  icon?: "vertical" | "horizontal";
   buttonClassName?: string;
   menuClassName?: string;
 }) {
-  const More = ICONS.moreV;
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const More = icon === "vertical" ? ICONS.moreV : ICONS.moreH;
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
+    <DropdownMenu open={open} onOpenChange={(next) => onOpenChange?.(next)}>
+      <DropdownMenuTrigger
         aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpenChange(!open);
-        }}
-        className={`flex size-8 items-center justify-center rounded-lg text-ink transition hover:bg-surface-alt focus-visible:ring-2 focus-visible:ring-primary/30 ${open ? "bg-accent-bg" : ""} ${buttonClassName}`}
+        // A kebab often sits on a clickable card or row; opening it shouldn't open that too.
+        onClick={(event) => event.stopPropagation()}
+        className={`${ICON_BUTTON} size-8 ${buttonClassName}`}
       >
         <More size={iconSize} aria-hidden />
-      </button>
-      <FloatingMenu
-        open={open}
-        anchorRef={triggerRef}
-        onClose={() => onOpenChange(false)}
-        role="menu"
-        itemCount={itemCount}
-        width={menuWidth}
-        align="end"
-        className={menuClassName}
-      >
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className={menuClassName} style={{ width: menuWidth }} onClick={(event) => event.stopPropagation()}>
         {children}
-      </FloatingMenu>
-    </>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

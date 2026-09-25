@@ -27,7 +27,7 @@ const CARDS = [
   {
     kind: "full-time",
     title: "Build Team",
-    body: "Hire for a long-term role with defined responsibilities, strong collaboration, and room for growth.",
+    body: "Hire for a long-term role, full-time or part-time, with defined responsibilities and room for growth.",
     art: "/team/build-team.svg",
     hover: "/team/build-team-hover.svg",
     w: 284,

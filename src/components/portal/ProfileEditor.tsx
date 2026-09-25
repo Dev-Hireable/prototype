@@ -1,0 +1,203 @@
+"use client";
+
+import { useRef, useState, type ReactNode } from "react";
+import { MdOutlineEdit, MdOutlinePhotoCamera } from "react-icons/md";
+import { Button, Input, Select, Textarea } from "@/components/independent/ui";
+
+/**
+ * The profile editors' parts — the Team Builder's own profile and the company profile draw every
+ * row, header and section with these, so the two read as one editor.
+ */
+
+/** A section of the editor: a card with a heading and a line on what it's for. */
+export function ProfileSection({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="flex w-full flex-col gap-4 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="text-[16px] leading-[1.4] font-semibold text-ink">{title}</h2>
+          {description && <p className="text-[13px] leading-[1.45] text-ink-2">{description}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * The top of the editor: the photo or logo with a camera button on it, the name, and what's under
+ * it. A picked image is previewed in place and only replaces the old one on Save; `accept` and the
+ * checks are the caller's (JPG or PNG under 5MB, TB-120 / TB-123).
+ */
+export function ProfileHeader({
+  image,
+  imageLabel,
+  name,
+  children,
+  pending,
+  onPick,
+  onSave,
+  onDiscard,
+}: {
+  /** The image as drawn — a photo, a logo, or its initials tile. */
+  image: ReactNode;
+  /** "Change photo", "Change logo". */
+  imageLabel: string;
+  name: string;
+  /** The lines under the name. */
+  children?: ReactNode;
+  /** A picked image waiting on Save. */
+  pending: boolean;
+  onPick: (f: File | undefined) => void;
+  onSave: () => void;
+  onDiscard: () => void;
+}) {
+  const file = useRef<HTMLInputElement>(null);
+  return (
+    <section className="flex w-full flex-wrap items-center gap-5 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border">
+      <div className="relative shrink-0">
+        {image}
+        <input ref={file} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => (onPick(e.target.files?.[0]), (e.target.value = ""))} />
+        <button
+          type="button"
+          onClick={() => file.current?.click()}
+          aria-label={imageLabel}
+          className="absolute -right-1 -bottom-1 flex size-8 items-center justify-center rounded-full bg-white text-ink shadow-sm outline -outline-offset-1 outline-border transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          <MdOutlinePhotoCamera size={16} aria-hidden />
+        </button>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <h2 className="font-display truncate text-[24px] leading-[1.3] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+          {name}
+        </h2>
+        {children}
+      </div>
+      {pending && (
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-[12.5px] text-ink-2">New image — not saved yet</span>
+          <Button size="sm" onClick={onDiscard}>
+            Discard
+          </Button>
+          <Button size="sm" variant="primary" onClick={onSave}>
+            Save
+          </Button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * One field, edited where it's read: the row opens into its editor when clicked (or its pencil is
+ * pressed), Enter or Save keeps the change, Escape or Cancel drops it. Each row saves on its own.
+ * `validate` says why a draft can't be saved; `hint` is shown under the editor (a character count).
+ */
+export function EditableRow({
+  label,
+  value,
+  kind = "text",
+  options,
+  placeholder,
+  validate,
+  hint,
+  onSave,
+}: {
+  label: string;
+  value: string;
+  kind?: "text" | "long" | "select";
+  options?: readonly string[];
+  placeholder?: string;
+  validate?: (draft: string) => string | null;
+  hint?: (draft: string) => ReactNode;
+  onSave: (value: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const editing = draft !== null;
+  const problem = editing ? (!draft.trim() ? "" : (validate?.(draft) ?? null)) : null;
+  const canSave = editing && !!draft.trim() && problem === null && draft.trim() !== value.trim();
+  const save = () => {
+    if (!canSave || draft === null) return;
+    onSave(draft.trim());
+    setDraft(null);
+  };
+  const keys = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setDraft(null);
+    } else if (e.key === "Enter" && (kind !== "long" || e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      save();
+    }
+  };
+
+  if (editing)
+    return (
+      <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-1">
+        <span className="pt-2.5 text-[13px] leading-[1.4] font-medium text-ink-2">{label}</span>
+        <div className="flex min-w-0 flex-col gap-2">
+          {kind === "select" && options ? (
+            <Select options={options} value={draft} onChange={(e) => setDraft(e.target.value)} />
+          ) : kind === "long" ? (
+            <Textarea autoFocus rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={keys} aria-label={label} />
+          ) : (
+            <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={keys} aria-label={label} placeholder={placeholder} />
+          )}
+          {(hint || problem) && (
+            <div className="flex items-center justify-between gap-3 text-[12px] leading-[1.4]">
+              <span className="text-danger" role={problem ? "alert" : undefined}>
+                {problem}
+              </span>
+              {hint && <span className="text-ink-2">{hint(draft)}</span>}
+            </div>
+          )}
+          <div className="flex items-center justify-end gap-2">
+            <span className="mr-auto text-[12px] text-ink-2">{kind === "long" ? "Ctrl+Enter to save · Esc to cancel" : "Enter to save · Esc to cancel"}</span>
+            <Button size="sm" onClick={() => setDraft(null)}>
+              Cancel
+            </Button>
+            <Button size="sm" variant="primary" disabled={!canSave} onClick={save}>
+              Save
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+
+  return (
+    <button
+      type="button"
+      onClick={() => setDraft(value)}
+      aria-label={`${label}: ${value || "not set"}. Edit`}
+      className="group relative isolate grid w-full grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-x-4 border-t border-[#eeeeee] py-3 text-left outline-none first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto]"
+    >
+      {/* The hover and focus box reaches 12px past the text on both sides, so it doesn't stop dead at
+          the label and the pencil; the hairlines between rows stay on the text's edges. */}
+      <span aria-hidden className="absolute inset-y-0 -right-3 -left-3 -z-10 rounded-lg group-hover:bg-surface-alt group-focus-visible:outline-2 group-focus-visible:outline-primary" />
+      <span className="text-[13px] leading-[1.4] font-medium text-ink-2 max-sm:col-span-2">{label}</span>
+      <span className={`min-w-0 text-[14px] leading-[1.5] whitespace-pre-line ${value ? "text-ink" : "text-ink-2"}`}>{value || placeholder || "Not set"}</span>
+      <span aria-hidden className="flex size-8 items-center justify-center rounded-md text-ink-2 opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-focus-visible:opacity-100">
+        <MdOutlineEdit size={17} />
+      </span>
+    </button>
+  );
+}
+
+/** How much of a profile is filled in, as a bar and a line on what it unlocks. */
+export function Completeness({ done, total, children }: { done: number; total: number; children?: ReactNode }) {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  return (
+    <div className="flex flex-col gap-2 rounded-lg bg-surface-2 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white" role="progressbar" aria-label="Profile complete" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
+          <span className={`block h-full rounded-full ${done === total ? "bg-ok" : "bg-primary"}`} style={{ width: `${pct}%` }} />
+        </span>
+        <span className="text-[12.5px] font-semibold text-ink tabular-nums">
+          {done} of {total}
+        </span>
+      </div>
+      {children && <p className="text-[12.5px] leading-[1.4] text-ink-2">{children}</p>}
+    </div>
+  );
+}

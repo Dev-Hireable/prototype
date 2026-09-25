@@ -33,6 +33,7 @@ export function DashboardSetupCard({
   items,
   traits = [],
   completeDescription = "Setup complete — here is the work style you are matched on.",
+  profileHref,
 }: {
   avatarSrc: string;
   avatarClassName?: string;
@@ -43,15 +44,17 @@ export function DashboardSetupCard({
   /** Shown in place of the checklist once it is finished. */
   traits?: readonly WorkStyleTag[];
   completeDescription?: string;
+  /** Where the traits are shown in full once setup is done. */
+  profileHref?: string;
 }) {
   const done = items.filter((i) => i.done).length;
   const percent = items.length ? Math.round((done / items.length) * 100) : 100;
   const complete = done === items.length;
 
   return (
-    // self-start once complete: the traits row is a third of the checklist's height, and stretching
-    // to the greeting column left ~100px of empty gradient under it. Incomplete, it still stretches.
-    <section className={`relative flex w-full min-w-0 flex-col overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4 ${complete ? "self-start" : ""}`}>
+    // Stretches to the greeting column's height either way. Once complete, the white traits panel
+    // grows to fill it — a short card ended ~100px above the greeting and left a gap beside it.
+    <section className="relative flex w-full min-w-0 flex-col overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4">
       {/* Sized as a share of the card and anchored right, so it scales with the card instead of
           drifting over the header copy — a fixed 330px-from-left offset put it on top of the
           text as the card grew. The header text is capped below so the two never meet. */}
@@ -75,11 +78,22 @@ export function DashboardSetupCard({
       </Link>
 
       {complete ? (
-        <div className="relative mt-4 flex flex-wrap items-center gap-2 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
+        // A section of its own: what it is, the traits, and where to see them in full.
+        <div className="relative mt-4 flex flex-1 flex-col gap-3 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
+          <p className="text-[13px] leading-[1.3] font-semibold tracking-[0.2px] text-ink-2">Your work style</p>
           {traits.length > 0 ? (
-            traits.map((t) => <TraitTag key={`${t.trait}-${t.label}`} tag={t} />)
+            <div className="flex flex-wrap items-center gap-2">
+              {traits.map((t) => (
+                <TraitTag key={`${t.trait}-${t.label}`} tag={t} />
+              ))}
+            </div>
           ) : (
             <p className="text-[14px] leading-[1.35] text-ink-2">Take the work-style quiz to earn your trait badges.</p>
+          )}
+          {profileHref && (
+            <Link href={profileHref} className="mt-auto inline-flex items-center gap-1 self-start pt-1 text-[13px] leading-[1.2] font-semibold text-primary hover:underline">
+              See your profile <ICONS.arrowForward size={16} aria-hidden />
+            </Link>
           )}
         </div>
       ) : (

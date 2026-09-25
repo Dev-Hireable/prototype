@@ -1,28 +1,32 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import * as Case from "@/lib/disputes/case";
+import type { Attachment, Ctx, Dispute, DisputeFacts, DisputeParty, DisputeStatus, Money, Notice, Refusal, Say, Step } from "@/lib/disputes/case";
 import { dayLabel, momentLabel, parseDay } from "@/lib/demo/dates";
-import { evaluationsOf, getDeal, isFullTime, settleEscrow } from "@/lib/demo/deal";
+import { contractTypeOf, converted, evaluationsOf, getDeal, lifecycleOfDeal, settleEscrow, startedAsTrial } from "@/lib/demo/deal";
+import type { Phase } from "@/lib/contract/lifecycle";
 import type { Deal } from "@/lib/demo/deal";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import type { JobType } from "@/lib/demo/job-types";
 import { notify, PAIR, recordLedger } from "@/lib/demo/live";
+import { trialTasks } from "@/lib/demo/tasks";
+import { isArchived, isCompleted } from "@/lib/work/model";
 
 /**
- * Disputes, held where all three portals can see them.
- *
- * They used to be three unconnected lists — the Team Builder's, the Independent's and a static
- * one in Admin — so neither party saw a dispute raised against them, nothing reached Hireable
- * support, and nothing could ever be ruled on. Now there is one record per dispute, keyed by the
- * contract, and every portal reads it:
- *   - the party who filed it lists it under Sent, the other party under Received and on the
- *     contract's Contract & Payment tab (IN-032 / IN-046);
- *   - both can add their side while it is Pending — AD-033's "messages between parties";
- *   - Admin reviews it, asks for evidence, rules on it (AD-034) and releases the money (AD-035);
- *   - while it is open, the amount in question stays in escrow, so End Contract waits (TB-071).
+ * Disputes, held where all three portals can see them — one record per dispute, keyed by the
+ * contract, worked as a case (the rules are in @/lib/disputes/case):
+ *   - the party who files states their claim, and the other side has five days to respond;
+ *   - then Hireable support reviews it, and can ask either side for more (five days again);
+ *   - a turn that runs out closes the case for the other side — checked by every open portal
+ *     (useDisputeDeadlines), so it happens whoever has the app open;
+ *   - the two sides can settle by splitting the amount in question, or support rules;
+ *   - while it's open the amount in question stays in escrow, so End Contract waits (TB-071).
+ * Every step goes on the case's one timeline and tells the other side.
  */
 
-export type DisputeParty = "team" | "independent";
-/** AD-032's statuses. The party lists (TB-091 / IN-080) use the same four. */
-export type DisputeStatus = "Pending" | "Resolved" | "Rejected" | "Withdrawn";
+export type { Attachment, Dispute, DisputeFacts, DisputeParty, DisputeStatus, Entry, PartyTurn, Proposal, Resolution, Turn } from "@/lib/disputes/case";
+export { checkSplit, isOpen, leftLabel, openProposal, otherParty, outcomeOf, partyCan, partyName, partyTurn, SLA_DAYS, TURN_DAYS, usd, waitingOn } from "@/lib/disputes/case";
 
 export const DISPUTE_STATUSES: DisputeStatus[] = ["Pending", "Resolved", "Rejected", "Withdrawn"];
 export const STATUS_TONE: Record<DisputeStatus, "warn" | "ok" | "danger" | "neutral"> = { Pending: "warn", Resolved: "ok", Rejected: "danger", Withdrawn: "neutral" };
@@ -34,94 +38,66 @@ export const STATUS_TONE: Record<DisputeStatus, "warn" | "ok" | "danger" | "neut
  */
 export const DISPUTE_REASONS = ["Missing Deliverable", "Out-of-Scope Output", "Missed Deadline", "No Report Submitted"];
 
-/** Hireable reviews a dispute within five working days. */
-export const SLA_DAYS = 5;
-const ADMIN = "admin: Admin Lead";
-
-export type DisputeEvent = { at: number; event: string; actor: string };
-export type DisputeStatement = { at: number; from: DisputeParty; text: string; evidence?: string };
-/** What the contract looked like when the dispute was filed — Admin's process check reads it. */
-export type DisputeFacts = {
-  started: string;
-  ends: string;
-  trialEnded: boolean;
-  evaluation: boolean;
-  objectivesDone: number;
-  objectivesTotal: number;
-  escrowHeld: number;
-  /** What was actually deposited into escrow; absent on disputes filed before it was recorded. */
-  escrowFunded?: number;
-};
-
-export type Dispute = {
-  id: string;
-  /** The contract it is about — the same key on both sides (see dealContract). */
-  contract: string;
-  /** Each portal's own slug for that contract, so a row can open the right tracker. */
-  links: { team: string; independent: string };
-  title: string;
-  type: "trial" | "full-time";
-  rate: string;
-  /** `slug` is the account's id under Admin → User management. */
-  team: { name: string; company: string; slug: string };
-  independent: { name: string; slug: string; avatar: string };
-  filedBy: DisputeParty;
-  at: number;
-  reason: string;
-  description: string;
-  amount: number;
-  evidence?: string;
-  status: DisputeStatus;
-  facts: DisputeFacts;
-  statements: DisputeStatement[];
-  /** AD-033 — the last evidence request, shown to whoever it names until the dispute closes. */
-  evidenceRequest?: { from: DisputeParty | "both"; note: string; at: number };
-  resolution?: {
-    /** Resolved in someone's favor; absent when Rejected (no breach of the agreed process). */
-    favor?: DisputeParty;
-    notes: string;
-    at: number;
-    /** AD-034 / AD-035 — for the Team Builder it refunds at once; for the independent it waits for Request Payment Release. */
-    payment?: "refunded" | "awaiting release" | "released";
-    /** What actually moved — never more than the escrow still held. */
-    moved?: number;
-  };
-  timeline: DisputeEvent[];
-  updated: number;
-  /** When Admin last opened it. Anything newer badges the Disputes nav — TB-093 / IN-082's "admin is notified". */
-  adminSeen?: number;
-};
+/** The Hireable support person the demo's admin signs in as. */
+const SUPPORT = "Admin Lead";
 
 /* ------------------------------------------------------------------ store */
 
 const KEY = "hireable.demo.disputes";
 const EMPTY: Dispute[] = [];
 let snapshot: Dispute[] = EMPTY;
+/** The saved string `snapshot` was read from, so an unchanged store isn't parsed again. */
+let lastRaw: string | null = null;
 let loaded = false;
+let listening = false;
 const subscribers = new Set<() => void>();
 const emit = () => {
   for (const fn of subscribers) fn();
 };
 
+/** Disputes saved before cases had turns are read as cases (Case.migrateDispute). */
 function parse(raw: string | null): Dispute[] {
   try {
     const all = raw ? (JSON.parse(raw) as Dispute[]) : EMPTY;
-    return Array.isArray(all) ? all : EMPTY;
+    return Array.isArray(all) ? all.map(Case.migrateDispute) : EMPTY;
   } catch {
     return EMPTY;
   }
 }
 
-function ensureLoaded() {
-  if (loaded || typeof window === "undefined") return;
+/** Read what's saved now; writers call it first so they add to another tab's changes, not over them. */
+function refresh() {
+  if (typeof window === "undefined") return;
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(KEY);
+  } catch {
+    return;
+  }
+  if (loaded && raw === lastRaw) return;
   loaded = true;
-  snapshot = parse(localStorage.getItem(KEY));
+  lastRaw = raw;
+  snapshot = parse(raw);
+  if (!listening) {
+    listening = true;
+    // One listener for the tab: the other portal, in another tab, moved it.
+    window.addEventListener("storage", (e) => {
+      if (e.key !== null && e.key !== KEY) return;
+      refresh();
+      emit();
+    });
+  }
 }
+
+const ensureLoaded = () => {
+  if (!loaded) refresh();
+};
 
 function write(next: Dispute[]) {
   snapshot = next;
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    lastRaw = JSON.stringify(next);
+    localStorage.setItem(KEY, lastRaw);
   } catch {
     /* private mode — the demo still works for this tab */
   }
@@ -131,15 +107,8 @@ function write(next: Dispute[]) {
 function subscribe(fn: () => void) {
   ensureLoaded();
   subscribers.add(fn);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== KEY) return;
-    snapshot = parse(e.newValue); // the other portal, in another tab, moved it
-    emit();
-  };
-  window.addEventListener("storage", onStorage);
   return () => {
     subscribers.delete(fn);
-    window.removeEventListener("storage", onStorage);
   };
 }
 
@@ -159,13 +128,19 @@ export function useDisputes(): Dispute[] {
 }
 
 export function getDisputes(): Dispute[] {
-  ensureLoaded();
+  refresh();
   return snapshot;
 }
 
-function patch(id: string, fn: (d: Dispute) => Dispute) {
-  ensureLoaded();
-  write(snapshot.map((d) => (d.id === id ? fn(d) : d)));
+/**
+ * One change at a time across tabs. Every open portal checks deadlines on its own, so two tabs
+ * could otherwise close the same case — and move its money — twice. The Web Locks API queues
+ * them; the second re-reads, finds it closed and does nothing.
+ */
+async function exclusive<T>(fn: () => T): Promise<T> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (!locks?.request) return fn();
+  return locks.request("hireable.disputes", () => fn());
 }
 
 /* ------------------------------------------------------------ contracts */
@@ -174,30 +149,31 @@ function patch(id: string, fn: (d: Dispute) => Dispute) {
 const TEAM = { name: PAIR.team.name, company: PAIR.team.company, slug: "nairobi-solutions" };
 const IND = { name: PAIR.independent.name, slug: PAIR.independent.slug, avatar: PAIR.independent.avatar };
 
-export type ContractRef = { key: string; links: Dispute["links"]; title: string; type: "trial" | "full-time"; rate: string; started: string; ends: string };
+export type ContractRef = { key: string; links: Dispute["links"]; title: string; type: JobType; rate: string; started: string; ends: string };
 
 /**
- * The live contract — the deal's trial, or the full-time engagement it became. Both trackers show
- * it, each under its own slug. The key stays the trial's, so a dispute follows the contract across
- * the conversion instead of detaching from it.
+ * The live contract — the deal's trial, the full-time or part-time engagement it became, or one the
+ * talent was hired straight onto. Both trackers show it, each under its own slug. The key stays the
+ * one it started with, so a dispute follows the contract across a conversion instead of detaching.
  */
 export function dealContract(deal: Deal | null): ContractRef | null {
   if (!deal?.contract) return null;
-  const fullTime = isFullTime(deal);
+  const type = contractTypeOf(deal);
+  const conversion = converted(deal) ? deal.conversion : undefined;
   return {
     key: `deal:${deal.roleSlug}:${deal.contract.started}`,
     links: { team: PAIR.independent.slug, independent: deal.roleSlug },
     title: deal.title,
-    type: fullTime ? "full-time" : "trial",
+    type,
     rate: deal.contract.rate,
-    started: dayLabel(fullTime && deal.fullTime ? deal.fullTime.start : deal.contract.started),
-    ends: fullTime ? "Ongoing" : dayLabel(deal.contract.ends),
+    started: dayLabel(conversion?.start ?? deal.contract.started),
+    ends: type === "trial" ? dayLabel(deal.contract.ends) : "Ongoing",
   };
 }
 
 /* ---------------------------------------------------------------- money */
 
-export const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const usd = Case.usd;
 /** "$1,600" or "$2,000 /month" → the number in it. */
 export const rateAmount = (rate: string) => Number(rate.replace(/[^0-9.]/g, "")) || 0;
 
@@ -215,21 +191,21 @@ export function checkAmount(raw: string, cap: number): { value: number | null; e
   return { value: n };
 }
 
-/** Pending, or ruled for the independent but not paid out yet — either way the money stays put. */
+/** Open, or closed for the Independent but not paid out yet — either way the money stays put. */
 export const holds = (d: Dispute) => d.status === "Pending" || d.resolution?.payment === "awaiting release";
 
 export type Escrow = { total: number; released: number; refunded: number; held: number; onHold: number };
 
 /**
  * The trial's escrow right now: what was deposited when the offer went out, minus what End
- * Contract or a ruling has moved. `onHold` is the part an open dispute is keeping — End Contract
- * can't touch it. The total used to be the rate string with every non-digit stripped, so a weekly
- * rate funded one week, a 90-day trial one month, and an edited offer "held" money never deposited.
+ * Contract or a dispute has moved. `onHold` is the part an open dispute is keeping — End Contract
+ * can't touch it.
  */
 export function escrowOf(deal: Deal | null, all: Dispute[]): Escrow | null {
   const ref = dealContract(deal);
   const c = deal?.contract;
-  if (!ref || !c) return null;
+  // A direct full-time or part-time hire never had a trial, so nothing was ever put in escrow.
+  if (!ref || !c || !startedAsTrial(deal)) return null;
   const total = c.deposit ?? rateAmount(c.rate);
   // A contract ended before escrow was tracked released everything when it ended.
   const released = c.escrow?.released ?? (c.ended ? total : 0);
@@ -239,6 +215,21 @@ export function escrowOf(deal: Deal | null, all: Dispute[]): Escrow | null {
   return { total, released, refunded, held, onHold };
 }
 
+/**
+ * The escrow a dispute is about — only while the contract is still a trial. Once it converts to
+ * full-time or part-time, the trial's escrow is its history, and a dispute is about the pay, the
+ * same as on a direct hire (TB-118 / IN-059: filing stays open for as long as the contract runs).
+ */
+export const escrowInPlay = (deal: Deal | null, all: Dispute[]): Escrow | null => (contractTypeOf(deal) === "trial" ? escrowOf(deal, all) : null);
+
+/**
+ * The escrow a filed dispute moves when it's settled or ruled on: the trial's, if it was filed about
+ * the trial — even after the contract has converted, since its amount stayed on hold in escrow
+ * through the conversion. One filed about the role's pay moves none. (It used to go by what the
+ * contract is now, so a trial dispute ruled after a conversion left its amount in escrow for good.)
+ */
+const escrowOfDispute = (d: Dispute, deal: Deal | null, all: Dispute[]): Escrow | null => (dealContract(deal)?.key === d.contract && d.type === "trial" ? escrowOf(deal, all) : null);
+
 /** One line for the Escrow row on either tracker. */
 export function escrowLine(e: Escrow, started: string, names: { releasedTo: string; refundedTo: string }) {
   if (e.held > 0 && e.onHold > 0) return `${usd(e.held)} held since ${started} · ${usd(e.onHold)} on hold for a dispute`;
@@ -247,21 +238,36 @@ export function escrowLine(e: Escrow, started: string, names: { releasedTo: stri
   return parts.length ? parts.join(" · ") : "Nothing held";
 }
 
+/** Move money out of the trial's escrow (or record it outright on a contract with none), into both ledgers. */
+function settle(d: Dispute, m: Money) {
+  const deal = getDeal();
+  // Out of escrow only while there's a trial's escrow in play; otherwise it's pay, recorded outright.
+  if (escrowOfDispute(d, deal, snapshot) && (m.refund > 0 || m.release > 0)) settleEscrow({ refunded: m.refund, released: m.release });
+  const row = { contract: d.links.independent, title: d.title, company: d.team.company, period: `Dispute · ${d.reason}`, chapter: d.type };
+  if (m.refund > 0) recordLedger({ ...row, amount: usd(m.refund), kind: "refunded" });
+  if (m.release > 0) recordLedger({ ...row, amount: usd(m.release), kind: "released" });
+}
+
 /* ---------------------------------------------------------------- rules */
 
-export type FileBlock = "open" | "filed" | "withdrawn" | "settled";
+export type FileBlock = "open" | "filed" | "withdrawn" | "starts" | "trial" | "ended" | "settled";
 
 /**
  * Why `party` can't file on this contract right now, if they can't:
- *   open      one is already open on it, from either side — the other party adds their side to it
- *             instead of filing a second (the old forms let the same contract collect three);
+ *   open      one is already open on it, from either side — the other party answers it instead
+ *             of filing a second;
  *   filed     the independent has filed on it before — one per contract (IN-032 / IN-082);
  *   withdrawn the Team Builder withdrew one here, and can't refile (TB-093);
- *   settled   nothing is left in escrow for a ruling to move.
- * Keyed by contract, not by person: the withdrawn check used to match the independent's name,
- * which would have locked disputes on their full-time contract too (TB-118).
+ *   starts    its first day hasn't come — the trial's, or the role's after a trial converted:
+ *             nothing has happened yet to dispute (TB-118 / IN-059: "an active contract");
+ *   trial     the trial is still running — filing opens when it ends (TB-073 / IN-076);
+ *   ended     the contract has ended: disputes are filed while it runs, as the alternative to
+ *             ending it (TB-071), and ending paid out what was owed;
+ *   settled   nothing is left in the trial's escrow to move.
+ * `phase` is where the contract is in its lifecycle; without one (a contract the demo only lists)
+ * there's no timing to check. The store runs this same check on file, so no caller can skip it.
  */
-export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escrow: Escrow | null): { block: FileBlock | null; dispute?: Dispute } {
+export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escrow: Escrow | null, phase?: Phase): { block: FileBlock | null; dispute?: Dispute } {
   const here = all.filter((d) => d.contract === key);
   const open = here.find(holds);
   if (open) return { block: "open", dispute: open };
@@ -269,23 +275,54 @@ export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escr
   if (party === "independent" && own) return { block: "filed", dispute: own };
   const withdrawn = here.find((d) => d.filedBy === "team" && d.status === "Withdrawn");
   if (party === "team" && withdrawn) return { block: "withdrawn", dispute: withdrawn };
+  if (phase === "starts" || phase === "trial" || phase === "ended") return { block: phase };
   if (escrow && escrow.held <= 0) return { block: "settled" };
   return { block: null };
+}
+
+/**
+ * What the disabled File a Dispute button says, for a block that leaves nothing to open — one line,
+ * naming the day it changes where there is one. `starts` is the first day of what's current; `trialEnds`
+ * the trial's last day.
+ */
+export function fileBlockHint(block: FileBlock | null, side: DisputeParty, days: { starts: string; trialEnds: string }): string | undefined {
+  switch (block) {
+    case "starts":
+      return `Filing opens on ${days.starts}, the contract's first day`;
+    case "trial":
+      return `Available once the trial ends on ${days.trialEnds}`;
+    case "ended":
+      return "This contract has ended, so it can't be disputed any more";
+    case "withdrawn":
+      return side === "team" ? "You withdrew a dispute on this contract, so it can't be disputed again" : undefined;
+    case "settled":
+      return "The trial's escrow has been paid out, so there's nothing left in it to dispute";
+    default:
+      return undefined;
+  }
+}
+
+/** The live contract's phase, for fileBlock — undefined for any other contract. */
+function phaseOf(deal: Deal | null, key: string): Phase | undefined {
+  return dealContract(deal)?.key === key ? lifecycleOfDeal(deal)?.phase : undefined;
 }
 
 /** Admin's process check, from the live contract where there is one, else as it was when filed. */
 export function factsFor(ref: ContractRef, deal: Deal | null, all: Dispute[]): DisputeFacts {
   const c = dealContract(deal)?.key === ref.key ? deal?.contract : undefined;
   const ends = parseDay(ref.ends);
-  /** The same rule the evaluation opens on: the end date came, or every objective was approved first. */
-  const allApproved = !!c?.objectives.length && c.objectives.every((o) => o.status === "complete");
+  /** The same rule the evaluation opens on: the end date came, or every trial task was Done first. */
+  const scored = c ? trialTasks(c.tasks) : [];
+  const allDone = scored.length > 0 && scored.every((t) => isCompleted(t.status));
+  /** The Independent's own work on the contract — what support checks the process against. */
+  const theirs = c ? c.tasks.filter((t) => !isArchived(t) && t.assignee === "independent") : [];
   return {
     started: ref.started,
     ends: ref.ends,
-    trialEnded: ref.type === "trial" ? (!!ends && ends.getTime() <= Date.now()) || !!c?.ended || allApproved : false,
+    trialEnded: ref.type === "trial" ? (!!ends && ends.getTime() <= Date.now()) || !!c?.ended || allDone : false,
     evaluation: evaluationsOf(c).length > 0,
-    objectivesDone: c?.objectives.filter((o) => o.status === "complete").length ?? 0,
-    objectivesTotal: c?.objectives.length ?? 0,
+    tasksDone: theirs.filter((t) => isCompleted(t.status)).length,
+    tasksTotal: theirs.length,
     escrowHeld: escrowOf(deal, all)?.held ?? 0,
     escrowFunded: escrowOf(deal, all)?.total,
   };
@@ -302,181 +339,140 @@ export const ageOf = (d: Dispute) => {
   return n === 0 ? "Today" : n === 1 ? "1 day" : `${n} days`;
 };
 
-/** How each side names a party: the Team Builder by company, the independent by name. */
-export const partyName = (d: Dispute, p: DisputeParty) => (p === "team" ? d.team.company : d.independent.name);
-export const otherParty = (p: DisputeParty): DisputeParty => (p === "team" ? "independent" : "team");
-export const contractName = (d: Dispute) => `${d.title} — ${d.type === "trial" ? "trial" : "full-time"}`;
-
-/** The ruling in one line, or null while there isn't one. */
-export function outcomeOf(d: Dispute): string | null {
-  const r = d.resolution;
-  if (d.status === "Rejected") return "Rejected — the agreed process was followed";
-  if (d.status !== "Resolved" || !r) return null;
-  const who = r.favor === "team" ? d.team.company : d.independent.name;
-  const money =
-    r.payment === "refunded"
-      ? `${usd(r.moved ?? d.amount)} refunded to ${d.team.company}`
-      : r.payment === "released"
-        ? `${usd(r.moved ?? d.amount)} released to ${d.independent.name}`
-        : `${usd(d.amount)} to be released to ${d.independent.name}`;
-  return `Resolved in favor of ${who} · ${money}`;
-}
+export const contractName = (d: Dispute) => `${d.title} — ${JOB_TYPE_LABEL[d.type].toLowerCase()}`;
 
 export const unseenByAdmin = (all: Dispute[]) => all.filter((d) => (d.adminSeen ?? 0) < d.updated);
 
+/** Where each side opens a case — what every notification about it links to. */
+export const caseHref = (side: DisputeParty, id: string) => (side === "team" ? `/team/payments/disputes/${id}` : `/independent/wallet/disputes/${id}`);
+
 /* -------------------------------------------------------------- actions */
 
-/** Tell one party about this dispute; the link opens it in their own Disputes list. */
-function tell(d: Dispute, to: DisputeParty, from: DisputeParty | "admin", title: string, body: string) {
-  const tab = d.filedBy === to ? "sent" : "received";
-  if (to === "team")
-    notify("team", {
-      title,
-      body,
-      href: `/team/payments/disputes?tab=${tab}&open=${d.id}`,
-      avatar: from === "admin" ? "/admin/avatar.jpg" : d.independent.avatar,
-    });
-  else notify("independent", { title, body, href: `/independent/wallet/disputes?tab=${tab}&open=${d.id}`, avatar: from === "admin" ? "/admin/avatar.jpg" : undefined });
+export type Done = { ok: true; dispute: Dispute } | Refusal;
+
+function tell(d: Dispute, n: Notice) {
+  const avatar = n.from === "support" || n.from === "system" ? "/admin/avatar.jpg" : n.from === "team" ? PAIR.team.avatar : d.independent.avatar;
+  notify(n.to, { title: n.title, body: n.body, href: caseHref(n.to, d.id), avatar });
+}
+
+/** The escrow a step may move, and how its notices say a moment. */
+function ctxFor(d: Dispute, handler?: string): Ctx {
+  const deal = getDeal();
+  const held = escrowOfDispute(d, deal, snapshot)?.held;
+  return { now: Date.now(), when: stampOf, handler, held };
+}
+
+/** Apply one step to one case: re-read, check, move the money, save, then tell whoever it concerns. */
+function act(id: string, step: (d: Dispute, ctx: Ctx) => Step | Refusal | null, handler?: string): Promise<Done> {
+  return exclusive((): Done => {
+    refresh();
+    const d = snapshot.find((x) => x.id === id);
+    if (!d) return { ok: false, error: "That dispute doesn't exist any more." };
+    const out = step(d, ctxFor(d, handler));
+    if (!out) return { ok: false, error: "Nothing to do." };
+    if (!out.ok) return out;
+    if (out.money) settle(d, out.money);
+    // What support does is, by definition, seen by support.
+    const next = handler ? { ...out.next, adminSeen: out.next.updated } : out.next;
+    write(snapshot.map((x) => (x.id === id ? next : x)));
+    for (const n of out.notices) tell(next, n);
+    return { ok: true, dispute: next };
+  });
 }
 
 /**
- * TB-073 / TB-118 / IN-059 — file a dispute. It goes straight to Admin's queue, the other party is
- * told, and it lists under Sent as Pending. Returns null when fileBlock says no.
+ * TB-073 / TB-118 / IN-059 — file a dispute. It opens as a case with the other side's turn to
+ * respond, and they're told. Resolves to null when fileBlock says no.
  */
-export function fileDispute(input: { ref: ContractRef; filedBy: DisputeParty; reason: string; description: string; amount: number; evidence?: string }): Dispute | null {
-  ensureLoaded();
-  const deal = getDeal();
-  if (fileBlock(snapshot, input.ref.key, input.filedBy, dealContract(deal)?.key === input.ref.key ? escrowOf(deal, snapshot) : null).block) return null;
-  const now = Date.now();
-  const d: Dispute = {
-    id: `dsp-${now.toString(36)}`,
-    contract: input.ref.key,
-    links: input.ref.links,
-    title: input.ref.title,
-    type: input.ref.type,
-    rate: input.ref.rate,
-    team: TEAM,
-    independent: IND,
-    filedBy: input.filedBy,
-    at: now,
-    reason: input.reason,
-    description: input.description,
-    amount: input.amount,
-    evidence: input.evidence,
-    status: "Pending",
-    facts: factsFor(input.ref, deal, snapshot),
-    statements: [],
-    timeline: [
-      { at: now, event: "Dispute filed", actor: input.filedBy === "team" ? TEAM.name : IND.name },
-      { at: now, event: `${input.filedBy === "team" ? IND.name : TEAM.company} notified`, actor: "system" },
-    ],
-    updated: now,
-  };
-  write([d, ...snapshot]);
-  tell(
-    d,
-    otherParty(d.filedBy),
-    d.filedBy,
-    `${partyName(d, d.filedBy)} filed a dispute`,
-    `${partyName(d, d.filedBy)} raised a dispute on the ${d.title} contract over ${usd(d.amount)} (${d.reason}). Hireable support is reviewing it — you can add your side from Disputes.`,
-  );
-  return d;
+export function fileDispute(input: { ref: ContractRef; filedBy: DisputeParty; reason: string; description: string; amount: number; evidence?: string; attachments?: Attachment[] }): Promise<Dispute | null> {
+  return exclusive(() => {
+    refresh();
+    const deal = getDeal();
+    // The same check the button runs — the escrow in play (not a converted contract's paid-out trial
+    // escrow, which used to refuse every filing on it) and where the contract is in its lifecycle.
+    const live = dealContract(deal)?.key === input.ref.key;
+    if (fileBlock(snapshot, input.ref.key, input.filedBy, live ? escrowInPlay(deal, snapshot) : null, phaseOf(deal, input.ref.key)).block) return null;
+    const now = Date.now();
+    const out = Case.openCase(
+      {
+        id: `dsp-${now.toString(36)}`,
+        contract: input.ref.key,
+        links: input.ref.links,
+        title: input.ref.title,
+        type: input.ref.type,
+        rate: input.ref.rate,
+        team: TEAM,
+        independent: IND,
+        filedBy: input.filedBy,
+        reason: input.reason,
+        description: input.description,
+        amount: input.amount,
+        evidence: input.evidence,
+        attachments: input.attachments,
+        facts: factsFor(input.ref, deal, snapshot),
+      },
+      { now, when: stampOf },
+    );
+    write([out.next, ...snapshot]);
+    for (const n of out.notices) tell(out.next, n);
+    return out.next;
+  });
 }
 
-/** TB-093 / IN-082 — only the party who filed it, only while it is Pending. Admin sees it as new activity. */
-export function withdrawDispute(id: string, by: DisputeParty) {
-  const d = getDisputes().find((x) => x.id === id);
-  if (!d || d.status !== "Pending" || d.filedBy !== by) return;
-  const now = Date.now();
-  patch(id, (x) => ({ ...x, status: "Withdrawn", timeline: [...x.timeline, { at: now, event: "Dispute withdrawn", actor: by === "team" ? TEAM.name : IND.name }], updated: now }));
-  tell(d, otherParty(by), by, `${partyName(d, by)} withdrew their dispute`, `The dispute on the ${d.title} contract is closed and the ${usd(d.amount)} hold is lifted. Hireable support has stopped the review.`);
-}
+/** It's their turn: the answer hands the case to Hireable support. */
+export const respondToDispute = (id: string, party: DisputeParty, say: Say) => act(id, (d, c) => Case.respond(d, party, say, c));
+/** Not their turn, but something support should see. */
+export const addToDispute = (id: string, party: DisputeParty, say: Say) => act(id, (d, c) => Case.addInfo(d, party, say, c));
+export const proposeSettlement = (id: string, party: DisputeParty, split: { refund: number; release: number; note?: string }) => act(id, (d, c) => Case.propose(d, party, split, c));
+export const answerSettlement = (id: string, party: DisputeParty, accept: boolean) => act(id, (d, c) => Case.answer(d, party, accept, c));
+/** TB-093 / IN-082 — only the filer, only while it's open. */
+export const withdrawDispute = (id: string, party: DisputeParty) => act(id, (d, c) => Case.withdraw(d, party, c));
 
-/** Either party adds their side, or the evidence support asked for, while the dispute is Pending. */
-export function addStatement(id: string, from: DisputeParty, text: string, evidence?: string) {
-  const d = getDisputes().find((x) => x.id === id);
-  if (!d || d.status !== "Pending" || !text.trim()) return;
-  const now = Date.now();
-  patch(id, (x) => ({
-    ...x,
-    statements: [...x.statements, { at: now, from, text: text.trim(), evidence: evidence?.trim() || undefined }],
-    timeline: [...x.timeline, { at: now, event: from === x.filedBy ? "More information added" : "Response added", actor: from === "team" ? TEAM.name : IND.name }],
-    updated: now,
-  }));
-  tell(d, otherParty(from), from, `${partyName(d, from)} added to the dispute`, `There is a new statement on the ${d.title} dispute. Both sides can read what the other has sent.`);
-}
-
-/** AD-033 — ask one side, or both, for more; they see the request on the dispute. */
-export function requestEvidence(id: string, from: DisputeParty | "both", note: string) {
-  const d = getDisputes().find((x) => x.id === id);
-  if (!d || d.status !== "Pending" || !note.trim()) return;
-  const now = Date.now();
-  const who = from === "both" ? "both parties" : partyName(d, from);
-  patch(id, (x) => ({ ...x, evidenceRequest: { from, note: note.trim(), at: now }, timeline: [...x.timeline, { at: now, event: `Evidence requested from ${who}`, actor: ADMIN }], updated: now, adminSeen: now }));
-  for (const p of from === "both" ? (["team", "independent"] as const) : [from]) tell(d, p, "admin", "Hireable support needs more information", `On the ${d.title} dispute: ${note.trim()}`);
-}
-
-/** AD-033 — no breach of the agreed process, so no ruling for either side. The hold is lifted. */
-export function rejectDispute(id: string, notes: string) {
-  const d = getDisputes().find((x) => x.id === id);
-  if (!d || d.status !== "Pending" || !notes.trim()) return;
-  const now = Date.now();
-  patch(id, (x) => ({ ...x, status: "Rejected", resolution: { notes: notes.trim(), at: now }, timeline: [...x.timeline, { at: now, event: "Dispute rejected", actor: ADMIN }], updated: now, adminSeen: now }));
-  for (const p of ["team", "independent"] as const) tell(d, p, "admin", "Dispute rejected", `Hireable support found the agreed process on the ${d.title} contract was followed, so the dispute is closed and the ${usd(d.amount)} hold is lifted. Notes: ${notes.trim()}`);
-}
-
-/** Move up to `amount` out of the trial's escrow (or record it outright on a contract with none). */
-function settle(d: Dispute, kind: "released" | "refunded"): number {
-  const deal = getDeal();
-  const onDeal = dealContract(deal)?.key === d.contract;
-  const moved = onDeal ? Math.min(d.amount, escrowOf(deal, getDisputes())?.held ?? 0) : d.amount;
-  if (onDeal && moved > 0) settleEscrow(kind === "released" ? { released: moved } : { refunded: moved });
-  if (moved > 0) recordLedger({ contract: d.links.independent, title: d.title, company: d.team.company, amount: usd(moved), period: `Dispute ruling · ${d.reason}`, kind });
-  return moved;
-}
+/** AD-033 — support puts a question to one side, who has five days to answer. */
+export const askParty = (id: string, party: DisputeParty, note: string) => act(id, (d, c) => Case.ask(d, party, note, c), SUPPORT);
+export const extendDeadline = (id: string, days: number) => act(id, (d, c) => Case.extend(d, days, c), SUPPORT);
+/** AD-034 — a ruling for one side; a refund moves at once, a release waits on AD-035. */
+export const resolveDispute = (id: string, favor: DisputeParty, notes: string) => act(id, (d, c) => Case.rule(d, favor, notes, c), SUPPORT);
+export const rejectDispute = (id: string, notes: string) => act(id, (d, c) => Case.reject(d, notes, c), SUPPORT);
+/** AD-035 — pay out a case closed for the Independent. */
+export const releasePayment = (id: string) => act(id, (d, c) => Case.release(d, c), SUPPORT);
 
 /**
- * AD-034 — rule for one side; notes are required and both sides are told. For the Team Builder
- * the amount is refunded from escrow at once; for the independent it waits on AD-035's release.
+ * Close every case whose turn ran out, and remind anyone with a day left. There's no server to
+ * run it on a schedule, so every open portal does (useDisputeDeadlines) — the lock and the
+ * re-read in `act` make sure each case closes once, whichever tab gets there first.
  */
-export function resolveDispute(id: string, favor: DisputeParty, notes: string) {
-  const d = getDisputes().find((x) => x.id === id);
-  if (!d || d.status !== "Pending" || !notes.trim()) return;
+export async function sweepDeadlines() {
+  refresh();
   const now = Date.now();
-  const moved = favor === "team" ? settle(d, "refunded") : undefined;
-  const payment = favor === "team" ? "refunded" : "awaiting release";
-  patch(id, (x) => ({
-    ...x,
-    status: "Resolved",
-    resolution: { favor, notes: notes.trim(), at: now, payment, moved },
-    timeline: [...x.timeline, { at: now, event: `Resolved in favor of ${partyName(x, favor)}`, actor: ADMIN }, ...(favor === "team" ? [{ at: now, event: `${usd(moved ?? 0)} refunded to ${x.team.company}`, actor: "system" }] : [])],
-    updated: now,
-    adminSeen: now,
-  }));
-  const money = favor === "team" ? `${usd(moved ?? 0)} is refunded to ${d.team.company}.` : `${usd(d.amount)} will be released to ${d.independent.name}.`;
-  for (const p of ["team", "independent"] as const) tell(d, p, "admin", `Dispute resolved in favor of ${partyName(d, favor)}`, `Hireable support ruled on the ${d.title} dispute. ${money} Notes: ${notes.trim()}`);
+  const due = snapshot.filter((d) => {
+    const t = Case.partyTurn(d);
+    return !!t && (now >= t.due || (!t.reminded && t.due - now <= Case.REMIND_BEFORE));
+  });
+  for (const d of due) await act(d.id, (x, c) => Case.expire(x, c) ?? Case.remind(x, c));
 }
 
-/** AD-035 — release the money on a dispute resolved for the independent. Both sides are told. */
-export function releasePayment(id: string) {
-  const d = getDisputes().find((x) => x.id === id);
-  if (!d || d.status !== "Resolved" || d.resolution?.favor !== "independent" || d.resolution.payment !== "awaiting release") return;
-  const now = Date.now();
-  const moved = settle(d, "released");
-  patch(id, (x) => ({
-    ...x,
-    resolution: x.resolution && { ...x.resolution, payment: "released", moved },
-    timeline: [...x.timeline, { at: now, event: `${usd(moved)} released to ${x.independent.name}`, actor: ADMIN }],
-    updated: now,
-    adminSeen: now,
-  }));
-  tell(d, "independent", "admin", "Dispute payment released", `${usd(moved)} from the ${d.title} dispute has been released to you. It is in your earnings now.`);
-  tell(d, "team", "admin", "Dispute payment released", `${usd(moved)} was released to ${d.independent.name} from the ${d.title} escrow, as ruled.`);
+/** Keeps the deadlines honest while a portal is open: on load, every minute, and on coming back to the tab. */
+export function useDisputeDeadlines() {
+  useEffect(() => {
+    const run = () => void sweepDeadlines();
+    run();
+    const timer = setInterval(run, 60_000);
+    const back = () => {
+      if (document.visibilityState === "visible") run();
+    };
+    document.addEventListener("visibilitychange", back);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", back);
+    };
+  }, []);
 }
 
 /** Opening a dispute in Admin clears its "new activity" badge. */
 export function markAdminSeen(id: string) {
-  const d = getDisputes().find((x) => x.id === id);
+  refresh();
+  const d = snapshot.find((x) => x.id === id);
   if (!d || (d.adminSeen ?? 0) >= d.updated) return;
-  patch(id, (x) => ({ ...x, adminSeen: x.updated }));
+  write(snapshot.map((x) => (x.id === id ? { ...x, adminSeen: x.updated } : x)));
 }

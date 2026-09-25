@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { dayStamp, today } from "@/lib/demo/dates";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import type { JobType } from "@/lib/demo/job-types";
 import { notifications as indSeed } from "@/lib/independent/data";
 import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
@@ -36,7 +38,12 @@ export type ChatMsg = {
   file?: { name: string; meta: string };
   /** TB-011 / IN-011 — a meeting link shared in the thread. */
   call?: { link: string };
+  /** Where it was written, when that wasn't the thread itself — the inbox links back to it. */
+  source?: ChatSource;
 };
+
+/** TB-106 — a note left on a proposal's Activity pane, which both inboxes link back to. */
+export type ChatSource = { kind: "proposal"; version: number; roleSlug: string; title: string };
 
 /* ----------------------------------------------------------- attachments */
 
@@ -80,6 +87,11 @@ export type LivePayment = {
   at: number;
   /** Released to the independent (the default) or refunded to the Team Builder after a dispute ruling. */
   kind?: "released" | "refunded";
+  /**
+   * What the money was for: the trial (its escrow) or the full-time / part-time role it became (its
+   * pay). The ledger names the row by it, so trial money isn't relabelled once the contract converts.
+   */
+  chapter?: JobType;
 };
 
 export type Live = {
@@ -104,7 +116,10 @@ const KEY = PREFIX + "live";
 const MAX_NOTES = 30;
 
 let snapshot: Live = SEED;
+/** The saved string `snapshot` was read from, so an unchanged store isn't parsed again. */
+let lastRaw: string | null = null;
 let loaded = false;
+let listening = false;
 const subscribers = new Set<() => void>();
 
 const emit = () => {
@@ -120,10 +135,41 @@ function parse(raw: string | null): Live {
   }
 }
 
+/**
+ * Read what's saved now. Every writer calls this first, so a change made from a tab that hadn't
+ * loaded the feed yet — or had an older copy — adds to what's there instead of replacing it.
+ */
+function refresh() {
+  if (typeof window === "undefined") return;
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(KEY);
+  } catch {
+    return;
+  }
+  if (loaded && raw === lastRaw) return;
+  loaded = true;
+  lastRaw = raw;
+  snapshot = parse(raw);
+  listen();
+}
+
+/** One listener for the whole tab: another tab moved, so mirror it here. */
+function listen() {
+  if (listening) return;
+  listening = true;
+  window.addEventListener("storage", (e) => {
+    if (e.key !== null && e.key !== KEY) return;
+    refresh();
+    emit();
+  });
+}
+
 function write(next: Live) {
   snapshot = next;
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    lastRaw = JSON.stringify(next);
+    localStorage.setItem(KEY, lastRaw);
   } catch {
     // Private mode / quota — the demo still works for this tab.
   }
@@ -132,20 +178,12 @@ function write(next: Live) {
 
 function subscribe(fn: () => void) {
   if (!loaded) {
-    loaded = true;
-    snapshot = parse(localStorage.getItem(KEY));
+    refresh();
     emit();
   }
   subscribers.add(fn);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== KEY) return;
-    snapshot = parse(e.newValue); // the other tab moved — mirror it here
-    emit();
-  };
-  window.addEventListener("storage", onStorage);
   return () => {
     subscribers.delete(fn);
-    window.removeEventListener("storage", onStorage);
   };
 }
 
@@ -177,36 +215,41 @@ export type MoveKind =
   | "proposal_requested" // TB-103 Request Proposal from Candidate
   | "proposal_revision" // TB-106 Request Changes to Proposal
   | "proposal_declined" // TB-107 Decline Proposal
-  | "offer_sent" // TB-105 Send Trial Offer
+  | "offer_sent" // TB-105 Send Offer
   | "offer_updated" // TB-105 Edit a sent offer
   | "offer_withdrawn" // TB-105 Withdraw a sent offer
-  | "objective_approved" // TB-109 Approve Completed Objective
-  | "objective_rejected" // TB-110 Reject Completed Objective
-  | "objective_revision" // TB-111 Request Objective Revision
+  | "task_approved" // TB-109 / TB-114 Approve Task
+  | "task_changes" // TB-110 / TB-115 Request Changes on a Task
+  | "task_added" // TB-064 Add a Task
   | "evaluation_sent" // TB-067 Send Evaluation
   | "contract_ended" // TB-071 End Contract
-  | "fulltime_offer" // TB-072 Hire for Full-Time
-  | "fulltime_withdrawn" // TB-072 Withdraw the full-time offer
-  | "objective_assigned" // TB-075 Create Objective
+  | "hire_offer" // TB-072 Hire After the Trial (full-time or part-time)
+  | "hire_withdrawn" // TB-072 Withdraw the post-trial offer
   // Disputes (TB-073/093, IN-059/082) notify from @/lib/demo/disputes, which links to the dispute itself.
   | "applied" // IN-017 Apply to Role
   | "interview_accepted" // IN-070 Accept Interview Invitation
   | "proposal_sent" // IN-072 / IN-073 Submit or revise proposal
   | "offer_accepted" // IN-074 Accept Offer
   | "offer_declined" // IN-075 Decline Offer
-  | "objective_update" // IN-026 Update Progress on an objective
-  | "objective_done" // IN-077 Mark a default objective as done
+  | "task_submitted" // IN-030 Submit a Task for Review
   | "interview_declined" // IN-071 Decline an interview invitation
-  | "fulltime_accepted" // IN-046 Accept the full-time offer
-  | "fulltime_declined" // IN-046 Decline the full-time offer
+  | "hire_accepted" // IN-084 Accept the post-trial offer
+  | "hire_declined" // IN-084 Decline the post-trial offer
   | "withdrawn"; // IN — withdraw application
 
-const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) => string; body: (role: string) => string }> = {
+/** What a movement is about beyond the role: the task, the kind of role offered, the note sent with it. */
+export type MoveExtra = { task?: { id: string; title: string }; type?: JobType; note?: string };
+
+/** "Sales Manager full-time role" — the post-trial offer names the kind of role it is. */
+const roleKind = (x?: MoveExtra) => (x?.type ? `${JOB_TYPE_LABEL[x.type].toLowerCase()} ` : "");
+const taskName = (x?: MoveExtra) => (x?.task ? `“${x.task.title}”` : "a task");
+
+const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x?: MoveExtra) => string; body: (role: string, x?: MoveExtra) => string }> = {
   invite: {
     to: "independent",
     story: "TB-017",
     title: () => `${PAIR.team.company} invited you to apply`,
-    body: (r) => `You can now see the trial expectations for ${r}. Submit an application to be considered.`,
+    body: (r) => `You can now see the trial's tasks for ${r}. Submit an application to be considered.`,
   },
   interview_invited: {
     to: "independent",
@@ -230,7 +273,7 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     to: "independent",
     story: "TB-103",
     title: () => "Proposal requested",
-    body: (r) => `${PAIR.team.name} asked for your objectives, rate and timeline for ${r}.`,
+    body: (r) => `${PAIR.team.name} asked for your task list, rate and cover letter for ${r}.`,
   },
   proposal_revision: {
     to: "independent",
@@ -247,8 +290,8 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
   offer_sent: {
     to: "independent",
     story: "TB-105",
-    title: () => "Trial offer received",
-    body: (r) => `${PAIR.team.company} sent you a trial offer for ${r}. Review the rate, duration and objectives.`,
+    title: (_r, x) => (x?.type ? `${JOB_TYPE_LABEL[x.type]} offer received` : "Offer received"),
+    body: (r, x) => `${PAIR.team.company} sent you ${x?.type === "trial" ? "a trial offer" : "an offer"} for ${r}. Review the terms and the tasks.`,
   },
   offer_updated: {
     to: "independent",
@@ -262,53 +305,49 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     title: () => "Offer withdrawn",
     body: (r) => `${PAIR.team.company} withdrew the ${r} offer. Your proposal stays with them and they can send a new one.`,
   },
-  objective_approved: {
+  task_approved: {
     to: "independent",
     story: "TB-109",
-    title: () => "Objective approved",
-    body: (r) => `${PAIR.team.name} approved your objective on ${r}. It is retired from the activity tracker and counts as achieved — your streak keeps running.`,
+    title: () => "Task approved",
+    body: (r, x) => `${PAIR.team.name} approved ${taskName(x)} on ${r}. It's Done.`,
   },
-  objective_rejected: {
+  task_changes: {
     to: "independent",
     story: "TB-110",
-    title: () => "Objective sent back",
-    body: (r) => `${PAIR.team.name} rejected your submission on ${r} and left a reason. It is active again — revise and resubmit.`,
+    title: () => "Changes requested on a task",
+    body: (r, x) => `${PAIR.team.name} sent ${taskName(x)} on ${r} back. Make the changes and send it for review again.${x?.note ? ` Their note: “${x.note}”` : ""}`,
   },
-  objective_revision: {
+  task_added: {
     to: "independent",
-    story: "TB-111",
-    title: () => "Revision requested on your update",
-    body: (r) => `${PAIR.team.name} flagged your ${r} progress update with a reason code. Correct it and resubmit.`,
+    story: "TB-064",
+    title: () => "New task added",
+    body: (r, x) => `${PAIR.team.name} added ${taskName(x)} to your ${r} task list.`,
   },
   evaluation_sent: {
     to: "independent",
     story: "TB-067",
-    title: () => "Your trial evaluation is in",
-    body: (r) => `${PAIR.team.name} submitted the post-trial evaluation for ${r}. Your Trial Fit Score is now final.`,
+    title: (_r, x) => (x?.type && x.type !== "trial" ? "You have a new evaluation" : "Your trial evaluation is in"),
+    body: (r, x) =>
+      x?.type && x.type !== "trial" ? `${PAIR.team.name} sent you an evaluation for ${r}. Read it on the contract's Evaluation tab.` : `${PAIR.team.name} submitted the post-trial evaluation for ${r}. Your Trial Fit Score is now final.`,
   },
   contract_ended: {
     to: "independent",
     story: "TB-071",
     title: () => "Contract ended",
-    body: (r) => `${PAIR.team.company} closed the ${r} engagement. The escrowed payment has been released to your payout method.`,
+    // What money moved, when some did: the escrow still held on a trial, the last pay on a full-time or part-time role.
+    body: (r, x) => `${PAIR.team.company} closed the ${r} engagement.${x?.note ? ` ${x.note}` : ""}`,
   },
-  fulltime_offer: {
+  hire_offer: {
     to: "independent",
     story: "TB-072",
-    title: () => "Full-time offer received",
-    body: (r) => `${PAIR.team.company} wants to take you on full-time for ${r}. Review the salary, benefits and start date.`,
+    title: (_r, x) => `${x?.type ? JOB_TYPE_LABEL[x.type] : "Full-time"} offer received`,
+    body: (r, x) => `${PAIR.team.company} wants to hire you ${x?.type === "part-time" ? "part-time" : "full-time"} for ${r} after your trial. Review the pay, ${x?.type === "part-time" ? "hours" : "benefits"} and start date.`,
   },
-  fulltime_withdrawn: {
+  hire_withdrawn: {
     to: "independent",
     story: "TB-072",
-    title: () => "Full-time offer withdrawn",
-    body: (r) => `${PAIR.team.company} withdrew the full-time offer for ${r}. Your contract and its history are unchanged.`,
-  },
-  objective_assigned: {
-    to: "independent",
-    story: "TB-075",
-    title: () => "New objective assigned",
-    body: (r) => PAIR.team.name + " added an objective to your " + r + " contract. Commit to it from your tracker.",
+    title: () => "Offer withdrawn",
+    body: (r, x) => `${PAIR.team.company} withdrew the ${roleKind(x)}offer for ${r}. Your contract and its history are unchanged.`,
   },
   applied: {
     to: "team",
@@ -326,7 +365,7 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     to: "team",
     story: "IN-072",
     title: () => `${PAIR.independent.name} submitted a proposal`,
-    body: (r) => `Objectives, rate and timeline for ${r} are ready for review.`,
+    body: (r) => `A task list, rate and cover letter for ${r} are ready for review.`,
   },
   offer_accepted: {
     to: "team",
@@ -340,17 +379,11 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     title: () => `${PAIR.independent.name} declined your offer`,
     body: (r) => `The ${r} offer was turned down. The card stays in Sent Offers with a Declined status.`,
   },
-  objective_update: {
+  task_submitted: {
     to: "team",
-    story: "IN-026",
-    title: () => `${PAIR.independent.name} logged progress`,
-    body: (r) => `A progress update on ${r} is waiting for your review.`,
-  },
-  objective_done: {
-    to: "team",
-    story: "IN-077",
-    title: () => `${PAIR.independent.name} marked an objective as done`,
-    body: (r) => `It sits at Pending approval on ${r} until you approve it or send it back.`,
+    story: "IN-030",
+    title: () => `${PAIR.independent.name} sent a task for review`,
+    body: (r, x) => `${x?.task ? `“${x.task.title}”` : "A task"} on ${r} is In review until you approve it or ask for changes.${x?.note ? ` Their note: “${x.note}”` : ""}`,
   },
   interview_declined: {
     to: "team",
@@ -358,17 +391,17 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string) =
     title: () => `${PAIR.independent.name} declined the interview`,
     body: (r) => `They cannot make that slot for ${r}. Their application stays open — offer another time.`,
   },
-  fulltime_accepted: {
+  hire_accepted: {
     to: "team",
-    story: "IN-046",
-    title: () => `${PAIR.independent.name} accepted your full-time offer`,
-    body: (r) => `${r} is now a full-time engagement. Assign objectives from the contract as the work goes on.`,
+    story: "IN-084",
+    title: (_r, x) => `${PAIR.independent.name} accepted your ${roleKind(x)}offer`,
+    body: (r, x) => `${r} is now a ${x?.type === "part-time" ? "part-time" : "full-time"} engagement. Add tasks to the shared list as the work goes on.`,
   },
-  fulltime_declined: {
+  hire_declined: {
     to: "team",
-    story: "IN-046",
-    title: () => `${PAIR.independent.name} declined your full-time offer`,
-    body: (r) => `The full-time offer for ${r} was turned down. The trial record stays on the contract.`,
+    story: "IN-084",
+    title: (_r, x) => `${PAIR.independent.name} declined your ${roleKind(x)}offer`,
+    body: (r, x) => `The ${roleKind(x)}offer for ${r} was turned down.${x?.note ? ` Their reason: “${x.note}”` : ""} The trial record stays on the contract, and you can send a new offer or close the trial.`,
   },
   withdrawn: {
     to: "team",
@@ -394,6 +427,7 @@ export function recordPayment(p: Omit<LivePayment, "id" | "date" | "at">) {
 
 /** The ledger row alone — for callers that write their own notification (dispute rulings). */
 export function recordLedger(p: Omit<LivePayment, "id" | "date" | "at">) {
+  refresh();
   write({ ...snapshot, payments: [{ ...p, id: uid(), date: today(), at: dayStamp() }, ...snapshot.payments] });
 }
 
@@ -405,6 +439,7 @@ export function notify(
   side: Side,
   n: { title: string; body: string; href: string; avatar?: string; kind?: IndNote["kind"] & TeamNote["kind"] },
 ) {
+  refresh();
   const kind = n.kind ?? "payments";
   if (side === "independent") {
     const note: IndNote = { id: uid(), group: "Today", title: n.title, body: n.body, time: clock(), at: Date.now(), unread: true, kind, href: n.href, avatar: n.avatar ?? PAIR.team.avatar };
@@ -431,10 +466,10 @@ const DEAL = "deal";
 
 /**
  * Where a movement's notification opens: the thing it is about, not one list for everything. They
- * all used to open My Applications or the role's tracker, so an approved objective or a full-time
+ * all used to open My Applications or the role's tracker, so an approved task or a post-trial
  * offer landed on a hiring board with nothing on it to act on.
  */
-function independentTarget(kind: MoveKind, slug: string): { href: string; kind: IndNote["kind"] } {
+function independentTarget(kind: MoveKind, slug: string, x?: MoveExtra): { href: string; kind: IndNote["kind"] } {
   const application = `/independent/jobs/applications/${DEAL}`;
   switch (kind) {
     case "invite": // not an application yet — the posting is where they apply
@@ -454,16 +489,18 @@ function independentTarget(kind: MoveKind, slug: string): { href: string; kind: 
     case "offer_withdrawn":
       return { href: application, kind: "offers" };
     // The talent's contract lives under the role's slug; callers pass it (see the team store).
-    case "fulltime_offer":
+    case "hire_offer":
       return { href: `/independent/contracts/${slug}/offer`, kind: "offers" };
-    case "fulltime_withdrawn":
+    case "hire_withdrawn":
       return { href: `/independent/contracts/${slug}`, kind: "offers" };
-    default: // objectives, the evaluation, the contract ending — all on the contract
-      return { href: `/independent/contracts/${slug}`, kind: "contracts" };
+    case "evaluation_sent": // it says to read it on the Evaluation tab, so that is where it opens
+      return { href: `/independent/contracts/${slug}?tab=evaluation`, kind: "contracts" };
+    default: // tasks, the contract ending — all on the contract, a task opened on its panel
+      return { href: `/independent/contracts/${slug}${x?.task ? `?task=${x.task.id}` : ""}`, kind: "contracts" };
   }
 }
 
-function teamTarget(kind: MoveKind, slug: string): string {
+function teamTarget(kind: MoveKind, slug: string, x?: MoveExtra): string {
   const board = `/team/hire/roles/${slug}`;
   const contract = `/team/independents/${PAIR.independent.slug}`;
   switch (kind) {
@@ -474,11 +511,11 @@ function teamTarget(kind: MoveKind, slug: string): string {
       return `${board}/candidates/${DEAL}`;
     case "offer_declined":
       return "/team/hire/offers";
+    case "task_submitted":
+      return `${contract}${x?.task ? `?task=${x.task.id}` : ""}`;
     case "offer_accepted":
-    case "fulltime_accepted":
-    case "fulltime_declined":
-    case "objective_update":
-    case "objective_done":
+    case "hire_accepted":
+    case "hire_declined":
       return contract;
     default: // applied, withdrawn — the board
       return board;
@@ -486,15 +523,16 @@ function teamTarget(kind: MoveKind, slug: string): string {
 }
 
 /** Record a movement. Emits the notification the spec says the OTHER side should get. */
-export function move(kind: MoveKind, role: { slug: string; title: string }) {
+export function move(kind: MoveKind, role: { slug: string; title: string }, extra?: MoveExtra) {
+  refresh();
   const m = MOVES[kind];
   if (m.to === "independent") {
-    const target = independentTarget(kind, role.slug);
+    const target = independentTarget(kind, role.slug, extra);
     const note: IndNote = {
       id: uid(),
       group: "Today",
-      title: m.title(role.title),
-      body: m.body(role.title),
+      title: m.title(role.title, extra),
+      body: m.body(role.title, extra),
       time: clock(),
       at: Date.now(),
       unread: true,
@@ -508,19 +546,46 @@ export function move(kind: MoveKind, role: { slug: string; title: string }) {
   const note: TeamNote = {
     id: uid(),
     group: "Today",
-    title: m.title(role.title),
-    body: m.body(role.title),
+    title: m.title(role.title, extra),
+    body: m.body(role.title, extra),
     time: clock(),
     at: Date.now(),
     unread: true,
-    kind: "hiring",
+    // A task sent for review is about the person on the contract, not the hiring pipeline.
+    kind: kind === "task_submitted" || kind === "hire_accepted" || kind === "hire_declined" ? "independents" : "hiring",
     avatar: PAIR.independent.avatar,
-    href: teamTarget(kind, role.slug),
+    href: teamTarget(kind, role.slug, extra),
   };
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
 }
 
+/** A comment for a notification: one line, cut at a word — the item has the rest. */
+const excerpt = (text: string, max = 140) => {
+  const line = text.replace(/\s+/g, " ").trim();
+  return line.length <= max ? line : `${line.slice(0, max).replace(/\s+\S*$/, "")}…`;
+};
+
+/**
+ * TB-065 / IN-043 — a comment on a work item tells the side that didn't write it, and opens the
+ * item on its comments. Another comment on the same item while that notification is still unread
+ * replaces it with the newest, the way messages collapse, so a back-and-forth doesn't flood the feed.
+ */
+export function noteComment(from: Side, role: { slug: string; title: string }, task: { id: string; title: string }, text: string) {
+  refresh();
+  const to: Side = from === "team" ? "independent" : "team";
+  const at = `?task=${encodeURIComponent(task.id)}&focus=comments`;
+  const href = to === "independent" ? `/independent/contracts/${role.slug}${at}` : `/team/independents/${PAIR.independent.slug}${at}`;
+  const note = { id: uid(), group: "Today" as const, title: `${PAIR[from].name} commented on a task`, body: `On “${task.title}” for ${role.title}: “${excerpt(text)}”`, time: clock(), at: Date.now(), unread: true, href, avatar: PAIR[from].avatar };
+  const fresh = (n: { unread: boolean; href: string }) => !(n.unread && n.href === href);
+  if (to === "independent") {
+    write({ ...snapshot, independent: [{ ...note, kind: "contracts" } satisfies IndNote, ...snapshot.independent.filter(fresh)].slice(0, MAX_NOTES) });
+    return;
+  }
+  write({ ...snapshot, team: [{ ...note, kind: "independents" } satisfies TeamNote, ...snapshot.team.filter(fresh)].slice(0, MAX_NOTES) });
+}
+
 export function markRead(side: Side, noteId?: string) {
+  refresh();
   const feed = snapshot[side].map((n) => (noteId === undefined || n.id === noteId ? { ...n, unread: false } : n));
   write({ ...snapshot, [side]: feed } as Live);
 }
@@ -530,12 +595,15 @@ export function markRead(side: Side, noteId?: string) {
  * TB-007 / IN-007 — a new message triggers a notification for the receiver. Consecutive
  * messages collapse into the one unread entry so a back-and-forth doesn't flood the feed.
  */
-export function sendChat(from: Side, text: string) {
+export function sendChat(from: Side, text: string, source?: ChatSource): string | undefined {
   const body = text.trim();
   if (!body) return;
-  const chat = [...snapshot.chat, { id: uid(), from, text: body, time: clock() }];
+  refresh();
+  const id = uid();
+  const chat = [...snapshot.chat, { id, from, text: body, time: clock(), source }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
   noteMessage(from, body);
+  return id;
 }
 
 /**
@@ -544,6 +612,7 @@ export function sendChat(from: Side, text: string) {
  * except a call, which always announces itself.
  */
 function noteMessage(from: Side, body: string, force = false) {
+  refresh();
   const to: Side = from === "team" ? "independent" : "team";
   const sender = from === "team" ? PAIR.team.name : PAIR.independent.name;
   if (!force && snapshot[to].some((n) => n.unread && n.title.startsWith("New message"))) return;
@@ -569,20 +638,23 @@ function noteMessage(from: Side, body: string, force = false) {
 }
 
 /** TB-010 / IN-010 — send an attachment; the recipient can download it from the thread. */
-export function sendFile(from: Side, file: File) {
+export function sendFile(from: Side, file: File, source?: ChatSource): string {
+  refresh();
   const msgId = uid();
   try {
     blobs.set(msgId, URL.createObjectURL(file));
   } catch {
     /* ignore — the bubble still renders, just without a live download */
   }
-  const chat = [...snapshot.chat, { id: msgId, from, time: clock(), file: { name: file.name, meta: `${fileMeta(file)} · ${clock()}` } }];
+  const chat = [...snapshot.chat, { id: msgId, from, time: clock(), file: { name: file.name, meta: `${fileMeta(file)} · ${clock()}` }, source }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
   noteMessage(from, `Sent an attachment: ${file.name}`);
+  return msgId;
 }
 
 /** TB-011 / IN-011 — share a meeting link; the other party is notified that the call started. */
 export function startCall(from: Side) {
+  refresh();
   const link = `https://meet.hireable.ph/${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 6)}`;
   const chat = [...snapshot.chat, { id: uid(), from, time: clock(), call: { link } }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
@@ -592,6 +664,7 @@ export function startCall(from: Side) {
 
 /** TB-008 / IN-008 — the count clears when the conversation is opened, along with its notification. */
 export function openChat(side: Side) {
+  refresh();
   const feed = snapshot[side].map((n) => (n.unread && n.title.startsWith("New message") ? { ...n, unread: false } : n));
   const stale = feed.some((n, i) => n !== snapshot[side][i]);
   if (snapshot.seen[side] === snapshot.chat.length && !stale) return;

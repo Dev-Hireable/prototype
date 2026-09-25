@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "./ui";
+import { hoursLabel } from "@/lib/demo/job-types";
 import { MATCH_TOOLTIP } from "@/lib/independent/data";
 import type { Role } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
@@ -23,10 +24,9 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
   const withReturn = useWithReturn();
   /** From Saved roles the next page leads back there; from Discover the role page's own link already does. */
   const out = (href: string) => (variant === "saved" ? withReturn(href) : href);
-  const meta =
-    variant === "saved"
-      ? `${role.rate} · ${role.level} · ${role.savedAgo} · ${role.closes}`
-      : `${role.rate} · ${role.level} · ${role.posted}`;
+  /** A part-time role says how much of the week it is, beside its rate. */
+  const rate = role.type === "part-time" && role.hours ? `${role.rate} · ${hoursLabel(role.hours)}` : role.rate;
+  const meta = variant === "saved" ? `${rate} · ${role.level} · ${role.savedAgo} · ${role.closes}` : `${rate} · ${role.level} · ${role.posted}`;
   const Mark = isSaved ? Bookmarked : Bookmark;
 
   return (
@@ -50,7 +50,7 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
         <div className="flex shrink-0 items-center gap-2">
           {variant === "saved" ? (
             <>
-              <Button size="sm" onClick={() => toggleSaved(role.slug)}>
+              <Button size="sm" variant="danger" onClick={() => toggleSaved(role.slug)}>
                 Remove
               </Button>
               {/* A saved role that has already been applied to opens that application; it used to

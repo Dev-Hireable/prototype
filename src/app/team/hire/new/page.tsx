@@ -1,20 +1,27 @@
 "use client";
 
-import Image from "next/image";
+import Image, { getImageProps } from "next/image";
+import { preload } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useId, useState } from "react";
-import { MdAdd, MdAttachMoney, MdOutlineCalendarToday, MdOutlineLibraryBooks, MdRemove } from "react-icons/md";
-import { Button, Card, Chip, InfoBanner, Input, JobBadge, LinkButton, Modal, Page, Select, Steps, Textarea } from "@/components/independent/ui";
+import { MdAdd, MdAttachMoney, MdOutlineCalendarToday, MdOutlineLibraryBooks, MdOutlineSchedule, MdRemove } from "react-icons/md";
+import { Button, Card, Checkbox, Chip, InfoBanner, Input, JobBadge, LinkButton, Modal, Page, Pills, Select, Steps, Textarea } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { SkillPicker } from "@/components/portal/controls";
 import { EditButton, EditPanel } from "@/components/portal/InlineEdit";
+import { blankDraft, fromDrafts, TaskPlanEditor, TaskPlanList, toDrafts } from "@/components/portal/tasks/TaskPlan";
+import type { DraftTask } from "@/components/portal/tasks/TaskPlan";
 import { RateSourceModal, TemplateBrowser, TemplateSuggestions } from "@/components/team/RoleTemplates";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { LEVELS, levelName, suggestRange } from "@/lib/team/role-templates";
 import type { RoleTemplate } from "@/lib/team/role-templates";
 import { useDemo } from "@/lib/team/store";
-import { today } from "@/lib/demo/dates";
+import { durationDays, today } from "@/lib/demo/dates";
+import { hoursLabel, PART_TIME_HOURS } from "@/lib/demo/job-types";
+import type { JobType, OngoingType } from "@/lib/demo/job-types";
+import { planWeeks } from "@/lib/demo/tasks";
+import type { PlannedTask } from "@/lib/demo/tasks";
 import type { Role } from "@/lib/team/data";
 
 const CHIP_TONES = ["text-ok", "text-primary", "text-[#e91e63]"];
@@ -31,31 +38,37 @@ type Snapshot = {
   level: string;
   skills: string[];
   hires: number;
+  tasks: DraftTask[];
   expectation: string;
   attachment: string;
   min: string;
   max: string;
   chip: number;
+  hours: number;
   benefits: Record<string, string>;
 };
 
-type ReviewSection = "title" | "budget" | "description" | "skills" | "duration" | "experience" | "hires" | "expectations" | "benefits";
+type ReviewSection = "title" | "budget" | "description" | "skills" | "duration" | "experience" | "hires" | "weekly" | "expectations" | "benefits";
 
-/** Copy per path — Figma "Path A · Test Independents (trial)" and "Path B · Build Team (full-time)". */
+/**
+ * Copy per path — Figma "Path A · Test Independents (trial)" and "Path B · Build Team (full-time)",
+ * with Build Team's part-time twin: a monthly rate for set hours a week, and no exclusive benefits
+ * (those are full-time only).
+ */
 const PATH = {
   trial: {
     title: "Create a Trial",
     intro: "See how you work together with a paid trial before committing full-time. Fund escrow after they accept, before the trial starts.",
-    steps: ["Role Details", "Trial Expectations", "Budget & Duration", "Review", "Publish"],
+    steps: ["Role Details", "Trial Tasks", "Budget & Duration", "Review", "Publish"],
     /** Which card each step slot renders — the two paths don't share an order (TB-024 / TB-025). */
     sequence: ["details", "expectations", "budget", "review", "published"],
-    next: ["Next: Trial Expectations", "Add budget & duration", "Review job post"],
+    next: ["Next: Trial Tasks", "Add budget & duration", "Review job post"],
     descPlaceholder: "What will they be doing during this trial?",
-    note: "Trial expectations are only shared with Independents you invite or match with, they won't appear on your public role listing",
-    h2: "What should the Independent achieve during this trial?",
-    field2: "Trial Expectations",
-    ph2: "e.g. Build a working landing page using React, write 3 blog posts optimized for SEO, or conduct 5 user interviews and summarize key findings…",
-    hint2: "Walk your Independent through your expectations in your own words.",
+    note: "Trial tasks are only shared with Independents you invite or match with — they won't appear on your public role listing.",
+    h2: "What should the Independent get done in the trial?",
+    field2: "Trial Tasks",
+    ph2: "Anything they should know before they start: tools, access, how you like to work…",
+    hint2: "A Loom, Google Doc or anything else that helps them get going.",
     h3: "Budget & Duration",
     sub3: "Set your monthly rate and trial length.",
     label3: "Trial Duration",
@@ -63,7 +76,7 @@ const PATH = {
     money: "Budget:",
     when: "Duration:",
     reviewTitle: "Review your trial role",
-    reviewNote: "Your trial expectations are only shared with candidates you personally invite to apply — they won't be visible on your public job post.",
+    reviewNote: "Your trial tasks are only shared with candidates you match with or invite — they won't be visible on your public job post.",
     publishedTitle: "Job post published",
     publishedBody: "Your job is now live. Next, review applicants and invite the best matches to a work trial.",
   },
@@ -90,20 +103,43 @@ const PATH = {
     publishedTitle: "Role published",
     publishedBody: "Your role is now live. Next, review applicants and invite the best matches to interview.",
   },
+  "part-time": {
+    title: "Build Team",
+    intro: "Hire for an ongoing role, part of the week: a set number of hours, with defined responsibilities and room to grow.",
+    steps: ["Job Details", "Rate & Hours", "Review", "Published"],
+    sequence: ["details", "budget", "review", "published"],
+    next: ["Add rate & hours", "Review job post"],
+    descPlaceholder: "What will they be doing in this role?",
+    note: "Responsibilities appear on your public role listing so candidates know what the job involves.",
+    h2: "What will this person own in the role?",
+    field2: "Responsibilities",
+    ph2: "e.g. Run weekly social posting, report on engagement every Friday, and answer comments within a day…",
+    hint2: "Walk candidates through the role in your own words.",
+    h3: "Rate, Hours & Start",
+    sub3: "Set the monthly rate, the hours a week it covers, and when they start.",
+    label3: "Start date",
+    chips: ["Immediately", "In 2 weeks", "In 1 month"],
+    money: "Rate:",
+    when: "Start date:",
+    reviewTitle: "Review your part-time role",
+    reviewNote: "Responsibilities appear on your public job post so candidates know what the role involves.",
+    publishedTitle: "Role published",
+    publishedBody: "Your role is now live. Next, review applicants and invite the best matches to interview.",
+  },
 } as const;
 
 /** Whether a saved draft has enough to publish — the same bar the Next buttons enforce. */
 export function draftReady(r: Role) {
   const hasBudget = /[1-9]/.test(r.budget);
   const base = r.title.trim().length > 1 && r.description.trim().length > 0 && r.skills.length > 0 && r.experience !== "Any level" && hasBudget;
-  return r.type === "trial" ? base && r.expectation.trim().length > 0 : base;
+  return r.type === "trial" ? base && (r.tasks?.length ?? 0) > 0 : base;
 }
 
 /** First step slot whose required fields aren't filled yet — "where they left off" (TB-035). */
 function resumeStep(r: Role, sequence: readonly string[]) {
   const done: Record<string, boolean> = {
     details: r.title.trim().length > 1 && r.description.trim().length > 0 && r.skills.length > 0 && r.experience !== "Any level",
-    expectations: r.expectation.trim().length > 0,
+    expectations: (r.tasks?.length ?? 0) > 0,
     budget: /[1-9]/.test(r.budget),
     benefits: true,
   };
@@ -119,7 +155,7 @@ export default function CreateRoleWizardPage() {
   );
 }
 
-/** Figma "Hire / Create job post · job details → trial expectations → budget and duration → review → published" and the "Build team" twin. */
+/** Figma "Hire / Create job post · job details → trial expectations (now its tasks) → budget and duration → review → published" and the "Build team" twin. */
 function CreateRoleWizard() {
   const router = useRouter();
   const search = useSearchParams();
@@ -127,7 +163,11 @@ function CreateRoleWizard() {
   const { addRole, roles, canPublish, cards } = useDemo();
   const editing = editSlug ? roles.find((r) => r.slug === editSlug) : undefined;
   // An edited draft carries its own type; the query param only matters for a brand new post.
-  const type = (editing?.type ?? (search.get("type") === "full-time" ? "full-time" : "trial")) as "trial" | "full-time";
+  const param = search.get("type");
+  const startType: JobType = editing?.type ?? (param === "part-time" || param === "full-time" ? param : "trial");
+  /** Build Team's Employment type switch: full-time or part-time, until the post is saved. */
+  const [ongoing, setOngoing] = useState<OngoingType | null>(null);
+  const type: JobType = startType === "trial" ? "trial" : (ongoing ?? startType);
   const t = PATH[type];
   const [step, setStep] = useState(0);
   const [title, setTitle] = useState("");
@@ -135,11 +175,15 @@ function CreateRoleWizard() {
   const [level, setLevel] = useState(LEVELS[0]);
   const [skills, setSkills] = useState<string[]>([]);
   const [hires, setHires] = useState(1);
+  /** TB-024 — the trial's tasks, as the job post lists them; the notes beside them are optional. */
+  const [taskRows, setTaskRows] = useState<DraftTask[]>(() => [blankDraft()]);
   const [expectation, setExpectation] = useState("");
   const [attachment, setAttachment] = useState("");
   const [min, setMin] = useState("");
   const [max, setMax] = useState("");
   const [chip, setChip] = useState(0);
+  /** A part-time role's hours a week. */
+  const [hours, setHours] = useState<number>(20);
   /** Benefit label → monthly amount; absent means the checkbox is off. */
   const [benefits, setBenefits] = useState<Record<string, string>>({});
   /**
@@ -181,6 +225,7 @@ function CreateRoleWizard() {
     setDesc(editing.description);
     setLevel(LEVELS.includes(editing.experience) ? editing.experience : LEVELS[0]);
     setSkills(editing.skills);
+    setTaskRows(editing.tasks?.length ? toDrafts(editing.tasks) : [blankDraft()]);
     setExpectation(editing.expectation);
     setAttachment(editing.attachment);
     setHires(editing.hires ?? 1);
@@ -191,6 +236,7 @@ function CreateRoleWizard() {
     setMin(settleMoney(whole(lo)));
     setMax(settleMoney(whole(hi)));
     setBenefits(Object.fromEntries((editing.benefits ?? []).map((b) => [b.label, b.amount])));
+    if (editing.hours) setHours(editing.hours);
     const reviewStep = t.sequence.indexOf("review");
     setStep(editing.duplicatedFrom ? reviewStep : resumeStep(editing, t.sequence));
   }, [editing, prefilled, t.sequence]);
@@ -208,7 +254,10 @@ function CreateRoleWizard() {
   /** Both amounts filled, and the range isn't upside down. */
   const budgetOk = min.length > 0 && max.length > 0 && amount(min) <= amount(max);
   const rangeError = min && max && amount(min) > amount(max) ? "Minimum can't be more than the maximum." : null;
-  const can = kind === "details" ? detailsDone : kind === "expectations" ? expectation.trim().length > 0 : kind === "budget" ? budgetOk : true;
+  const tasks = fromDrafts(taskRows);
+  /** Due weeks run to the end of the trial length picked on the next step (30 days until then). */
+  const weeks = planWeeks(durationDays(t.chips[chip]));
+  const can = kind === "details" ? detailsDone : kind === "expectations" ? tasks.length > 0 : kind === "budget" ? budgetOk : true;
 
   const roleFrom = (status: Role["status"]): Role => {
     return {
@@ -228,9 +277,12 @@ function CreateRoleWizard() {
       experience: level === LEVELS[0] ? "Any level" : level,
       skills,
       expectation,
+      tasks: type === "trial" ? tasks : undefined,
       attachment,
       hires,
-      benefits: Object.entries(benefits).map(([label, amount]) => ({ label, amount: amount || "0" })),
+      hours: type === "part-time" ? hours : undefined,
+      // TB-024 — exclusive benefits are a full-time post's alone.
+      benefits: type === "full-time" ? Object.entries(benefits).map(([label, amount]) => ({ label, amount: amount || "0" })) : [],
     };
   };
   const publish = () => {
@@ -238,7 +290,7 @@ function CreateRoleWizard() {
     const role = roleFrom("Active");
     addRole(role);
     setPublishedSlug(role.slug);
-    setStep(4);
+    setStep(t.sequence.indexOf("published"));
   };
   /**
    * TB-030 — Save as draft used to navigate away and keep nothing: the role was gone. It now
@@ -248,46 +300,53 @@ function CreateRoleWizard() {
     addRole(roleFrom("Draft"));
     router.push("/team/hire/roles");
   };
-  const snapshot = (): Snapshot => ({ title, desc, level, skills, hires, expectation, attachment, min, max, chip, benefits });
+  const snapshot = (): Snapshot => ({ title, desc, level, skills, hires, tasks: taskRows, expectation, attachment, min, max, chip, hours, benefits });
   const restore = (v: Snapshot) => {
     setTitle(v.title);
     setDesc(v.desc);
     setLevel(v.level);
     setSkills(v.skills);
     setHires(v.hires);
+    setTaskRows(v.tasks);
     setExpectation(v.expectation);
     setAttachment(v.attachment);
     setMin(v.min);
     setMax(v.max);
     setChip(v.chip);
+    setHours(v.hours);
     setBenefits(v.benefits);
   };
+  /** A task plan in a shape two lists can be compared by, whatever order their keys were written in. */
+  const plan = (list: PlannedTask[]) => JSON.stringify(list.map((x) => [x.title, x.week ?? 0, x.priority ?? "", x.description ?? ""]));
   /**
-   * What a template writes, in the form's own shape. The trial path also takes the expectations
-   * and trial length; the full-time path has neither step, so those stay as they are.
+   * What a template writes, in the form's own shape. The trial path also takes the trial's tasks and
+   * length; the Build Team paths have neither step, so those stay as they are.
    */
   const fieldsFrom = (tpl: RoleTemplate) => ({
     title: tpl.title,
     desc: tpl.description,
     skills: tpl.skills.join("|"),
     level: tpl.level,
-    expectation: type === "trial" ? tpl.trial : expectation,
+    tasks: type === "trial" ? plan(tpl.tasks) : plan(tasks),
     min: settleMoney(String(tpl.budget.min)),
     max: settleMoney(String(tpl.budget.max)),
     chip: type === "trial" ? Math.max(0, (t.chips as readonly string[]).indexOf(`${tpl.days} Days`)) : chip,
   });
   /** Everything a template would replace, other than the title, is still empty. */
-  const onlyTitle = !desc.trim() && skills.length === 0 && level === LEVELS[0] && !expectation.trim() && !min && !max;
+  const onlyTitle = !desc.trim() && skills.length === 0 && level === LEVELS[0] && tasks.length === 0 && !min && !max;
   const blank = onlyTitle && !title.trim();
   /** Nothing changed since the template went in, so switching or clearing can't lose anyone's typing. */
-  const untouched = !!template && JSON.stringify(fieldsFrom(template)) === JSON.stringify({ title, desc, skills: skills.join("|"), level, expectation, min, max, chip });
+  const untouched = !!template && JSON.stringify(fieldsFrom(template)) === JSON.stringify({ title, desc, skills: skills.join("|"), level, tasks: plan(tasks), min, max, chip });
   const applyTemplate = (tpl: RoleTemplate | "blank") => {
     if (tpl === "blank") {
       setTitle("");
       setDesc("");
       setSkills([]);
       setLevel(LEVELS[0]);
-      if (type === "trial") setExpectation("");
+      if (type === "trial") {
+        setTaskRows([blankDraft()]);
+        setExpectation("");
+      }
       setMin("");
       setMax("");
       setChip(0);
@@ -298,7 +357,7 @@ function CreateRoleWizard() {
       setDesc(f.desc);
       setSkills([...tpl.skills]);
       setLevel(f.level);
-      setExpectation(f.expectation);
+      if (type === "trial") setTaskRows(toDrafts(tpl.tasks));
       setMin(f.min);
       setMax(f.max);
       setChip(f.chip);
@@ -309,7 +368,7 @@ function CreateRoleWizard() {
   };
   /** The budget step's suggested range and its sources (See source), from what step one says. */
   const suggestion = suggestRange({ title, skills, level, template });
-  const noun = type === "trial" ? "rate" : "salary";
+  const noun = type === "full-time" ? "salary" : "rate";
   const rangeInUse = !!suggestion && min === settleMoney(String(suggestion.min)) && max === settleMoney(String(suggestion.max));
   const useSuggested = () => {
     if (!suggestion) return;
@@ -348,7 +407,8 @@ function CreateRoleWizard() {
     duration: true,
     experience: level !== LEVELS[0],
     hires: hires >= 1,
-    expectations: expectation.trim().length > 0,
+    weekly: hours >= 1,
+    expectations: tasks.length > 0,
     benefits: true,
   };
   /** Props every review section shares: which one is open, and Save / Cancel for it. */
@@ -361,12 +421,18 @@ function CreateRoleWizard() {
     onCancel: cancelEdit,
   });
   const cta = (disabled: boolean) => <Cta next={t.next[step]} disabled={disabled} onNext={() => goTo(step + 1)} onDraft={saveDraft} />;
+  // The success badge is fetched while the form is being filled in, so it's already here when
+  // Publish swaps the form for it — the same optimized files <Image> will ask for, at low priority.
+  if (kind !== "published") {
+    const { srcSet, src } = getImageProps(BADGE).props;
+    preload(src, { as: "image", imageSrcSet: srcSet, fetchPriority: "low" });
+  }
 
   if (kind === "published")
     return (
       <Page title="Create Role" padded={false}>
         <div className="flex h-full flex-col items-center justify-center gap-6 px-10 py-20">
-          <Image src="/team/published.png" alt="" width={282} height={280} className="h-[140px] w-[141px]" />
+          <PublishedBadge />
           <div className="flex w-[733px] flex-col items-center gap-10 px-10">
             <div className="flex w-[378px] flex-col items-center gap-2 text-center text-ink">
               <h2 className="font-display text-[32px] leading-[1.5] font-semibold" style={{ fontVariationSettings: '"opsz" 14' }}>
@@ -421,6 +487,20 @@ function CreateRoleWizard() {
             }
           >
             <div className="flex flex-col gap-6">
+              {/* Build Team hires for an ongoing role, full-time or part-time; the steps after this follow the choice. */}
+              {type !== "trial" && (
+                <Block label="Employment type" helper={[type === "full-time" ? "A full working week, with exclusive benefits." : "Set hours a week, paid a monthly rate.", ""]}>
+                  <Pills<OngoingType>
+                    aria-label="Employment type"
+                    value={type}
+                    onChange={setOngoing}
+                    options={[
+                      { value: "full-time", label: "Full-time" },
+                      { value: "part-time", label: "Part-time" },
+                    ]}
+                  />
+                </Block>
+              )}
               <Block label="Role">
                 <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add e.g. Marketing Manager, Virtual Assistant" />
                 {!editing && <TemplateSuggestions query={title} applied={template} onPick={pickSuggestion} />}
@@ -452,22 +532,18 @@ function CreateRoleWizard() {
           </StepCard>
         )}
 
-        {/* Step 2 — Trial expectations / Responsibilities */}
+        {/* Step 2 — Trial tasks: the work the trial is for, which the offer carries into the contract */}
         {kind === "expectations" && (
           <>
             <div className="w-[720px]">
               <InfoBanner>{t.note}</InfoBanner>
             </div>
-            <StepCard title={t.h2} body="List what you need done. Deliverables, tasks, or goals. The more specific, the better.">
+            <StepCard title={t.h2} body="List the tasks for the trial. They go into your offer, where you can adjust them per candidate, and become the trial's shared task list once it's signed.">
               <div className="flex flex-col gap-10">
-                <Block label={t.field2} helper={["Up to 500 characters", `${expectation.length} / 500`]}>
-                  <Textarea value={expectation} maxLength={500} onChange={(e) => setExpectation(e.target.value)} placeholder={t.ph2} className="!h-[131px] resize-none" />
+                <Block label={t.field2}>
+                  <TaskPlanEditor rows={taskRows} onChange={setTaskRows} weeks={weeks} placeholder="Name a task for the trial" />
                 </Block>
-                <label className="flex flex-col gap-2">
-                  <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments (Optional)</span>
-                  <Input value={attachment} onChange={(e) => setAttachment(e.target.value)} placeholder="Add a link to a Loom, Google Doc, YouTube video, or anything that helps." />
-                  <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{t.hint2}</span>
-                </label>
+                <TrialNotes expectation={expectation} onExpectation={setExpectation} attachment={attachment} onAttachment={setAttachment} placeholder={t.ph2} hint={t.hint2} />
               </div>
               {cta(!can)}
             </StepCard>
@@ -512,6 +588,12 @@ function CreateRoleWizard() {
                   <p className="w-[533px] text-[12px] leading-[1.5] tracking-[0.2px] text-ink-2">There aren&apos;t similar roles on Hireable to suggest a {noun} from yet, so set the range you have in mind.</p>
                 )}
               </div>
+              {type === "part-time" && (
+                <div className="flex flex-col gap-6">
+                  <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Hours a week</p>
+                  <HoursChips value={hours} onChange={setHours} />
+                </div>
+              )}
               <div className="flex flex-col gap-6">
                 <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{t.label3}</p>
                 <div className="flex gap-4">
@@ -618,28 +700,30 @@ function CreateRoleWizard() {
                 {...item("experience")}
                 editor={<Select options={[...LEVELS]} value={level} onChange={(e) => setLevel(e.target.value)} />}
               />
+              {type === "part-time" && <ReviewItem label="Hours a week:" value={hoursLabel(hours)} {...item("weekly")} editor={<HoursChips value={hours} onChange={setHours} />} />}
               <ReviewItem label="How many to hire:" value={String(hires)} {...item("hires")} editor={<Counter value={hires} onChange={setHires} />} />
             </Card>
-            {/* The two paths carry different extras: a trial has expectations + attachments,
-                a full-time post has its exclusive benefits breakdown (TB-024). */}
-            {type === "trial" ? (
+            {/* The paths carry different extras: a trial has expectations + attachments, a
+                full-time post its exclusive benefits breakdown (TB-024), a part-time post neither. */}
+            {type === "part-time" ? null : type === "trial" ? (
               <Card className="flex flex-col gap-10 rounded-2xl p-10">
                 <ReviewItem
                   label={t.field2}
                   {...item("expectations")}
                   editor={
                     <div className="flex flex-col gap-6">
-                      <Block label="" helper={["Up to 500 characters", `${expectation.length} / 500`]}>
-                        <Textarea value={expectation} maxLength={500} onChange={(e) => setExpectation(e.target.value)} placeholder={t.ph2} className="!h-[131px] resize-none" autoFocus />
-                      </Block>
-                      <label className="flex flex-col gap-2">
-                        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments (Optional)</span>
-                        <Input value={attachment} onChange={(e) => setAttachment(e.target.value)} placeholder="Add a link to a Loom, Google Doc, YouTube video, or anything that helps." />
-                      </label>
+                      <TaskPlanEditor rows={taskRows} onChange={setTaskRows} weeks={weeks} placeholder="Name a task for the trial" />
+                      <TrialNotes expectation={expectation} onExpectation={setExpectation} attachment={attachment} onAttachment={setAttachment} placeholder={t.ph2} hint={t.hint2} />
                     </div>
                   }
                 >
-                  <p className="min-h-[131px] rounded-lg border border-border px-4 py-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{expectation}</p>
+                  <TaskPlanList tasks={tasks} empty="No tasks yet — the trial needs at least one." />
+                  {expectation.trim() && (
+                    <div className="flex flex-col gap-2">
+                      <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Notes</span>
+                      <p className="rounded-lg border border-border px-4 py-4 text-[14px] leading-[1.4] tracking-[0.2px] whitespace-pre-line text-ink">{expectation}</p>
+                    </div>
+                  )}
                   <div className="flex flex-col gap-2">
                     <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments</span>
                     {attachment ? (
@@ -705,8 +789,8 @@ function CreateRoleWizard() {
         title={pending === "blank" ? "Start from scratch?" : `Use the ${pending?.title ?? ""} template?`}
         description={
           pending === "blank"
-            ? `This clears the role, description, skills, experience level${type === "trial" ? ", trial expectations" : ""} and budget you've entered.`
-            : `It fills in the role, description, skills, experience level${type === "trial" ? ", trial expectations, trial length" : ""} and budget, replacing what you've entered in those fields.`
+            ? `This clears the role, description, skills, experience level${type === "trial" ? ", trial tasks and notes" : ""} and budget you've entered.`
+            : `It fills in the role, description, skills, experience level${type === "trial" ? ", trial tasks, trial length" : ""} and budget, replacing what you've entered in those fields.`
         }
         footer={
           <>
@@ -808,8 +892,22 @@ function Money({ label, value, onChange, disabled }: { label: string; value: str
   );
 }
 
-/** Figma "Duration" chip: h 44, 0.5px border, calendar icon in the chip's colour. */
-function DateChip({ children, tone, selected, onClick }: { children: React.ReactNode; tone: string; selected?: boolean; onClick?: () => void }) {
+/** A part-time role's hours a week, as the same chips as the start timing (a clock in place of the calendar). */
+function HoursChips({ value, onChange }: { value: number; onChange: (hours: number) => void }) {
+  return (
+    <div className="flex gap-4">
+      {PART_TIME_HOURS.map((h, i) => (
+        <DateChip key={h} tone={CHIP_TONES[i]} selected={value === h} onClick={() => onChange(h)} icon="clock">
+          {hoursLabel(h)}
+        </DateChip>
+      ))}
+    </div>
+  );
+}
+
+/** Figma "Duration" chip: h 44, 0.5px border, calendar (or clock) icon in the chip's colour. */
+function DateChip({ children, tone, selected, onClick, icon = "calendar" }: { children: React.ReactNode; tone: string; selected?: boolean; onClick?: () => void; icon?: "calendar" | "clock" }) {
+  const Icon = icon === "clock" ? MdOutlineSchedule : MdOutlineCalendarToday;
   return (
     <button
       type="button"
@@ -820,7 +918,7 @@ function DateChip({ children, tone, selected, onClick }: { children: React.React
         selected ? "border-primary bg-accent-bg font-semibold text-accent-ink ring-1 ring-primary" : "border-border bg-white text-ink enabled:hover:border-[#a6a6a6] enabled:hover:bg-surface-alt"
       }`}
     >
-      <MdOutlineCalendarToday size={16} aria-hidden className={tone} /> {children}
+      <Icon size={16} aria-hidden className={tone} /> {children}
     </button>
   );
 }
@@ -888,6 +986,58 @@ function ReviewItem({
   );
 }
 
+/** The "published" badge, drawn at 141×140 — one set of props, so the preload and the image ask for the same files. */
+const BADGE = { src: "/team/published.png", alt: "", width: 141, height: 140 } as const;
+
+/** Stays hidden until the image is in, then grows in (globals.css .badge-pop) instead of popping. */
+function PublishedBadge() {
+  const [loaded, setLoaded] = useState(false);
+  return <Image {...BADGE} loading="eager" fetchPriority="high" onLoad={() => setLoaded(true)} onError={() => setLoaded(true)} className={`h-[140px] w-[141px] ${loaded ? "badge-pop" : "opacity-0"}`} />;
+}
+
+/**
+ * What sits beside a trial's tasks: optional notes (what used to be all of Trial Expectations) and a
+ * link. Both optional, so they stay folded behind one link until wanted — open from the start when
+ * a draft already has either.
+ */
+function TrialNotes({
+  expectation,
+  onExpectation,
+  attachment,
+  onAttachment,
+  placeholder,
+  hint,
+}: {
+  expectation: string;
+  onExpectation: (v: string) => void;
+  attachment: string;
+  onAttachment: (v: string) => void;
+  placeholder: string;
+  hint: string;
+}) {
+  const [open, setOpen] = useState(!!(expectation || attachment));
+  if (!open)
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 self-start rounded-md text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+        <MdAdd size={16} aria-hidden /> Add notes or a link for the Independent
+      </button>
+    );
+  return (
+    <>
+      <label className="flex flex-col gap-2">
+        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Notes (Optional)</span>
+        <Textarea autoFocus={!expectation && !attachment} value={expectation} maxLength={500} onChange={(e) => onExpectation(e.target.value)} placeholder={placeholder} className="!h-[96px] resize-none" />
+        <span className="flex justify-end text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{expectation.length} / 500</span>
+      </label>
+      <label className="flex flex-col gap-2">
+        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments (Optional)</span>
+        <Input value={attachment} onChange={(e) => onAttachment(e.target.value)} placeholder="Add a link to a Loom, Google Doc, YouTube video, or anything that helps." />
+        <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{hint}</span>
+      </label>
+    </>
+  );
+}
+
 function SkillChips({ skills, onRemove }: { skills: string[]; onRemove?: (skill: string) => void }) {
   if (skills.length === 0) return onRemove ? null : <span className="text-[14px] text-ink-2">No skills added.</span>;
   return (
@@ -923,20 +1073,18 @@ function BenefitsEditor({ value, onChange }: { value: Record<string, string>; on
         const on = b in value;
         return (
           <div key={b} className="flex w-[533px] items-center gap-4">
-            <label className="flex flex-1 items-center gap-3 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
-              <input
-                type="checkbox"
-                checked={on}
-                onChange={() => {
-                  const next = { ...value };
-                  if (on) delete next[b];
-                  else next[b] = "";
-                  onChange(next);
-                }}
-                className="size-5 shrink-0 accent-primary"
-              />
+            <Checkbox
+              checked={on}
+              onChange={() => {
+                const next = { ...value };
+                if (on) delete next[b];
+                else next[b] = "";
+                onChange(next);
+              }}
+              className="flex-1"
+            >
               {b}
-            </label>
+            </Checkbox>
             <Money label="" value={value[b] ?? ""} onChange={(v) => onChange({ ...value, [b]: v })} disabled={!on} />
             <span className="flex h-12 w-[51px] items-center text-[14px] leading-[1.5] tracking-[0.2px] text-ink-2">/month</span>
           </div>

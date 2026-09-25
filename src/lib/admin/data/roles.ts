@@ -31,7 +31,7 @@ const genericChecks = (checked: string): Check[] => [
   pass("Budget within platform range", checked),
   pass("Description screened for restricted terms", checked),
   pass("Company profile complete", checked),
-  pass("Trial expectations present", checked),
+  pass("Trial tasks present", checked),
 ];
 
 export const roles: Role[] = [
@@ -60,7 +60,7 @@ export const roles: Role[] = [
         pass: false,
         checked: "25 Aug 2026",
       },
-      pass("Trial expectations present"),
+      pass("Trial tasks present"),
     ],
   },
   {
@@ -106,7 +106,7 @@ export const roles: Role[] = [
         checked: "18 Aug 2026",
       },
       pass("Company profile complete", "18 Aug 2026"),
-      pass("Trial expectations present", "18 Aug 2026"),
+      pass("Trial tasks present", "18 Aug 2026"),
     ],
   },
   {

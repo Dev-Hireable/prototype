@@ -56,7 +56,7 @@ export default function SignUp() {
       footer={<AuthLink prompt="Already have an account?" linkText="Login" href="/login" />}
     >
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-4 [@media(max-height:760px)]:gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           createAccount();

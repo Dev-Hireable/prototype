@@ -9,7 +9,7 @@ import { useDemo } from "@/lib/team/store";
 /**
  * TB-017 / TB-023 — "Invite to apply", shared by Discover and Saved Independents so the saved
  * list can invite without sending the Team Builder back to Discover first. Picking the job post
- * is the point of the modal: the trial expectations on that post are what get unlocked for the
+ * is the point of the modal: the trial tasks on that post are what get unlocked for the
  * Independent when the invite lands.
  */
 export function InviteModal({ target, onClose, onSent }: { target: Independent | null; onClose: () => void; onSent: (name: string) => void }) {

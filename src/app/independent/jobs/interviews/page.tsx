@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, LinkButton, Modal, Page, Pills, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, LinkButton, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { canJoin } from "@/components/portal/DatePicker";
 import { Row, Table } from "@/components/team/ui";
 import type { Interview } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 import { useQueryState } from "@/lib/portal/query-state";
+import { ROW_LINK } from "@/components/portal/toolbar";
+import { ViewSwitch } from "@/components/portal/ViewSwitch";
 import { useWithReturn } from "@/components/portal/return";
 
 const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" | "neutral" | "danger" }> = {
@@ -24,7 +26,7 @@ const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" |
  * other portal list (it was a hand-rolled one without column rules). Date and time take two lines,
  * as on the Team Builder's side, so a long slot can't run into Format.
  */
-const COLS = ["min-w-[220px] flex-1", "w-[200px]", "w-[170px]", "w-[120px]", "w-[140px]", "w-[200px]"];
+const COLS = ["min-w-[220px] flex-1", "w-[180px]", "w-[150px]", "w-[120px]", "w-[130px]", "w-[200px]"];
 
 /** Figma "Interviews / My interviews · list": pill tabs, table (header #f2f2f2, px 16 / py 12), 12px footnote. */
 export default function Interviews() {
@@ -40,22 +42,27 @@ export default function Interviews() {
 
   return (
     <Page title="Interviews">
-      <Pills
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: "upcoming", label: `Upcoming (${upcoming.length})` },
-          { value: "past", label: `Past (${past.length})` },
-        ]}
-      />
+      {/* The same 36px switch as every list's toolbar. */}
+      <div className="flex items-center gap-2" role="toolbar" aria-label="Interviews">
+        <ViewSwitch
+          label="Show"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: "upcoming", label: `Upcoming (${upcoming.length})`, icon: "schedule" },
+            { value: "past", label: `Past (${past.length})`, icon: "history" },
+          ]}
+        />
+      </div>
       <Table cols={COLS} head={["Role", "Company", "Date and time", "Format", "Status", "Actions"]}>
         {rows.map((iv) => {
           const [date, time] = iv.when.split(", ");
           const joinable = iv.status === "accepted" && !!iv.link && canJoin(iv.when);
           return (
-            <Row key={iv.id}>
-              <span className={`${COLS[0]} truncate`}>
-                <Link href={withReturn(iv.roleHref)} className="text-[14px] font-medium text-primary hover:underline">
+            // The whole row opens the application; the buttons stay their own.
+            <Row key={iv.id} className="relative">
+              <span className={`${COLS[0]} !whitespace-normal`}>
+                <Link href={withReturn(iv.roleHref)} className={`line-clamp-2 text-[14px] leading-[1.35] font-semibold text-ink ${ROW_LINK}`}>
                   {iv.role}
                 </Link>
               </span>
@@ -68,7 +75,7 @@ export default function Interviews() {
               <span className={COLS[4]}>
                 <StatusDot tone={STATUS[iv.status].tone}>{STATUS[iv.status].label}</StatusDot>
               </span>
-              <span className={`${COLS[5]} flex gap-2`}>
+              <span className={`${COLS[5]} relative z-10 flex gap-2`}>
                 {iv.past ? (
                   // Over — declined, cancelled or held — so what is left is the application itself.
                   <LinkButton size="sm" href={withReturn(iv.roleHref)}>
@@ -99,7 +106,7 @@ export default function Interviews() {
                         Join call
                       </Button>
                     )}
-                    <Button size="sm" onClick={() => setDeclining(iv)}>
+                    <Button size="sm" variant="danger" onClick={() => setDeclining(iv)}>
                       Decline
                     </Button>
                   </>

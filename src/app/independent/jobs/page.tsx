@@ -16,7 +16,7 @@ const NO_SKILL = "Select skills";
  * Intermediate and Advanced ticked while everything was shown, so pressing Apply without touching
  * anything suddenly hid every Beginner and Expert role.
  */
-const DEFAULT = { trial: true, fullTime: true, levels: new Set(EXPERIENCE_LEVELS), min: "", max: "", skill: NO_SKILL };
+const DEFAULT = { trial: true, fullTime: true, partTime: true, levels: new Set(EXPERIENCE_LEVELS), min: "", max: "", skill: NO_SKILL };
 
 /** "$3,000 – $4,500 /month" → [3000, 4500]; a single figure is both ends. */
 function rateRange(rate: string): [number, number] {
@@ -42,6 +42,7 @@ export default function Discover() {
     if (q && !text.includes(q.toLowerCase())) return false;
     if (r.type === "trial" && !applied.trial) return false;
     if (r.type === "full-time" && !applied.fullTime) return false;
+    if (r.type === "part-time" && !applied.partTime) return false;
     if (!applied.levels.has(r.level)) return false;
     if (applied.skill !== NO_SKILL && !r.skills.includes(applied.skill)) return false;
     // Keep roles whose pay band overlaps the one asked for. The rate used to have every digit
@@ -55,6 +56,7 @@ export default function Discover() {
   const activeCount =
     (applied.trial ? 0 : 1) +
     (applied.fullTime ? 0 : 1) +
+    (applied.partTime ? 0 : 1) +
     (applied.levels.size < EXPERIENCE_LEVELS.length ? 1 : 0) +
     (applied.skill !== NO_SKILL ? 1 : 0) +
     (applied.min ? 1 : 0) +
@@ -116,6 +118,7 @@ export default function Discover() {
               <legend className="mb-2 text-[14px] leading-[1.4] font-medium text-ink">Role type</legend>
               <Checkbox checked={draft.trial} onChange={(value) => setDraft((d) => ({ ...d, trial: value }))}>Trial</Checkbox>
               <Checkbox checked={draft.fullTime} onChange={(value) => setDraft((d) => ({ ...d, fullTime: value }))}>Full-time</Checkbox>
+              <Checkbox checked={draft.partTime} onChange={(value) => setDraft((d) => ({ ...d, partTime: value }))}>Part-time</Checkbox>
             </fieldset>
           }
           levels={EXPERIENCE_LEVELS}

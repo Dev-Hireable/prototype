@@ -34,7 +34,9 @@ export const SECTIONS: Section[] = [
     label: "Disputes",
     title: "Disputes",
     icon: "disputes",
-    menu: [{ href: "/admin/disputes", label: "All disputes", icon: "disputes" }],
+    // A contract's work is opened from a dispute (AD-050), so it reads as part of this section.
+    match: ["/admin/contracts"],
+    menu: [{ href: "/admin/disputes", label: "All disputes", icon: "disputes", match: ["/admin/contracts"] }],
   },
   {
     href: "/admin/subscriptions",

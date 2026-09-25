@@ -3,14 +3,15 @@
 import Image from "next/image";
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { Button, Card, Checkbox, Field, InfoBanner, LinkButton, Modal, ObjectiveRow, Page, Textarea } from "@/components/independent/ui";
+import { Button, Card, Checkbox, Field, InfoBanner, LinkButton, Modal, Page, Textarea } from "@/components/independent/ui";
 import { formatDate, fromISODate } from "@/components/portal/DatePicker";
-import { kindIndex } from "@/components/team/ObjectiveViews";
+import { TaskPlanList } from "@/components/portal/tasks/TaskPlan";
 import { durationDays, parseDay, trialMonths } from "@/lib/demo/dates";
 import { useDeal } from "@/lib/demo/deal";
 import { rateAmount, usd } from "@/lib/demo/disputes";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { PAIR } from "@/lib/demo/live";
-import { AGREEMENT } from "@/lib/independent/data";
+import { agreementFor } from "@/lib/independent/data";
 import { useJobView } from "@/lib/independent/job-view";
 import { useDemo } from "@/lib/independent/store";
 
@@ -59,22 +60,33 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
   const declined = sent.status === "declined";
   const withdrawn = sent.status === "withdrawn";
   const updated = !!sent.updated && sent.status === "sent";
+  const trial = sent.type === "trial";
   const months = trialMonths(durationDays(job.duration));
   /** The whole trial is paid from the escrow funded with the offer. */
   const total = sent.deposit?.escrow ?? rateAmount(sent.rate) * months;
   const expires = expiryOf(sent.updated ?? sent.sent);
   const signed = name.trim().length > 2 && agree;
 
-  const rows: [string, string][] = [
-    ["Role", job.title],
-    ["Contract type", job.contract],
-    ["Duration", job.duration],
-    ["Start date", pretty(sent.start)],
-    ["End date", pretty(sent.end)],
-    ["Rate", `${sent.rate}`],
-    ["Payment", "Held in escrow, released at the end of the trial"],
-    ["Total payment at end of trial", usd(total)],
-  ];
+  /** The terms for the kind of role it is: a trial's dates and escrow, or an ongoing role's pay. */
+  const rows: [string, string][] = trial
+    ? [
+        ["Role", job.title],
+        ["Contract type", "Trial"],
+        ["Duration", job.duration],
+        ["Start date", pretty(sent.start)],
+        ["End date", pretty(sent.end ?? "")],
+        ["Rate", sent.rate],
+        ["Payment", "Held in escrow, released at the end of the trial"],
+        ["Total payment at end of trial", usd(total)],
+      ]
+    : [
+        ["Role", job.title],
+        ["Contract type", JOB_TYPE_LABEL[sent.type]],
+        ["Start date", pretty(sent.start)],
+        [sent.type === "full-time" ? "Salary" : "Rate", sent.rate],
+        ...(sent.type === "part-time" ? ([["Hours", hoursLabel(sent.hours)]] as [string, string][]) : ([["Exclusive benefits", sent.benefits?.length ? sent.benefits.join(", ") : "None"]] as [string, string][])),
+        ["Payment", "Monthly, at the end of each month"],
+      ];
 
   return (
     <Page title="Offer" heading="modal" onClose={() => router.push(back)} padded={false}>
@@ -108,22 +120,23 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
               </dl>
             </div>
             <Divider />
-            <div className="flex flex-col gap-6 px-6 pb-6">
-              <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Objectives</h3>
-              <div className="flex flex-col gap-2">
-                {sent.objectives.map((ob) => (
-                  <ObjectiveRow key={ob.id} index={kindIndex(ob.kind)}>
-                    {ob.title}
-                  </ObjectiveRow>
-                ))}
+            <div className="flex flex-col gap-4 px-6 pb-6">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Tasks</h3>
+                {sent.tasks.length > 0 && (
+                  <p className="text-[13px] leading-[1.4] text-ink-2">
+                    {from} set these. {trial ? "The trial's" : "The contract's"} shared task list starts from them when you sign, each due week counted from the start date.
+                  </p>
+                )}
               </div>
+              <TaskPlanList tasks={sent.tasks} start={sent.start} lastDay={trial ? sent.end : undefined} empty={`No tasks yet — ${from} adds them once you start.`} />
             </div>
             <Divider />
             <div className="flex flex-col gap-6 px-6 pb-6">
               <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Services Agreement</h3>
               <div className="flex h-[320px] flex-col gap-6 overflow-y-auto rounded-lg bg-surface-2 px-4 pt-4 outline -outline-offset-1 outline-border">
                 <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Services Agreement</p>
-                <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{AGREEMENT}</p>
+                <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{agreementFor(sent.type)}</p>
               </div>
             </div>
           </Card>
@@ -187,7 +200,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
                   >
                     Accept
                   </Button>
-                  <Button size="lg" onClick={() => setDeclining(true)}>
+                  <Button size="lg" variant="danger" onClick={() => setDeclining(true)}>
                     Decline
                   </Button>
                 </>
@@ -201,7 +214,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
         open={justAccepted}
         onClose={() => router.push(back)}
         title="You’ve accepted the offer"
-        description={`${from} has been notified. The ${usd(total)} escrow they funded is held for the trial, and the contract and its tracker are under Contracts.`}
+        description={trial ? `${from} has been notified. The ${usd(total)} escrow they funded is held for the trial, and the contract and its task list are under Contracts.` : `${from} has been notified. Your ${JOB_TYPE_LABEL[sent.type].toLowerCase()} contract starts ${pretty(sent.start)}, and it and its task list are under Contracts.`}
         footer={
           <Button size="lg" variant="primary" onClick={() => router.push(`/independent/contracts/${app.roleSlug}`)}>
             Open contract

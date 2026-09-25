@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { AdminPage, Badge, DataTable, SearchInput, Select, StatCard, StatGrid, Toolbar } from "@/components/admin/ui";
-import { ageOf, contractName, dateOf, daysOpen, DISPUTE_REASONS, DISPUTE_STATUSES, holds, otherParty, partyName, SLA_DAYS, STATUS_TONE, unseenByAdmin, usd, useDisputes } from "@/lib/demo/disputes";
+import { ageOf, contractName, dateOf, daysOpen, DISPUTE_REASONS, DISPUTE_STATUSES, holds, leftLabel, otherParty, partyName, partyTurn, SLA_DAYS, STATUS_TONE, unseenByAdmin, usd, useDisputes, waitingOn } from "@/lib/demo/disputes";
+import { useNow } from "@/lib/portal/use-now";
 import type { Dispute } from "@/lib/demo/disputes";
 
 /**
@@ -16,6 +17,15 @@ export default function AllDisputes() {
   const [status, setStatus] = useState("All statuses");
   const [reason, setReason] = useState("All reasons");
   const unseen = new Set(unseenByAdmin(all).map((d) => d.id));
+  const now = useNow();
+  /** Whose move it is: support's own queue first, then who each other case waits on. */
+  const waiting = (d: Dispute) => {
+    const w = waitingOn(d);
+    const t = partyTurn(d);
+    if (!w) return "—";
+    if (w === "support") return "Support";
+    return `${partyName(d, w)} · ${t ? leftLabel(t.due, now).toLowerCase() : ""}`;
+  };
 
   const rows = [...all]
     .sort((a, b) => b.at - a.at)
@@ -30,7 +40,7 @@ export default function AllDisputes() {
   return (
     <AdminPage title="All disputes">
       <StatGrid>
-        <StatCard label="Pending review" value={String(pending.length)} sub={`SLA ${SLA_DAYS} days`} />
+        <StatCard label="Waiting on support" value={String(pending.filter((d) => waitingOn(d) === "support").length)} sub={`of ${pending.length} open · SLA ${SLA_DAYS} days`} />
         <StatCard label="Past SLA" value={String(pending.filter((d) => daysOpen(d) > SLA_DAYS).length)} sub="pending longer than 5 days" />
         <StatCard label="Awaiting release" value={String(all.filter((d) => d.resolution?.payment === "awaiting release").length)} sub="ruled for the independent" />
         <StatCard label="Held in escrow" value={usd(all.filter(holds).reduce((n, d) => n + d.amount, 0))} sub="across open disputes" />
@@ -58,12 +68,13 @@ export default function AllDisputes() {
             ),
             width: "24%",
           },
-          { header: "Date filed", cell: (d) => dateOf(d.at), width: "11%" },
-          { header: "Filed by", cell: (d) => partyName(d, d.filedBy), width: "15%" },
-          { header: "Against", cell: (d) => partyName(d, otherParty(d.filedBy)), width: "15%" },
-          { header: "Amount", cell: (d) => usd(d.amount), width: "10%" },
-          { header: "Age", cell: (d) => ageOf(d), width: "9%" },
-          { header: "Status", cell: (d) => <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>, width: "16%" },
+          { header: "Date filed", cell: (d) => dateOf(d.at), width: "10%" },
+          { header: "Filed by", cell: (d) => partyName(d, d.filedBy), width: "13%" },
+          { header: "Against", cell: (d) => partyName(d, otherParty(d.filedBy)), width: "13%" },
+          { header: "Amount", cell: (d) => usd(d.amount), width: "9%" },
+          { header: "Waiting on", cell: (d) => waiting(d), width: "15%" },
+          { header: "Age", cell: (d) => ageOf(d), width: "7%" },
+          { header: "Status", cell: (d) => <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>, width: "12%" },
         ]}
       />
     </AdminPage>

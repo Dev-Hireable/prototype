@@ -5,10 +5,15 @@ import Link from "next/link";
 import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ICONS, type IconName } from "@/components/admin/icons";
+import { Badge } from "@/components/portal/Badge";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
-import { CLEAR_DEMO_RESET, FORM_CONTROL } from "@/components/portal/styles";
+import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON } from "@/components/portal/styles";
+import { Checkbox as CheckboxControl } from "@/components/ui/checkbox";
+import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import type { JobType } from "@/lib/demo/job-types";
 
 export { KebabMenu, MenuAction, MenuLink, Select } from "@/components/portal/controls";
 export type { SelectProps } from "@/components/portal/controls";
@@ -25,6 +30,7 @@ export function Page({
   navActions,
   children,
   padded = true,
+  fill = false,
   heading = "display",
 }: {
   title: ReactNode;
@@ -37,16 +43,27 @@ export function Page({
   navActions?: ReactNode;
   children: ReactNode;
   padded?: boolean;
+  /**
+   * The content takes the rest of the panel as a plain flex column and does its own scrolling —
+   * no page scroller and no edge fade, whose mask would fade a workspace's sticky headers.
+   */
+  fill?: boolean;
   /** One header strip for every page: 24 DM Sans by default; "modal" is the 20 Inter close-button variant (offer / edit screens). */
   heading?: "modal" | "display";
 }) {
   const Close = ICONS.close;
+  /**
+   * The page's one side gutter: the title, the tabs, the back link and the content all start on
+   * the same line — the 40px the content has always used. A filled page (a workspace) tightens it
+   * to 16px on a phone.
+   */
+  const inset = fill ? "pl-10 max-sm:pl-4" : "pl-10";
   return (
     <>
       <header className="shrink-0 shadow-[inset_0_-1px_0_#c3c3c3]">
         {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it.
             It ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
-        <div className={`flex h-14 items-center justify-between gap-3 pl-4 ${CLEAR_DEMO_RESET}`}>
+        <div className={`flex h-14 items-center justify-between gap-3 ${inset} ${CLEAR_DEMO_RESET}`}>
           <h1
             className={`flex items-center gap-2 text-ink ${
               heading === "display"
@@ -59,13 +76,13 @@ export function Page({
             {badge}
           </h1>
           {onClose && (
-            <button type="button" onClick={onClose} aria-label="Close" className="text-ink">
+            <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -mr-1.5 size-10`}>
               <Close size={24} aria-hidden />
             </button>
           )}
         </div>
         {/* No bottom padding: the active tab's 2px underline has to sit on the header's own rule, not float above it. */}
-        {tabs && <div>{tabs}</div>}
+        {tabs && <div className={`${inset} pr-10`}>{tabs}</div>}
       </header>
       {/* One place for every back link and breadcrumb: pinned under the header, in the 40px page
           gutter, outside the centred content column — so it sits at the same spot on every page,
@@ -73,7 +90,7 @@ export function Page({
           each layout's own column, so it moved between pages (and the wizard drew its own). Pages
           whose back link only sometimes appears still pass `nav`, so the row is always reserved. */}
       {nav && (
-        <div className="shrink-0 px-10 pt-4">
+        <div className={`shrink-0 px-10 pt-4 ${fill ? "max-sm:px-4" : ""}`}>
           <PageNav actions={navActions}>{nav}</PageNav>
         </div>
       )}
@@ -87,15 +104,21 @@ export function Page({
           gutter, so every portal page sits the same distance from the shell. `padded={false}` pages
           set their own (wizards, the kanban, the dashboards). Under a nav row the top gutter
           shrinks: the row already spaces it. */}
-      <div className={`flex min-h-0 flex-1 ${padded ? (nav ? "pt-4" : "pt-10") : ""}`}>
-        <ScrollFade className="flex w-full min-w-0">
-          {/* Full-bleed pages get a flex column, so a full-height child (the kanban boards) grows into
-              the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
-              gutter plus the column's own 8px, as before; `min-h-full` counts it (border-box), so a
-              page that fits doesn't gain any scroll. */}
-          <div className={`edge-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
-        </ScrollFade>
-      </div>
+      {/* A filled page's content lines up with the nav row: --ws-gutter is the side gutter a
+          workspace pads its toolbar and views with — the same 40px, or 16px on a phone. */}
+      {fill ? (
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col [--ws-gutter:2.5rem] max-sm:[--ws-gutter:1rem] ${nav ? "pt-3" : ""}`}>{children}</div>
+      ) : (
+        <div className={`flex min-h-0 flex-1 ${padded ? (nav ? "pt-4" : "pt-10") : ""}`}>
+          <ScrollFade className="flex w-full min-w-0">
+            {/* Full-bleed pages get a flex column, so a full-height child (the kanban boards) grows into
+                the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
+                gutter plus the column's own 8px, as before; `min-h-full` counts it (border-box), so a
+                page that fits doesn't gain any scroll. */}
+            <div className={`edge-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
+          </ScrollFade>
+        </div>
+      )}
     </>
   );
 }
@@ -105,12 +128,16 @@ export function Page({
 
 /* ------------------------------------------------------------- buttons ---- */
 
+/** `danger` is the one destructive button — the standard solid red, white text — on the button that
+ *  opens a confirm (Remove, Decline, Drop, End contract) and on the confirm itself. There was a red
+ *  outline variant for the first; the user wanted the plain standard red everywhere instead. */
 type Variant = "primary" | "secondary" | "danger" | "ghost" | "dark";
 
 const BTN: Record<Variant, string> = {
   primary: "bg-primary text-white hover:brightness-110 disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]",
   secondary: "border border-border bg-white text-ink hover:bg-surface-alt disabled:border-transparent disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]",
-  danger: "bg-danger text-white hover:brightness-110",
+  // Disabled reads grey like every other disabled button, not a faded red.
+  danger: "bg-danger text-white hover:bg-danger-hover disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]",
   ghost: "text-ink hover:bg-surface-alt",
   dark: "bg-ink text-white",
 };
@@ -193,6 +220,17 @@ export function LinkButton({
   );
 }
 
+/** Every "Message …" action: the conversation icon plus the label, never a bare text button. */
+export function MessageButton({ href, children = "Message", size = "md", className = "" }: { href: string; children?: ReactNode; size?: "sm" | "md" | "lg" | "xl"; className?: string }) {
+  const Chat = ICONS.messages;
+  return (
+    <LinkButton href={href} size={size} className={className}>
+      <Chat size={size === "sm" ? 16 : 18} aria-hidden />
+      {children}
+    </LinkButton>
+  );
+}
+
 export function IconButton({ icon, label, onClick, active, size = 16, className = "" }: { icon: IconName; label: string; onClick?: () => void; active?: boolean; size?: number; className?: string }) {
   const I = ICONS[icon];
   return (
@@ -249,29 +287,31 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
   );
 }
 
-export function InfoBanner({ children, tone = "info" }: { children: ReactNode; tone?: "info" | "warn" }) {
+/**
+ * An inline note, as wide as what it says (up to its column) — full width left a one-line note
+ * trailing a band of empty colour. A strip across the top of a panel passes its own className
+ * (no rounding, no w-fit) and spans the panel.
+ */
+export function InfoBanner({ children, tone = "info", className = "w-fit max-w-full rounded-lg" }: { children: ReactNode; tone?: "info" | "warn"; className?: string }) {
   const I = tone === "info" ? ICONS.info : ICONS.warning;
   return (
-    <div className={`flex items-start gap-4 rounded-lg p-4 text-[14px] leading-[1.2] tracking-[0.2px] ${tone === "info" ? "bg-[#ccedff] text-[#003049]" : "bg-[#fff3cc] text-[#8e6f12]"}`}>
+    <div className={`flex items-start gap-4 p-4 text-[14px] leading-[1.2] tracking-[0.2px] ${tone === "info" ? "bg-[#ccedff] text-[#003049]" : "bg-[#fff3cc] text-[#8e6f12]"} ${className}`}>
       <I size={20} aria-hidden className="shrink-0" />
-      <span>{children}</span>
+      {/* The rest of the banner, so a strip's action can sit at its right end. A 20px line, the icon's
+          height, so the first line sits level with the icon rather than riding above its middle. */}
+      <span className="min-w-0 flex-1 leading-5 [overflow-wrap:anywhere]">{children}</span>
     </div>
   );
 }
 
 /* --------------------------------------------------------------- badges --- */
 
-export function JobBadge({ type }: { type: "trial" | "full-time" }) {
-  // Solid fills in the logo's own two colours, white text, as asked. Both are under the 4.5:1 AA
-  // minimum for text this size (orange 2.5:1, blue 2.7:1); dark ink on them would be 8:1 and 6:1.
+/** Trial orange, full-time blue, part-time magenta: solid, white text — the shared Badge. */
+export function JobBadge({ type }: { type: JobType }) {
   return (
-    <span
-      className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap uppercase ${
-        type === "trial" ? "bg-brand-orange text-white" : "bg-brand-blue text-white"
-      }`}
-    >
+    <Badge variant="solid" tone={type} caps>
       {type}
-    </span>
+    </Badge>
   );
 }
 
@@ -305,19 +345,11 @@ export function MatchPill({ pct, coded = false, title, size = "md" }: { pct: num
 }
 
 export type Tone = "ok" | "warn" | "danger" | "info" | "neutral" | "trial";
-const DOT: Record<Tone, string> = {
-  ok: "bg-[#eef9f2] text-ok",
-  warn: "bg-warn-bg text-warn",
-  danger: "bg-[#fcf2f2] text-danger",
-  info: "bg-[#ebf8fe] text-[#00a7f8]",
-  neutral: "bg-surface-2 text-ink-2",
-  trial: "bg-[#fff5ec] text-brand-orange",
-};
 
-/** A tinted status pill. It used to lead with a 6px dot in the same colour as the text and fill,
- *  which said nothing the pill didn't already — the name stays so the call sites don't change. */
+/** A tinted status pill — the shared Badge. It used to lead with a 6px dot, which said nothing the
+ *  pill didn't already; the name stays so the call sites don't change. */
 export function StatusDot({ tone, children }: { tone: Tone; children: ReactNode }) {
-  return <span className={`inline-flex h-6 items-center rounded px-2 text-[12px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${DOT[tone]}`}>{children}</span>;
+  return <Badge tone={tone}>{children}</Badge>;
 }
 
 export function Chip({ children, onRemove, size = "md" }: { children: ReactNode; onRemove?: () => void; size?: "sm" | "md" }) {
@@ -368,7 +400,8 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={`${FORM_CONTROL} ${props.className ?? ""}`} />;
 }
 
-export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+/** Takes a ref too (React 19 passes it as a prop), so a form can focus it. */
+export function Textarea(props: React.ComponentProps<"textarea">) {
   return <textarea {...props} className={`${FORM_CONTROL} h-auto min-h-16 py-[13.5px] ${props.className ?? ""}`} />;
 }
 
@@ -420,63 +453,61 @@ export function SearchBox({ value, onChange, placeholder, className = "" }: { va
   );
 }
 
-export function Checkbox({ checked, onChange, children, disabled }: { checked: boolean; onChange?: (v: boolean) => void; children?: ReactNode; disabled?: boolean }) {
-  const C = ICONS.check;
+/**
+ * The app's checkbox: shadcn's (Base UI) box, installed with the CLI into components/ui, inside a
+ * label so the text beside it toggles it too. Every checkbox in the portals is this one.
+ */
+export function Checkbox({ checked, onChange, children, disabled, className = "" }: { checked: boolean; onChange?: (v: boolean) => void; children?: ReactNode; disabled?: boolean; className?: string }) {
   return (
-    <label className={`inline-flex items-center gap-2.5 text-[14px] leading-[1.4] text-ink ${disabled ? "opacity-50" : "cursor-pointer"}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange?.(e.target.checked)} className="peer sr-only" />
-      <span
-        className={`flex size-4 items-center justify-center rounded-[3.2px] ${
-          checked ? "bg-primary text-white" : "border-[0.8px] border-border bg-white"
-        } peer-focus-visible:ring-2 peer-focus-visible:ring-primary/30`}
-        aria-hidden
-      >
-        {checked && <C size={13} />}
-      </span>
+    <label className={`inline-flex items-center gap-2.5 text-[14px] leading-[1.4] text-ink ${disabled ? "opacity-50" : "cursor-pointer"} ${className}`}>
+      <CheckboxControl checked={checked} disabled={disabled} onCheckedChange={(v) => onChange?.(v)} className="bg-white" />
       {children}
     </label>
   );
 }
 
-/** Rounded pill tabs — Figma "Upcoming (2) / Past (3)", "All / Unread / …" */
-export function Pills<T extends string>({ value, onChange, options }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[] }) {
+/**
+ * Rounded pill tabs — Figma "Upcoming (2) / Past (3)", "All / Unread / …", List / Board. One is
+ * always chosen: shadcn's ToggleGroup underneath (arrow keys move between them), drawn as pills.
+ */
+export function Pills<T extends string>({ value, onChange, options, "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[]; "aria-label"?: string }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <ToggleGroup value={[value]} onValueChange={(next) => next[0] && onChange(next[0] as T)} aria-label={ariaLabel} className="flex-wrap">
       {options.map((o) => (
-        <button
+        <ToggleGroupItem
           key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          aria-pressed={o.value === value}
-          className={`rounded-full px-3 py-1.5 text-[13px] leading-[1.4] font-medium transition ${o.value === value ? "bg-primary text-white" : "bg-surface-2 text-ink hover:bg-[#e5e5e5]"}`}
+          value={o.value}
+          className="h-auto gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-[13px] leading-[1.4] font-medium text-ink hover:bg-[#e5e5e5] aria-pressed:bg-primary aria-pressed:text-white aria-pressed:hover:bg-primary aria-pressed:hover:text-white"
         >
           {o.label}
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   );
 }
 
-/** Underlined tabs — "Dashboard | Evaluation", "Conversations | Applications" */
-export function Tabs<T extends string>({ value, onChange, options, className = "" }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; className?: string }) {
+/**
+ * Underlined tabs — "Dashboard | Evaluation", "Conversations | Applications". A real tablist
+ * (shadcn's Tabs, on Base UI): the arrow keys move between tabs and Enter or Space opens one, so
+ * moving focus alone never switches the page.
+ */
+export function Tabs<T extends string>({ value, onChange, options, className = "", "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; className?: string; "aria-label"?: string }) {
   return (
-    <div className={`flex gap-6 ${className}`}>
-      {options.map((o) => (
-        <button
-          key={o.value}
-          type="button"
-          onClick={() => onChange(o.value)}
-          aria-selected={o.value === value}
-          className={`flex h-9 items-center border-b-2 py-2 text-[14px] leading-[1.2] font-semibold tracking-[0.2px] ${
-            o.value === value ? "border-[#00a7f8] text-ink" : "border-transparent text-ink-2 hover:text-ink"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
+    <TabsRoot value={value} onValueChange={(v) => onChange(v as T)} className="gap-0">
+      <TabsList variant="line" activateOnFocus={false} aria-label={ariaLabel} className={`h-auto gap-6 rounded-none p-0 ${className}`}>
+        {options.map((o) => (
+          <TabsTrigger key={o.value} value={o.value} className={UNDERLINE_TAB}>
+            {o.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </TabsRoot>
   );
 }
+
+/** The look of an underlined tab on shadcn's TabsTrigger: 2px #00a7f8 rule under the open one. */
+export const UNDERLINE_TAB =
+  "h-9 flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-2 text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink-2 shadow-none after:hidden hover:text-ink focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-active:border-[#00a7f8] data-active:text-ink";
 
 export function Progress({ value, tone = "primary", label, className = "w-[220px]" }: { value: number; tone?: "primary" | "ok" | "warn" | "danger" | "muted"; label?: boolean; className?: string }) {
   const c = {
@@ -546,7 +577,7 @@ export function Modal({
         aria-modal="true"
         aria-labelledby={id}
         onClick={(e) => e.stopPropagation()}
-        className={`relative flex max-h-[90vh] w-full flex-col rounded-xl bg-white ${bare ? "overflow-hidden" : "gap-5 overflow-y-auto p-6"}`}
+        className={`ui-zoom relative flex max-h-[calc(90vh/var(--ui-scale))] w-full flex-col rounded-xl bg-white ${bare ? "overflow-hidden" : "gap-5 overflow-y-auto p-6"}`}
         style={{ maxWidth: width }}
       >
         {bare ? (
@@ -571,7 +602,7 @@ export function Modal({
             {description && <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">{description}</p>}
           </div>
           {(tone === "danger" || closeButton) && (
-            <button type="button" onClick={onClose} aria-label="Close" className="text-ink-2 hover:text-ink">
+            <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
               <X size={16} aria-hidden />
             </button>
           )}
@@ -588,20 +619,59 @@ export function Modal({
 
 /* ---------------------------------------------------------------- toast --- */
 
-export function Toast({ message, onClose }: { message: string | null; onClose: () => void }) {
-  const C = ICONS.checkCircle;
+const TOAST_TONE = {
+  success: { bg: "bg-[#e4f5ea]", icon: ICONS.checkCircle, ink: "text-ok" },
+  danger: { bg: "bg-[#fcf2f2]", icon: ICONS.warning, ink: "text-danger" },
+  info: { bg: "bg-[#ebf8fe]", icon: ICONS.info, ink: "text-primary" },
+} as const;
+
+/**
+ * A short confirmation in the corner. `danger` explains something that didn't work and is
+ * announced at once (role="alert"); `action` offers the one thing to do about it — Undo, Retry,
+ * Use mine — and keeps the toast up longer so there's time to click it. While the pointer is on it or
+ * it has focus, the countdown waits (WCAG 2.2.1): reaching for Undo never loses it.
+ */
+export function Toast({
+  message,
+  onClose,
+  tone = "success",
+  action,
+}: {
+  message: string | null;
+  onClose: () => void;
+  tone?: "success" | "danger" | "info";
+  action?: { label: string; onClick: () => void };
+}) {
+  const t = TOAST_TONE[tone];
   const X = ICONS.close;
+  const lasts = action || tone === "danger" ? 8000 : 3500;
+  /** Held while it's hovered or focused; the countdown starts again from the top once it's let go. */
+  const [held, setHeld] = useState(false);
   useEffect(() => {
-    if (!message) return;
-    const t = setTimeout(onClose, 3500);
-    return () => clearTimeout(t);
-  }, [message, onClose]);
+    if (!message || held) return;
+    const timer = setTimeout(onClose, lasts);
+    return () => clearTimeout(timer);
+  }, [message, onClose, lasts, held]);
   if (!message) return null;
   return createPortal(
-    <div role="status" className="fixed top-5 right-5 z-50 flex items-center gap-3 rounded-lg bg-[#e4f5ea] px-4 py-3 text-[14px] text-ink shadow-[0_8px_24px_rgba(0,0,0,.12)]">
-      <C size={20} aria-hidden className="text-ok" />
-      {message}
-      <button type="button" onClick={onClose} aria-label="Dismiss" className="ml-2 text-ink-2">
+    // aria-live spelled out, not just implied by the role: a modal (an item's sheet, say) hides
+    // the rest of the page from screen readers, except live regions it can find by that attribute.
+    <div onPointerEnter={() => setHeld(true)} onPointerLeave={() => setHeld(false)} onFocus={() => setHeld(true)} onBlur={() => setHeld(false)} role={tone === "danger" ? "alert" : "status"} aria-live={tone === "danger" ? "assertive" : "polite"} className={`ui-zoom fixed top-5 right-5 z-[70] flex max-w-[min(480px,calc(100vw-40px))] items-center gap-3 rounded-lg ${t.bg} px-4 py-3 text-[14px] leading-[1.4] text-ink shadow-[0_8px_24px_rgba(0,0,0,.12)]`}>
+      <t.icon size={20} aria-hidden className={`shrink-0 ${t.ink}`} />
+      <span className="min-w-0">{message}</span>
+      {action && (
+        <button
+          type="button"
+          onClick={() => {
+            action.onClick();
+            onClose();
+          }}
+          className="shrink-0 rounded-md px-2 py-1 text-[14px] font-semibold text-primary hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          {action.label}
+        </button>
+      )}
+      <button type="button" onClick={onClose} aria-label="Dismiss" className={`${ICON_BUTTON} -my-1 -mr-1.5 ml-0.5 size-7`}>
         <X size={16} aria-hidden />
       </button>
     </div>,
@@ -612,32 +682,6 @@ export function Toast({ message, onClose }: { message: string | null; onClose: (
 /** One-liner for pages: `const [toast, setToast] = useToast();` */
 export function useToast(): [string | null, (m: string | null) => void] {
   return useState<string | null>(null);
-}
-
-/* ------------------------------------------------------------ objectives --- */
-
-const OBJ_STYLE = [
-  { bg: "bg-[#ebf8fe]", fg: "text-primary", icon: "notes" as IconName },
-  {
-    bg: "bg-[#ffe5f6]",
-    fg: "text-brand-magenta",
-    icon: "marketing" as IconName,
-  },
-  { bg: "bg-[#ffe8d1]", fg: "text-brand-orange", icon: "target" as IconName },
-];
-
-export function ObjectiveRow({ index, children, right }: { index: number; children: ReactNode; right?: ReactNode }) {
-  const s = OBJ_STYLE[index % 3];
-  const I = ICONS[s.icon];
-  return (
-    <div className="flex items-center gap-2 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border">
-      <span className={`flex size-6 shrink-0 items-center justify-center rounded-[4.8px] ${s.bg} ${s.fg}`}>
-        <I size={14} aria-hidden />
-      </span>
-      <span className="flex-1 text-[16px] leading-[1.5] tracking-[0.2px] text-ink">{children}</span>
-      {right}
-    </div>
-  );
 }
 
 /* ------------------------------------------------------------- stepper ---- */

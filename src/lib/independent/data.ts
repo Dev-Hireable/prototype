@@ -1,9 +1,10 @@
 /** Seed content transcribed from the "[DRAFT] Independent Portal" Figma canvas. */
 
 import type { Stage } from "@/components/independent/ui";
-/** The Off Track rule and the objective-type wording are the same spec on both sides of a trial. */
-import { isOffTrack } from "@/lib/team/data";
-import type { DealEvaluation, DealKeyResult, ObjectiveComment, Posting } from "@/lib/demo/deal";
+import type { DealEvaluation, Posting } from "@/lib/demo/deal";
+import type { JobType } from "@/lib/demo/job-types";
+import type { Task } from "@/lib/demo/tasks";
+import type { FitScore } from "@/lib/team/data";
 
 /** `intro` is the intro-video still Team Builders see on the profile — the same file as on their side. */
 export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Sales Manager", avatar: "/independent/avatar.jpg", intro: "/team/intro-juan.jpg" };
@@ -26,7 +27,9 @@ export type Role = {
   title: string;
   company: string;
   initials: string;
-  type: "trial" | "full-time";
+  type: JobType;
+  /** A part-time role's hours a week. */
+  hours?: number;
   match: number;
   location: string;
   rate: string;
@@ -38,9 +41,8 @@ export type Role = {
   blurb: string;
   skills: string[];
   description: string[];
-  objectives: string[];
   about: { blurb: string; location: string; industry: string; size: string };
-  /** "30 Days" for a trial; the start timing for a full-time role. */
+  /** "30 Days" for a trial; the start timing for a full-time or part-time role. */
   duration: string;
   hires: number;
   /** Every seat is taken — shown, but closed to applications. */
@@ -56,6 +58,7 @@ export function roleFromPosting(p: Posting): Role {
     company: p.company,
     initials: p.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase(),
     type: p.type,
+    hours: p.hours,
     match: DEMO_MATCH,
     location: p.location,
     rate: p.rate,
@@ -67,7 +70,6 @@ export function roleFromPosting(p: Posting): Role {
     blurb: p.description[0] ?? "",
     skills: p.skills,
     description: p.description,
-    objectives: p.objectives,
     about: { blurb: p.companyBlurb, location: p.location, industry: p.industry, size: p.size },
     duration: p.duration ?? "30 Days",
     hires: p.hires ?? 1,
@@ -106,7 +108,7 @@ export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string;
   { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", text: "#1d6f3f", count: "#c6ffd2" },
 ];
 
-/** The template's opening and disclaimer — the same on a trial and a full-time agreement. */
+/** The template's opening and disclaimer — the same on every agreement. */
 const AGREEMENT_PREAMBLE = `USE OF THIS TEMPLATE IS OPTIONAL. HIREABLE OFFERS THE PARTIES THE OPTION TO UPLOAD THEIR OWN TERMS INSTEAD OF USING THIS TEMPLATE.
 
 Important Disclaimer: This is a form provided on an "as is" basis without representation or warranty of any kind as to its contents. Hireable, its employees, independent contractors or lawyers are not providing you with legal advice and any use of the form is at your own risk. This form is intended to be an example of a services agreement for the Philippines, to be used as an information tool and should not be viewed as a substitute for legal advice.`;
@@ -123,7 +125,7 @@ ${AGREEMENT_PREAMBLE}
 
 3. Term. This agreement runs from the start date to the end date shown in the Offer Details unless ended earlier under section 6.
 
-4. Objectives. The parties agree the trial objectives listed above. Progress is logged in the trial tracker and reviewed by the hiring manager.
+4. Tasks. The parties agree the trial tasks listed above. They are tracked on a shared task list, and the hiring manager reviews each one as it is completed.
 
 5. Disputes. Either party may raise a payment dispute through Hireable. Hireable reviews process compliance, not work quality.
 
@@ -145,11 +147,33 @@ ${AGREEMENT_PREAMBLE}
 
 3. Term. This agreement starts on the start date shown in the Offer Details and continues until either party ends it under section 6.
 
-4. Objectives. The hiring manager assigns objectives as the work goes on. Progress is logged in the tracker and reviewed quarterly, with evaluations along the way.
+4. Tasks. Work is tracked on a shared task list that either party can add to. The hiring manager reviews each task as it is completed, with evaluations along the way.
 
 5. Disputes. Either party may raise a payment dispute through Hireable. Hireable reviews process compliance, not work quality.
 
 6. Termination. Either party may end the engagement with 30 days' written notice through the platform. Salary is paid pro rata up to the last working day.`;
+
+/** What a part-time offer is signed against: a monthly rate for the hours a week agreed, no benefits. */
+export const PARTTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
+
+PART-TIME ENGAGEMENT - SAMPLE DATA
+
+${AGREEMENT_PREAMBLE}
+
+1. Services. The Independent agrees to perform the services described in the Offer Details for the Team Builder for the hours a week shown there, on an ongoing basis from the start date.
+
+2. Compensation. The Team Builder pays the monthly rate shown in the Offer Details at the end of each month. No escrow is held on a part-time engagement, and the exclusive benefits of a full-time engagement do not apply.
+
+3. Term. This agreement starts on the start date shown in the Offer Details and continues until either party ends it under section 6.
+
+4. Tasks. Work is tracked on a shared task list that either party can add to. The hiring manager reviews each task as it is completed, with evaluations along the way.
+
+5. Disputes. Either party may raise a payment dispute through Hireable. Hireable reviews process compliance, not work quality.
+
+6. Termination. Either party may end the engagement with 14 days' written notice through the platform. The rate is paid pro rata up to the last working day.`;
+
+/** The agreement an offer of this type is signed against. */
+export const agreementFor = (type: JobType) => (type === "full-time" ? FULLTIME_AGREEMENT : type === "part-time" ? PARTTIME_AGREEMENT : AGREEMENT);
 
 /* ---------------------------------------------------------- interviews ---- */
 
@@ -160,58 +184,20 @@ export const interviews: Interview[] = [];
 
 /* ----------------------------------------------------------- contracts ---- */
 
-export type Objective = {
-  id: string;
-  title: string;
-  /** What good looks like, as the Team Builder wrote it when assigning a full-time objective. */
-  description?: string;
-  kind: "kpi" | "okr" | "task";
-  progress: number;
-  /** IN-076 — "revision" is the Revision Requested pill; the rest read out through objectiveStatus. */
-  status: "pending" | "complete" | "risk" | "on" | "revision";
-  meta: string;
-  current?: number;
-  target?: number;
-  due?: string;
-  updated?: string;
-  /** IN-028 — an Automatic objective's own key results; its progress is the share done. */
-  keyResults?: DealKeyResult[];
-  /** IN-041 — a Manual objective's own metric: what a value is counted in and the daily pace. */
-  unit?: string;
-  dailyTarget?: number;
-  /** Cumulative progress per update, oldest first — the trend chart, extended by each new value. */
-  trend?: number[];
-  /** IN-041 / IN-045 — what this contract's own submissions recorded, newest first, with timestamps. */
-  activity?: { at: string; text: string }[];
-  /** The latest submission, as the Team Builder reviews it. */
-  lastUpdate?: { date: string; text: string; value?: number; done?: boolean };
-  /** IN-026 — the objective's discussion, shared with the Team Builder. */
-  comments?: ObjectiveComment[];
-};
-
-/**
- * IN-076 — the status pill vocabulary the sheet asks for: No Update → On Track → Off Track →
- * Pending Approval → Revision Requested → Achieved / Missed. Off Track is derived, not stored:
- * the same TB-058 rule flips it with 7 days or fewer left and progress behind target.
- */
-export function objectiveStatus(o: Objective, left: number | null): { label: string; tone: "ok" | "warn" | "danger" | "neutral" | "trial"; bar: "primary" | "ok" | "warn" } {
-  if (o.status === "complete") return { label: "Achieved", tone: "ok", bar: "ok" };
-  if (o.status === "pending") return { label: "Pending approval", tone: "warn", bar: "primary" };
-  if (o.status === "revision") return { label: "Revision requested", tone: "danger", bar: "warn" };
-  if (o.status === "risk") return { label: o.kind === "task" ? "Missed" : "Off track", tone: "danger", bar: "warn" };
-  if (isOffTrack(o, left ?? 99)) return { label: "Off track", tone: "danger", bar: "warn" };
-  return o.progress === 0 ? { label: "No update", tone: "neutral", bar: "primary" } : { label: "On track", tone: "ok", bar: "primary" };
-}
-
 export type Contract = {
   slug: string;
   title: string;
   company: string;
   initials: string;
-  type: "trial" | "full-time";
+  /** What the contract is now: a trial, or the full-time / part-time role it is (or became). */
+  type: JobType;
+  /** Whether it started as a trial, or was a direct full-time / part-time hire with no trial. */
+  origin: "trial" | "direct";
   location: string;
   line: string;
-  status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" };
+  status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" | "info" };
+  /** The first day, while the contract is signed but hasn't started yet. */
+  startsOn?: string;
   progressLabel: string;
   progress: number;
   progressTone: "primary" | "ok" | "danger";
@@ -228,21 +214,23 @@ export type Contract = {
   /** A trial's length in working days — `day` stops saying "Day 3 of 30" once it closes early. */
   workingDays?: number;
   rate: string;
-  objectives: Objective[];
-  /** IN-076 Trial Fit Score — the same breakdown the Team Builder sees, with the phase that weights it. */
-  /** `evaluation` is the latest evaluation's stars as a percentage, once one is in. */
-  tfs: { overall: number; performance: number; profile: number; workStyle: number; evaluation?: number };
+  /** A part-time contract's hours a week. */
+  hours?: number;
+  /** IN-076 — the shared task list, the same one the Team Builder reviews. */
+  tasks: Task[];
+  /** IN-076 Trial Fit Score — the same breakdown the Team Builder sees; null on a direct hire, which had no trial. */
+  tfs: FitScore | null;
   phase: 3 | 4;
-  /** TB-058 — one entry per weekday, oldest first: 0 nothing logged, 1 some, 2 all. */
+  /** TB-058 — one entry per weekday, oldest first: 0 nothing logged, 1 worked on tasks, 2 sent one for review. */
   activity: number[];
   streak: number;
   /** IN-034 / IN-047 — what the Team Builder submitted, newest first. */
   evaluations: DealEvaluation[];
   /** What was funded into escrow for the trial. */
   deposit?: number;
+  /** The match the application started on — what a direct hire shows in place of a trial score. */
+  match: number;
 };
-
-/** IN-076 — the objectives agreed at the offer, each with the due and last-update dates the card shows. */
 
 export const contracts: Contract[] = [];
 
@@ -333,7 +321,7 @@ export const SKILL_SUGGESTIONS = [
  * IN-066 — evaluations from engagements that have already closed. Live contracts add their own
  * on top of these (each contract's own evaluations), so the section is the whole record, not a seed list.
  */
-export type PastEvaluation = { company: string; role: string; type: "trial" | "full-time"; date: string; stars: number; feedback: string };
+export type PastEvaluation = { company: string; role: string; type: JobType; date: string; stars: number; feedback: string };
 
 export const pastEvaluations: PastEvaluation[] = [];
 
@@ -411,9 +399,3 @@ export function conversationsFor({ hired, inPipeline, role }: { hired: boolean; 
   if (!hired && !inPipeline) return [];
   return [{ id: "c1", name: "Nairobi Solutions", sub: `Alex Rivera · Hiring manager${role ? ` · ${role}` : ""}`, preview: "", time: "", unread: 0, initials: "NS", kind: hired ? "conversations" : "applications" }];
 }
-
-export const thread = [
-  { me: true, text: "Week 2 update is in — 5 of 6 objectives on track, the outreach KPI is at 72% of target.", time: "Yesterday" },
-  { me: false, text: "Looks good — approved the week 2 update. Let’s push outreach a bit this week, you’re close.", time: "10:02" },
-  { me: false, text: "I’ll set the 1:1 for Thursday 2pm, Manila time.", time: "10:03" },
-];

@@ -2,14 +2,18 @@
 
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { Button, Card, Checkbox, InfoBanner, Input, LinkButton, ObjectiveRow, Page } from "@/components/independent/ui";
+import { Button, Card, Checkbox, InfoBanner, Input, LinkButton, Page } from "@/components/independent/ui";
 import { DatePicker, fromISODate, startOfToday, toISODate } from "@/components/portal/DatePicker";
-import { kindIndex } from "@/components/team/ObjectiveViews";
+import { blankDraft, fromDrafts, TaskPlanEditor, toDrafts } from "@/components/portal/tasks/TaskPlan";
+import type { DraftTask } from "@/components/portal/tasks/TaskPlan";
 import { Avatar } from "@/components/team/ui";
 import { addWorkingDays, dayLabel, durationDays, trialMonths } from "@/lib/demo/dates";
 import { useDeal } from "@/lib/demo/deal";
 import { rateAmount, usd } from "@/lib/demo/disputes";
-import { AGREEMENT } from "@/lib/independent/data";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { planWeeks } from "@/lib/demo/tasks";
+import type { PlannedTask } from "@/lib/demo/tasks";
+import { agreementFor } from "@/lib/independent/data";
 import { byName } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { useDemo } from "@/lib/team/store";
@@ -26,12 +30,11 @@ function formatMoney(raw: string) {
 
 /**
  * Figma "Hire / Edit sent offer": same frame as the Independent offer page (px 140, 1080 wide, left card + 360 sign card),
- * headed "Edit the offer to …" with the amber "not signed yet" note. Rate and start date are the editable terms.
+ * headed "Edit the offer to …" with the amber "not signed yet" note.
  *
- * It used to read the rate with every character but digits and commas stripped — "$300.00/wk"
- * became 30000 — list three hardcoded objectives, end 30 calendar days after the start, and save
- * without telling the talent. Now it edits the live offer: the rate as agreed, its own objectives,
- * the working-day end date, the escrow top-up or refund, and a notification to sign the new version.
+ * The editable terms follow the offer's type: a trial's rate and start date (its end date and escrow
+ * follow), or an ongoing role's pay, start date and — part-time — hours a week. The tasks the offer
+ * sets can be changed too. The talent is told and signs the new version.
  */
 export default function EditOffer({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -41,6 +44,8 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
   const live = id === DEAL_ID ? deal?.offer : undefined;
   const [rate, setRate] = useState(live ? formatMoney(String(rateAmount(live.rate))) : "");
   const [start, setStart] = useState(live?.start ?? "");
+  const [hours, setHours] = useState(String(live?.hours ?? ""));
+  const [taskRows, setTaskRows] = useState<DraftTask[]>(() => (live?.tasks.length ? toDrafts(live.tasks) : [blankDraft()]));
   const [name, setName] = useState("");
   const [agree, setAgree] = useState(false);
   const offer = offers.find((o) => o.id === id);
@@ -63,29 +68,73 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
       </Page>
     );
 
+  const trial = live.type === "trial";
+  const partTime = live.type === "part-time";
   const days = durationDays(role.duration);
   const months = trialMonths(days);
   const amount = rateAmount(rate);
   const startDate = fromISODate(start);
-  const end = startDate ? toISODate(addWorkingDays(startDate, days)) : "";
+  // The start day is day one of the trial, so its last day is `days - 1` working days later.
+  const end = trial && startDate ? toISODate(addWorkingDays(startDate, days - 1)) : "";
   const escrow = amount * months;
   const fee = Math.round(escrow * FEE_RATE * 100) / 100;
   const funded = live.deposit?.escrow ?? rateAmount(live.rate) * months;
   const delta = escrow - funded;
-  const changed = amount !== rateAmount(live.rate) || start !== live.start;
+  const weekly = Number(hours);
+  const tasks = fromDrafts(taskRows);
+  /** A task list in a shape two can be compared by, ids and key order aside. */
+  const plan = (list: PlannedTask[]) => JSON.stringify(list.map((x) => [x.title, x.week ?? 0, x.priority ?? "", x.description ?? ""]));
+  const tasksChanged = plan(tasks) !== plan(live.tasks);
+  const payLabel = live.type === "full-time" ? "Salary" : "Rate";
+  /** Only what differs from the offer they have now — it used to restate every term, "$850 → $850" included. */
+  const changes = [
+    amount !== rateAmount(live.rate) && `${payLabel.toLowerCase()} ${live.rate} → ${usd(amount)}/mo`,
+    start !== live.start && `start to ${start ? dayLabel(fromISODate(start)) : "—"}`,
+    partTime && weekly !== live.hours && `hours to ${weekly || "—"} a week`,
+    tasksChanged && `the tasks (${tasks.length})`,
+  ].filter((c): c is string => !!c);
+  const changed = changes.length > 0;
   const signed = name.trim().length > 2 && agree;
-  const valid = amount > 0 && !!startDate;
+  /** A trial is judged on its tasks, so it keeps at least one. */
+  const valid = amount > 0 && !!startDate && (!partTime || (Number.isInteger(weekly) && weekly >= 1 && weekly <= 40)) && (!trial || tasks.length > 0);
 
-  const rows: [string, React.ReactNode][] = [
-    ["Role", role.title],
-    ["Contract type", "Trial"],
-    ["Duration", `${role.duration} (${days} working days)`],
-    ["Start date", <span key="start" className="block w-44"><DatePicker value={startDate} onChange={(d) => setStart(d ? toISODate(d) : "")} disabled={{ before: startOfToday() }} /></span>],
-    ["End date", end ? dayLabel(fromISODate(end)) : "—"],
-    ["Rate", <span key="rate" className="flex items-center gap-1">$<Input value={rate} onChange={(e) => setRate(formatMoney(e.target.value))} inputMode="decimal" className="!h-8 !w-28 !px-3 text-right" />/month</span>],
-    ["Payment", "Held in escrow, released at the end of the trial"],
-    [`Escrow (${months} ${months === 1 ? "month" : "months"})`, usd(escrow)],
-  ];
+  const rateField = (
+    <span key="rate" className="flex items-center gap-1">
+      $<Input value={rate} onChange={(e) => setRate(formatMoney(e.target.value))} inputMode="decimal" aria-label={payLabel} className="!h-8 !w-28 !px-3 text-right" />
+      /month
+    </span>
+  );
+  const startField = (
+    <span key="start" className="block w-44">
+      <DatePicker value={startDate} onChange={(d) => setStart(d ? toISODate(d) : "")} disabled={{ before: startOfToday() }} aria-label="Start date" />
+    </span>
+  );
+  const rows: [string, React.ReactNode][] = trial
+    ? [
+        ["Role", role.title],
+        ["Contract type", "Trial"],
+        ["Duration", `${role.duration} (${days} working days)`],
+        ["Start date", startField],
+        ["End date", end ? dayLabel(fromISODate(end)) : "—"],
+        ["Rate", rateField],
+        ["Payment", "Held in escrow, released at the end of the trial"],
+        [`Escrow (${months} ${months === 1 ? "month" : "months"})`, usd(escrow)],
+      ]
+    : [
+        ["Role", role.title],
+        ["Contract type", JOB_TYPE_LABEL[live.type]],
+        ["Start date", startField],
+        [payLabel, rateField],
+        ...(partTime
+          ? ([
+              [
+                "Hours a week",
+                <Input key="hours" value={hours} onChange={(e) => setHours(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" aria-label="Hours a week" className="!h-8 !w-20 !px-3 text-right" />,
+              ],
+            ] as [string, React.ReactNode][])
+          : ([["Exclusive benefits", live.benefits?.length ? live.benefits.join(", ") : "None"]] as [string, React.ReactNode][])),
+        ["Payment", "Monthly, at the end of each month"],
+      ];
 
   return (
     <Page title="Edit offer" heading="modal" onClose={back} padded={false}>
@@ -97,7 +146,7 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">Change the terms below. {first} is notified, gets the new version to sign, and the offer they have now is replaced.</p>
           <InfoBanner tone="warn">
             Sent on {live.sent}, not signed yet.{" "}
-            {changed ? `Rate ${live.rate} → ${usd(amount)}/mo, starting ${start ? dayLabel(fromISODate(start)) : "—"}.` : "Edit the rate or start date to send an updated version."}
+            {changed ? `Changing ${changes.join(" · ")}.` : `Edit the ${payLabel.toLowerCase()}, start date${partTime ? ", hours" : ""} or tasks to send an updated version.`}
           </InfoBanner>
         </div>
 
@@ -120,22 +169,22 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
               </dl>
             </div>
             <Divider />
-            <div className="flex flex-col gap-6 px-6 pb-6">
-              <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Objectives</h3>
-              <div className="flex flex-col gap-2">
-                {live.objectives.map((o) => (
-                  <ObjectiveRow key={o.id} index={kindIndex(o.kind)}>
-                    {o.title}
-                  </ObjectiveRow>
-                ))}
+            <div className="flex flex-col gap-4 px-6 pb-6">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Tasks</h3>
+                <p className="text-[13px] leading-[1.4] text-ink-2">
+                  {trial ? `What ${first} gets done in the trial. They become its shared task list when ${first} signs.` : `The first tasks ${first} starts on — optional, since you can add more once the contract starts.`}
+                </p>
               </div>
+              <TaskPlanEditor rows={taskRows} onChange={setTaskRows} weeks={planWeeks(trial ? days : null)} placeholder={trial ? "Name a task for the trial" : "Name a first task"} />
+              {trial && tasks.length === 0 && <p className="text-[12px] leading-[1.4] text-danger">A trial needs at least one task.</p>}
             </div>
             <Divider />
             <div className="flex flex-col gap-6 px-6 pb-6">
               <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Agreement Contract</h3>
               <div className="flex h-[320px] flex-col gap-6 overflow-y-auto rounded-lg bg-surface-2 px-4 pt-4 outline -outline-offset-1 outline-border">
                 <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Service agreement</p>
-                <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{AGREEMENT}</p>
+                <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{agreementFor(live.type)}</p>
               </div>
             </div>
           </Card>
@@ -166,20 +215,23 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
                   I agree to the <span className="text-primary underline">platform contract</span> and <span className="text-primary underline">terms of service</span>.
                 </span>
               </Checkbox>
-              {/* The escrow follows the terms: more is charged, or the difference goes back to the card. */}
-              <InfoBanner>
-                {delta > 0
-                  ? `The escrow goes from ${usd(funded)} to ${usd(escrow)}: ${usd(delta)} more, plus its ${usd(delta * FEE_RATE)} fee, is charged to your card.`
-                  : delta < 0
-                    ? `The escrow goes from ${usd(funded)} to ${usd(escrow)}: ${usd(-delta)} is refunded to your card.`
-                    : `The ${usd(funded)} already in escrow covers these terms.`}
-              </InfoBanner>
+              {/* A trial's escrow follows the terms: more is charged, or the difference goes back to the card. */}
+              {trial && (
+                <InfoBanner>
+                  {delta > 0
+                    ? `The escrow goes from ${usd(funded)} to ${usd(escrow)}: ${usd(delta)} more, plus its ${usd(delta * FEE_RATE)} fee, is charged to your card.`
+                    : delta < 0
+                      ? `The escrow goes from ${usd(funded)} to ${usd(escrow)}: ${usd(-delta)} is refunded to your card.`
+                      : `The ${usd(funded)} already in escrow covers these terms.`}
+                </InfoBanner>
+              )}
               <Button
                 size="lg"
                 variant="primary"
                 disabled={!signed || !valid || !changed}
                 onClick={() => {
-                  updateOffer({ rate: `${usd(amount)}/mo`, start, end, deposit: { escrow, fee } });
+                  const offerTasks = tasks.map((t, i) => ({ ...t, id: `task-${i + 1}` }));
+                  updateOffer(trial ? { rate: `${usd(amount)}/mo`, start, end, deposit: { escrow, fee }, tasks: offerTasks } : { rate: `${usd(amount)}/mo`, start, hours: partTime ? weekly : undefined, tasks: offerTasks });
                   back();
                 }}
               >

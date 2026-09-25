@@ -8,7 +8,7 @@ export default function AllRoles() {
       <Toolbar>
         <SearchInput placeholder="Search roles" />
         <Select label="Status" options={["All statuses", "Active", "Draft", "Flagged", "Closed"]} />
-        <Select label="Type" options={["Trial and full-time", "Trial", "Full-time"]} />
+        <Select label="Type" options={["All types", "Trial", "Full-time", "Part-time"]} />
       </Toolbar>
 
       <DataTable<Role>

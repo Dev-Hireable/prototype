@@ -48,7 +48,7 @@ export default function PaymentMethods() {
                     Set as default
                   </Button>
                 )}
-                <Button size="sm" disabled={only || c.isDefault} onClick={() => setRemoving(c)}>
+                <Button size="sm" variant="danger" disabled={only || c.isDefault} onClick={() => setRemoving(c)}>
                   Remove
                 </Button>
               </>

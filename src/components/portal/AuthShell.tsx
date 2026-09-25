@@ -19,8 +19,8 @@ const Hidden = ICONS.visibilityOff;
  */
 export function AuthShell({ title, subtitle, children, footer, width = 480 }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode; width?: number }) {
   return (
-    <div className="flex min-h-dvh w-full overflow-x-hidden bg-white">
-      <aside className="fixed top-0 left-0 isolate hidden h-dvh w-[480px] flex-col items-start overflow-hidden bg-[#212121] p-14 lg:flex">
+    <div className="flex min-h-[calc(100dvh/var(--ui-scale))] w-full overflow-x-hidden bg-white">
+      <aside className="fixed top-0 left-0 isolate hidden h-[calc(100dvh/var(--ui-scale))] w-[480px] flex-col items-start overflow-hidden bg-[#212121] p-14 lg:flex">
         <Link href="/" className="z-10 inline-flex shrink-0 items-center" aria-label="Hireable">
           <Image src="/hireable-wordmark-white.svg" alt="Hireable" width={164} height={26} loading="eager" draggable={false} unoptimized />
         </Link>
@@ -35,16 +35,18 @@ export function AuthShell({ title, subtitle, children, footer, width = 480 }: { 
       {/* Spacer so the centred column measures against what is left, not the whole viewport. */}
       <div className="hidden w-[480px] shrink-0 lg:block" />
 
-      <main className="relative flex flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
-        <div className="flex w-full flex-col gap-6 sm:gap-8" style={{ maxWidth: width }}>
-          <div className="flex flex-col items-center gap-3 sm:gap-4">
-            <Image src="/hireable-mark.svg" alt="" width={44} height={44} className="size-11" unoptimized />
-            <h1 className="text-center text-[24px] leading-[1.3] font-semibold tracking-[-0.2px] text-balance text-ink sm:text-[30px]">{title}</h1>
+      {/* On a short window — a 14" laptop, 600–760px tall once the browser takes its share — the
+          padding and gaps tighten and the heading steps down, so the form fits without scrolling. */}
+      <main className="relative flex flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14 [@media(max-height:760px)]:!py-5">
+        <div className="flex w-full flex-col gap-6 sm:gap-8 [@media(max-height:760px)]:!gap-4" style={{ maxWidth: width }}>
+          <div className="flex flex-col items-center gap-3 sm:gap-4 [@media(max-height:760px)]:!gap-2">
+            <Image src="/hireable-mark.svg" alt="" width={44} height={44} className="size-11 [@media(max-height:760px)]:size-9" unoptimized />
+            <h1 className="text-center text-[24px] leading-[1.3] font-semibold tracking-[-0.2px] text-balance text-ink sm:text-[30px] [@media(max-height:760px)]:!text-[24px]">{title}</h1>
             {subtitle && <p className="text-center text-[14px] leading-[1.45] text-balance text-ink-2">{subtitle}</p>}
           </div>
           {children}
         </div>
-        {footer && <div className="mt-6 flex h-5 items-center justify-center gap-1 text-[14px] leading-[1.2] tracking-[0.2px]">{footer}</div>}
+        {footer && <div className="mt-6 flex h-5 [@media(max-height:760px)]:mt-4 items-center justify-center gap-1 text-[14px] leading-[1.2] tracking-[0.2px]">{footer}</div>}
       </main>
     </div>
   );

@@ -9,7 +9,7 @@ export const SECTIONS: Section[] = [
     icon: "home",
     menu: [
       { href: "/independent", label: "Dashboard", icon: "dashboard" },
-      { href: "/independent/messages", label: "Messages", icon: "messages" },
+      { href: "/independent/messages", label: "Messages", icon: "messages", bare: true },
     ],
   },
   {

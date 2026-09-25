@@ -1,6 +1,9 @@
 "use client";
 
 import { useDeal, usePostings } from "@/lib/demo/deal";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import type { JobType } from "@/lib/demo/job-types";
+import type { PlannedTask } from "@/lib/demo/tasks";
 import type { Application } from "./data";
 
 /** The job behind an application, as the talent's application, proposal and offer screens show it. */
@@ -12,9 +15,15 @@ export type JobView = {
   budget: string;
   duration: string;
   experience: string;
-  contract: "Trial" | "Full-time";
+  type: JobType;
+  /** The type as the screens print it: Trial, Full-time or Part-time. */
+  contract: string;
+  /** A part-time role's hours a week. */
+  hours?: number;
   skills: string[];
   expectation: string;
+  /** A trial's tasks, as its Team Builder set them in the job post. */
+  tasks: PlannedTask[];
   attachment?: string;
   location: string;
   industry: string;
@@ -41,9 +50,12 @@ export function useJobView(app: Application): JobView {
     budget: posting?.rateRange ?? "—",
     duration: posting?.duration ?? "30 Days",
     experience: posting?.level ?? "—",
-    contract: posting?.type === "full-time" ? "Full-time" : "Trial",
+    type: posting?.type ?? "trial",
+    contract: JOB_TYPE_LABEL[posting?.type ?? "trial"],
+    hours: posting?.hours,
     skills: posting?.skills ?? [],
     expectation: posting?.expectation ?? "",
+    tasks: posting?.tasks ?? [],
     attachment: posting?.attachment,
     location: posting?.location ?? "",
     industry: posting?.industry ?? "",

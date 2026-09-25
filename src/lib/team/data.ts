@@ -1,5 +1,6 @@
 import type { Stage } from "@/components/independent/ui";
-import type { DealKeyResult, ObjectiveComment } from "@/lib/demo/deal";
+import type { JobType } from "@/lib/demo/job-types";
+import type { PlannedTask, Task } from "@/lib/demo/tasks";
 import { storedWorkStyle } from "@/lib/demo/work-style";
 
 /** Seed data for the Team Builder portal — every string is lifted from the Figma "Team Builder" canvas. */
@@ -37,7 +38,7 @@ export function setupSteps({ company, cards, roles, workStyle }: { company: Comp
 export const MARKETING_BANNER = {
   id: "trial-drive-2026",
   title: "Trial Drives now run 30 days with escrow built in",
-  body: "Test a hire on real work before you commit. Payment is held securely and released only when the objectives you set are met.",
+  body: "Test a hire on real work before you commit. Payment is held securely and released once the tasks you agreed are done.",
   cta: { label: "Create a Role", href: "/team/hire" },
 };
 
@@ -91,7 +92,9 @@ export type RoleStatus = "Active" | "Draft" | "Closed" | "Archived";
 export type Role = {
   slug: string;
   title: string;
-  type: "trial" | "full-time";
+  type: JobType;
+  /** A part-time role's hours a week. */
+  hours?: number;
   status: RoleStatus;
   candidates: number | null;
   matched: number | null;
@@ -104,8 +107,15 @@ export type Role = {
   duration: string;
   experience: string;
   skills: string[];
+  /** Notes beside the trial's tasks. Posts saved before the tasks existed wrote all of it here. */
   expectation: string;
   attachment: string;
+  /**
+   * TB-024 — a trial's tasks, written in its job post: what the Independent gets done during the
+   * trial. They go into the offer, where they can be changed per candidate. Ongoing roles leave this
+   * empty; their first tasks are set in the offer.
+   */
+  tasks?: PlannedTask[];
   /** "How many to hire" from the wizard; roles saved before it was kept count as one. */
   hires?: number;
   /** TB-024 exclusive benefits — full-time posts only, optional. */
@@ -131,13 +141,26 @@ export type Candidate = {
   status?: { label: string; tone: Tone; meta?: string };
   submitted: string;
   dropped?: boolean;
+  /** Hired on a trial that has closed (end date reached, every trial task done, or ended early) and not converted. */
+  trialEnded?: boolean;
+  /** Invited to apply (TB-017) and hasn't yet: in Matched, but not an application. */
+  invitedToApply?: boolean;
 };
+
+/**
+ * A card that isn't an application yet: invited to apply, not applied. Matched also holds
+ * applicants the system matched on fit — those have applied, and can be interviewed. Cards saved
+ * before the flag existed are read by their status.
+ */
+export const awaitsApplication = (c: Candidate) => !!c.invitedToApply || c.status?.label === "Invited to apply" || c.status?.label === "Awaiting application";
 
 export const candidates: Candidate[] = [];
 
 /**
- * TB-037 candidate tracker — the seven Kanban columns, in order. "Dropped" isn't a stage: a
- * dropped candidate keeps the stage they were dropped from, so it's matched on the flag.
+ * TB-037 candidate tracker — the eight Kanban columns, in order. "Trial Ended" and "Dropped" aren't
+ * stages: a closed trial is still `hired` and a dropped candidate keeps the stage they were dropped
+ * from, so both are matched on their flag (see `columnOf`). A trial that converts to full-time or
+ * part-time goes back to Hired.
  */
 export const TRACKER_COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; text: string; count: string }[] = [
   { key: "candidates", label: "Candidates", stages: ["applied"], bg: "#e5e5e5", text: "#4a4a4a", count: "#d8d8d8" },
@@ -146,14 +169,16 @@ export const TRACKER_COLUMNS: { key: string; label: string; stages: Stage[]; bg:
   { key: "proposal", label: "Proposal Requested", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", text: "#6e0e52", count: "#ffdbf3" },
   { key: "offer", label: "Offer Sent", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", text: "#7a5e0a", count: "#fff0b6" },
   { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", text: "#1b6b3a", count: "#c6ffd2" },
+  { key: "trial_ended", label: "Trial Ended", stages: [], bg: "#eef2f6", text: "#34465a", count: "#d9e1ea" },
   { key: "dropped", label: "Dropped", stages: [], bg: "#fdecec", text: "#a62121", count: "#f9d5d5" },
 ];
 
 /** The tracker column a card sits in now. */
-export const columnOf = (c: Pick<Candidate, "stage" | "dropped">) => (c.dropped ? "dropped" : TRACKER_COLUMNS.find((col) => col.stages.includes(c.stage))?.key);
+export const columnOf = (c: Pick<Candidate, "stage" | "dropped" | "trialEnded">) =>
+  c.dropped ? "dropped" : c.trialEnded ? "trial_ended" : TRACKER_COLUMNS.find((col) => col.stages.includes(c.stage))?.key;
 
 /** The role's board opened at that column — the board centres it and frames it for a moment. */
-export const pipelineHref = (c: Pick<Candidate, "role" | "stage" | "dropped">) => {
+export const pipelineHref = (c: Pick<Candidate, "role" | "stage" | "dropped" | "trialEnded">) => {
   const col = columnOf(c);
   return `/team/hire/roles/${c.role}${col ? `?stage=${col}` : ""}`;
 };
@@ -187,9 +212,20 @@ export type Offer = {
   sent: string;
   rate: string;
   start: string;
+  /** A trial's last day. */
+  end?: string;
+  /** A part-time offer's hours a week. */
+  hours?: number;
+  /** Where the offer was sent from: the candidate's page, or the contract a post-trial offer follows. */
+  href?: string;
   status: { label: string; tone: Tone };
-  /** Trial offer or TB-072 full-time offer — they are edited and withdrawn differently. */
-  kind?: "trial" | "full-time";
+  /** The kind of role the offer is for. */
+  type: JobType;
+  /**
+   * TB-072 — the full-time or part-time offer after a trial, rather than the offer a proposal was
+   * answered with. It is withdrawn and sent again rather than edited.
+   */
+  conversion?: boolean;
   /** IN-075 — the reason the talent gave for declining, when they gave one. */
   declineReason?: string;
 };
@@ -197,45 +233,6 @@ export type Offer = {
 export const offers: Offer[] = [];
 
 /* -------------------------------------------------------------- contracts */
-
-export type Objective = {
-  id: string;
-  title: string;
-  description?: string;
-  kind: "kpi" | "okr" | "task";
-  progress: number;
-  /** "revision" — TB-111 sent it back with a reason code; the talent corrects it and resubmits. */
-  status: "pending" | "complete" | "risk" | "on" | "revision";
-  meta: string;
-  due?: string;
-  /** TB-062 — an Automatic objective's own key results. */
-  keyResults?: DealKeyResult[];
-  /** TB-061 — a Manual objective's target, unit and latest value. */
-  target?: number;
-  unit?: string;
-  current?: number;
-  trend?: number[];
-  updated?: string;
-  /** TB-109 — an approved objective stops feeding the activity tracker. */
-  retired?: boolean;
-  /** TB-112 — what happened on it, newest first, and the talent's latest submission. */
-  activity?: { at: string; text: string }[];
-  lastUpdate?: { date: string; text: string; value?: number; done?: boolean };
-  comments?: ObjectiveComment[];
-};
-
-/** TB-058 wording for each objective kind, and the rule that decides when it falls Off Track. */
-export const OBJECTIVE_KIND: Record<Objective["kind"], string> = { kpi: "Manual", okr: "Automatic", task: "Default" };
-
-/**
- * TB-058 — an active objective flips to Off Track automatically with 7 days or fewer left when
- * a Manual one is under 70% of target, an Automatic one has under 70% of its key results done,
- * or a Default one still isn't marked done. Nobody has to press anything.
- */
-export function isOffTrack(o: { kind: Objective["kind"]; status: string; progress: number }, daysLeft: number) {
-  if (daysLeft > 7 || o.status === "complete" || o.status === "pending") return false;
-  return o.kind === "task" ? o.progress < 100 : o.progress < 70;
-}
 
 /** TB-024 / TB-072 / IN-046 — the benefits every full-time engagement includes, on top of salary. */
 export const FT_BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"];
@@ -246,7 +243,6 @@ export const TFP_WEIGHTS = {
   4: { label: "Post Trial", workStyle: 15, profile: 20, performance: 40, evaluation: 25 },
 } as const;
 
-/** TB-111 reason codes — one must be chosen before a revision can be requested. */
 /** TB-067/081/117 — one submitted evaluation; a contract keeps a list of them. */
 export type Evaluation = {
   stars: number;
@@ -255,40 +251,49 @@ export type Evaluation = {
   feedback: string;
   recommendation: string;
   date: string;
-  /** TB-068 — the Trial Fit Score as it stood when this was submitted. */
-  tfp: number;
+  /** TB-068 — the Trial Fit Score as it stood when this was submitted; none on a direct hire. */
+  tfp?: number;
 };
 
-export const REVISION_REASONS = ["Missing Deliverable", "Out-of-Scope Output", "Missed Deadline", "No Report Submitted"];
-
 export const TFP_TOOLTIP = "Work Style, Profile and Performance are scored continuously during the trial. Your evaluation is added once the trial ends, and the final score is available after you submit it.";
+
+/** TB-058 Trial Fit Score breakdown. `evaluation` is the latest evaluation's stars as a percentage, once one is in. */
+export type FitScore = { overall: number; performance: number; profile: number; workStyle: number; evaluation?: number };
 
 export type Contract = {
   slug: string;
   independent: string;
   role: string;
-  type: "trial" | "full-time";
+  /** What the contract is now: a trial, or the full-time / part-time role it is (or became). */
+  type: JobType;
+  /** Whether it started as a trial, or was a direct full-time / part-time hire with no trial. */
+  origin: "trial" | "direct";
   status: { label: string; tone: Tone };
+  /** The first day, while the contract is signed but hasn't started yet. */
+  startsOn?: string;
   progress: number | null;
   progressLabel: string;
   started: string;
   day: string;
   ends: string;
-  /** Working days left in a trial (null on a full-time contract), and whether its end date has come. */
+  /** Working days left in a trial (null once it's full-time or part-time), and whether its end date has come. */
   left: number | null;
   over: boolean;
   /** When it was ended, if the Team Builder ended it. */
   endedOn?: string;
   rate: string;
+  /** A part-time contract's hours a week. */
+  hours?: number;
   manager: string;
-  objectives: Objective[];
-  /** TB-058 Trial Fit Score breakdown; phase decides which weights apply. */
-  /** `evaluation` is the latest evaluation's stars as a percentage, once one is in. */
-  tfs: { overall: number; performance: number; profile: number; workStyle: number; evaluation?: number };
+  tasks: Task[];
+  /** Null on a direct hire: there was no trial to score. */
+  tfs: FitScore | null;
   phase: 3 | 4;
-  /** TB-058 activity log — one tile per weekday: 0 nothing, 1 some, 2 all objectives logged. */
+  /** TB-058 activity log — one tile per weekday: 0 nothing, 1 worked on tasks, 2 sent one for review. */
   activity: number[];
   streak: number;
+  /** The match the application started on — what a direct hire shows in place of a trial score. */
+  match: number;
 };
 
 
@@ -329,7 +334,7 @@ export const PLAN = { name: "Growth", cycle: "Monthly", renews: "1 Oct 2026", bi
 
 export const PLANS = [
   { name: "Starter", price: "$0", next: "Growth", features: ["1 active role at a time", "Trial Drives with escrow", "Standard matching"] },
-  { name: "Growth", price: "$149", next: "Scale", features: ["Up to 10 active roles", "Trial Drives with escrow", "Priority matching and Work Style fit", "Objective tracking and Trial Fit Score", "Dispute review within 5 working days"] },
+  { name: "Growth", price: "$149", next: "Scale", features: ["Up to 10 active roles", "Trial Drives with escrow", "Priority matching and Work Style fit", "Shared task lists and Trial Fit Score", "Dispute review within 5 working days"] },
   { name: "Scale", price: "$399", next: null as string | null, features: ["Unlimited active roles", "Everything in Growth", "Dedicated hiring support", "Custom contracts and invoicing"] },
 ];
 
@@ -444,7 +449,7 @@ export const TEAM_PROFILE: TeamProfile = {
   email: "alex@nairobisolutions.com",
   phone: "+63 917 555 0142",
   timezone: "(GMT+8) Manila",
-  about: "I hire and coach outbound sales teams for US fintechs. I run 30-day trials with three objectives and weekly check-ins.",
+  about: "I hire and coach outbound sales teams for US fintechs. I run 30-day trials on a shared task list with weekly check-ins.",
 };
 
 export const COMPANY_PROFILE: CompanyProfile = {
@@ -464,7 +469,7 @@ export const profile = {
     ["Work email", "alex@nairobisolutions.com"],
     ["Phone", "+63 917 555 0142"],
     ["Time zone", "(GMT+8) Manila"],
-    ["About you", "I hire and coach outbound sales teams for US fintechs. I run 30-day trials with three objectives and weekly check-ins."],
+    ["About you", "I hire and coach outbound sales teams for US fintechs. I run 30-day trials on a shared task list with weekly check-ins."],
   ] as [string, string][],
   company: [
     ["Company name", "Nairobi Solutions Inc."],

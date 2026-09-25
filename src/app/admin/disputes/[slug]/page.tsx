@@ -1,56 +1,73 @@
 "use client";
 
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useEffect, useState } from "react";
-import { AdminPage, Button, Card, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { AdminPage, Button, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { ICONS } from "@/components/admin/icons";
 import { Button as DialogButton, Field, Modal, Select as FormSelect, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { DisputeCase } from "@/components/portal/DisputeCase";
+import { BreadcrumbBack } from "@/components/portal/nav";
+import { useWithReturn } from "@/components/portal/return";
 import { isPast } from "@/lib/demo/dates";
-import { useDeal } from "@/lib/demo/deal";
+import { useDeal, useHydrated } from "@/lib/demo/deal";
+import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import {
   ageOf,
-  contractName,
+  askParty,
   dateOf,
   daysOpen,
   dealContract,
-  escrowOf,
+  escrowInPlay,
+  extendDeadline,
   factsFor,
   holds,
+  isOpen,
+  leftLabel,
   markAdminSeen,
   otherParty,
-  outcomeOf,
   partyName,
+  partyTurn,
   rateAmount,
   rejectDispute,
   releasePayment,
-  requestEvidence,
   resolveDispute,
   SLA_DAYS,
   stampOf,
+  TURN_DAYS,
   usd,
   useDisputes,
+  waitingOn,
 } from "@/lib/demo/disputes";
-import type { DisputeEvent, DisputeParty } from "@/lib/demo/disputes";
+import type { DisputeParty } from "@/lib/demo/disputes";
+import { useNow } from "@/lib/portal/use-now";
 
 type Check = { check: string; result: string; source: string };
-type Dialog = "evidence" | "reject" | "resolve" | "release";
+type Dialog = "ask" | "extend" | "reject" | "resolve" | "release";
+
+const DAY = 86_400_000;
+const EXTEND_BY = [1, 2, 3, 5];
 
 /**
- * AD-033 / AD-034 / AD-035 — one dispute, with everything needed to rule on it: what was filed,
- * the process check, what each side has said since, and the timeline. Request evidence, Reject,
- * Resolve and Request payment release all act on the shared record, so both parties see the
- * outcome on their own side. The Figma version was a static page whose buttons did nothing.
+ * AD-033 / AD-034 / AD-035 — one dispute, as support works it: the same case both parties see
+ * (whose turn it is, the timeline, the settlement on the table, the money), the process check,
+ * and support's own moves — ask one side for more, give someone more time, rule, reject, and pay
+ * out a case closed for the Independent. Every move lands on the shared case and tells both sides.
  */
 export default function DisputeDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const hydrated = useHydrated();
   const all = useDisputes();
   const deal = useDeal();
   const d = all.find((x) => x.id === slug);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [notes, setNotes] = useState("");
   const [favor, setFavor] = useState<DisputeParty | null>(null);
-  const [from, setFrom] = useState<DisputeParty | "both">("both");
+  const [who, setWho] = useState<DisputeParty | null>(null);
+  const [days, setDays] = useState(2);
   const [toast, setToast] = useToast();
+  const withReturn = useWithReturn();
+  const now = useNow();
 
   // Opening it is what clears the "New" badge on the list and the nav.
   const id = d?.id;
@@ -58,50 +75,63 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
   useEffect(() => {
     if (id) markAdminSeen(id);
   }, [id, updated]);
+  // Disputes live in this browser's storage — nothing to look up until it has loaded.
+  if (!hydrated) return null;
   if (!d) notFound();
 
   const other = otherParty(d.filedBy);
   const roleOf = (p: DisputeParty) => (p === "team" ? "team builder" : "independent");
   const onLiveContract = dealContract(deal)?.key === d.contract;
   const facts = onLiveContract ? factsFor({ key: d.contract, links: d.links, title: d.title, type: d.type, rate: d.rate, started: d.facts.started, ends: d.facts.ends }, deal, all) : d.facts;
-  const held = onLiveContract ? (escrowOf(deal, all)?.held ?? 0) : d.facts.escrowHeld;
-  const refundable = Math.min(d.amount, held);
-  const outcome = outcomeOf(d);
+  const tasksDone = facts.tasksDone ?? facts.objectivesDone ?? 0;
+  const tasksTotal = facts.tasksTotal ?? facts.objectivesTotal ?? 0;
+  /** What a ruling for the company would refund: never more than the live escrow still holds. */
+  const cap = onLiveContract ? escrowInPlay(deal, all)?.held : undefined;
+  const refundable = Math.min(d.amount, cap ?? d.amount);
+  const turn = partyTurn(d);
+  const waiting = waitingOn(d);
+  const open = isOpen(d);
+  const awaitingRelease = d.resolution?.payment === "awaiting release";
   const close = () => {
     setDialog(null);
     setNotes("");
     setFavor(null);
-    setFrom("both");
+    setWho(null);
+    setDays(2);
   };
+  const done = (r: { ok: boolean; error?: string }, message: string) => {
+    close();
+    setToast(r.ok ? message : (r.error ?? "That didn't work — try again."));
+  };
+  const partyOption = (p: DisputeParty) => `${partyName(d, p)} (${roleOf(p)})`;
+  const pick = (value: string): DisputeParty | null => (value === partyOption("team") ? "team" : value === partyOption("independent") ? "independent" : null);
 
   /** AD-033 — Hireable checks the process, not the work: each row is a fact on file. */
   const checks: Check[] = [
     d.type === "trial"
-      ? // A trial closes on its end date, or earlier once every objective is approved.
-        { check: "Trial has ended", result: facts.trialEnded ? (isPast(facts.ends) ? `Pass — ended ${facts.ends}` : `Pass — every objective approved ahead of ${facts.ends}`) : `Fail — runs until ${facts.ends}`, source: "contract" }
-      : { check: "Full-time contract is active", result: `Pass — since ${facts.started}`, source: "contract" },
+      ? // A trial closes on its end date, or earlier once every trial task is Done.
+        { check: "Trial has ended", result: facts.trialEnded ? (isPast(facts.ends) ? `Pass — ended ${facts.ends}` : `Pass — every task approved ahead of ${facts.ends}`) : `Fail — runs until ${facts.ends}`, source: "contract" }
+      : { check: `${JOB_TYPE_LABEL[d.type]} contract is active`, result: `Pass — since ${facts.started}`, source: "contract" },
     { check: "Evaluation submitted by employer", result: facts.evaluation ? "Pass — submitted" : "Fail — not submitted", source: "trial dashboard" },
-    { check: "Objectives approved", result: facts.objectivesTotal ? `${facts.objectivesDone} of ${facts.objectivesTotal} approved` : "No objectives on record", source: "objective log" },
+    { check: "Tasks approved", result: tasksTotal ? `${tasksDone} of ${tasksTotal} approved` : "No tasks on record", source: "task log" },
     ...(d.type === "trial"
       ? [
-          // What was actually deposited — it printed the rate string, so an edited offer "funded" money nobody paid.
           { check: "Escrow funded at offer", result: `Pass — ${usd(facts.escrowFunded ?? rateAmount(d.rate))} deposited ${facts.started}`, source: "payments" },
           { check: "Amount in question within escrow", result: d.amount <= d.facts.escrowHeld ? `Pass — ${usd(d.amount)} of ${usd(d.facts.escrowHeld)} held when filed` : `Check — more than the ${usd(d.facts.escrowHeld)} held`, source: "payments" },
         ]
       : []),
   ];
 
-  const pending = d.status === "Pending";
-  const awaitingRelease = d.resolution?.payment === "awaiting release";
-
   return (
     <AdminPage
       nav={<BreadcrumbBack href="/admin/disputes">Back to all disputes</BreadcrumbBack>}
       title={`${d.reason} · ${d.title}`}
       actions={
-        pending ? (
+        open ? (
           <>
-            <Button onClick={() => setDialog("evidence")}>Request evidence</Button>
+            {/* One side at a time: asking hands them the turn, with its own deadline. */}
+            {!turn && <Button onClick={() => setDialog("ask")}>Ask a party</Button>}
+            {turn && <Button onClick={() => setDialog("extend")}>Extend deadline</Button>}
             <Button variant="danger" onClick={() => setDialog("reject")}>
               Reject
             </Button>
@@ -123,43 +153,16 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
           <StatCard
             label="Amount in question"
             value={usd(d.amount)}
-            sub={holds(d) ? "held in escrow" : d.resolution?.payment === "refunded" ? "refunded to the team builder" : d.resolution?.payment === "released" ? "released to the independent" : "hold lifted"}
+            sub={holds(d) ? "held in escrow" : d.resolution?.payment === "refunded" ? "refunded to the team builder" : d.resolution?.payment === "released" ? "released to the independent" : d.resolution?.payment === "split" ? "split by agreement" : "hold lifted"}
           />
-          <StatCard label="Age" value={ageOf(d)} sub={pending ? (daysOpen(d) > SLA_DAYS ? `past the ${SLA_DAYS}-day SLA` : `SLA ${SLA_DAYS} days`) : `closed ${dateOf(d.resolution?.at ?? d.updated)}`} />
+          <StatCard
+            label="Waiting on"
+            value={waiting === "support" ? "You" : waiting ? partyName(d, waiting) : "Nobody"}
+            sub={turn ? leftLabel(turn.due, now).toLowerCase() : open ? (daysOpen(d) > SLA_DAYS ? `open ${ageOf(d)} · past the ${SLA_DAYS}-day SLA` : `open ${ageOf(d)} · SLA ${SLA_DAYS} days`) : `closed ${dateOf(d.resolution?.at ?? d.updated)}`}
+          />
         </StatGrid>
 
-        <Card className="flex flex-col gap-3 p-5 text-[13px] leading-[1.45]">
-          <h2 className="text-[14px] font-semibold text-ink-deep">What was filed</h2>
-          <dl className="flex flex-col gap-2">
-            {(
-              [
-                ["Contract", contractName(d)],
-                ["Date filed", dateOf(d.at)],
-                ["Reason", d.reason],
-                ["Supporting evidence", d.evidence ?? "None attached"],
-                ["Status", d.status],
-              ] as const
-            ).map(([k, v]) => (
-              <div key={k} className="flex gap-4">
-                <dt className="w-[160px] shrink-0 text-muted">{k}</dt>
-                <dd className="min-w-0 flex-1 break-words text-ink-deep">{v}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="rounded-lg bg-surface-alt p-4 text-[14px] text-ink-deep">{d.description}</p>
-          {d.evidenceRequest && pending && (
-            <p className="text-muted">
-              Evidence requested from {d.evidenceRequest.from === "both" ? "both parties" : partyName(d, d.evidenceRequest.from)} on {stampOf(d.evidenceRequest.at)}: {d.evidenceRequest.note}
-            </p>
-          )}
-        </Card>
-
-        {outcome && (
-          <Card className="flex flex-col gap-2 p-5 text-[13px] leading-[1.45]">
-            <h2 className="text-[14px] font-semibold text-ink-deep">{outcome}</h2>
-            <p className="text-muted">{d.resolution?.notes}</p>
-          </Card>
-        )}
+        <DisputeCase dispute={d} viewer="admin" onToast={setToast} />
 
         <DataTable<Check>
           caption="Process check — Hireable reviews compliance, not work quality"
@@ -170,76 +173,61 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
             { header: "Source", cell: (c) => c.source, width: "18%" },
           ]}
         />
-
-        {/* AD-033 — "messages between parties": what each side has added since filing. */}
-        <Card className="flex flex-col gap-3 p-5 text-[13px] leading-[1.45]">
-          <h2 className="text-[14px] font-semibold text-ink-deep">Statements from the parties</h2>
-          {d.statements.length === 0 ? (
-            <p className="text-muted">Neither party has added anything since the dispute was filed.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {d.statements.map((s) => (
-                <li key={s.at} className="flex flex-col gap-1 rounded-lg p-3 outline -outline-offset-1 outline-line">
-                  <p className="text-[12px] text-muted">
-                    {partyName(d, s.from)} ({roleOf(s.from)}) · {stampOf(s.at)}
-                  </p>
-                  <p className="text-ink-deep">{s.text}</p>
-                  {s.evidence && <p className="break-words text-accent">Evidence: {s.evidence}</p>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <DataTable<DisputeEvent>
-          caption="Timeline"
-          rows={d.timeline}
-          columns={[
-            { header: "Event", cell: (e) => e.event },
-            { header: "Actor", cell: (e) => e.actor, width: "22%" },
-            { header: "When", cell: (e) => stampOf(e.at), width: "22%" },
-          ]}
-        />
+        {/* AD-050 — the task log the process check reads, as both parties see it (read-only). */}
+        {onLiveContract && (
+          <Link href={withReturn(`/admin/contracts/${d.links.independent}`)} className="inline-flex items-center gap-1.5 self-start text-[13px] font-semibold text-accent hover:underline">
+            Open the contract&apos;s work <ICONS.northEast size={16} aria-hidden />
+          </Link>
+        )}
       </div>
 
-      {/* AD-033 — the request lands on the dispute and in the named party's notifications. */}
+      {/* AD-033 — a question for one side, who then has five days to answer on the case. */}
       <Modal
-        open={dialog === "evidence"}
+        open={dialog === "ask"}
         onClose={close}
-        title="Request evidence"
-        description="The party sees this on the dispute, with a notification, and can reply with a statement and a link."
+        title="Ask a party for more"
+        description={`They see your question on the case, with a notification, and have ${TURN_DAYS} days to answer. If they don't, the dispute closes in the other side's favor.`}
         footer={
           <>
             <DialogButton size="lg" onClick={close}>
               Cancel
             </DialogButton>
-            <DialogButton
-              size="lg"
-              variant="primary"
-              disabled={!notes.trim()}
-              onClick={() => {
-                requestEvidence(d.id, from, notes);
-                close();
-                setToast(`Evidence requested from ${from === "both" ? "both parties" : partyName(d, from)}`);
-              }}
-            >
-              Send request
+            <DialogButton size="lg" variant="primary" disabled={!who || !notes.trim()} onClick={async () => who && done(await askParty(d.id, who, notes), `Asked ${partyName(d, who)} — they have ${TURN_DAYS} days to answer`)}>
+              Send question
             </DialogButton>
           </>
         }
       >
         <div className="flex flex-col gap-3">
           <Field label="Ask">
-            <FormSelect
-              options={["Both parties", `${d.team.company} (team builder)`, `${d.independent.name} (independent)`]}
-              value={from === "both" ? "Both parties" : from === "team" ? `${d.team.company} (team builder)` : `${d.independent.name} (independent)`}
-              onChange={(e) => setFrom(e.target.value === "Both parties" ? "both" : e.target.value.startsWith(d.team.company) ? "team" : "independent")}
-            />
+            <FormSelect options={["Select a party", partyOption("team"), partyOption("independent")]} value={who ? partyOption(who) : "Select a party"} onChange={(e) => setWho(pick(e.target.value))} />
           </Field>
           <Field label="What do you need?">
-            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="The report behind objective 3, the message where the deadline moved…" />
+            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="The report behind task 3, the message where the deadline moved…" />
           </Field>
         </div>
+      </Modal>
+
+      {/* Support can give whoever's on the clock more time — before it runs out, never after. */}
+      <Modal
+        open={dialog === "extend" && !!turn}
+        onClose={close}
+        title="Extend the deadline"
+        description={turn ? `${partyName(d, turn.who)} has until ${stampOf(turn.due)} to respond. Both sides are told about the new deadline.` : undefined}
+        footer={
+          <>
+            <DialogButton size="lg" onClick={close}>
+              Cancel
+            </DialogButton>
+            <DialogButton size="lg" variant="primary" onClick={async () => turn && done(await extendDeadline(d.id, days), `${partyName(d, turn.who)} now has until ${stampOf(turn.due + days * DAY)}`)}>
+              Extend deadline
+            </DialogButton>
+          </>
+        }
+      >
+        <Field label="Give them" hint={turn ? `New deadline: ${stampOf(turn.due + days * DAY)}` : undefined}>
+          <FormSelect options={EXTEND_BY.map((n) => `${n} more ${n === 1 ? "day" : "days"}`)} value={`${days} more ${days === 1 ? "day" : "days"}`} onChange={(e) => setDays(Number(e.target.value.split(" ")[0]))} />
+        </Field>
       </Modal>
 
       <Modal
@@ -253,16 +241,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
             <DialogButton size="lg" onClick={close}>
               Cancel
             </DialogButton>
-            <DialogButton
-              size="lg"
-              variant="danger"
-              disabled={!notes.trim()}
-              onClick={() => {
-                rejectDispute(d.id, notes);
-                close();
-                setToast("Dispute rejected — both parties have been notified");
-              }}
-            >
+            <DialogButton size="lg" variant="danger" disabled={!notes.trim()} onClick={async () => done(await rejectDispute(d.id, notes), "Dispute rejected — both parties have been notified")}>
               Reject dispute
             </DialogButton>
           </>
@@ -288,12 +267,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
               size="lg"
               variant="primary"
               disabled={!favor || !notes.trim()}
-              onClick={() => {
-                if (!favor) return;
-                resolveDispute(d.id, favor, notes);
-                close();
-                setToast(favor === "team" ? `Resolved — ${usd(refundable)} refunded to ${d.team.company}` : `Resolved for ${d.independent.name} — request the payment release to pay it out`);
-              }}
+              onClick={async () => favor && done(await resolveDispute(d.id, favor, notes), favor === "team" ? `Resolved — ${usd(refundable)} refunded to ${d.team.company}` : `Resolved for ${d.independent.name} — request the payment release to pay it out`)}
             >
               Resolve dispute
             </DialogButton>
@@ -311,11 +285,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
                   : "Choose the party the process check supports."
             }
           >
-            <FormSelect
-              options={["Select a party", `${d.team.company} (team builder)`, `${d.independent.name} (independent)`]}
-              value={favor === "team" ? `${d.team.company} (team builder)` : favor === "independent" ? `${d.independent.name} (independent)` : "Select a party"}
-              onChange={(e) => setFavor(e.target.value === "Select a party" ? null : e.target.value.startsWith(d.team.company) ? "team" : "independent")}
-            />
+            <FormSelect options={["Select a party", partyOption("team"), partyOption("independent")]} value={favor ? partyOption(favor) : "Select a party"} onChange={(e) => setFavor(pick(e.target.value))} />
           </Field>
           <Field label="Resolution notes" hint="Required. Both parties read these.">
             <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Which checks decided it, and why" />
@@ -323,26 +293,18 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
         </div>
       </Modal>
 
-      {/* AD-035 — the release, confirmed, on a dispute resolved for the independent. */}
+      {/* AD-035 — the release, confirmed, on a case closed for the independent. */}
       <Modal
         open={dialog === "release"}
         onClose={close}
         title="Request payment release?"
-        description={`${usd(Math.min(d.amount, held))} is released from the ${d.title} escrow to ${d.independent.name}, and both parties are told.`}
+        description={`${usd(Math.min(d.amount, cap ?? d.amount))} is released from the ${d.title} escrow to ${d.independent.name}, and both parties are told.`}
         footer={
           <>
             <DialogButton size="lg" onClick={close}>
               Cancel
             </DialogButton>
-            <DialogButton
-              size="lg"
-              variant="primary"
-              onClick={() => {
-                releasePayment(d.id);
-                close();
-                setToast(`Payment released to ${d.independent.name}`);
-              }}
-            >
+            <DialogButton size="lg" variant="primary" onClick={async () => done(await releasePayment(d.id), `Payment released to ${d.independent.name}`)}>
               Release payment
             </DialogButton>
           </>

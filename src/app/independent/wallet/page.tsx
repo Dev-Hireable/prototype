@@ -128,7 +128,7 @@ export default function Wallet() {
             </Button>
           </div>
           <p className="text-[13px] leading-[1.4] text-ink-2">
-            Trial and full-time payments are released to your default method at the end of each payment cycle. The ⋮ menu on each card opens Set as default, View payout history and Remove.
+            Trial, full-time and part-time payments are released to your default method at the end of each payment cycle. The ⋮ menu on each card opens Set as default, View payout history and Remove.
           </p>
           <div className="grid grid-cols-3 gap-4 pt-3.5">
             {payouts.map((m) => (
@@ -152,14 +152,14 @@ export default function Wallet() {
                     <span className="h-[26px] text-[20px] leading-[26px] font-bold text-ink">Bank</span>
                   )}
                   <span className="flex-1" />
-                  <KebabMenu label="Payout method actions" open={menu === m.id} onOpenChange={(open) => setMenu(open ? m.id : null)} itemCount={3} buttonClassName="!size-7 !rounded-full">
+                  <KebabMenu label="Payout method actions" open={menu === m.id} onOpenChange={(open) => setMenu(open ? m.id : null)} buttonClassName="!size-7">
                     <MenuAction disabled={m.isDefault || !m.verified.startsWith("Verified")} onClick={() => { setDefaultPayout(m.id); setMenu(null); setToast(`${m.brand} ····${m.last4} is now your default`); }} icon={<SetDefault size={18} aria-hidden />}>
                       Set as default
                     </MenuAction>
                     <MenuAction onClick={() => { setMenu(null); setToast("Payout history opens below"); }} icon={<History size={18} aria-hidden />}>
                       View payout history
                     </MenuAction>
-                    <MenuAction destructive disabled={payouts.length === 1} onClick={() => { setRemoving(m); setMenu(null); }} icon={<Trash size={18} aria-hidden className="text-[#c0392b]" />}>
+                    <MenuAction destructive disabled={payouts.length === 1} onClick={() => { setRemoving(m); setMenu(null); }} icon={<Trash size={18} aria-hidden />}>
                       Remove
                     </MenuAction>
                   </KebabMenu>

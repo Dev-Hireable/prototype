@@ -272,7 +272,7 @@ export function OnboardingQuizContent(props: OnboardingQuizContentProps) {
   // and the chat keeps at least 120px or so. It used to shrink with the window, so the chat went to nothing
   // and then the answer panel was cut off, the Other field first (a phone on its side).
   return (
-    <div className="bg-background flex h-dvh min-h-150 w-full flex-col overflow-hidden">
+    <div className="bg-background flex h-[calc(100dvh/var(--ui-scale))] min-h-150 w-full flex-col overflow-hidden">
       <div
         ref={contentRef}
         className="relative flex h-full min-h-0 w-full flex-col opacity-100"

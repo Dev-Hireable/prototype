@@ -41,8 +41,44 @@ export function DashboardHero({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] items-stretch gap-6">{children}</div>;
 }
 
-export function DashboardSummaryGrid({ children }: { children: ReactNode }) {
-  return <div className="flex items-stretch gap-4">{children}</div>;
+/**
+ * The cards under the hero, in rows that line up: two equal columns, `main` (My tasks, then the
+ * stats card) beside `side` (Interviews, then Active contracts). Each row takes its taller card's
+ * height and the card beside it stretches to match, so tops and bottoms are level across. Masonry
+ * columns let each side split its height its own way, and a wide main beside a narrow side read as
+ * lopsided — the user asked for two balanced columns.
+ *
+ * Without the tasks card (no live contract) the main column is short a card, and its one card used
+ * to stretch down beside two: the cards sit in one row of equal columns instead.
+ */
+export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: ReactNode[] }) {
+  const columns = [main.filter(Boolean), side.filter(Boolean)];
+  const rows = Math.max(...columns.map((c) => c.length), 1);
+  if (columns[0].length < columns[1].length) {
+    const cards = columns.flat();
+    return (
+      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))` }}>
+        {cards.map((card, i) => (
+          <div key={i} className="flex min-w-0 flex-col">
+            {card}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return (
+    // Inline, not a Tailwind arbitrary class, like the rows (the dev CSS misses new arbitrary classes).
+    <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gridTemplateRows: `repeat(${rows}, auto)` }}>
+      {columns.flatMap((cards, col) =>
+        cards.map((card, row) => (
+          // flex-col so the card (grow, shrink-0) fills the cell's height and never shrinks below its content.
+          <div key={`${col}-${row}`} className="flex min-w-0 flex-col" style={{ gridColumn: col + 1, gridRow: row === cards.length - 1 ? `${row + 1} / ${rows + 1}` : row + 1 }}>
+            {card}
+          </div>
+        )),
+      )}
+    </div>
+  );
 }
 
 export function DashboardGreeting({ name, dateClassName = "text-[15px] tracking-[0.2px] text-ink-2", children }: { name: string; dateClassName?: string; children: ReactNode }) {
@@ -105,14 +141,24 @@ export function DashboardBarChart({ bars, labelClassName = "" }: { bars: readonl
   );
 }
 
-export function DashboardSummaryCard({ title, href, children }: { title: string; href: string; children: ReactNode }) {
+/**
+ * `subtitle` is a line under the title, in the header beside the arrow rather than down in the body.
+ * `linkLabel` names the arrow when "See more …" doesn't read well with the title ("My tasks").
+ */
+export function DashboardSummaryCard({ title, subtitle, href, linkLabel, children }: { title: string; subtitle?: ReactNode; href: string; linkLabel?: string; children: ReactNode }) {
   return (
-    <section className="flex min-h-[259px] min-w-0 flex-1 flex-col gap-4 rounded-lg bg-surface-2 p-4">
-      <div className="flex items-start justify-between">
-        <h2 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{title}</h2>
+    // grow + shrink-0: in a dashboard column a card starts at its content height and takes a share
+    // of what's left, so both columns end level. flex-1 let it shrink below its content (the bar
+    // chart spilled out the bottom).
+    <section aria-label={title} className="flex min-h-[259px] min-w-0 shrink-0 grow flex-col gap-4 rounded-lg bg-surface-2 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{title}</h2>
+          {subtitle && <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">{subtitle}</p>}
+        </div>
         {/* 48px: double the old 24px, which was both hard to spot and under the 44px minimum
             touch target. */}
-        <Link href={href} aria-label={`See more ${title.toLowerCase()}`} className="flex size-12 items-center justify-center rounded-full bg-white text-ink hover:bg-surface-alt">
+        <Link href={href} aria-label={linkLabel ?? `See more ${title.toLowerCase()}`} className="flex size-12 items-center justify-center rounded-full bg-white text-ink hover:bg-surface-alt">
           <Forward size={24} aria-hidden />
         </Link>
       </div>

@@ -1,61 +1,91 @@
 "use client";
 
-import { Tip } from "@/components/portal/Tip";
+import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/PageParts";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { use, useState } from "react";
-import { Button, Card, Chip, InfoBanner, Initials, JobBadge, LinkButton, Modal, ObjectiveRow, Page, Progress, Stat, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
+import { notFound, useRouter } from "next/navigation";
+import { Suspense, use, useState } from "react";
+import { Button, Card, Chip, Initials, JobBadge, LinkButton, MessageButton, Modal, Page, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { ActivityLog } from "@/components/portal/ActivityLog";
-import { DisputeForm, DisputeRows, useDisputeFlow } from "@/components/portal/disputes";
+import { DisputeForm, DisputeRows } from "@/components/portal/disputes";
 import { PanelCard } from "@/components/portal/PanelCard";
-import { kindIndex } from "@/components/team/ObjectiveViews";
-import { TrialFitScore } from "@/components/team/TrialWidgets";
-import { sinceOrFrom } from "@/lib/demo/dates";
-import { useDeal } from "@/lib/demo/deal";
+import { Callout } from "@/components/portal/Callout";
+import { ContractOverview, payLabel } from "@/components/portal/ContractOverview";
+import { firstName } from "@/components/portal/tasks/task-bits";
+import { ICONS } from "@/components/admin/icons";
+import { SummaryStat } from "@/components/workspace/meta";
+import { ProjectWorkspace } from "@/components/workspace/ProjectWorkspace";
+import { UnreadableGate } from "@/components/workspace/UnreadableGate";
+import { MatchAtHire, TrialFitScore } from "@/components/team/TrialWidgets";
+import { trialClosed as isTrialClosed } from "@/lib/contract/lifecycle";
+import { payScheduleOf } from "@/lib/demo/contract";
+import { dayLabel, sinceOrFrom } from "@/lib/demo/dates";
+import { lifecycleOfDeal, trialEvaluationOf, useDeal } from "@/lib/demo/deal";
 import type { DealEvaluation } from "@/lib/demo/deal";
-import { dealContract, escrowLine, escrowOf, fileBlock, fileDispute, rateAmount, STATUS_TONE, usd, useDisputes } from "@/lib/demo/disputes";
+import { Tip } from "@/components/portal/Tip";
+import { caseHref, dealContract, escrowInPlay, escrowLine, escrowOf, fileBlock, fileBlockHint, fileDispute, rateAmount, STATUS_TONE, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef } from "@/lib/demo/disputes";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { PAIR } from "@/lib/demo/live";
-import { COMPANIES, objectiveStatus } from "@/lib/independent/data";
+import { trackerClosed } from "@/lib/demo/tasks";
+import { COMPANIES } from "@/lib/independent/data";
 import type { Contract } from "@/lib/independent/data";
-import { FT_BENEFITS, OBJECTIVE_KIND } from "@/lib/team/data";
+import { FT_BENEFITS } from "@/lib/team/data";
 import { useDemo } from "@/lib/independent/store";
-import { useQueryState } from "@/lib/portal/query-state";
+import { useQueryState, writeParams } from "@/lib/portal/query-state";
+import { accessOf } from "@/lib/work/access";
+import { isArchived } from "@/lib/work/model";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
-import { WorkStyleChip } from "@/components/portal/TraitTag";
+import { TraitTag } from "@/components/portal/TraitTag";
 import { storedWorkStyle, traitTagsFor } from "@/lib/demo/work-style";
-
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
-/** Figma "Contracts / Trial tracker · Full-time tracker · Update progress · Mark as done · Evaluation received": DM Sans 24 header + tabs. */
-export default function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
+export default function ContractTrackerPage({ params }: { params: Promise<{ slug: string }> }) {
+  return (
+    <Suspense>
+      <UnreadableGate title="Contract">
+        <ContractTracker params={params} />
+      </UnreadableGate>
+    </Suspense>
+  );
+}
+
+/**
+ * Figma "Contracts / Trial tracker · Full-time tracker · Evaluation received", with the objectives
+ * replaced by the contract's shared task list (IN-076 / IN-026…030): the talent works it — moves
+ * tasks, ticks subtasks, sends them for review — and the Team Builder reviews each one.
+ */
+function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, transactions } = useDemo();
+  const { contracts, transactions, profile, payouts } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
-  if (!contract) notFound();
-  // In the URL rather than state, so leaving from the Evaluation tab comes back to it.
-  const [tab, setTab] = useQueryState("tab", "objectives", ["objectives", "contract", "evaluation"] as const);
-  const objectives = contract.objectives;
-  /** Messages opened on the thread with this contract's manager — only the live pair has one. */
+  // In the URL rather than state, so leaving from the Evaluation tab comes back to it. "tasks" is
+  // the Work tab: the key links and notifications have always used.
+  const [tab, setTab] = useQueryState("tab", "tasks", ["tasks", "overview", "contract", "evaluation"] as const);
   const withReturn = useWithReturn();
-  const thread = withReturn(contract.manager === PAIR.team.name ? "/independent/messages?with=c1" : "/independent/messages");
   /** IN-059 — the dispute form: reason, description and amount are required, evidence is not. */
   const [filing, setFiling] = useState(false);
   /** IN-049 — the company behind the contract, read-only. */
   const [companyOpen, setCompanyOpen] = useState(false);
+  const [toast, setToast] = useToast();
+  const deal = useDeal();
+  const allDisputes = useDisputes();
+  const router = useRouter();
+  if (!contract) notFound();
+  const people = { team: { name: contract.manager, avatar: PAIR.team.avatar }, independent: { name: profile.name, avatar: profile.photo } };
+  const actor = { role: "contributor" as const, name: profile.name };
+
+  const tasks = contract.tasks;
+  /** Messages opened on the thread with this contract's manager — only the live pair has one. */
+  const thread = withReturn(contract.manager === PAIR.team.name ? "/independent/messages?with=c1" : "/independent/messages");
   const company = COMPANIES[contract.company];
   /** The Team Builder's own quiz answers, from their portal — what their badges say about how they work. */
   const companyTags = contract.company === PAIR.team.company ? traitTagsFor(storedWorkStyle("team"), "team") : [];
-  const [toast, setToast] = useToast();
   const isTrial = contract.type === "trial";
-  const completed = objectives.filter((o) => o.status === "complete").length;
-  const pending = objectives.filter((o) => o.status === "pending").length;
+  const fromTrial = contract.origin === "trial";
+  const typeLabel = JOB_TYPE_LABEL[contract.type];
   const left = contract.left;
-  /** IN-076 — a dispute is only available once the trial is over; a full-time contract has no gate. */
-  const ended = contract.over || contract.status.label === "Ended" || contract.evaluations.length > 0;
-  const canDispute = !isTrial || ended;
   /** IN-032 — this contract's own transactions. */
   const payments = transactions.filter((t) => t.contract === contract.slug);
 
@@ -63,25 +93,141 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
    * IN-032 / IN-059 — disputes are one record per contract that the Team Builder and Admin read too
    * (@/lib/demo/disputes), so this tab shows theirs as well as the independent's own.
    */
-  const deal = useDeal();
-  const allDisputes = useDisputes();
   const liveRef = dealContract(deal);
   const onDeal = !!liveRef && liveRef.links.independent === contract.slug;
   const ref: ContractRef = onDeal ? liveRef : { key: `ind:${contract.slug}`, links: { team: contract.slug, independent: contract.slug }, title: contract.title, type: contract.type, rate: contract.rate, started: contract.started, ends: contract.ends };
   const escrow = onDeal ? escrowOf(deal, allDisputes) : null;
+  /** What a dispute is about: the trial's escrow while there's one in play, else the pay (IN-059). */
+  const inPlay = onDeal ? escrowInPlay(deal, allDisputes) : null;
   const here = allDisputes.filter((d) => d.contract === ref.key);
-  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "independent", escrow);
-  const flow = useDisputeFlow("independent", setToast);
-  const fileHint = !canDispute ? `Available once the trial ends on ${contract.ends}` : block === "settled" ? "Nothing is left in escrow on this contract" : undefined;
+  const conversion = onDeal ? deal?.conversion : undefined;
+  /** Where the live contract is in its lifecycle (@/lib/contract/lifecycle): every tab reads the same phase. */
+  const life = onDeal ? lifecycleOfDeal(deal) : null;
+  const phase = life?.phase;
+  const closedTrial = !!life && isTrialClosed(life);
+  /** Held since the trial began — `contract.started` is the role's first day once it converts. */
+  const trialStart = life?.trial ? dayLabel(life.trial.started) : contract.started;
+  /**
+   * IN-076 / IN-059 — filing opens when the trial ends and stays open while the contract runs: not
+   * before its first day, not after it ends (fileBlock). A contract the demo only lists has no
+   * lifecycle, so its status stands in for one.
+   */
+  const disputePhase = phase ?? (contract.status.label === "Ended" ? "ended" : contract.status.label.startsWith("Starts") ? "starts" : isTrial && !contract.over ? "trial" : "ongoing");
+  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "independent", inPlay, disputePhase);
+  const fileHint = fileBlockHint(block, "independent", { starts: life ? dayLabel(life.since) : contract.started, trialEnds: contract.ends });
+  const contractEnded = contract.status.label === "Ended";
+  /** When the trial's evaluation is due. */
+  const due = life?.trial ? dayLabel(life.trial.evaluationDue) : undefined;
+  /** The trial's own evaluation, apart from later reviews of the role it became. */
+  const trialEval = onDeal ? trialEvaluationOf(deal) : undefined;
+  /** A full-time or part-time role's pay: a month's worth, and the next payday. */
+  const pay = onDeal ? payScheduleOf(deal) : null;
+  /** What escrow will pay out now: what it holds, less what a dispute is keeping. */
+  const releasable = escrow ? Math.max(0, escrow.held - escrow.onHold) : 0;
+  /** Where the money goes: the default payout method, as it's named in the wallet. */
+  const method = payouts.find((m) => m.isDefault);
+  const payoutTo = method ? `${method.brand} ····${method.last4}` : "your payout method";
+  /** The benefits the signed offer carried — a full-time role's own, not a fixed list. */
+  const benefits = onDeal ? ((conversion?.status === "accepted" ? conversion.benefits : (deal?.offer?.benefits ?? deal?.contract?.benefits)) ?? []) : FT_BENEFITS;
+
+  /** The work, on the shared engagement: done here, planned and reviewed by the Team Builder. */
+  const closedNote = contractEnded
+    ? "This contract has ended, so its work is read-only."
+    : phase === "evaluation"
+      ? `The trial ${life?.trial?.closedEarly ? "closed early, every trial task approved" : `ended on ${contract.ends}`}. Your work is with ${contract.managerFirst} for the evaluation, due ${due}.`
+      : phase === "decision"
+        ? `The trial is over and ${contract.managerFirst} has sent your evaluation. The work reopens if you're hired on.`
+        : phase === "offer"
+          ? `${contract.company} offered you a role after the trial. The work reopens when you accept it.`
+          : isTrial && contract.over
+            ? "The trial has closed, so no new work can be added or sent for review."
+            : undefined;
+  /** Items sent back with a note, waiting on the talent to change and resubmit. */
+  const changed = tasks.filter((t) => !isArchived(t) && t.assignee === "independent" && t.changes && (t.status === "todo" || t.status === "doing"));
+  /** Opens an item in the Work tab. */
+  const openTask = (id: string) => writeParams({ tab: null, task: id });
+
+  /** IN-084 — the full-time or part-time offer after the trial, one click from the contract it continues. */
+  const offerCallout = conversion?.status === "sent" && (
+    <Callout
+      action={
+        <LinkButton size="sm" variant="primary" href={`/independent/contracts/${contract.slug}/offer`}>
+          Review offer
+        </LinkButton>
+      }
+    >
+      {contract.company} sent you a {JOB_TYPE_LABEL[conversion.type].toLowerCase()} offer: {conversion.salary} /month{conversion.hours ? `, ${hoursLabel(conversion.hours)}` : ""}. Review and sign it, or decline.
+    </Callout>
+  );
+
+  /** IN-037 / IN-032 — on every tab: the conversation, and the one dispute a contract can have. */
+  const headerActions = (
+    <>
+      <MessageButton size="md" href={thread}>
+        Message {contract.managerFirst}
+      </MessageButton>
+      {/* Hidden once they have filed on this contract (one per contract). While any dispute is
+          open on it, from either side, it opens that one instead. */}
+      {block === "open" && running ? (
+        <LinkButton size="md" href={caseHref("independent", running.id)}>
+          View dispute
+        </LinkButton>
+      ) : (
+        block !== "filed" && (
+          <Tip label={fileHint} wrap>
+            <Button size="md" disabled={!!block} onClick={() => setFiling(true)}>
+              File a dispute
+            </Button>
+          </Tip>
+        )
+      )}
+    </>
+  );
+
+  /** IN-049 — who the contract is with; the full profile opens read-only. */
+  const companyCard = (
+    <PanelCard title="Company">
+      <div className="flex items-center gap-3">
+        <Initials text={contract.initials} className="size-11 shrink-0 text-[13px]" />
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <p className="truncate text-[14px] leading-[1.3] font-semibold text-ink">{contract.company}</p>
+          <p className="truncate text-[12.5px] leading-[1.3] text-ink-2">{contract.manager} · Hiring manager</p>
+        </div>
+      </div>
+      {companyTags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {companyTags.map((t) => (
+            <TraitTag key={`${t.trait}-${t.label}`} tag={t} view="other" />
+          ))}
+        </div>
+      )}
+      <Button size="lg" onClick={() => setCompanyOpen(true)}>
+        View company profile
+      </Button>
+    </PanelCard>
+  );
 
   const contractRows = (
     [
-      ["Rate", contract.rate],
+      ["Pay", contract.rate],
       [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
       // It used to say "released" as soon as the trial dates passed, whether or not the Team
       // Builder had released anything — the exact case a dispute is for.
-      ["Escrow", isTrial ? (escrow ? escrowLine(escrow, contract.started, { releasedTo: "you", refundedTo: contract.company }) : `${usd(contract.deposit ?? rateAmount(contract.rate))} held since ${contract.started}`) : "Not used on a full-time contract"],
-      ["Payout", (escrow?.released ?? 0) > 0 ? "Paid to Maya ····4471" : isTrial ? "Released at trial end on approval, to Maya ····4471" : "Released at the end of each month, to Maya ····4471"],
+      [fromTrial && !isTrial ? "Trial" : "Escrow", fromTrial ? (escrow ? escrowLine(escrow, trialStart, { releasedTo: "you", refundedTo: contract.company }) : `${usd(contract.deposit ?? rateAmount(contract.rate))} held since ${trialStart}`) : "None — hired directly, paid monthly"],
+      [
+        "Payout",
+        contractEnded
+          ? `Settled, to ${payoutTo}`
+          : isTrial
+            ? releasable > 0
+              ? `With the evaluation${due ? `, or on its own after ${due}` : ""}, to ${payoutTo}`
+              : escrow && escrow.onHold > 0
+                ? "Held for a dispute"
+                : `Paid to ${payoutTo}`
+            : pay?.next
+              ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}, to ${payoutTo}`
+              : `At the end of each month, to ${payoutTo}`,
+      ],
     ] as const
   ).map(([k, v]) => (
     <div key={k} className="flex gap-2.5 leading-[1.45]">
@@ -89,21 +235,26 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
       <span className="min-w-0 flex-1 text-[12px] text-ink">{v}</span>
     </div>
   ));
+  /** The trial's score, final once it converted — or the match, on a direct hire. */
+  const score = contract.tfs ? <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} final={!isTrial || !!trialEval} /> : <MatchAtHire match={contract.match} who="You were" />;
 
   return (
     <Page
+      fill={tab === "tasks"}
       title={
         <>
           {contract.title} — {contract.company} <JobBadge type={contract.type} />
+          <StatusDot tone={contract.status.tone}>{contract.status.label}</StatusDot>
         </>
       }
       tabs={
         <Tabs
-          className="px-4"
           value={tab}
           onChange={setTab}
+          aria-label="Contract sections"
           options={[
-            { value: "objectives", label: "Objectives" },
+            { value: "tasks", label: "Work" },
+            { value: "overview", label: "Overview" },
             { value: "contract", label: "Contract & Payment" },
             { value: "evaluation", label: "Evaluation" },
           ]}
@@ -118,7 +269,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                   <BreadcrumbLink render={<Link href="/independent/contracts" />}>All contracts</BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator />
-                {tab === "objectives" ? (
+                {tab === "tasks" ? (
                   <BreadcrumbItem>
                     <BreadcrumbPage>
                       {contract.title} — {contract.company}
@@ -126,7 +277,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                   </BreadcrumbItem>
                 ) : (
                   <>
-                    {/* On a tab, the contract crumb leads back to its default Objectives tab. */}
+                    {/* On a tab, the contract crumb leads back to its default Tasks tab. */}
                     <BreadcrumbItem>
                       <BreadcrumbLink render={<Link href={`/independent/contracts/${contract.slug}`} />}>
                         {contract.title} — {contract.company}
@@ -134,7 +285,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                      <BreadcrumbPage>{tab === "evaluation" ? "Evaluation" : "Contract & Payment"}</BreadcrumbPage>
+                      <BreadcrumbPage>{tab === "evaluation" ? "Evaluation" : tab === "overview" ? "Overview" : "Contract & Payment"}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </>
                 )}
@@ -143,106 +294,93 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
           }
         />
       }
+      navActions={headerActions}
     >
-      {tab === "evaluation" ? (
-        isTrial ? (
-          <Evaluation evaluation={contract.evaluations[0]} company={contract.company} contract={contract} thread={thread} />
+      {tab === "tasks" ? (
+        onDeal ? (
+          <ProjectWorkspace
+            actor={actor}
+            people={people}
+            closedNote={closedNote}
+            context={
+              <>
+                {isTrial && !contract.endedOn && <SummaryStat mark={<ICONS.clock size={15} aria-hidden />}>{contract.day}</SummaryStat>}
+                {!isTrial && life && (
+                  <SummaryStat>
+                    {typeLabel} {phase === "starts" ? "from" : "since"} {dayLabel(life.since)}
+                  </SummaryStat>
+                )}
+                {contract.tfs && (
+                  <SummaryStat>
+                    Trial Fit Score <b className="font-semibold text-ink">{contract.tfs.overall}%</b>
+                    {(!isTrial || trialEval) && " · final"}
+                  </SummaryStat>
+                )}
+              </>
+            }
+          />
         ) : (
-          <OngoingEvaluations entries={contract.evaluations} contract={contract} />
+          <p className="px-10 py-8 text-[14px] text-ink-2">This contract's work list isn't available.</p>
         )
-      ) : (
-        <>
-          {/* Figma "Independent header": p 20, gap 12 — company, role and both status badges. */}
-          <Card className="flex flex-col gap-3 p-5">
-            <div className="flex items-center gap-4">
-              <Initials text={contract.initials} className="size-14 text-[14px]" />
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
-                <p className="flex items-center gap-2">
-                  {/* IN-049 — the company name opens its profile. It sat alone in a "⋯" menu, which hid
-                      the only action behind an icon and wrapped the label. */}
-                  <Tip label="View company profile">
-                    <button
-                      type="button"
-                      onClick={() => setCompanyOpen(true)}
-                      className="font-display text-[22px] leading-[1.5] font-semibold text-ink underline-offset-4 hover:text-primary hover:underline"
-                      style={DM}
-                    >
-                      {contract.company}
-                    </button>
-                  </Tip>
-                  <JobBadge type={contract.type} />
-                  <StatusDot tone={contract.status.tone}>{contract.status.label}</StatusDot>
-                </p>
-                <p className="text-[14px] leading-[1.4] text-ink-2">
-                  {contract.title} · {contract.manager} · Hiring manager
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* IN-037 — always here. It opens the conversation itself, with its history and where
-                    the reply lands, rather than a compose box that hid both. */}
-                <LinkButton size="lg" href={thread}>
-                  Message {contract.managerFirst}
-                </LinkButton>
-                {/* IN-032 — hidden once they have filed on this contract (one per contract). While any
-                    dispute is open on it, from either side, it opens that one instead. */}
-                {block === "open" && running ? (
-                  <Button size="lg" onClick={() => flow.view(running)}>
-                    View dispute
-                  </Button>
-                ) : (
-                  block !== "filed" && (
-                    <Button size="lg" disabled={!canDispute || !!block} title={fileHint} onClick={() => setFiling(true)}>
-                      File a dispute
-                    </Button>
-                  )
-                )}
-                {/* The next objective still open — or none, once every one is achieved or under review. */}
-                {objectives.some((o) => o.status !== "complete" && o.status !== "pending") && (
-                  <LinkButton size="lg" variant="primary" href={`/independent/contracts/${contract.slug}/objectives/${objectives.find((o) => o.status !== "complete" && o.status !== "pending")!.id}`}>
-                    Update progress
-                  </LinkButton>
-                )}
-              </div>
-            </div>
-            <p className="flex gap-6 text-[13px] leading-[1.4] whitespace-nowrap text-ink-2">
-              <span>
-                {isTrial ? "Trial started" : `Full-time ${sinceOrFrom(contract.started)}`} {contract.started}
-              </span>
-              {isTrial ? !contract.endedOn && <span>{contract.day}</span> : <span>Quarter: {contract.day}</span>}
-              {isTrial && <span>{contract.endedOn ? `Ended ${contract.endedOn}` : `Ends ${contract.ends}`}</span>}
-              <span>{contract.rate}</span>
-            </p>
-          </Card>
+      ) : tab === "evaluation" ? (
+        isTrial ? (
+          <Evaluation evaluation={trialEval ?? contract.evaluations[0]} company={contract.company} contract={contract} thread={thread} due={due} />
+        ) : (
+          <OngoingEvaluations entries={fromTrial ? contract.evaluations.slice(0, -1) : contract.evaluations} trial={fromTrial ? contract.evaluations[contract.evaluations.length - 1] : undefined} contract={contract} score={score} ended={contractEnded} />
+        )
+      ) : tab === "contract" ? (
+        <div className="flex flex-col gap-5">
+          {offerCallout}
+          <div className={WITH_SIDE}>
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              {/* IN-032 — what was agreed, read-only: nothing on this tab can be edited. */}
+              <PanelCard title="Agreed terms" aside={<span className="text-[12px] leading-[1.4] text-ink-2">Read-only</span>}>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] leading-[1.4]">
+                  {(
+                    [
+                      ["Role", contract.title],
+                      ["Contract type", fromTrial && !isTrial ? `${typeLabel}, after a trial` : typeLabel],
+                      [isTrial ? "Trial duration" : "Review period", isTrial ? `${contract.workingDays ?? contract.day.replace(/^Day \d+ of /, "")} working days · ${contract.day}` : "Quarterly"],
+                      ["Start date", contract.started],
+                      [isTrial ? "End date" : "Term ends", contract.ends],
+                      [contract.type === "full-time" ? "Base salary" : isTrial ? "Agreed budget" : "Monthly rate", contract.rate],
+                      ...(contract.hours ? ([["Hours", hoursLabel(contract.hours)]] as const) : []),
+                      ["Payment schedule", isTrial ? `Held in escrow, paid to you with ${contract.managerFirst}'s evaluation${due ? ` (due ${due}), or on its own once that has passed` : ""}` : "Paid on the last day of each month — pro rata for a part month"],
+                      ...(!isTrial ? ([["Next payment", pay?.next ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}` : contractEnded ? "None — the contract has ended" : "—"]] as const) : []),
+                    ] as const
+                  ).map(([k, v]) => (
+                    <div key={k} className="flex flex-col gap-0.5">
+                      <dt className="text-ink-2">{k}</dt>
+                      <dd className="font-medium text-ink">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </PanelCard>
 
-          {/* IN-046 — a full-time offer waiting on an answer, one click from the contract it continues. */}
-          {onDeal && deal?.fullTime?.status === "sent" && (
-            <InfoBanner>
-              <span className="flex items-center justify-between gap-4">
-                <span>
-                  {contract.company} sent you a full-time offer: {deal.fullTime.salary} /month. Review and sign it, or decline.
-                </span>
-                <LinkButton size="sm" variant="primary" href={`/independent/contracts/${contract.slug}/offer`}>
-                  Review offer
-                </LinkButton>
-              </span>
-            </InfoBanner>
-          )}
+              {/* IN-046 — what a full-time engagement includes on top of the salary. */}
+              {contract.type === "full-time" && (
+                <PanelCard title="Exclusive benefits" aside={<span className="text-[12px] leading-[1.4] text-ink-2">On top of base salary</span>}>
+                  <ul className="flex flex-col gap-3 text-[13px] leading-[1.4]">
+                    {FT_BENEFITS.map((b) => (
+                      <li key={b} className="flex items-center justify-between gap-4 border-t border-border pt-3 first:border-t-0 first:pt-0">
+                        <span className="text-ink">{b}</span>
+                        {benefits.includes(b) ? <StatusDot tone="ok">Included</StatusDot> : <StatusDot tone="neutral">Not included</StatusDot>}
+                      </li>
+                    ))}
+                  </ul>
+                </PanelCard>
+              )}
 
-          {tab === "contract" ? (
-            <div className="flex items-start gap-6">
-              <div className="flex min-w-0 flex-1 flex-col gap-4">
-                {/* IN-032 — what was agreed, read-only: nothing on this tab can be edited. */}
-                <PanelCard title="Agreed terms" aside={<span className="text-[12px] leading-[1.4] text-ink-2">Read-only</span>}>
+              {/* The trial it began as, kept as the contract's first chapter once it became a role. */}
+              {life?.converted && life.trial && (
+                <PanelCard title="The trial" aside={<span className="text-[12px] leading-[1.4] text-ink-2">Complete</span>}>
                   <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] leading-[1.4]">
                     {(
                       [
-                        ["Role", contract.title],
-                        ["Contract type", isTrial ? "Trial" : "Full-time"],
-                        [isTrial ? "Trial duration" : "Review period", isTrial ? `${contract.workingDays ?? contract.day.replace(/^Day \d+ of /, "")} working days · ${contract.day}` : "Quarterly"],
-                        ["Start date", contract.started],
-                        [isTrial ? "End date" : "Term ends", contract.ends],
-                        [isTrial ? "Agreed budget" : "Base salary", contract.rate],
-                        ["Payment schedule", isTrial ? "Held in escrow at the start, released in full when the trial is approved" : "Released at the end of each month"],
+                        ["Dates", `${dayLabel(life.trial.started)} – ${dayLabel(life.trial.ends)}`],
+                        ["Escrow", escrow ? escrowLine(escrow, dayLabel(life.trial.started), { releasedTo: "you", refundedTo: contract.company }) : "—"],
+                        ...(contract.tfs ? ([["Trial Fit Score", `${contract.tfs.overall}% · final`]] as const) : []),
+                        ...(trialEval ? ([["Evaluated", trialEval.date]] as const) : []),
                       ] as const
                     ).map(([k, v]) => (
                       <div key={k} className="flex flex-col gap-0.5">
@@ -252,149 +390,147 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
                     ))}
                   </dl>
                 </PanelCard>
+              )}
 
-                {/* IN-046 — what a full-time engagement includes on top of the salary. */}
-                {!isTrial && (
-                  <PanelCard title="Exclusive benefits" aside={<span className="text-[12px] leading-[1.4] text-ink-2">On top of base salary</span>}>
-                    <ul className="flex flex-col gap-3 text-[13px] leading-[1.4]">
-                      {FT_BENEFITS.map((b) => (
-                        <li key={b} className="flex items-center justify-between gap-4 border-t border-border pt-3 first:border-t-0 first:pt-0">
-                          <span className="text-ink">{b}</span>
-                          <StatusDot tone="ok">Included</StatusDot>
-                        </li>
-                      ))}
-                    </ul>
-                  </PanelCard>
-                )}
-
-                {/* IN-032 — every transaction recorded against this contract. */}
-                <PanelCard title="Payment history">
-                  {payments.length === 0 ? (
-                    <p className="text-[13px] leading-[1.4] text-ink-2">No payments recorded on this contract yet. The escrow deposit appears here once {contract.company} funds it.</p>
-                  ) : (
-                    <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
-                      <div className="flex items-center gap-4 bg-surface-2 px-4 py-2.5 text-[12.5px] leading-[1.4] font-medium text-ink-2">
-                        <span className="w-[110px] shrink-0">Date</span>
-                        <span className="w-[150px] shrink-0">Type</span>
-                        <span className="w-[110px] shrink-0">Amount</span>
-                        <span className="min-w-0 flex-1">Status</span>
-                      </div>
-                      {/* Two payments can share a date and description (a dispute release, then End Contract). */}
-                      {payments.map((t, i) => (
-                        <div key={`${i}-${t.date}-${t.desc}-${t.amount}`} className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[13px] leading-[1.4] text-ink">
-                          <span className="w-[110px] shrink-0">{t.date}</span>
-                          <span className="w-[150px] shrink-0">
-                            <Chip size="sm">{t.type}</Chip>
-                          </span>
-                          <span className="w-[110px] shrink-0 font-medium">{t.amount}</span>
-                          <span className="min-w-0 flex-1">
-                            <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </PanelCard>
-
-                {/* IN-032 / IN-046 — every dispute filed for this contract lives on this tab, the
-                    company's included: date filed, reason and current status, and the detail
-                    behind View. */}
-                {here.length > 0 ? (
-                  <PanelCard title={here.length === 1 ? "Dispute" : "Disputes"} aside={here.length === 1 ? <StatusDot tone={STATUS_TONE[here[0].status]}>{here[0].status}</StatusDot> : undefined}>
-                    <DisputeRows disputes={here} side="independent" onView={flow.view} />
-                    {block === "filed" && <p className="text-[12.5px] leading-[1.4] text-ink-2">One dispute can be filed per contract, so there is nothing more to raise here.</p>}
-                  </PanelCard>
+              {/* IN-032 — every transaction recorded against this contract. */}
+              <PanelCard title="Payment history">
+                {payments.length === 0 ? (
+                  <p className="text-[13px] leading-[1.4] text-ink-2">{fromTrial ? `No payments on this contract yet. The trial's budget is held in escrow and paid to you with ${contract.managerFirst}'s evaluation.` : pay?.next ? `No payments yet. Your first, ${usd(pay.next.amount)}, is paid on ${dayLabel(pay.next.to)}.` : "No payments on this contract yet. Monthly pay appears here as it's paid."}</p>
                 ) : (
-                  <PanelCard title="Something wrong with a payment?">
-                    <p className="text-[13px] leading-[1.4] text-ink-2">
-                      {!canDispute
-                        ? `A dispute can be filed once the trial ends on ${contract.ends}. Until then, raise anything unexpected with ${contract.managerFirst} in Messages.`
-                        : block === "settled"
-                          ? "Nothing is left in escrow on this contract, so there is no payment left to dispute."
-                          : "Hireable support reviews the contract, the approved objectives and the escrow record, and the amount stays in escrow until they rule. You can file one dispute per contract."}
-                    </p>
-                    <Button size="lg" className="self-start" variant="primary" disabled={!canDispute || !!block} title={fileHint} onClick={() => setFiling(true)}>
+                  <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
+                    <div className="flex items-center gap-4 bg-surface-2 px-4 py-2.5 text-[12.5px] leading-[1.4] font-medium text-ink-2">
+                      <span className="w-[110px] shrink-0">Date</span>
+                      <span className="w-[150px] shrink-0">Type</span>
+                      <span className="w-[110px] shrink-0">Amount</span>
+                      <span className="min-w-0 flex-1">Status</span>
+                    </div>
+                    {/* Two payments can share a date and description (a dispute release, then End Contract). */}
+                    {payments.map((t, i) => (
+                      <div key={`${i}-${t.date}-${t.desc}-${t.amount}`} className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[13px] leading-[1.4] text-ink">
+                        <span className="w-[110px] shrink-0">{t.date}</span>
+                        <span className="w-[150px] shrink-0">
+                          <Chip size="sm">{t.type}</Chip>
+                        </span>
+                        <span className="w-[110px] shrink-0 font-medium">{t.amount}</span>
+                        <span className="min-w-0 flex-1">
+                          <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </PanelCard>
+
+              {/* IN-032 / IN-046 — every dispute filed for this contract lives on this tab, the company's included. */}
+              {here.length > 0 ? (
+                <PanelCard title={here.length === 1 ? "Dispute" : "Disputes"} aside={here.length === 1 ? <StatusDot tone={STATUS_TONE[here[0].status]}>{here[0].status}</StatusDot> : undefined}>
+                  <DisputeRows disputes={here} side="independent" />
+                  {block === "filed" && <p className="text-[12.5px] leading-[1.4] text-ink-2">One dispute can be filed per contract, so there is nothing more to raise here.</p>}
+                </PanelCard>
+              ) : (
+                <PanelCard title="Something wrong with a payment?">
+                  <p className="text-[13px] leading-[1.4] text-ink-2">
+                    {block === "trial" || block === "starts"
+                      ? `${fileHint}. Until then, raise anything unexpected with ${contract.managerFirst} in Messages.`
+                      : fileHint
+                        ? `${fileHint}.`
+                        : "Hireable support reviews the contract, the task log and the payment record, and the amount in question stays put until they rule. You can file one dispute per contract."}
+                  </p>
+                  <Tip label={fileHint} wrap wrapClassName="self-start">
+                    <Button size="lg" variant="primary" disabled={!!block} onClick={() => setFiling(true)}>
                       File a dispute
                     </Button>
-                  </PanelCard>
-                )}
-              </div>
-              <aside className="flex w-[360px] shrink-0 flex-col gap-4">
-                <TrialFitScore contract={contract} final={!isTrial} />
-                <PanelCard title="Escrow &amp; payout">
-                  <div className="flex flex-col gap-2">{contractRows}</div>
+                  </Tip>
                 </PanelCard>
-              </aside>
+              )}
             </div>
-          ) : (
+            <aside className={SIDE_COLUMN}>
+              {score}
+              <PanelCard title="Escrow &amp; payout">
+                <div className="flex flex-col gap-2">{contractRows}</div>
+              </PanelCard>
+              {companyCard}
+            </aside>
+          </div>
+        </div>
+      ) : (
+        /* IN-076 — the contract at a glance: its terms, how far the work has got, what's waiting on
+           you (changes asked for), what's due next and what changed. */
+        <ContractOverview
+          viewer="independent"
+          work={onDeal ? accessOf(deal) : undefined}
+          tasks={tasks}
+          names={{ team: contract.managerFirst, independent: firstName(profile.name) }}
+          people={people}
+          trial={isTrial}
+          facts={[
+            { label: "Hiring manager", value: contract.manager },
+            { label: isTrial ? "Trial started" : `${typeLabel} ${sinceOrFrom(contract.started)}`, value: contract.started },
+            ...(isTrial
+              ? [
+                  { label: contract.over ? "Trial" : `${Math.max(0, left ?? 0)} working ${left === 1 ? "day" : "days"} left`, value: contract.day },
+                  // Once over, the Trial cell says how it ended; the scheduled end would only repeat it (or, closed early, contradict it).
+                  ...(contract.over && !contract.endedOn ? [] : [{ label: contract.endedOn ? "Ended" : "Ends", value: contract.endedOn ?? contract.ends }]),
+                ]
+              : [{ label: "Review period", value: contract.day }]),
+            { label: payLabel(contract.type), value: contract.rate },
+            ...(contract.hours ? [{ label: "Hours", value: hoursLabel(contract.hours) }] : []),
+          ]}
+          callouts={
             <>
-              {/* IN-076 summary bar: what was committed, what is done, and how long is left. */}
-              <div className="flex gap-4">
-                {/* IN-038 — a full-time engagement is assigned objectives rather than committing to a locked set. */}
-                <Stat label={isTrial ? "Committed objectives" : "Assigned objectives"} value={String(objectives.length)} sub={isTrial ? "Locked at the offer" : `Assigned by ${contract.managerFirst}`} />
-                <Stat label="Completed objectives" value={String(completed)} sub={`${objectives.length - completed} still open`} />
-                {isTrial ? <Stat label="Days left" value={String(Math.max(0, left ?? 0))} sub={`${contract.started} – ${contract.ends}`} /> : <Stat label={contract.progressLabel} value={`${contract.progress}%`} sub={contract.day} />}
-                <Stat label="Updates pending review" value={String(pending)} sub={pending ? `Awaiting ${contract.managerFirst}` : "Nothing waiting"} />
-              </div>
-
-              <div className="flex items-start gap-6">
-                <section className="flex min-w-0 flex-1 flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={DM}>
-                      Objectives
-                    </h2>
-                    {/* IN-076 locked for the trial; IN-038 a full-time list grows as objectives are assigned. */}
-                    <span className="text-[12.5px] leading-[1.4] text-ink-2">
-                      {isTrial ? `Locked at the offer — agreed with ${contract.managerFirst}` : `New objectives ${contract.managerFirst} assigns appear here automatically`}
-                    </span>
-                  </div>
-                  {objectives.map((o) => {
-                    const st = objectiveStatus(o, left);
-                    /** IN-028 — an automatic objective moves on its key results, never by hand. */
-                    const krs = o.keyResults ?? [];
-                    const next = o.status === "complete" || o.status === "pending" ? "View" : o.kind === "kpi" ? "Update progress" : o.kind === "okr" && krs.length > 0 && !krs.every((k) => k.done) ? "View key results" : "Mark as done";
-                    return (
-                      <Card key={o.id} className="flex flex-col gap-3 p-4">
-                        <Link href={`/independent/contracts/${contract.slug}/objectives/${o.id}`} className="block hover:opacity-80">
-                          <ObjectiveRow index={kindIndex(o.kind)}>{o.title}</ObjectiveRow>
-                        </Link>
-                        {/* Type, progress, status, due date and last update (IN-076). */}
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] leading-[1.4] text-ink-2">
-                          <Chip size="sm">{OBJECTIVE_KIND[o.kind]}</Chip>
-                          <Progress value={o.progress} tone={st.bar} label />
-                          <StatusDot tone={st.tone}>{st.label}</StatusDot>
-                          {o.due && <span>Due {o.due}</span>}
-                          {krs.length > 0 && <span>{krs.filter((k) => k.done).length}/{krs.length} key results</span>}
-                          {o.target && <span>Target {o.target} {o.unit}</span>}
-                          {o.updated && <span>Updated {o.updated}</span>}
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="min-w-0 text-[12.5px] leading-[1.4] text-ink-2">{o.meta}</span>
-                          {/* Logging progress lives on the objective's own dashboard — one implementation, not two. */}
-                          <LinkButton size="sm" href={`/independent/contracts/${contract.slug}/objectives/${o.id}`}>
-                            {next}
-                          </LinkButton>
-                        </div>
-                      </Card>
-                    );
-                  })}
-                  {!isTrial && <p className="text-[13px] leading-[1.4] text-ink-2">Objectives, updates and approvals work exactly like the trial tracker. Only the trial timer and the evaluation gate are gone.</p>}
-                </section>
-
-                <aside className="flex w-[360px] shrink-0 flex-col gap-4">
-                  {/* IN-076 — the same Trial Fit Score the Team Builder sees, weighted by phase. */}
-                  <TrialFitScore contract={contract} final={!isTrial} />
-                  <ActivityLog activity={contract.activity} streak={contract.streak} />
-                </aside>
-              </div>
+              {offerCallout}
+              {phase === "evaluation" && (
+                <Callout>
+                  Your trial {life?.trial?.closedEarly ? "closed early, every trial task approved" : `ended on ${contract.ends}`}. {contract.managerFirst} is evaluating it{due ? ` — it's due ${due}` : ""}.
+                  {releasable > 0 && ` The ${usd(releasable)} in escrow is paid to you with the evaluation, or on its own if it hasn't come by then.`}
+                </Callout>
+              )}
+              {phase === "decision" && (
+                <Callout
+                  action={
+                    <Button size="sm" onClick={() => setTab("evaluation")}>
+                      Read it
+                    </Button>
+                  }
+                >
+                  {conversion?.status === "declined"
+                    ? `You declined the ${JOB_TYPE_LABEL[conversion.type].toLowerCase()} offer. The trial is complete; ${contract.managerFirst} may send a new offer.`
+                    : conversion?.status === "withdrawn"
+                      ? `${contract.company} withdrew its ${JOB_TYPE_LABEL[conversion.type].toLowerCase()} offer. The trial is complete.`
+                      : `${contract.managerFirst} sent your evaluation: your Trial Fit Score is final${contract.tfs ? ` at ${contract.tfs.overall}%` : ""}.`}
+                </Callout>
+              )}
+              {phase === "starts" && life && (
+                <Callout>
+                  Your {life.converted ? `${typeLabel.toLowerCase()} role` : "trial"} starts on {dayLabel(life.since)}. The work opens then.
+                </Callout>
+              )}
+              {changed.length > 0 && !closedTrial && !contractEnded && (
+                <Callout
+                  tone="warn"
+                  action={
+                    <Button size="sm" variant="primary" onClick={() => openTask(changed[0].id)}>
+                      Open
+                    </Button>
+                  }
+                >
+                  {contract.managerFirst} asked for changes on {changed.length === 1 ? "an item" : `${changed.length} items`}. Read the note, make the changes, then send {changed.length === 1 ? "it" : "them"} for review again.
+                </Callout>
+              )}
             </>
-          )}
-        </>
+          }
+          aside={
+            <>
+              {/* IN-076 — the same Trial Fit Score the Team Builder sees, weighted by phase. */}
+              {score}
+              <ActivityLog activity={contract.activity} streak={contract.streak} feeding={tasks.filter((t) => t.status !== "done").length} closed={trackerClosed(tasks, { ended: contract.status.label === "Ended", trialOver: isTrial && contract.over })} starts={contract.startsOn} />
+              {companyCard}
+            </>
+          }
+        />
       )}
 
-
-      {/* IN-049 — the company behind the contract: logo, name, description, industry, location,
-          URL and its work-style badges. Read-only; nothing here is the independent's to change. */}
+      {/* IN-049 — the company behind the contract, read-only. */}
       <Modal open={companyOpen} onClose={() => setCompanyOpen(false)} title={company?.name ?? contract.company} description="Read-only — how this company describes itself and how it likes to work.">
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">
@@ -421,7 +557,7 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
               <p className="text-[13px] leading-[1.4] font-medium text-ink">Work style</p>
               <div className="flex flex-wrap gap-2">
                 {companyTags.map((t) => (
-                  <WorkStyleChip key={`${t.trait}-${t.label}`} tag={t} view="other" />
+                  <TraitTag key={`${t.trait}-${t.label}`} tag={t} view="other" />
                 ))}
               </div>
             </div>
@@ -435,17 +571,17 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
         open={filing}
         onClose={() => setFiling(false)}
         title="File a dispute"
-        description={`Hireable support checks the process on the ${contract.title} contract — the approved objectives, the escrow record and the dates. The amount stays in escrow until they rule, and you can file one dispute per contract.`}
-        cap={escrow ? escrow.held : rateAmount(contract.rate)}
-        capNote={escrow ? "what is still held in escrow" : `the contract rate, ${contract.rate}`}
-        onFile={(draft) => {
-          const filed = fileDispute({ ref, filedBy: "independent", ...draft });
+        description={`Hireable support checks the process on the ${contract.title} contract — the approved tasks, the payment record and the dates. The amount stays put until they rule, and you can file one dispute per contract.`}
+        cap={inPlay ? inPlay.held : rateAmount(contract.rate)}
+        capNote={inPlay ? "what is still held in escrow" : `a month's pay, ${contract.rate}`}
+        onFile={async (draft) => {
+          const filed = await fileDispute({ ref, filedBy: "independent", ...draft });
           setFiling(false);
-          setTab("contract");
-          setToast(filed ? `Dispute filed — Hireable support is reviewing it and ${contract.company} has been notified` : "A dispute is already open on this contract");
+          // Straight to the case, where it now waits on the company to respond.
+          if (filed) router.push(caseHref("independent", filed.id));
+          else setToast("A dispute is already open on this contract");
         }}
       />
-      {flow.modals}
 
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
@@ -453,24 +589,24 @@ export default function ContractTracker({ params }: { params: Promise<{ slug: st
 }
 
 /**
- * IN-047 — a full-time engagement collects evaluations as it runs, so the tab is the whole run of
- * them, newest first, each with its date, stars and written feedback. Read-only.
- * IN-048 — the trial score that led to the conversion sits beside them and never moves again.
+ * IN-047 — a full-time or part-time engagement collects evaluations as it runs, so the tab is the
+ * whole run of them, newest first, each with its date, stars and written feedback. Read-only.
+ * IN-048 — beside them, the trial score that led to it (frozen), or the match on a direct hire.
  */
-function OngoingEvaluations({ entries, contract }: { entries: DealEvaluation[]; contract: Contract }) {
+function OngoingEvaluations({ entries, trial, contract, score, ended }: { entries: DealEvaluation[]; trial?: DealEvaluation; contract: Contract; score: React.ReactNode; ended: boolean }) {
   return (
-    <div className="flex items-start gap-6">
+    <div className={WITH_SIDE}>
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="font-display text-[20px] leading-[1.5] font-semibold text-ink" style={DM}>
             Evaluations from {contract.company}
           </h2>
           <p className="text-[14px] leading-[1.4] text-ink-2">
-            {entries.length === 0 ? `${contract.manager} has not submitted one yet.` : `${entries.length} submitted since you went full-time. Each is read-only once sent.`}
+            {entries.length === 0 ? (ended ? "None were sent before the contract ended." : trial ? `${contract.manager} hasn't reviewed the ${contract.type.replace("-", " ")} role yet. Your trial's evaluation is below.` : `${contract.manager} has not submitted one yet.`) : `${entries.length} submitted so far. Each is read-only once sent.`}
           </p>
         </div>
         {entries.length === 0 ? (
-          <Card className="p-10 text-center text-[13px] leading-[1.4] text-ink-2">Feedback appears here after each review period.</Card>
+          <Card className="p-10 text-center text-[13px] leading-[1.4] text-ink-2">{ended ? "The contract has ended." : `Feedback appears here as ${contract.managerFirst} sends it.`}</Card>
         ) : (
           entries.map((e, i) => (
             <Card key={`${e.date}-${i}`} className="flex flex-col gap-3 p-5">
@@ -486,10 +622,36 @@ function OngoingEvaluations({ entries, contract }: { entries: DealEvaluation[]; 
             </Card>
           ))
         )}
+        {trial && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-[15px] leading-[1.4] font-semibold text-ink">Your trial evaluation</h3>
+            <Card className="flex flex-col gap-3 p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-[13px] leading-[1.4] text-ink-2">Submitted {trial.date}</span>
+                <span className="flex items-center gap-1 text-[16px] leading-[1.2] text-[#f2994a]" aria-label={`${trial.stars} out of 5 stars`}>
+                  {"★".repeat(trial.stars)}
+                  <span className="text-ink-2">{"★".repeat(5 - trial.stars)}</span>
+                </span>
+              </div>
+              {(trial.scores ?? []).length > 0 && (
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px] leading-[1.4]">
+                  {(trial.scores ?? []).map((s) => (
+                    <div key={s.label} className="flex justify-between gap-3">
+                      <dt className="text-ink-2">{s.label}</dt>
+                      <dd className="font-medium text-ink tabular-nums">{s.value} / 5</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <p className="text-[14px] leading-[1.5] text-ink">{trial.feedback}</p>
+              <p className="text-[12.5px] leading-[1.4] text-ink-2">Recommendation: {trial.recommendation}</p>
+            </Card>
+          </div>
+        )}
       </div>
-      <aside className="flex w-[360px] shrink-0 flex-col gap-3">
-        <TrialFitScore contract={contract} final />
-        <p className="text-[12.5px] leading-[1.4] text-ink-2">The final score from your trial — the one this full-time contract came out of. It is read-only and does not move again.</p>
+      <aside className={SIDE_COLUMN}>
+        {score}
+        {contract.tfs && <p className="text-[12.5px] leading-[1.4] text-ink-2">The final score from your trial — the one this contract came out of. It is read-only and does not move again.</p>}
       </aside>
     </div>
   );
@@ -497,21 +659,22 @@ function OngoingEvaluations({ entries, contract }: { entries: DealEvaluation[]; 
 
 /**
  * Figma "Contracts / Evaluation received · view" — the evaluation the Team Builder actually sent.
- * It waited for a status the live contract never had, and would then have shown seeded scores.
  */
-function Evaluation({ evaluation, company, contract, thread }: { evaluation?: DealEvaluation; company: string; contract: Contract; thread: string }) {
+function Evaluation({ evaluation, company, contract, thread, due }: { evaluation?: DealEvaluation; company: string; contract: Contract; thread: string; due?: string }) {
   if (!evaluation) {
     return (
       <Card className="p-10 text-center">
         <p className="text-[16px] leading-[1.5] font-semibold text-ink">{contract.over ? "Waiting on the evaluation" : `Evaluation opens when the trial ends on ${contract.ends}`}</p>
-        <p className="mt-2 text-[13px] leading-[1.4] text-ink-2">{company} submits scores after the trial ends. They feed your trial fit score, and you are notified when they are in.</p>
+        <p className="mt-2 text-[13px] leading-[1.4] text-ink-2">
+          {contract.over && due ? `${company} has until ${due} to send it. It makes your Trial Fit Score final, and the escrow is paid to you with it.` : `${company} submits scores after the trial ends — or sooner, once every trial task is done. They feed your trial fit score, and you are notified when they are in.`}
+        </p>
       </Card>
     );
   }
   const scores = evaluation.scores ?? [];
   const average = scores.length ? scores.reduce((n, s) => n + s.value, 0) / scores.length : evaluation.stars;
   return (
-    <div className="flex items-start gap-6">
+    <div className={WITH_SIDE}>
       <div className="flex min-w-0 flex-1 flex-col gap-5">
         <div className="flex flex-col gap-1">
           <h2 className="font-display text-[20px] leading-[1.5] font-semibold text-ink" style={DM}>
@@ -559,16 +722,15 @@ function Evaluation({ evaluation, company, contract, thread }: { evaluation?: De
             <p className="rounded-md bg-[#fafafa] p-3 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">{evaluation.feedback}</p>
           </div>
           <div className="flex justify-end">
-            <LinkButton size="lg" href={thread}>
+            <MessageButton size="lg" href={thread}>
               Message {company}
-            </LinkButton>
+            </MessageButton>
           </div>
         </Card>
       </div>
-      {/* IN-034 — the finalised score, from the contract rather than a second set of numbers that
-          disagreed with it. Same widget the Team Builder reads, so both sides see one score. */}
-      <aside className="flex w-[360px] shrink-0 flex-col gap-3">
-        <TrialFitScore contract={contract} final />
+      {/* IN-034 — the finalised score, from the contract. Same widget the Team Builder reads. */}
+      <aside className={SIDE_COLUMN}>
+        {contract.tfs && <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} final />}
         <p className="text-[12.5px] leading-[1.4] text-ink-2">Locked at phase 4 on {evaluation.date}, after the employer evaluation. It does not move again.</p>
       </aside>
     </div>

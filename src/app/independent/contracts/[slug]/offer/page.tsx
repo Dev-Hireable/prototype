@@ -7,8 +7,9 @@ import { Button, Card, Checkbox, Field, InfoBanner, LinkButton, Modal, Page, Sta
 import { formatDate, fromISODate } from "@/components/portal/DatePicker";
 import { useDeal } from "@/lib/demo/deal";
 import { escrowOf, usd, useDisputes } from "@/lib/demo/disputes";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { PAIR } from "@/lib/demo/live";
-import { FULLTIME_AGREEMENT } from "@/lib/independent/data";
+import { agreementFor } from "@/lib/independent/data";
 import { useDemo } from "@/lib/independent/store";
 import { FT_BENEFITS } from "@/lib/team/data";
 
@@ -18,13 +19,13 @@ const pretty = (iso: string) => {
 };
 
 /**
- * TB-072 / IN-046 — the full-time offer that follows an evaluated trial: salary, start date and
- * the benefits the Team Builder picked, signed or declined here. The page used to read a static
- * seed of contracts — empty in this demo — so every full-time offer notification opened a 404.
+ * TB-072 / IN-084 — the offer that follows an evaluated trial, for a full-time role (salary, start
+ * date and the benefits the Team Builder picked) or a part-time one (monthly rate, hours a week and
+ * start date), signed or declined here.
  */
 export default function ContractOffer({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, acceptFullTime, declineFullTime } = useDemo();
+  const { contracts, acceptConversion, declineConversion } = useDemo();
   const deal = useDeal();
   const disputes = useDisputes();
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
   const [reason, setReason] = useState("");
   const [toast, setToast] = useToast();
   const contract = contracts.find((c) => c.slug === slug);
-  const offer = deal?.roleSlug === slug ? deal.fullTime : undefined;
+  const offer = deal?.roleSlug === slug ? deal.conversion : undefined;
   if (!contract || !offer) notFound();
   const back = `/independent/contracts/${contract.slug}`;
   const open = offer.status === "sent";
@@ -43,25 +44,27 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
   const escrow = escrowOf(deal, disputes);
   const releasing = escrow ? Math.max(0, escrow.held - escrow.onHold) : 0;
 
+  const kind = JOB_TYPE_LABEL[offer.type];
   const rows: [string, React.ReactNode][] = [
     ["Role", contract.title],
-    ["Contract type", "Full-time"],
+    ["Contract type", kind],
     ["Start date", pretty(offer.start)],
-    ["Salary", `${offer.salary} /month`],
+    [offer.type === "full-time" ? "Salary" : "Rate", `${offer.salary} /month`],
+    ...(offer.type === "part-time" ? ([["Hours", hoursLabel(offer.hours)]] as [string, React.ReactNode][]) : []),
     ["Payment", "Monthly, at the end of each month"],
     ["Review", "Quarterly, with evaluations as the work goes on"],
   ];
 
   return (
-    <Page title="Full-time offer" heading="modal" onClose={() => router.push(back)} padded={false}>
+    <Page title={`${kind} offer`} heading="modal" onClose={() => router.push(back)} padded={false}>
       <div className="mx-auto flex w-[1080px] flex-col gap-10 pt-10 pb-20">
         <div className="flex flex-col gap-2">
           <h2 className="font-display text-[32px] leading-[1.5] font-semibold text-black" style={{ fontVariationSettings: '"opsz" 14' }}>
-            Full-time offer from {contract.company}
+            {kind} offer from {contract.company}
           </h2>
-          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">Sent {offer.sent}. Accepting turns your trial into a full-time engagement{releasing > 0 ? `, and the ${usd(releasing)} still in the trial's escrow is released to you` : ""}.</p>
+          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">Sent {offer.sent}. Accepting turns your trial into a {kind.toLowerCase()} engagement{releasing > 0 ? `, and the ${usd(releasing)} still in the trial's escrow is released to you` : ""}.</p>
         </div>
-        {offer.status === "withdrawn" && <InfoBanner tone="warn">{contract.company} withdrew this offer, so it can no longer be accepted.</InfoBanner>}
+        {offer.status === "withdrawn" && <InfoBanner tone="warn">{deal?.contract?.ended ? `${contract.company} ended the contract, so this offer was withdrawn and can no longer be accepted.` : `${contract.company} withdrew this offer, so it can no longer be accepted.`}</InfoBanner>}
 
         <div className="flex items-start gap-6">
           <Card className="flex min-w-0 flex-1 flex-col gap-6 p-6">
@@ -76,6 +79,7 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
                 ))}
               </dl>
             </div>
+            {offer.type === "full-time" && (
             <div className="flex flex-col gap-3">
               <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Exclusive benefits</h3>
               <ul className="flex flex-col gap-2 text-[14px] leading-[1.4]">
@@ -87,10 +91,11 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
                 ))}
               </ul>
             </div>
+            )}
             <div className="flex flex-col gap-3">
               <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Services Agreement</h3>
               <div className="flex h-[260px] flex-col gap-6 overflow-y-auto rounded-lg bg-surface-2 px-4 pt-4 outline -outline-offset-1 outline-border">
-                <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{FULLTIME_AGREEMENT}</p>
+                <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{agreementFor(offer.type)}</p>
               </div>
             </div>
           </Card>
@@ -128,13 +133,13 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
                     variant="primary"
                     disabled={!signed}
                     onClick={() => {
-                      acceptFullTime();
-                      setToast(`You're full-time with ${contract.company}`);
+                      acceptConversion();
+                      setToast(`You're ${kind.toLowerCase()} with ${contract.company}`);
                     }}
                   >
                     Accept
                   </Button>
-                  <Button size="lg" onClick={() => setDeclining(true)}>
+                  <Button size="lg" variant="danger" onClick={() => setDeclining(true)}>
                     Decline
                   </Button>
                 </>
@@ -158,7 +163,7 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
         open={declining}
         onClose={() => setDeclining(false)}
         tone="danger"
-        title="Decline the full-time offer?"
+        title={`Decline the ${kind.toLowerCase()} offer?`}
         description={`${contract.manager} is told, with your reason if you give one. Your trial record stays on the contract.`}
         footer={
           <>
@@ -169,9 +174,9 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
               size="lg"
               variant="danger"
               onClick={() => {
-                declineFullTime(reason);
+                declineConversion(reason);
                 setDeclining(false);
-                setToast("Full-time offer declined");
+                setToast(`${kind} offer declined`);
               }}
             >
               Decline
@@ -180,7 +185,7 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
         }
       >
         <Field label="Reason (optional)">
-          <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Salary, start date, or anything else they should know." />
+          <Textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Pay, hours, start date, or anything else they should know." />
         </Field>
       </Modal>
       <Toast message={toast} onClose={() => setToast(null)} />

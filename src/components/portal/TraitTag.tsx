@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import { MdOutlineAutorenew, MdOutlineBalance, MdOutlineBolt, MdOutlineChatBubbleOutline, MdOutlineGroups, MdOutlineSchedule } from "react-icons/md";
 import type { IconType } from "react-icons";
-import { Chip } from "@/components/independent/ui";
 import { Tip } from "@/components/portal/Tip";
 import { WORK_STYLE_TRAITS, type WorkStyleTag } from "@/lib/demo/work-style";
 import { nunitoSans } from "@/web-app/lib/fonts/nunito-sans";
@@ -57,17 +56,6 @@ export function TraitTag({ tag, view }: { tag: WorkStyleTag; view?: "self" | "ot
       <span tabIndex={0} className={`inline-flex items-end justify-center gap-1 rounded-full px-3 py-2 text-ink ${FOCUS}`} style={{ backgroundColor: bg }}>
         <Icon size={16} aria-hidden className="shrink-0" />
         <span className={`${nunitoSans.className} text-[14px] leading-[1.2] font-medium tracking-[0.2px] uppercase`}>{tag.label}</span>
-      </span>
-    </TagMeaning>
-  );
-}
-
-/** A work-style tag as a plain chip (profile pages, the company card), with the same tooltip. */
-export function WorkStyleChip({ tag, view }: { tag: WorkStyleTag; view?: "self" | "other" }) {
-  return (
-    <TagMeaning tag={tag} view={view}>
-      <span tabIndex={0} className={`inline-flex rounded ${FOCUS}`}>
-        <Chip>{tag.label}</Chip>
       </span>
     </TagMeaning>
   );

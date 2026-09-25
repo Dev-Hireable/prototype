@@ -255,7 +255,7 @@ export function OnboardingIntroStep({
   return (
     <section
       ref={containerRef}
-      className="bg-background flex min-h-screen w-full items-center justify-center px-4"
+      className="bg-background flex min-h-[calc(100dvh/var(--ui-scale))] w-full items-center justify-center px-4"
     >
       {showSuccess ? (
         <OnboardingSuccessSplash
