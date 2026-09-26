@@ -3,6 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { MdOutlineEdit, MdOutlinePhotoCamera } from "react-icons/md";
 import { Button, Input, Select, Textarea } from "@/components/independent/ui";
+import { TimeZonePicker } from "@/components/portal/TimeZonePicker";
 
 /**
  * The profile editors' parts — the Team Builder's own profile and the company profile draw every
@@ -26,7 +27,31 @@ export function ProfileSection({ title, description, action, children }: { title
 }
 
 /**
- * The top of the editor: the photo or logo with a camera button on it, the name, and what's under
+ * A photo or logo you can change: the image, with a camera button on its corner that opens the file
+ * picker. The one way an image is changed anywhere — the Team Builder's profile and company logo,
+ * the talent's profile, and both portals' settings — so it reads the same on each side. `accept`
+ * and the checks are the caller's (JPG or PNG under 5MB, TB-120 / TB-123 / IN-061).
+ */
+export function ImagePicker({ image, label, onPick }: { image: ReactNode; /** "Change photo — JPG or PNG, up to 5MB". */ label: string; onPick: (f: File | undefined) => void }) {
+  const file = useRef<HTMLInputElement>(null);
+  return (
+    <div className="relative shrink-0">
+      {image}
+      <input ref={file} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => (onPick(e.target.files?.[0]), (e.target.value = ""))} />
+      <button
+        type="button"
+        onClick={() => file.current?.click()}
+        aria-label={label}
+        className="absolute -right-1 -bottom-1 flex size-8 items-center justify-center rounded-full bg-white text-ink shadow-sm outline -outline-offset-1 outline-border transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        <MdOutlinePhotoCamera size={16} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * The top of the editor: the photo or logo with a camera button on it (ImagePicker), the name, and what's under
  * it. A picked image is previewed in place and only replaces the old one on Save; `accept` and the
  * checks are the caller's (JPG or PNG under 5MB, TB-120 / TB-123).
  */
@@ -53,21 +78,9 @@ export function ProfileHeader({
   onSave: () => void;
   onDiscard: () => void;
 }) {
-  const file = useRef<HTMLInputElement>(null);
   return (
     <section className="flex w-full flex-wrap items-center gap-5 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border">
-      <div className="relative shrink-0">
-        {image}
-        <input ref={file} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => (onPick(e.target.files?.[0]), (e.target.value = ""))} />
-        <button
-          type="button"
-          onClick={() => file.current?.click()}
-          aria-label={imageLabel}
-          className="absolute -right-1 -bottom-1 flex size-8 items-center justify-center rounded-full bg-white text-ink shadow-sm outline -outline-offset-1 outline-border transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          <MdOutlinePhotoCamera size={16} aria-hidden />
-        </button>
-      </div>
+      <ImagePicker image={image} label={imageLabel} onPick={onPick} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <h2 className="font-display truncate text-[24px] leading-[1.3] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
           {name}
@@ -106,7 +119,8 @@ export function EditableRow({
 }: {
   label: string;
   value: string;
-  kind?: "text" | "long" | "select";
+  /** "timezone" edits with the searchable TimeZonePicker — every zone there is, not a typed string. */
+  kind?: "text" | "long" | "select" | "timezone";
   options?: readonly string[];
   placeholder?: string;
   validate?: (draft: string) => string | null;
@@ -137,7 +151,9 @@ export function EditableRow({
       <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-1">
         <span className="pt-2.5 text-[13px] leading-[1.4] font-medium text-ink-2">{label}</span>
         <div className="flex min-w-0 flex-col gap-2">
-          {kind === "select" && options ? (
+          {kind === "timezone" ? (
+            <TimeZonePicker value={draft} onChange={setDraft} autoFocus />
+          ) : kind === "select" && options ? (
             <Select options={options} value={draft} onChange={(e) => setDraft(e.target.value)} />
           ) : kind === "long" ? (
             <Textarea autoFocus rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={keys} aria-label={label} />

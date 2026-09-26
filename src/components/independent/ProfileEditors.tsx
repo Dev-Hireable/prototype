@@ -1,14 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, type ChangeEvent } from "react";
-import { Button, Chip, Field, Input, Select, Textarea } from "@/components/independent/ui";
+import { useState, type ChangeEvent } from "react";
+import { Chip, Field, Input, Select, Textarea } from "@/components/independent/ui";
 import { SkillPicker } from "@/components/portal/controls";
 import { EditPanel } from "@/components/portal/InlineEdit";
 import { BIO_MAX, SKILL_SUGGESTIONS } from "@/lib/independent/data";
 import type { Profile } from "@/lib/independent/store";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
-import { checkImage, IMAGE_TYPES, isUrl, readImage } from "@/lib/team/data";
+import { checkImage, IMAGE_MAX_MB, isUrl, readImage } from "@/lib/team/data";
+import { ImagePicker } from "@/components/portal/ProfileEditor";
 
 /*
  * The profile edited where it's read: the pencil beside a part turns it into one of these — the same
@@ -55,7 +56,6 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
     linkedin: profile.links.linkedin,
   });
   const [photo, setPhoto] = useState(profile.photo);
-  const file = useRef<HTMLInputElement>(null);
   const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const errors = {
     name: form.name.trim() ? "" : "Your name is what Team Builders search for.",
@@ -87,26 +87,20 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
       }
     >
       <div className="@container/edit flex flex-col gap-5">
+        {/* The same photo control as the Team Builder's profile (ImagePicker). A real file, read into a
+            data URL so it survives the reload the demo runs on; it's saved with the rest on Save. */}
         <div className="flex items-center gap-4">
-          <Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />
-          {/* A real file, read into a data URL so it survives the reload the demo runs on. */}
-          <input
-            ref={file}
-            type="file"
-            accept={IMAGE_TYPES.join(",")}
-            className="hidden"
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
+          <ImagePicker
+            image={<Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />}
+            label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
+            onPick={async (f) => {
               if (!f) return;
               const problem = checkImage(f);
               if (problem) return onMessage(problem);
               setPhoto(await readImage(f));
             }}
           />
-          <Button size="sm" onClick={() => file.current?.click()}>
-            Change photo
-          </Button>
+          <p className="text-[12.5px] leading-[1.4] text-ink-2">{photo !== profile.photo ? "New photo — saved with the rest when you press Save." : `Your photo · JPG or PNG, up to ${IMAGE_MAX_MB}MB`}</p>
         </div>
         <div className="grid gap-4 @md/edit:grid-cols-2">
           <Field label="Full name" error={errors.name}>

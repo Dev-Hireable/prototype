@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useState, type ChangeEvent, type ReactNode } from "react";
 import { Button, Card, Checkbox, Field, Input, Select, Toast, useToast } from "@/components/independent/ui";
 import { DEMO_PASSWORD, PASSWORD_RULES as AUTH_RULES } from "@/lib/demo/auth";
-import { checkImage, IMAGE_TYPES, readImage } from "@/lib/team/data";
+import { ImagePicker } from "@/components/portal/ProfileEditor";
+import { TimeZonePicker } from "@/components/portal/TimeZonePicker";
+import { checkImage, IMAGE_MAX_MB, readImage } from "@/lib/team/data";
 
 function SettingsHeading({ children }: { children: ReactNode }) {
   return (
@@ -19,7 +21,6 @@ export function AccountSettingsCard({
   initial,
   avatar,
   emailLabel,
-  timeZoneOptions,
   languageOptions,
   accountType,
   onSave,
@@ -28,7 +29,6 @@ export function AccountSettingsCard({
   initial: AccountSettingsValues;
   avatar: ReactNode;
   emailLabel: string;
-  timeZoneOptions: readonly string[];
   languageOptions: readonly string[];
   /** TB-099 — shown read-only beside the editable fields. */
   accountType?: string;
@@ -43,36 +43,28 @@ export function AccountSettingsCard({
   const [code, setCode] = useState("");
   const [toast, setToast] = useToast();
   const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
-  const file = useRef<HTMLInputElement>(null);
-
   return (
     <>
       <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <SettingsHeading>Account</SettingsHeading>
+        {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
         <div className="flex items-center gap-4">
-          {avatar}
-          <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.4]">
-            <p className="text-[13px] font-medium text-ink">Profile photo</p>
-            <p className="text-[12px] text-ink-2">PNG or JPG, up to 5 MB.</p>
-          </div>
-          <input
-            ref={file}
-            type="file"
-            accept={IMAGE_TYPES.join(",")}
-            className="hidden"
-            onChange={async (event) => {
-              const picked = event.target.files?.[0];
-              event.target.value = "";
-              if (!picked || !onPhoto) return;
+          <ImagePicker
+            image={avatar}
+            label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
+            onPick={async (picked) => {
+              if (!picked) return;
+              if (!onPhoto) return setToast("File picker opens here");
               const problem = checkImage(picked);
               if (problem) return setToast(problem);
               onPhoto(await readImage(picked));
               setToast("Photo updated");
             }}
           />
-          <Button size="sm" onClick={() => (onPhoto ? file.current?.click() : setToast("File picker opens here"))}>
-            Change photo
-          </Button>
+          <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.4]">
+            <p className="text-[13px] font-medium text-ink">Profile photo</p>
+            <p className="text-[12px] text-ink-2">JPG or PNG, up to {IMAGE_MAX_MB}MB. Use the camera on the photo to change it.</p>
+          </div>
         </div>
         <div className="flex gap-4">
           <Field label="First name" className="flex-1">
@@ -137,7 +129,7 @@ export function AccountSettingsCard({
         </Field>
         <div className="flex gap-4">
           <Field label="Time zone" className="flex-1">
-            <Select options={timeZoneOptions} value={form.tz} onChange={set("tz")} />
+            <TimeZonePicker value={form.tz} onChange={(tz) => setForm((current) => ({ ...current, tz }))} />
           </Field>
           <Field label="Language" className="flex-1">
             <Select options={languageOptions} value={form.lang} onChange={set("lang")} />

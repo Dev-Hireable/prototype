@@ -12,9 +12,9 @@ import { useDemo } from "@/lib/team/store";
 type Key = "name" | "title" | "email" | "phone" | "timezone" | "about";
 
 /** The rows, in two groups: who you are, and how to reach you. */
-const GROUPS: { title: string; description: string; rows: [label: string, key: Key, kind?: "long"][] }[] = [
+const GROUPS: { title: string; description: string; rows: [label: string, key: Key, kind?: "long" | "timezone"][] }[] = [
   { title: "About you", description: "How you appear to independents in messages, interviews and offers.", rows: [["Full name", "name"], ["Job title", "title"], ["About you", "about", "long"]] },
-  { title: "Contact", description: "Where interview invites and notifications reach you.", rows: [["Work email", "email"], ["Phone", "phone"], ["Time zone", "timezone"]] },
+  { title: "Contact", description: "Where interview invites and notifications reach you.", rows: [["Work email", "email"], ["Phone", "phone"], ["Time zone", "timezone", "timezone"]] },
 ];
 
 /**

@@ -20,7 +20,6 @@ export default function AccountSettings() {
         avatar={<Avatar src={profile.photo} size={64} />}
         emailLabel="Work email"
         accountType="Team Builder"
-        timeZoneOptions={["(GMT+8) Manila", "(GMT-5) New York", "(GMT+0) London"]}
         languageOptions={["English", "Filipino"]}
         /* TB-099 — a name saved here is the same name the profile page and the dashboard show. */
         onSave={(v) => setProfile({ name: `${v.first} ${v.last}`.trim(), email: v.email, phone: v.phone, timezone: v.tz })}
