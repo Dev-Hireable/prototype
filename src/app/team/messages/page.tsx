@@ -103,7 +103,7 @@ export default function Messages() {
             <div className="shrink-0 px-4 pb-3">
               <SearchBox value={q} onChange={setQ} placeholder="Search by name or keyword" />
             </div>
-            <div className="flex shrink-0 gap-5 border-b border-line px-4 text-[12.5px] leading-[1.45] font-semibold">
+            <div className="flex shrink-0 gap-5 px-4 text-[12.5px] leading-[1.45] font-semibold shadow-[inset_0_-1px_0_var(--color-line)]">
               {(["conversations", "candidates"] as const).map((t) => (
                 <button key={t} type="button" onClick={() => setTab(t)} aria-selected={tab === t} className={`border-b-2 py-2 capitalize ${tab === t ? "border-primary text-ink-deep" : "border-transparent text-muted"}`}>
                   {t}

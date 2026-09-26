@@ -494,7 +494,10 @@ export function Pills<T extends string>({ value, onChange, options, "aria-label"
 export function Tabs<T extends string>({ value, onChange, options, className = "", "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; className?: string; "aria-label"?: string }) {
   return (
     <TabsRoot value={value} onValueChange={(v) => onChange(v as T)} className="gap-0">
-      <TabsList variant="line" activateOnFocus={false} aria-label={ariaLabel} className={`h-auto gap-6 rounded-none p-0 ${className}`}>
+      {/* As tall as its tabs, so the open tab's underline lands on the divider under the row. shadcn's
+          own height is scoped (group-data-horizontal/tabs:h-8) and outranked a plain h-auto: the 32px
+          list left the 36px tabs hanging 2px below it, the underline under the divider. */}
+      <TabsList variant="line" activateOnFocus={false} aria-label={ariaLabel} className={`h-auto gap-6 rounded-none p-0 group-data-horizontal/tabs:h-auto ${className}`}>
         {options.map((o) => (
           <TabsTrigger key={o.value} value={o.value} className={UNDERLINE_TAB}>
             {o.label}
