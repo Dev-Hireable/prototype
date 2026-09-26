@@ -19,12 +19,12 @@ import { SummaryStat } from "@/components/workspace/meta";
 import { ProjectWorkspace } from "@/components/workspace/ProjectWorkspace";
 import { UnreadableGate } from "@/components/workspace/UnreadableGate";
 import { CONTRACT_NAMES, byName, FT_BENEFITS } from "@/lib/team/data";
-import { trialClosed as isTrialClosed } from "@/lib/contract/lifecycle";
-import { payScheduleOf } from "@/lib/demo/contract";
+import { NOTICE_DAYS, trialClosed as isTrialClosed } from "@/lib/contract/lifecycle";
+import { endOptions, payScheduleOf } from "@/lib/demo/contract";
 import { dayLabel, sinceOrFrom } from "@/lib/demo/dates";
 import { lifecycleOfDeal, trialEvaluationOf, useDeal } from "@/lib/demo/deal";
 import { Tip } from "@/components/portal/Tip";
-import { caseHref, dealContract, escrowInPlay, escrowLine, escrowOf, fileBlock, fileBlockHint, fileDispute, holds, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
+import { caseHref, dealContract, disputeCap, escrowInPlay, escrowLine, escrowOf, fileBlock, fileBlockHint, fileDispute, holds, liveChapter, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef } from "@/lib/demo/disputes";
 import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import type { OngoingType } from "@/lib/demo/job-types";
@@ -57,7 +57,7 @@ export default function TrackerPage({ params }: { params: Promise<{ slug: string
  */
 function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, endContract, evaluations, addEvaluation, sendConversionOffer, withdrawOffer, transactions, profile } = useDemo();
+  const { contracts, endContract, withdrawNotice, evaluations, addEvaluation, sendConversionOffer, withdrawOffer, transactions, profile } = useDemo();
   const contract = contracts.find((c) => c.slug === slug);
   if (!contract) notFound();
   const p = byName(contract.independent);
@@ -126,7 +126,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
    * A contract the demo only lists has no lifecycle, so its status stands in for one.
    */
   const disputePhase = phase ?? (contract.status.label === "Ended" ? "ended" : contract.status.label.startsWith("Starts") ? "starts" : isTrial && !contract.over ? "trial" : "ongoing");
-  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "team", inPlay, disputePhase);
+  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "team", inPlay, disputePhase, onDeal ? liveChapter(deal) : undefined);
   const fileHint = fileBlockHint(block, "team", { starts: life ? dayLabel(life.since) : contract.started, trialEnds: contract.ends });
   /** When the trial's evaluation is due. */
   const due = life?.trial ? dayLabel(life.trial.evaluationDue) : undefined;
@@ -182,6 +182,21 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   /** TB-071 — End Contract can't release money a dispute is holding. */
   const endBlocked = here.some(holds);
   const contractEnded = contract.status.label === "Ended";
+  /**
+   * TB-071 — how the live contract can end right now (@/lib/demo/contract): cancelled before its
+   * first day, closed after the trial's evaluation, or — on a running role — with notice, or today
+   * paying the notice.
+   */
+  const endOpts = onDeal ? endOptions(deal, "team") : [];
+  const endOpt = (how: "cancel" | "close" | "notice" | "now") => endOpts.find((o) => o?.how === how) ?? undefined;
+  const cancelOpt = endOpt("cancel");
+  const closeOpt = endOpt("close");
+  const noticeOpt = endOpt("notice");
+  const nowOpt = endOpt("now");
+  /** Notice given on the running role, by either side. */
+  const notice = life?.notice;
+  /** Called off before its first day. */
+  const cancelled = onDeal && !!deal?.contract?.cancelled;
   const fromTrial = contract.origin === "trial";
   /** Held since the trial began — `contract.started` is the role's first day once it converts. */
   const trialStart = life?.trial ? dayLabel(life.trial.started) : contract.started;
@@ -310,7 +325,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 [
                   ["Agreed pay", contract.rate],
                   ["Payment schedule", isTrial ? `Held in escrow, released to ${first} with your evaluation${due ? ` (due ${due}), or on its own once that has passed` : ""}` : "Monthly, on the last day of each month — pro rata for a part month"],
-                  ...(!isTrial ? ([["Next payment", pay?.next ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}` : contractEnded ? "None — the contract has ended" : "—"]] as const) : []),
+                  ...(!isTrial ? ([["Next payment", pay?.next ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}${pay.held > 0 ? `, less ${usd(pay.held)} held for a dispute` : ""}` : contractEnded ? "None — the contract has ended" : phase === "starts" && life ? `From ${dayLabel(life.since)}, paid at the end of each month` : "—"]] as const) : []),
                   ...(isTrial || !fromTrial ? ([["Escrow status", escrowText ?? "No escrow — hired directly"]] as const) : []),
                   ...(isTrial ? ([["Trial duration", `${contract.started} – ${contract.ends}`]] as const) : []),
                 ] as const
@@ -390,13 +405,17 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               </h2>
               <p className="text-[14px] leading-[1.4] text-ink-2">
                 {!isTrial
-                  ? "Send one whenever you have feedback — every evaluation is kept and the independent is notified."
+                  ? phase === "starts" && life
+                    ? `Reviews open on ${dayLabel(life.since)}, ${first}'s first day.`
+                    : contractEnded
+                      ? "The contract has ended; its evaluations stay on file."
+                      : "Send one whenever you have feedback — every evaluation is kept and the independent is notified."
                   : ended || submitted
                     ? "Scores are final once sent and feed the independent’s trial fit score."
                     : `Locked until the trial ends on ${contract.ends}, or until every trial task is done.`}
               </p>
             </div>
-            <Card className={`flex flex-col gap-4 p-5 ${!canEvaluate && !submitted ? "opacity-60" : ""}`}>
+            <Card className={`flex flex-col gap-4 p-5 ${!canEvaluate && !(isTrial && submitted) ? "opacity-60" : ""}`}>
               {SCORES.map((label, i) => (
                 <div key={label} className="flex items-center justify-between">
                   <p className="text-[14px] leading-[1.4] font-medium text-ink">{label}</p>
@@ -432,14 +451,14 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               <div className="flex flex-wrap justify-end gap-3">
                 {isTrial && submitted ? (
                   <>
-                    {endBlocked && !contractEnded && (
+                    {(onDeal ? !!closeOpt?.blocked : endBlocked) && !contractEnded && (
                       <p className="w-full text-right text-[13px] leading-[1.4] text-ink-2">
                         A dispute on this contract is holding {usd(escrow?.onHold ?? 0)} in escrow. You can end the contract once Hireable support has ruled on it.
                       </p>
                     )}
                     {/* TB-071 / TB-072 unlock only once the evaluation is on file — and ending
                         waits for any dispute, since the escrow it would release is on hold. */}
-                    <Button size="lg" variant="danger" disabled={endBlocked || contractEnded} title={endBlocked ? "A dispute is holding the escrow" : undefined} onClick={() => setEnding(true)}>
+                    <Button size="lg" variant="danger" disabled={contractEnded || (onDeal ? !closeOpt || !!closeOpt.blocked : endBlocked)} onClick={() => setEnding(true)}>
                       {contractEnded ? "Contract ended" : "End contract"}
                     </Button>
                     <Button size="lg" variant="primary" disabled={conversionLocked || contractEnded} title={contractEnded ? "The contract has ended" : undefined} onClick={openConvert}>
@@ -450,9 +469,17 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   <>
                     {/* TB-071 / TB-072 want these visible but greyed out before the evaluation,
                         so it's clear what submitting one unlocks rather than hiding it. */}
-                    <Button size="lg" variant="danger" disabled title="Send your evaluation first">
-                      End contract
-                    </Button>
+                    {cancelOpt ? (
+                      <Button size="lg" variant="danger" onClick={() => setEnding(true)}>
+                        Cancel trial
+                      </Button>
+                    ) : (
+                      <Tip label="Send your evaluation first" wrap>
+                        <Button size="lg" variant="danger" disabled>
+                          End contract
+                        </Button>
+                      </Tip>
+                    )}
                     <Button size="lg" disabled title="Send your evaluation first">
                       Hire {first}
                     </Button>
@@ -468,8 +495,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 ) : (
                   <>
                     {!contractEnded && (
-                      <Button size="lg" variant="danger" onClick={() => setEnding(true)} disabled={endBlocked} title={endBlocked ? "A dispute is open on this contract" : undefined}>
-                        End contract
+                      <Button size="lg" variant="danger" onClick={() => setEnding(true)} disabled={onDeal ? endOpts.length === 0 : endBlocked}>
+                        {cancelOpt ? "Cancel contract" : notice ? "End today" : "End contract"}
                       </Button>
                     )}
                     <Button size="lg" variant="primary" disabled={!canEvaluate || !feedback.trim() || !recommendation} onClick={sendEvaluation}>
@@ -551,7 +578,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 {isTrial && !contract.endedOn && <SummaryStat mark={<ICONS.clock size={15} aria-hidden />}>{contract.day}</SummaryStat>}
                 {!isTrial && life && (
                   <SummaryStat>
-                    {typeLabel} {phase === "starts" ? "from" : "since"} {dayLabel(life.since)}
+                    {cancelled ? `${typeLabel} · cancelled before ${dayLabel(life.since)}` : `${typeLabel} ${phase === "starts" ? "from" : "since"} ${dayLabel(life.since)}`}
+                    {notice && !contractEnded && ` · ends after ${dayLabel(notice.lastDay)}`}
                   </SummaryStat>
                 )}
                 {contract.tfs && (
@@ -619,7 +647,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   }
                 >
                   {life?.trial?.evaluationOverdue
-                    ? `Your evaluation of ${first} was due ${due}.${releasable > 0 ? "" : ` The escrow has been released to ${first}.`} Send it to make the Trial Fit Score final and decide what's next.`
+                    ? `Your evaluation of ${first} was due ${due}.${escrow && escrow.onHold > 0 ? ` ${usd(escrow.onHold)} of the escrow is held for a dispute; the rest went to ${first}.` : escrow && escrow.released > 0 && releasable === 0 ? ` The escrow has been released to ${first}.` : ""} Send it to make the Trial Fit Score final and decide what's next.`
                     : `The trial has ended. Send your evaluation of ${first}${due ? ` by ${due}` : ""}: it makes the Trial Fit Score final${releasable > 0 ? ` and releases the ${usd(releasable)} in escrow to ${first}` : ""}.`}
                 </Callout>
               )}
@@ -627,16 +655,20 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 <Callout
                   action={
                     <span className="flex gap-2">
-                      <Button size="sm" variant="danger" onClick={() => setEnding(true)}>
-                        End contract
-                      </Button>
+                      <Tip label={closeOpt?.blocked} wrap>
+                        <Button size="sm" variant="danger" disabled={!!closeOpt?.blocked} onClick={() => setEnding(true)}>
+                          End contract
+                        </Button>
+                      </Tip>
                       <Button size="sm" variant="primary" onClick={openConvert}>
                         {conversion ? "Send a new offer" : `Hire ${first}`}
                       </Button>
                     </span>
                   }
                 >
-                  {conversion?.status === "declined"
+                  {life?.expired && conversion
+                    ? `Your ${offerType} offer expired on ${dayLabel(conversion.start)}, its start date, without an answer from ${first}. Send a new one with a later start, or end the contract.`
+                    : conversion?.status === "declined"
                     ? `${first} declined your ${offerType} offer${conversion.declineReason ? `: “${conversion.declineReason}”` : "."} Send a new offer, or end the contract.`
                     : conversion?.status === "withdrawn"
                       ? `You withdrew your ${offerType} offer. Send a new one, or end the contract.`
@@ -663,6 +695,27 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               {phase === "starts" && life?.converted && (
                 <Callout>
                   {first} starts {typeLabel.toLowerCase()} on {dayLabel(life.since)}. Plan the work now — {first} can start on it then.
+                </Callout>
+              )}
+              {/* TB-071 / IN-091 — notice is in: the role runs, paid, to its last day, then ends on its own. */}
+              {phase === "ongoing" && notice && (
+                <Callout
+                  tone="warn"
+                  action={
+                    notice.by === "team" ? (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const r = withdrawNotice();
+                          setToast(r.ok ? `Notice withdrawn — ${first}'s role carries on` : r.error);
+                        }}
+                      >
+                        Withdraw notice
+                      </Button>
+                    ) : undefined
+                  }
+                >
+                  {notice.by === "team" ? `You gave notice on ${dayLabel(notice.given)}` : `${first} gave notice on ${dayLabel(notice.given)}`}: the {typeLabel.toLowerCase()} role ends after {dayLabel(notice.lastDay)}. It carries on, and is paid, until then.
                 </Callout>
               )}
             </>
@@ -700,7 +753,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                   {(
                     [
                       ["Pay", contract.rate],
-                      [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
+                      [isTrial ? "Trial" : "Term", cancelled ? `Cancelled ${contract.endedOn ?? ""} — it hadn't started` : notice && !contractEnded ? `${contract.started} – ${dayLabel(notice.lastDay)} (notice)` : `${contract.started} – ${contract.ends}`],
                       [fromTrial && !isTrial ? "Trial escrow" : "Escrow", escrowText ?? "None — paid monthly"],
                       [
                         "Payout",
@@ -713,7 +766,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                                 ? "Held for a dispute"
                                 : `Paid to ${first}`
                             : pay?.next
-                              ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}`
+                              ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}${pay.held > 0 ? ` · ${usd(pay.held)} held for a dispute` : ""}`
                               : "End of each month",
                       ],
                     ] as const
@@ -736,7 +789,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
         open={converting}
         onClose={() => setConverting(false)}
         title={`Hire ${first} after the trial`}
-        description="Pre-filled from their trial. Escrow closes and pay is charged monthly once they accept."
+        description={`Pre-filled from their trial. Escrow closes and pay is charged monthly once they accept. If ${first} hasn't answered by the start date, the offer expires.`}
         footer={
           <>
             <Button size="lg" onClick={() => setConverting(false)}>
@@ -747,9 +800,9 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
               variant="primary"
               disabled={!hireReady}
               onClick={() => {
-                sendConversionOffer({ type: hire.type, salary: hire.salary, start: hire.start, benefits: hire.benefits, hours: hire.type === "part-time" ? hireHours : undefined });
+                const sent = sendConversionOffer({ type: hire.type, salary: hire.salary, start: hire.start, benefits: hire.benefits, hours: hire.type === "part-time" ? hireHours : undefined });
                 setConverting(false);
-                setToast(`${JOB_TYPE_LABEL[hire.type]} offer sent to ${first}`);
+                setToast(sent ? `${JOB_TYPE_LABEL[hire.type]} offer sent to ${first}` : "The offer couldn't be sent. Pick a start date from today on, and try again.");
               }}
             >
               Send {JOB_TYPE_LABEL[hire.type].toLowerCase()} offer
@@ -800,34 +853,43 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
         onClose={() => setDisputing(false)}
         title={`File a dispute about ${name}`}
         description="Hireable support reviews the contract, the task log and the payment record — the process, not the quality of the work. The amount in question stays put until they rule, and both sides are notified."
-        cap={inPlay ? inPlay.held : rateAmount(contract.rate)}
-        capNote={inPlay ? "what is still held in escrow" : "a month's pay"}
+        cap={onDeal ? disputeCap(deal, allDisputes, contract.rate).cap : inPlay ? inPlay.held : rateAmount(contract.rate)}
+        capNote={onDeal ? disputeCap(deal, allDisputes, contract.rate).note : inPlay ? "what is still held in escrow" : "a month's pay"}
         onFile={async (draft) => {
-          const filed = await fileDispute({ ref, filedBy: "team", ...draft });
+          const r = await fileDispute({ ref, filedBy: "team", ...draft });
           setDisputing(false);
           // Straight to the case, where it now waits on the independent to respond.
-          if (filed) router.push(caseHref("team", filed.id));
-          else setToast("A dispute is already open on this contract");
+          if (r.ok) router.push(caseHref("team", r.dispute.id));
+          else setToast(r.error);
         }}
       />
 
-      {/* TB-071 — ending releases what escrow still holds and moves the contract to inactive. */}
+      {/* TB-071 — how the contract ends depends on where it is: cancelled before its first day,
+          closed after the trial's evaluation, or a running role ended with notice or today. */}
       <Modal
         open={ending}
         onClose={() => setEnding(false)}
         tone="danger"
-        title={`End the contract with ${name}?`}
+        title={cancelOpt ? `Cancel the contract with ${name}?` : `End the contract with ${name}?`}
         description={
-          fromTrial && isTrial
-            ? `${releasable > 0 ? `${usd(releasable)} still in escrow is released to ${first}` : "The trial's money has already been paid out"}${conversion?.status === "sent" ? `, your ${offerType} offer is withdrawn,` : ""} and the contract moves to your inactive list — it can't be reopened.${releasable > 0 ? " Filing a dispute instead keeps the funds held while support reviews it." : ""}`
-            : `The ${typeLabel.toLowerCase()} engagement ends today${pay?.next ? ` and ${first}'s pay for this month so far is recorded` : ""}. It moves to your inactive list and can't be reopened; ${first} is told, and the task list and evaluations stay on file.`
+          cancelOpt && life
+            ? isTrial
+              ? `The trial hasn't started — its first day is ${dayLabel(life.since)}. ${escrow && escrow.held > 0 ? `The ${usd(escrow.held)} in escrow comes back to you, ` : ""}${first} is told, and the contract can't be reopened.`
+              : `${first}'s ${typeLabel.toLowerCase()} role hasn't started — its first day is ${dayLabel(life.since)} — so nothing is owed. ${first} is told, and the contract can't be reopened.`
+            : (noticeOpt || nowOpt) && life && !isTrial
+              ? notice
+                ? `Notice is in: the role ends after ${dayLabel(notice.lastDay)}. End it today instead and ${first} is still paid through that day. It moves to your inactive list and can't be reopened.`
+                : `Give notice and the ${typeLabel.toLowerCase()} role carries on, paid, for ${NOTICE_DAYS[contract.type as OngoingType]} days — through ${dayLabel(noticeOpt?.lastDay)} — then ends on its own. Or end it today and pay ${first} through that day instead. Either way it can't be reopened.`
+              : fromTrial && isTrial
+                ? `${releasable > 0 ? `${usd(releasable)} still in escrow is released to ${first}` : "The trial's money has already been paid out"}${conversion?.status === "sent" ? `, your ${offerType} offer is withdrawn,` : ""} and the contract moves to your inactive list — it can't be reopened.${releasable > 0 ? " Filing a dispute instead keeps the funds held while support reviews it." : ""}`
+                : `The ${typeLabel.toLowerCase()} engagement ends today. It moves to your inactive list and can't be reopened; ${first} is told, and the task list and evaluations stay on file.`
         }
         footer={
           <>
             <Button size="lg" onClick={() => setEnding(false)}>
-              Cancel
+              {cancelOpt ? "Keep it" : "Cancel"}
             </Button>
-            {!block && isTrial && releasable > 0 && (
+            {!block && isTrial && releasable > 0 && closeOpt && (
               <Button
                 size="lg"
                 onClick={() => {
@@ -838,18 +900,42 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
                 File a dispute instead
               </Button>
             )}
-            <Button
-              size="lg"
-              variant="danger"
-              onClick={() => {
-                const r = endContract(slug);
-                setEnding(false);
-                if (!r.ok) return setToast(r.error);
-                setToast(r.released > 0 ? `Contract ended — ${usd(r.released)} released to ${first}` : r.paid > 0 ? `Contract ended — ${usd(r.paid)} paid to ${first} for this month` : "Contract ended");
-              }}
-            >
-              End contract
-            </Button>
+            {noticeOpt && (
+              <Button
+                size="lg"
+                onClick={() => {
+                  const r = endContract(slug, "notice");
+                  setEnding(false);
+                  setToast(!r.ok ? r.error : r.notice ? `Notice given — ${first}'s role ends after ${dayLabel(r.notice.lastDay)}` : "Notice given");
+                }}
+              >
+                Give notice
+              </Button>
+            )}
+            <Tip label={nowOpt?.blocked} wrap>
+              <Button
+                size="lg"
+                variant="danger"
+                disabled={!!nowOpt?.blocked && !cancelOpt && !closeOpt}
+                onClick={() => {
+                  const how = cancelOpt ? "cancel" : closeOpt ? "close" : nowOpt ? "now" : "close";
+                  const r = endContract(slug, how);
+                  setEnding(false);
+                  if (!r.ok) return setToast(r.error);
+                  setToast(
+                    r.cancelled
+                      ? `Contract cancelled${r.refunded ? ` — ${usd(r.refunded)} came back to you` : ""}`
+                      : r.released > 0
+                        ? `Contract ended — ${usd(r.released)} released to ${first}`
+                        : r.paid > 0
+                          ? `Contract ended — ${usd(r.paid)} paid to ${first}, through the notice period`
+                          : "Contract ended",
+                  );
+                }}
+              >
+                {cancelOpt ? "Cancel contract" : nowOpt ? "End today" : "End contract"}
+              </Button>
+            </Tip>
           </>
         }
       />

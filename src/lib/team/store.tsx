@@ -4,11 +4,11 @@ import type { SuggestionDecision } from "@/lib/demo/suggestions";
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { DEAL_ID, postingFrom } from "@/lib/team/deal-view";
-import { dayLabel, momentLabel, parseDay, reviewQuarter, today } from "@/lib/demo/dates";
+import { dayLabel, isoDay, momentLabel, parseDay, reviewQuarter, today } from "@/lib/demo/dates";
 import { statusOf } from "@/lib/contract/lifecycle";
-import { endContract as endLiveContract, sendEvaluation, type EndResult, type EvaluationResult } from "@/lib/demo/contract";
+import { endContract as endLiveContract, sendEvaluation, withdrawNotice as withdrawLiveNotice, type EndResult, type EvaluationResult } from "@/lib/demo/contract";
 import { activityOf, canMessage, closePosting, contractTypeOf, converted, evaluationsOf, fitScoreOf, getDeal, lifecycleOfDeal, publishPosting, stageOf, startDeal, startedAsTrial, trialStateOf, updateDeal, proposalSource, recordInvite, useDeal, usePostings, withProposalEvent } from "@/lib/demo/deal";
-import type { Deal, DealOffer, OfferStatus } from "@/lib/demo/deal";
+import type { ConversionStatus, Deal, DealOffer } from "@/lib/demo/deal";
 import { dealContract as contractRefOf, escrowOf, rateAmount, usd } from "@/lib/demo/disputes";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import type { JobType, OngoingType } from "@/lib/demo/job-types";
@@ -100,7 +100,10 @@ type Demo = {
    * role's pay so far this month) and a post-trial offer still out is withdrawn. Refused while a
    * dispute is holding the money — filing one is what keeps the funds held while support reviews it.
    */
-  endContract: (slug: string) => EndResult;
+  /** TB-071 — `how` comes from endOptions (@/lib/demo/contract): cancel before the first day, close after the trial, notice, or now. */
+  endContract: (slug: string, how?: "cancel" | "close" | "notice" | "now") => EndResult;
+  /** TB-071 — take back notice the Team Builder gave, before its last day. */
+  withdrawNotice: () => { ok: true } | { ok: false; error: string };
   /** TB-084 — the ledger: the seed plus the live contract's deposit, releases and refunds. */
   transactions: Transaction[];
   /* The live contract's work items change through the work repository (@/lib/work), shared with the talent's portal. */
@@ -124,7 +127,8 @@ type Demo = {
   /** The talent is told; the proposal is back in review, and a new offer can be sent. */
   withdrawOffer: (id: string) => void;
   /** TB-072 — after an evaluated trial, the offer to hire them full-time or part-time, on the same engagement. */
-  sendConversionOffer: (offer: { type: OngoingType; salary: string; start: string; benefits: string[]; hours?: number }) => void;
+  /** TB-072 — false when it can't go out: not at the decision, or a start date already gone by. */
+  sendConversionOffer: (offer: { type: OngoingType; salary: string; start: string; benefits: string[]; hours?: number }) => boolean;
   setOffer: (id: string, patch: Partial<Offer>) => void;
   cards: PaymentMethod[];
   addCard: (c: PaymentMethod) => void;
@@ -159,8 +163,10 @@ function dealStatus(deal: Deal): Candidate["status"] {
     const type = contractTypeOf(deal);
     if (type !== "trial") return deal.contract?.ended ? { label: "Contract ended", tone: "neutral" } : { label: `Hired · ${JOB_TYPE_LABEL[type].toLowerCase()}`, tone: "ok" };
     const c = deal.conversion;
-    if (c?.status === "sent") return { label: `${JOB_TYPE_LABEL[c.type]} offer sent`, tone: "warn", meta: `Sent ${c.sent}` };
+    if (c?.status === "sent" && !lifecycleOfDeal(deal)?.expired) return { label: `${JOB_TYPE_LABEL[c.type]} offer sent`, tone: "warn", meta: `Sent ${c.sent}` };
     if (c?.status === "declined") return { label: `${JOB_TYPE_LABEL[c.type]} offer declined`, tone: "danger" };
+    // TB-072 — not answered by its start date: back to the decision.
+    if (c?.status === "expired" || (c?.status === "sent" && lifecycleOfDeal(deal)?.expired)) return { label: `${JOB_TYPE_LABEL[c.type]} offer expired`, tone: "warn" };
     return trialClosed(deal) ? { label: "Trial ended", tone: "neutral" } : { label: "Hired · trial running", tone: "ok" };
   }
   if (deal.proposalDeclined) return { label: "Proposal declined", tone: "danger", meta: deal.proposalDeclined.date };
@@ -188,11 +194,13 @@ const INTERVIEW_STATUS: Record<"awaiting" | "accepted" | "done" | "declined" | "
 };
 
 /** Sent Offers' vocabulary for an offer's answer. */
-const OFFER_STATUS: Record<OfferStatus, Offer["status"]> = {
+const OFFER_STATUS: Record<ConversionStatus, Offer["status"]> = {
   sent: { label: "Pending", tone: "warn" },
   accepted: { label: "Accepted", tone: "ok" },
   declined: { label: "Declined", tone: "danger" },
   withdrawn: { label: "Withdrawn", tone: "neutral" },
+  // TB-072 — a post-trial offer nobody answered by its start date.
+  expired: { label: "Expired", tone: "neutral" },
 };
 
 /** Stages the sheet says the Independent hears about, and which movement that is. */
@@ -234,7 +242,7 @@ function contractFromDeal(deal: Deal, manager: string): Contract | null {
     progress: donePercent(c.tasks),
     progressLabel: "Tasks done",
     started: dayLabel(start),
-    day: ongoing ? reviewQuarter(start) : (l?.trial?.day ?? trial.day),
+    day: ongoing ? reviewQuarter(start, c.ended ? (parseDay(c.endedOn) ?? undefined) : undefined) : (l?.trial?.day ?? trial.day),
     ends: ongoing ? (c.ended && c.endedOn ? c.endedOn : "Ongoing") : dayLabel(c.ends),
     left: ongoing ? null : trial.left,
     over: !ongoing && trial.over,
@@ -588,12 +596,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       setInterviews((is) => is.map((i) => (i.candidate === c.id && !i.past ? { ...i, status: INTERVIEW_STATUS.done, past: true } : i)));
     },
     contracts: allContracts,
-    endContract: (slug) => {
+    endContract: (slug, how = "close") => {
       // TB-071 — final: pays what's owed, withdraws a post-trial offer still out (@/lib/demo/contract).
-      if (deal?.contract && dealContract && slug === dealContract.slug) return endLiveContract();
+      if (deal?.contract && dealContract && slug === dealContract.slug) return endLiveContract("team", how);
       setContracts((cs) => cs.map((c) => (c.slug === slug ? { ...c, status: { label: "Ended", tone: "neutral" as const }, progressLabel: "Contract complete" } : c)));
       return { ok: true, released: 0, paid: 0 };
     },
+    withdrawNotice: () => withdrawLiveNotice("team"),
     transactions,
     evaluations: allEvaluations,
     addEvaluation: (slug, e) => {
@@ -635,9 +644,12 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     sendConversionOffer: ({ type, salary, start, benefits, hours }) => {
       const d = getDeal();
       // Only once the trial is evaluated and nothing else is out — never on an ended contract.
-      if (!d?.contract || lifecycleOfDeal(d)?.phase !== "decision") return;
+      if (!d?.contract || lifecycleOfDeal(d)?.phase !== "decision") return false;
+      // It expires on its start date if unanswered, so a start already gone by would be dead on arrival.
+      if (!start || start < isoDay()) return false;
       updateDeal((x) => ({ ...x, conversion: { type, salary: `$${salary.replace(/^\$/, "")}`, start, benefits: type === "full-time" ? benefits : [], hours: type === "part-time" ? hours : undefined, status: "sent", sent: today() } }));
       move("hire_offer", talentSide(d), { type });
+      return true;
     },
     addOffer: (o) => setOffers((os) => [o, ...os]),
     setOffer: (id, patch) => setOffers((os) => os.map((o) => (o.id === id ? { ...o, ...patch } : o))),

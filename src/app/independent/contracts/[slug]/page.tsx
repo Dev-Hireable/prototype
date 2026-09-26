@@ -17,15 +17,15 @@ import { SummaryStat } from "@/components/workspace/meta";
 import { ProjectWorkspace } from "@/components/workspace/ProjectWorkspace";
 import { UnreadableGate } from "@/components/workspace/UnreadableGate";
 import { MatchAtHire, TrialFitScore } from "@/components/team/TrialWidgets";
-import { trialClosed as isTrialClosed } from "@/lib/contract/lifecycle";
-import { payScheduleOf } from "@/lib/demo/contract";
+import { NOTICE_DAYS, trialClosed as isTrialClosed } from "@/lib/contract/lifecycle";
+import { endOptions, payScheduleOf } from "@/lib/demo/contract";
 import { dayLabel, sinceOrFrom } from "@/lib/demo/dates";
 import { lifecycleOfDeal, trialEvaluationOf, useDeal } from "@/lib/demo/deal";
 import type { DealEvaluation } from "@/lib/demo/deal";
 import { Tip } from "@/components/portal/Tip";
-import { caseHref, dealContract, escrowInPlay, escrowLine, escrowOf, fileBlock, fileBlockHint, fileDispute, rateAmount, STATUS_TONE, usd, useDisputes } from "@/lib/demo/disputes";
+import { caseHref, dealContract, disputeCap, escrowInPlay, escrowLine, escrowOf, fileBlock, fileBlockHint, fileDispute, liveChapter, rateAmount, STATUS_TONE, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef } from "@/lib/demo/disputes";
-import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { hoursLabel, JOB_TYPE_LABEL, type OngoingType } from "@/lib/demo/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { trackerClosed } from "@/lib/demo/tasks";
 import { COMPANIES } from "@/lib/independent/data";
@@ -58,7 +58,9 @@ export default function ContractTrackerPage({ params }: { params: Promise<{ slug
  */
 function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
-  const { contracts, transactions, profile, payouts } = useDemo();
+  const { contracts, transactions, profile, payouts, endContract, withdrawNotice } = useDemo();
+  /** IN-091 — the confirmation for giving notice, or cancelling before the first day. */
+  const [ending, setEnding] = useState(false);
   const contract = contracts.find((c) => c.slug === slug);
   // In the URL rather than state, so leaving from the Evaluation tab comes back to it. "tasks" is
   // the Work tab: the key links and notifications have always used.
@@ -113,9 +115,18 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
    * lifecycle, so its status stands in for one.
    */
   const disputePhase = phase ?? (contract.status.label === "Ended" ? "ended" : contract.status.label.startsWith("Starts") ? "starts" : isTrial && !contract.over ? "trial" : "ongoing");
-  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "independent", inPlay, disputePhase);
+  const { block, dispute: running } = fileBlock(allDisputes, ref.key, "independent", inPlay, disputePhase, onDeal ? liveChapter(deal) : undefined);
   const fileHint = fileBlockHint(block, "independent", { starts: life ? dayLabel(life.since) : contract.started, trialEnds: contract.ends });
   const contractEnded = contract.status.label === "Ended";
+  /**
+   * IN-091 — how the talent can end the live contract right now (@/lib/demo/contract): cancel it
+   * before its first day, or give notice on a running role. Notice either side gave shows here too.
+   */
+  const endOpts = onDeal ? endOptions(deal, "independent") : [];
+  const cancelOpt = endOpts.find((o) => o?.how === "cancel") ?? undefined;
+  const noticeOpt = endOpts.find((o) => o?.how === "notice") ?? undefined;
+  const notice = life?.notice;
+  const cancelled = onDeal && !!deal?.contract?.cancelled;
   /** When the trial's evaluation is due. */
   const due = life?.trial ? dayLabel(life.trial.evaluationDue) : undefined;
   /** The trial's own evaluation, apart from later reviews of the role it became. */
@@ -210,7 +221,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const contractRows = (
     [
       ["Pay", contract.rate],
-      [isTrial ? "Trial" : "Term", `${contract.started} – ${contract.ends}`],
+      [isTrial ? "Trial" : "Term", cancelled ? `Cancelled ${contract.endedOn ?? ""} — it hadn't started` : notice && !contractEnded ? `${contract.started} – ${dayLabel(notice.lastDay)} (notice)` : `${contract.started} – ${contract.ends}`],
       // It used to say "released" as soon as the trial dates passed, whether or not the Team
       // Builder had released anything — the exact case a dispute is for.
       [fromTrial && !isTrial ? "Trial" : "Escrow", fromTrial ? (escrow ? escrowLine(escrow, trialStart, { releasedTo: "you", refundedTo: contract.company }) : `${usd(contract.deposit ?? rateAmount(contract.rate))} held since ${trialStart}`) : "None — hired directly, paid monthly"],
@@ -225,7 +236,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
                 ? "Held for a dispute"
                 : `Paid to ${payoutTo}`
             : pay?.next
-              ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}, to ${payoutTo}`
+              ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}, to ${payoutTo}${pay.held > 0 ? ` · ${usd(pay.held)} held for a dispute` : ""}`
               : `At the end of each month, to ${payoutTo}`,
       ],
     ] as const
@@ -307,7 +318,8 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
                 {isTrial && !contract.endedOn && <SummaryStat mark={<ICONS.clock size={15} aria-hidden />}>{contract.day}</SummaryStat>}
                 {!isTrial && life && (
                   <SummaryStat>
-                    {typeLabel} {phase === "starts" ? "from" : "since"} {dayLabel(life.since)}
+                    {cancelled ? `${typeLabel} · cancelled before ${dayLabel(life.since)}` : `${typeLabel} ${phase === "starts" ? "from" : "since"} ${dayLabel(life.since)}`}
+                    {notice && !contractEnded && ` · ends after ${dayLabel(notice.lastDay)}`}
                   </SummaryStat>
                 )}
                 {contract.tfs && (
@@ -346,7 +358,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
                       [contract.type === "full-time" ? "Base salary" : isTrial ? "Agreed budget" : "Monthly rate", contract.rate],
                       ...(contract.hours ? ([["Hours", hoursLabel(contract.hours)]] as const) : []),
                       ["Payment schedule", isTrial ? `Held in escrow, paid to you with ${contract.managerFirst}'s evaluation${due ? ` (due ${due}), or on its own once that has passed` : ""}` : "Paid on the last day of each month — pro rata for a part month"],
-                      ...(!isTrial ? ([["Next payment", pay?.next ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}` : contractEnded ? "None — the contract has ended" : "—"]] as const) : []),
+                      ...(!isTrial ? ([["Next payment", pay?.next ? `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}${pay.held > 0 ? `, less ${usd(pay.held)} held for a dispute` : ""}` : contractEnded ? "None — the contract has ended" : phase === "starts" && life ? `From ${dayLabel(life.since)}, paid at the end of each month` : "—"]] as const) : []),
                     ] as const
                   ).map(([k, v]) => (
                     <div key={k} className="flex flex-col gap-0.5">
@@ -443,6 +455,37 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
                   </Tip>
                 </PanelCard>
               )}
+              {/* IN-091 — the talent can end it too: cancel before the first day, or give notice on a running role. */}
+              {onDeal && !contractEnded && (cancelOpt || noticeOpt || notice) && (
+                <PanelCard title="Ending the contract">
+                  <p className="text-[13px] leading-[1.4] text-ink-2">
+                    {cancelOpt && life
+                      ? `Your ${isTrial ? "trial" : `${typeLabel.toLowerCase()} role`} hasn't started — its first day is ${dayLabel(life.since)}. You can cancel it before then; nothing is owed either way.`
+                      : notice
+                        ? notice.by === "independent"
+                          ? `You gave notice on ${dayLabel(notice.given)}: the role ends after ${dayLabel(notice.lastDay)}. You keep working, and are paid, until then — or take the notice back.`
+                          : `${contract.company} gave notice on ${dayLabel(notice.given)}: the role ends after ${dayLabel(notice.lastDay)}. You're paid through that day.`
+                        : `Either side can end the role with ${NOTICE_DAYS[contract.type as OngoingType]} days' notice, as your agreement says. It carries on, and you're paid, through the notice period.`}
+                  </p>
+                  {notice?.by === "independent" ? (
+                    <Button
+                      size="lg"
+                      onClick={() => {
+                        const r = withdrawNotice();
+                        setToast(r.ok ? "Notice withdrawn — the role carries on" : r.error);
+                      }}
+                    >
+                      Take back notice
+                    </Button>
+                  ) : (
+                    (cancelOpt || noticeOpt) && (
+                      <Button size="lg" variant="danger" onClick={() => setEnding(true)}>
+                        {cancelOpt ? "Cancel contract" : "Give notice"}
+                      </Button>
+                    )
+                  )}
+                </PanelCard>
+              )}
             </div>
             <aside className={SIDE_COLUMN}>
               {score}
@@ -493,7 +536,9 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
                     </Button>
                   }
                 >
-                  {conversion?.status === "declined"
+                  {life?.expired && conversion
+                    ? `The ${JOB_TYPE_LABEL[conversion.type].toLowerCase()} offer expired on ${dayLabel(conversion.start)}, its start date, without an answer. ${contract.managerFirst} can send you a new one.`
+                    : conversion?.status === "declined"
                     ? `You declined the ${JOB_TYPE_LABEL[conversion.type].toLowerCase()} offer. The trial is complete; ${contract.managerFirst} may send a new offer.`
                     : conversion?.status === "withdrawn"
                       ? `${contract.company} withdrew its ${JOB_TYPE_LABEL[conversion.type].toLowerCase()} offer. The trial is complete.`
@@ -503,6 +548,11 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
               {phase === "starts" && life && (
                 <Callout>
                   Your {life.converted ? `${typeLabel.toLowerCase()} role` : "trial"} starts on {dayLabel(life.since)}. The work opens then.
+                </Callout>
+              )}
+              {phase === "ongoing" && notice && (
+                <Callout tone="warn">
+                  {notice.by === "independent" ? `You gave notice on ${dayLabel(notice.given)}` : `${contract.company} gave notice on ${dayLabel(notice.given)}`}: the {typeLabel.toLowerCase()} role ends after {dayLabel(notice.lastDay)}. It carries on, and you're paid, until then.
                 </Callout>
               )}
               {changed.length > 0 && !closedTrial && !contractEnded && (
@@ -572,15 +622,46 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
         onClose={() => setFiling(false)}
         title="File a dispute"
         description={`Hireable support checks the process on the ${contract.title} contract — the approved tasks, the payment record and the dates. The amount stays put until they rule, and you can file one dispute per contract.`}
-        cap={inPlay ? inPlay.held : rateAmount(contract.rate)}
-        capNote={inPlay ? "what is still held in escrow" : `a month's pay, ${contract.rate}`}
+        cap={onDeal ? disputeCap(deal, allDisputes, contract.rate).cap : inPlay ? inPlay.held : rateAmount(contract.rate)}
+        capNote={onDeal ? disputeCap(deal, allDisputes, contract.rate).note : inPlay ? "what is still held in escrow" : `a month's pay, ${contract.rate}`}
         onFile={async (draft) => {
-          const filed = await fileDispute({ ref, filedBy: "independent", ...draft });
+          const r = await fileDispute({ ref, filedBy: "independent", ...draft });
           setFiling(false);
           // Straight to the case, where it now waits on the company to respond.
-          if (filed) router.push(caseHref("independent", filed.id));
-          else setToast("A dispute is already open on this contract");
+          if (r.ok) router.push(caseHref("independent", r.dispute.id));
+          else setToast(r.error);
         }}
+      />
+
+      {/* IN-091 — cancelling before the first day, or giving notice on a running role. */}
+      <Modal
+        open={ending}
+        onClose={() => setEnding(false)}
+        tone="danger"
+        title={cancelOpt ? `Cancel the ${contract.title} contract?` : `Give notice on ${contract.title}?`}
+        description={
+          cancelOpt && life
+            ? `It hasn't started — its first day is ${dayLabel(life.since)} — so nothing is owed. ${contract.company} is told, and the contract can't be reopened.`
+            : `The role ends after ${dayLabel(noticeOpt?.lastDay)}, ${NOTICE_DAYS[contract.type as OngoingType]} days from today. You keep working, and are paid, until then, and you can take the notice back before that day. ${contract.company} is told.`
+        }
+        footer={
+          <>
+            <Button size="lg" onClick={() => setEnding(false)}>
+              Keep it
+            </Button>
+            <Button
+              size="lg"
+              variant="danger"
+              onClick={() => {
+                const r = endContract(cancelOpt ? "cancel" : "notice");
+                setEnding(false);
+                setToast(!r.ok ? r.error : r.cancelled ? "Contract cancelled" : r.notice ? `Notice given — the role ends after ${dayLabel(r.notice.lastDay)}` : "Done");
+              }}
+            >
+              {cancelOpt ? "Cancel contract" : "Give notice"}
+            </Button>
+          </>
+        }
       />
 
       <Toast message={toast} onClose={() => setToast(null)} />

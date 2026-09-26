@@ -18,7 +18,7 @@ import {
   dateOf,
   daysOpen,
   dealContract,
-  escrowInPlay,
+  escrowOf,
   extendDeadline,
   factsFor,
   holds,
@@ -85,8 +85,15 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
   const facts = onLiveContract ? factsFor({ key: d.contract, links: d.links, title: d.title, type: d.type, rate: d.rate, started: d.facts.started, ends: d.facts.ends }, deal, all) : d.facts;
   const tasksDone = facts.tasksDone ?? facts.objectivesDone ?? 0;
   const tasksTotal = facts.tasksTotal ?? facts.objectivesTotal ?? 0;
-  /** What a ruling for the company would refund: never more than the live escrow still holds. */
-  const cap = onLiveContract ? escrowInPlay(deal, all)?.held : undefined;
+  /**
+   * What a ruling for the company would refund: never more than the trial's escrow still holds, for a
+   * dispute about the trial (even after a conversion — the store goes by the dispute, not the
+   * contract). One about the role is capped by its amount: what the pay held doesn't cover comes off
+   * the next pay.
+   */
+  const cap = onLiveContract && d.type === "trial" ? escrowOf(deal, all)?.held : undefined;
+  /** Where the money in question sits: the trial's escrow, or pay kept back on a role. */
+  const pot = d.type === "trial" ? "escrow" : "the pay held for it";
   const refundable = Math.min(d.amount, cap ?? d.amount);
   const turn = partyTurn(d);
   const waiting = waitingOn(d);
@@ -153,7 +160,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
           <StatCard
             label="Amount in question"
             value={usd(d.amount)}
-            sub={holds(d) ? "held in escrow" : d.resolution?.payment === "refunded" ? "refunded to the team builder" : d.resolution?.payment === "released" ? "released to the independent" : d.resolution?.payment === "split" ? "split by agreement" : "hold lifted"}
+            sub={holds(d) ? (d.type === "trial" ? "held in escrow" : "kept back from pay") : d.resolution?.payment === "refunded" ? "refunded to the team builder" : d.resolution?.payment === "released" ? "released to the independent" : d.resolution?.payment === "split" ? "split by agreement" : "hold lifted"}
           />
           <StatCard
             label="Waiting on"
@@ -279,7 +286,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
             label="Rule in favor of"
             hint={
               favor === "team"
-                ? `${usd(refundable)} is refunded to ${d.team.company} from escrow straight away.`
+                ? `${usd(refundable)} is refunded to ${d.team.company} from ${pot} straight away${d.type === "trial" ? "" : " — anything it doesn't cover comes off the next pay"}.`
                 : favor === "independent"
                   ? `${usd(d.amount)} is released to ${d.independent.name} once you request the payment release.`
                   : "Choose the party the process check supports."
@@ -298,7 +305,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
         open={dialog === "release"}
         onClose={close}
         title="Request payment release?"
-        description={`${usd(Math.min(d.amount, cap ?? d.amount))} is released from the ${d.title} escrow to ${d.independent.name}, and both parties are told.`}
+        description={`${usd(Math.min(d.amount, cap ?? d.amount))} is released ${d.type === "trial" ? `from the ${d.title} escrow` : "from the pay held for it"} to ${d.independent.name}, and both parties are told.`}
         footer={
           <>
             <DialogButton size="lg" onClick={close}>

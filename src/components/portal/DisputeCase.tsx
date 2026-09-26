@@ -19,7 +19,7 @@ import {
   contractName,
   dateOf,
   dealContract,
-  escrowInPlay,
+  escrowOf,
   factsFor,
   isOpen,
   leftLabel,
@@ -425,7 +425,7 @@ function EntryBody({ d, e }: { d: Dispute; e: Entry }) {
     case "rejected":
       return e.text ? <Quote>{e.text}</Quote> : null;
     case "released":
-      return <p className="text-[13px] leading-[1.45] text-ink-2">{usd(d.resolution?.moved ?? d.amount)} released from escrow.</p>;
+      return <p className="text-[13px] leading-[1.45] text-ink-2">{usd(d.resolution?.moved ?? d.amount)} released {d.type === "trial" ? "from escrow" : "from the pay held for it"}.</p>;
     default:
       return null;
   }
@@ -801,8 +801,9 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
   const all = useDisputes();
   const live = useLive();
   const onDeal = dealContract(deal)?.key === d.contract;
-  // The trial's escrow while there is one in play; after it converts, a dispute is about the pay.
-  const escrow = onDeal ? escrowInPlay(deal, all) : null;
+  // A dispute about the trial moves the trial's escrow — even after the contract converts; one about
+  // the role holds pay back instead (@/lib/demo/contract). The store decides it the same way.
+  const escrow = onDeal && d.type === "trial" ? escrowOf(deal, all) : null;
   const facts = onDeal ? factsFor({ key: d.contract, links: d.links, title: d.title, type: d.type, rate: d.rate, started: d.facts.started, ends: d.facts.ends }, deal, all) : d.facts;
   const rows = live.payments.filter((p) => p.contract === d.links.independent || p.contract === d.links.team);
   const paid = rows.filter((p) => p.kind !== "refunded");
@@ -813,7 +814,9 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
     d.status === "Pending"
       ? escrow
         ? "Held in escrow until the case closes."
-        : "In question until the case closes."
+        : onDeal
+          ? "Kept back from the pay until the case closes."
+          : "In question until the case closes."
       : r?.payment === "split" && r.split
         ? `${usd(r.split.refund)} back to ${d.team.company} · ${usd(r.split.release)} to ${d.independent.name}`
         : r?.payment === "refunded"

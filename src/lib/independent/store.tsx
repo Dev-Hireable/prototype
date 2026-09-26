@@ -2,13 +2,14 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { Stage } from "@/components/independent/ui";
-import { dayLabel, dayStamp, momentLabel, reviewQuarter, sinceOrFrom, today } from "@/lib/demo/dates";
+import { dayLabel, dayStamp, momentLabel, parseDay, reviewQuarter, sinceOrFrom, today } from "@/lib/demo/dates";
 import { statusOf, trialClosed } from "@/lib/contract/lifecycle";
 import { activityOf, canMessage, clearDeal, consumeInvite, contractTypeOf, converted, evaluationsOf, fillPosting, fitScoreOf, getDeal, lifecycleOfDeal, proposalSource, stageOf, startDeal, startedAsTrial, trialStateOf, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal, DealProposal } from "@/lib/demo/deal";
-import { escrowOf, getDisputes, usd } from "@/lib/demo/disputes";
+import { acceptConversion as acceptLiveConversion, endContract as endLiveContract, withdrawNotice as withdrawLiveNotice, type AcceptResult, type EndResult } from "@/lib/demo/contract";
+import { usd } from "@/lib/demo/disputes";
 import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import { markRead as markLiveRead, move, recordPayment, sendChat, sendFile, useLive, usePersisted } from "@/lib/demo/live";
+import { markRead as markLiveRead, move, sendChat, sendFile, useLive, usePersisted } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
 import { donePercent, taskFromOffer } from "@/lib/demo/tasks";
 import { INITIAL_SAVED, applications as seedApps, contracts as seedContracts, interviews as seedInterviews, ME, payoutMethods as seedPayouts, profile as seedProfile, transactions as seedTransactions } from "./data";
@@ -56,8 +57,13 @@ type Demo = {
   contracts: Contract[];
   /* The live contract's work items change through the work repository (@/lib/work), shared with the Team Builder's portal. */
   /** IN-084 — the full-time or part-time offer that follows the trial. */
-  acceptConversion: () => void;
-  declineConversion: (reason?: string) => void;
+  /** IN-084 — refused once the offer has expired (its start date went by), been withdrawn, or the contract ended. */
+  acceptConversion: () => AcceptResult;
+  declineConversion: (reason?: string) => { ok: true } | { ok: false; error: string };
+  /** IN-091 — end the live contract: cancel before its first day, or give notice on a running role. */
+  endContract: (how: "cancel" | "notice") => EndResult;
+  /** IN-091 — take back notice the talent gave, before its last day. */
+  withdrawNotice: () => { ok: true } | { ok: false; error: string };
   /* Disputes live in @/lib/demo/disputes, where the Team Builder and Admin see the same record. */
   /** IN-051 / IN-052 / IN-053 — the seeded ledger plus anything recorded this session, newest first. */
   transactions: Transaction[];
@@ -199,7 +205,7 @@ const contractFromDeal = (deal: Deal): Contract | null => {
     manager: PAIR_MANAGER,
     managerFirst: PAIR_MANAGER.split(" ")[0],
     started,
-    day: ongoing ? reviewQuarter(conversion?.start ?? c.started) : (l?.trial?.day ?? trial.day),
+    day: ongoing ? reviewQuarter(conversion?.start ?? c.started, c.ended ? (parseDay(c.endedOn) ?? undefined) : undefined) : (l?.trial?.day ?? trial.day),
     ends: ongoing ? (c.ended && c.endedOn ? c.endedOn : "Ongoing") : dayLabel(c.ends),
     left: ongoing ? null : trial.left,
     over: !ongoing && trial.over,
@@ -441,33 +447,19 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     withdrawnRoleSlugs: reopened(withdrawnRoleSlugs),
     declinedRoleSlugs: reopened(declinedRoleSlugs),
     contracts: allContracts,
-    acceptConversion: () => {
-      const d = getDeal();
-      const offer = d?.conversion;
-      if (!d?.contract || offer?.status !== "sent" || d.contract.ended) return;
-      // The escrow is normally paid out with the trial's evaluation; anything it still holds
-      // (less what an open dispute is keeping) is released now.
-      const escrow = escrowOf(d, getDisputes());
-      const release = escrow ? Math.max(0, escrow.held - escrow.onHold) : 0;
-      updateDeal((x) =>
-        x.contract && x.conversion
-          ? {
-              ...x,
-              conversion: { ...x.conversion, status: "accepted", accepted: today() },
-              contract: { ...x.contract, escrow: { released: (x.contract.escrow?.released ?? 0) + release, refunded: x.contract.escrow?.refunded ?? 0 } },
-            }
-          : x,
-      );
-      if (release > 0) recordPayment({ contract: d.roleSlug, title: d.title, company: d.company, amount: usd(release), period: `Trial complete — hired ${JOB_TYPE_LABEL[offer.type].toLowerCase()}`, chapter: "trial" });
-      move("hire_accepted", { slug: d.roleSlug, title: d.title }, { type: offer.type });
-    },
+    // Money moves live in @/lib/demo/contract: accepting releases what the trial's escrow still holds.
+    acceptConversion: () => acceptLiveConversion(),
     declineConversion: (reason) => {
       const d = getDeal();
       const offer = d?.conversion;
-      if (!d || offer?.status !== "sent") return;
+      // Only an offer still out: one that expired on its start date, or was withdrawn, has nothing to decline.
+      if (!d || offer?.status !== "sent" || lifecycleOfDeal(d)?.phase !== "offer") return { ok: false, error: "This offer isn't open any more." };
       updateDeal((x) => (x.conversion ? { ...x, conversion: { ...x.conversion, status: "declined", declineReason: reason?.trim() || undefined } } : x));
       move("hire_declined", { slug: d.roleSlug, title: d.title }, { type: offer.type, note: reason?.trim() || undefined });
+      return { ok: true };
     },
+    endContract: (how) => endLiveContract("independent", how),
+    withdrawNotice: () => withdrawLiveNotice("independent"),
     transactions,
     interviews: dealInterview ? [dealInterview, ...seedInterviews] : seedInterviews,
     declineInterview: (id) => {

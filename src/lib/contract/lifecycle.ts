@@ -14,15 +14,28 @@ import type { JobType, OngoingType } from "../demo/job-types";
  *   decision    evaluated: the Team Builder hires full-time or part-time, or closes it. A declined
  *               or withdrawn offer comes back here, so a new one can still be sent
  *   offer       a post-trial offer is out, waiting on the talent
- *   ongoing     full-time or part-time: converted from the trial, or hired directly
- *   ended       ended by the Team Builder — final: nothing reopens it
+ *   ongoing     full-time or part-time: converted from the trial, or hired directly. Either side
+ *               can give notice (NOTICE_DAYS); it keeps running to the notice's last day
+ *   ended       ended — by the Team Builder at once, by a notice running out, or cancelled before
+ *               its first day. Final: nothing reopens it
  *
- * A direct hire goes starts → ongoing → ended, with no trial chapter anywhere.
+ * A direct hire goes starts → ongoing → ended, with no trial chapter anywhere. A post-trial offer
+ * that isn't answered by its start date expires, and the contract is back at its decision — so pay
+ * can never be back-dated to days before the talent said yes.
  */
 export type Phase = "starts" | "trial" | "evaluation" | "decision" | "offer" | "ongoing" | "ended";
 
 /** Days the Team Builder has after the trial's last day to send the evaluation. */
 export const EVALUATION_DAYS = 5;
+
+/**
+ * The notice either side gives to end a full-time or part-time role — what the services agreements
+ * say (30 days full-time, 14 part-time). The role runs, and is paid, through its last day.
+ */
+export const NOTICE_DAYS: Record<OngoingType, number> = { "full-time": 30, "part-time": 14 };
+
+/** Notice given to end a role: who gave it, on which day, and its last day (yyyy-mm-dd). */
+export type Notice = { by: "team" | "independent"; given: string; lastDay: string };
 
 /** What the lifecycle is worked out from — the deal's facts, adapted by `factsOf` in @/lib/demo/deal. */
 export type ContractFacts = {
@@ -38,7 +51,9 @@ export type ContractFacts = {
   /** Every trial task was approved: the trial closes early. */
   trialDone: boolean;
   /** The post-trial offer, if one was made (TB-072). */
-  conversion?: { type: OngoingType; status: "sent" | "accepted" | "declined" | "withdrawn"; start: string };
+  conversion?: { type: OngoingType; status: "sent" | "accepted" | "declined" | "withdrawn" | "expired"; start: string };
+  /** Notice given to end the role (NOTICE_DAYS). */
+  notice?: Notice;
 };
 
 export type TrialChapter = {
@@ -69,6 +84,10 @@ export type Lifecycle = {
   trial?: TrialChapter;
   /** The role on offer, while phase is "offer". */
   offered?: OngoingType;
+  /** Back at the decision because the post-trial offer ran past its start date unanswered. */
+  expired?: OngoingType;
+  /** Notice given on a running role: it ends after `lastDay`. */
+  notice?: Notice;
   endedOn?: string;
 };
 
@@ -83,6 +102,22 @@ const later = (day: string, now: Date) => {
   const d = parseDay(day);
   return !!d && d > startOfDay(now);
 };
+
+/** A day that has gone by — before today. */
+const past = (day: string, now: Date) => {
+  const d = parseDay(day);
+  return !!d && d < startOfDay(now);
+};
+
+/** The last day of notice given on `given`: NOTICE_DAYS on, the role paid through it. */
+export function noticeLastDay(type: OngoingType, given: Date): Date {
+  const d = startOfDay(given);
+  d.setDate(d.getDate() + NOTICE_DAYS[type]);
+  return d;
+}
+
+/** A post-trial offer still out on `now`: sent, and its start date hasn't gone by. */
+export const offerLive = (c: ContractFacts["conversion"], now = new Date()) => c?.status === "sent" && !past(c.start, now);
 
 function trialChapter(f: ContractFacts, now: Date): TrialChapter {
   const ends = f.ends ?? f.started;
@@ -111,12 +146,15 @@ export function lifecycleOf(f: ContractFacts, now = new Date()): Lifecycle {
   const since = converted && f.conversion ? f.conversion.start : f.started;
   const base = { type, startedAsTrial, converted, since, trial: startedAsTrial ? trialChapter(f, now) : undefined };
   if (f.ended) return { ...base, phase: "ended", endedOn: f.endedOn };
+  // A notice that has run out has ended the role, even before the clock has recorded it.
+  if (f.notice && past(f.notice.lastDay, now)) return { ...base, phase: "ended", endedOn: dayLabel(f.notice.lastDay), notice: f.notice };
   if (later(since, now)) return { ...base, phase: "starts" };
-  if (!startedAsTrial || converted) return { ...base, phase: "ongoing" };
+  if (!startedAsTrial || converted) return { ...base, phase: "ongoing", notice: f.notice };
   if (!base.trial?.over) return { ...base, phase: "trial" };
   if (!f.evaluated) return { ...base, phase: "evaluation" };
-  if (f.conversion?.status === "sent") return { ...base, phase: "offer", offered: f.conversion.type };
-  return { ...base, phase: "decision" };
+  if (offerLive(f.conversion, now)) return { ...base, phase: "offer", offered: f.conversion?.type };
+  const expired = f.conversion && (f.conversion.status === "expired" || f.conversion.status === "sent") ? f.conversion.type : undefined;
+  return { ...base, phase: "decision", expired };
 }
 
 /** The trial is over and hasn't turned into anything yet: its work is closed while it's decided. */
@@ -173,11 +211,12 @@ export function statusOf(l: Lifecycle, side: "team" | "independent"): { label: s
       if (side === "independent") return { label: "Awaiting evaluation", tone: "neutral" };
       return l.trial?.evaluationOverdue ? { label: "Evaluation overdue", tone: "danger" } : { label: "Evaluation due", tone: "warn" };
     case "decision":
+      if (l.expired) return { label: `${TYPE[l.expired]} offer expired`, tone: side === "team" ? "warn" : "neutral" };
       return side === "team" ? { label: "Evaluation sent", tone: "ok" } : { label: "Evaluation received", tone: "ok" };
     case "offer":
       return side === "team" ? { label: `${TYPE[l.offered ?? "full-time"]} offer sent`, tone: "info" } : { label: `${TYPE[l.offered ?? "full-time"]} offer to review`, tone: "info" };
     case "ongoing":
-      return { label: "Active", tone: "ok" };
+      return l.notice ? { label: `Ends ${dayLabel(l.notice.lastDay)}`, tone: "warn" } : { label: "Active", tone: "ok" };
     case "ended":
       return { label: "Ended", tone: "neutral" };
   }

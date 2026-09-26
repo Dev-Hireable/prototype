@@ -294,7 +294,7 @@ export function DisputesPage({ side }: { side: DisputeParty }) {
       )}
 
       <p className="text-[12.5px] leading-[1.5] text-muted">
-        Each side answers in turn and has {TURN_DAYS} days to do it — a turn that runs out closes the dispute for the other side. Hireable support reviews the process, not the quality of the work, usually within {SLA_DAYS} working days, and the two sides can settle between themselves at any point. The amount in question stays in escrow until it closes.
+        Each side answers in turn and has {TURN_DAYS} days to do it — a turn that runs out closes the dispute for the other side. Hireable support reviews the process, not the quality of the work, usually within {SLA_DAYS} working days, and the two sides can settle between themselves at any point. The amount in question stays put until it closes — in escrow on a trial, kept back from the pay on a full-time or part-time role.
       </p>
     </Page>
   );

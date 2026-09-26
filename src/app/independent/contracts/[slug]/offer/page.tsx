@@ -5,7 +5,7 @@ import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
 import { Button, Card, Checkbox, Field, InfoBanner, LinkButton, Modal, Page, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { formatDate, fromISODate } from "@/components/portal/DatePicker";
-import { useDeal } from "@/lib/demo/deal";
+import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
 import { escrowOf, usd, useDisputes } from "@/lib/demo/disputes";
 import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { PAIR } from "@/lib/demo/live";
@@ -38,7 +38,9 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
   const offer = deal?.roleSlug === slug ? deal.conversion : undefined;
   if (!contract || !offer) notFound();
   const back = `/independent/contracts/${contract.slug}`;
-  const open = offer.status === "sent";
+  /** Still out: sent, and its start date hasn't gone by — one nobody answered by then expired (TB-072). */
+  const open = offer.status === "sent" && lifecycleOfDeal(deal)?.phase === "offer";
+  const expired = offer.status === "expired" || (offer.status === "sent" && !open);
   const signed = name.trim().length > 2 && agree;
   /** What accepting releases — nothing once the trial was ended and settled, less while a dispute holds part of it. */
   const escrow = escrowOf(deal, disputes);
@@ -62,9 +64,13 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
           <h2 className="font-display text-[32px] leading-[1.5] font-semibold text-black" style={{ fontVariationSettings: '"opsz" 14' }}>
             {kind} offer from {contract.company}
           </h2>
-          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">Sent {offer.sent}. Accepting turns your trial into a {kind.toLowerCase()} engagement{releasing > 0 ? `, and the ${usd(releasing)} still in the trial's escrow is released to you` : ""}.</p>
+          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
+            Sent {offer.sent}.
+            {open && ` Accepting turns your trial into a ${kind.toLowerCase()} engagement${releasing > 0 ? `, and the ${usd(releasing)} still in the trial's escrow is released to you` : ""}. Answer by ${pretty(offer.start)}, its start date, or it expires.`}
+          </p>
         </div>
         {offer.status === "withdrawn" && <InfoBanner tone="warn">{deal?.contract?.ended ? `${contract.company} ended the contract, so this offer was withdrawn and can no longer be accepted.` : `${contract.company} withdrew this offer, so it can no longer be accepted.`}</InfoBanner>}
+        {expired && <InfoBanner tone="warn">{`This offer expired on ${pretty(offer.start)}, its start date, without an answer, so it can no longer be accepted. ${contract.company} can send you a new one.`}</InfoBanner>}
 
         <div className="flex items-start gap-6">
           <Card className="flex min-w-0 flex-1 flex-col gap-6 p-6">
@@ -133,8 +139,8 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
                     variant="primary"
                     disabled={!signed}
                     onClick={() => {
-                      acceptConversion();
-                      setToast(`You're ${kind.toLowerCase()} with ${contract.company}`);
+                      const r = acceptConversion();
+                      setToast(r.ok ? `You're ${kind.toLowerCase()} with ${contract.company}` : r.error);
                     }}
                   >
                     Accept
@@ -146,7 +152,7 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
               ) : (
                 <>
                   <Button size="lg" disabled>
-                    {offer.status === "accepted" ? "Accepted" : offer.status === "declined" ? "Declined" : "Withdrawn"}
+                    {offer.status === "accepted" ? "Accepted" : offer.status === "declined" ? "Declined" : expired ? "Expired" : "Withdrawn"}
                   </Button>
                   {offer.status === "declined" && offer.declineReason && <p className="text-[13px] leading-[1.4] text-ink-2">Your reason: “{offer.declineReason}”</p>}
                   <LinkButton size="lg" href={back}>
@@ -174,9 +180,9 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
               size="lg"
               variant="danger"
               onClick={() => {
-                declineConversion(reason);
+                const r = declineConversion(reason);
                 setDeclining(false);
-                setToast(`${kind} offer declined`);
+                setToast(r.ok ? `${kind} offer declined` : r.error);
               }}
             >
               Decline

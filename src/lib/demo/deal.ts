@@ -6,7 +6,7 @@ import type { Stage } from "@/components/independent/ui";
 import { TFP_WEIGHTS } from "@/lib/team/data";
 import { dayLabel, isoDay, isWeekday, parseDay, today, trialClock } from "@/lib/demo/dates";
 import type { JobType, OngoingType } from "@/lib/demo/job-types";
-import { lifecycleOf, type ContractFacts, type Lifecycle } from "@/lib/contract/lifecycle";
+import { lifecycleOf, type ContractFacts, type Lifecycle, type Notice } from "@/lib/contract/lifecycle";
 import { dayLevel, trialTasks } from "@/lib/demo/tasks";
 import type { OfferTask, PlannedTask, Task, TaskComment } from "@/lib/demo/tasks";
 import type { ChatSource } from "@/lib/demo/live";
@@ -111,7 +111,18 @@ export type DealOffer = {
  * TB-072 / IN-084 — after a trial, the Team Builder can hire the talent for a full-time or a
  * part-time role. It rides on the same engagement, and once accepted the contract carries on as that.
  */
-export type ConversionOffer = { type: OngoingType; salary: string; start: string; benefits: string[]; hours?: number; status: OfferStatus; sent: string; accepted?: string; declineReason?: string };
+export type ConversionOffer = { type: OngoingType; salary: string; start: string; benefits: string[]; hours?: number; status: ConversionStatus; sent: string; accepted?: string; declineReason?: string };
+
+/** A post-trial offer's answer — or none by its start date, when it expires (@/lib/contract/lifecycle). */
+export type ConversionStatus = OfferStatus | "expired";
+
+/**
+ * A role dispute's hold on pay (a full-time or part-time contract has no escrow): the disputed
+ * amount is kept back from paydays while the case is open (`withheld` so far). Once it closes, what
+ * was kept back is paid on or refunded; a refund bigger than what was kept back comes off the next
+ * pay (`deduct`). @/lib/demo/contract keeps these.
+ */
+export type RoleHold = { amount: number; reason: string; withheld: number; deduct?: number; closed?: boolean };
 
 export type Deal = {
   roleSlug: string;
@@ -194,8 +205,14 @@ export type Deal = {
     /** Which one-off lifecycle events have fired (the evaluation reminder, the escrow's automatic release). */
     fired?: string[];
     ended?: boolean;
-    /** The day the Team Builder ended it; lists read "Ended" with this, not the scheduled end date. */
+    /** The day it ended; lists read "Ended" with this, not the scheduled end date. */
     endedOn?: string;
+    /** Called off before its first day: nothing was worked, so nothing is owed. */
+    cancelled?: boolean;
+    /** Notice given to end the role (NOTICE_DAYS): it runs, and is paid, through `lastDay`. */
+    notice?: Notice;
+    /** Role disputes' holds on pay, by dispute id (RoleHold). */
+    roleHolds?: Record<string, RoleHold>;
     /**
      * What has left escrow so far. The deposit is held from acceptance; End Contract (TB-071)
      * releases what is still held, and a dispute ruling (AD-034 / AD-035) can release or refund
@@ -761,6 +778,7 @@ export function factsOf(deal: Deal): ContractFacts | null {
     evaluated: evaluationsOf(c).length > 0,
     trialDone: trial.length > 0 && trial.every((t) => isCompleted(t.status)),
     conversion: deal.conversion ? { type: deal.conversion.type, status: deal.conversion.status, start: deal.conversion.start } : undefined,
+    notice: c.notice,
   };
 }
 

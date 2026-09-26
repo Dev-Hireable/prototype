@@ -452,7 +452,7 @@ export function release(d: Dispute, ctx: Ctx): Step | Refusal {
     money: { refund: 0, release: moved },
     notices: [
       { to: "independent", from: "support", title: "Dispute payment released", body: `${usd(moved)} from the ${d.title} dispute has been released to you. It's in your earnings now.` },
-      { to: "team", from: "support", title: "Dispute payment released", body: `${usd(moved)} was released to ${d.independent.name} from the ${d.title} escrow.` },
+      { to: "team", from: "support", title: "Dispute payment released", body: `${usd(moved)} was released to ${d.independent.name} ${d.type === "trial" ? `from the ${d.title} escrow` : "from the pay held for it"}.` },
     ],
   };
 }

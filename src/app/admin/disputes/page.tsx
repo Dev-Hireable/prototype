@@ -43,7 +43,7 @@ export default function AllDisputes() {
         <StatCard label="Waiting on support" value={String(pending.filter((d) => waitingOn(d) === "support").length)} sub={`of ${pending.length} open · SLA ${SLA_DAYS} days`} />
         <StatCard label="Past SLA" value={String(pending.filter((d) => daysOpen(d) > SLA_DAYS).length)} sub="pending longer than 5 days" />
         <StatCard label="Awaiting release" value={String(all.filter((d) => d.resolution?.payment === "awaiting release").length)} sub="ruled for the independent" />
-        <StatCard label="Held in escrow" value={usd(all.filter(holds).reduce((n, d) => n + d.amount, 0))} sub="across open disputes" />
+        <StatCard label="Held for disputes" value={usd(all.filter(holds).reduce((n, d) => n + d.amount, 0))} sub="in escrow, or kept back from pay" />
       </StatGrid>
 
       <Toolbar>

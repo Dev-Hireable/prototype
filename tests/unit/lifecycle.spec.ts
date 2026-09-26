@@ -1,12 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { lifecycleOf, nextPay, payPeriods, statusOf, trialClosed, type ContractFacts } from "../../src/lib/contract/lifecycle";
+import { lifecycleOf, nextPay, NOTICE_DAYS, noticeLastDay, payPeriods, statusOf, trialClosed, type ContractFacts } from "../../src/lib/contract/lifecycle";
 import { trialClock } from "../../src/lib/demo/dates";
 
 /** Friday 25 Sep 2026, 9 AM — the tests' today. */
 const NOW = new Date(2026, 8, 25, 9);
 const trial = (over: Partial<ContractFacts> = {}): ContractFacts => ({ startedAs: "trial", started: "2026-09-21", ends: "2026-10-30", evaluated: false, trialDone: false, ...over });
 const direct = (over: Partial<ContractFacts> = {}): ContractFacts => ({ startedAs: "full-time", started: "2026-09-01", evaluated: false, trialDone: false, ...over });
-const offer = (status: "sent" | "accepted" | "declined" | "withdrawn", start = "2026-09-28") => ({ type: "full-time" as const, status, start });
+const offer = (status: "sent" | "accepted" | "declined" | "withdrawn" | "expired", start = "2026-09-28") => ({ type: "full-time" as const, status, start });
 
 test.describe("the trial clock", () => {
   test("counts its first and last days, and runs through the last one", () => {
@@ -71,6 +71,32 @@ test.describe("the lifecycle", () => {
   test("ended is final, whatever else is true", () => {
     expect(lifecycleOf(trial({ ended: true, endedOn: "24 Sep 2026", conversion: offer("accepted") }), NOW)).toMatchObject({ phase: "ended", endedOn: "24 Sep 2026" });
     expect(lifecycleOf(direct({ ended: true }), NOW).phase).toBe("ended");
+  });
+});
+
+test.describe("after the trial: offers that expire, and notice (user rules 2026-09-26)", () => {
+  const closed = { ends: "2026-09-18", evaluated: true };
+
+  test("a post-trial offer can be answered up to its start date, then it expires back to the decision", () => {
+    expect(lifecycleOf(trial({ ...closed, conversion: offer("sent", "2026-09-25") }), NOW).phase).toBe("offer");
+    const lapsed = lifecycleOf(trial({ ...closed, conversion: offer("sent", "2026-09-24") }), NOW);
+    expect(lapsed).toMatchObject({ phase: "decision", expired: "full-time" });
+    expect(statusOf(lapsed, "team")).toEqual({ label: "Full-time offer expired", tone: "warn" });
+    // Once the clock has marked it, it reads the same.
+    expect(lifecycleOf(trial({ ...closed, conversion: offer("expired", "2026-09-24") }), NOW)).toMatchObject({ phase: "decision", expired: "full-time" });
+    // A declined one isn't "expired".
+    expect(lifecycleOf(trial({ ...closed, conversion: offer("declined", "2026-09-24") }), NOW).expired).toBeUndefined();
+  });
+
+  test("notice keeps the role running through its last day, then it has ended", () => {
+    expect(NOTICE_DAYS).toEqual({ "full-time": 30, "part-time": 14 });
+    expect(noticeLastDay("full-time", NOW)).toEqual(new Date(2026, 9, 25));
+    expect(noticeLastDay("part-time", NOW)).toEqual(new Date(2026, 9, 9));
+    const running = lifecycleOf(direct({ notice: { by: "independent", given: "2026-09-20", lastDay: "2026-09-25" } }), NOW);
+    expect(running).toMatchObject({ phase: "ongoing", notice: { by: "independent", lastDay: "2026-09-25" } });
+    expect(statusOf(running, "team")).toEqual({ label: "Ends 25 Sep 2026", tone: "warn" });
+    const over = lifecycleOf(direct({ notice: { by: "team", given: "2026-09-10", lastDay: "2026-09-24" } }), NOW);
+    expect(over).toMatchObject({ phase: "ended", endedOn: "24 Sep 2026" });
   });
 });
 

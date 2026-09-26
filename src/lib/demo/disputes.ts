@@ -211,7 +211,8 @@ export function escrowOf(deal: Deal | null, all: Dispute[]): Escrow | null {
   const released = c.escrow?.released ?? (c.ended ? total : 0);
   const refunded = c.escrow?.refunded ?? 0;
   const held = Math.max(0, total - released - refunded);
-  const onHold = Math.min(held, all.filter((d) => d.contract === ref.key && holds(d)).reduce((n, d) => n + d.amount, 0));
+  // Only a dispute about the trial holds its escrow; one about the role holds pay instead (@/lib/demo/contract).
+  const onHold = Math.min(held, all.filter((d) => d.contract === ref.key && d.type === "trial" && holds(d)).reduce((n, d) => n + d.amount, 0));
   return { total, released, refunded, held, onHold };
 }
 
@@ -238,9 +239,17 @@ export function escrowLine(e: Escrow, started: string, names: { releasedTo: stri
   return parts.length ? parts.join(" · ") : "Nothing held";
 }
 
+/**
+ * A dispute about the live contract's role (not its trial): it holds pay rather than escrow, and the
+ * contract's clock settles it from what it held (@/lib/demo/contract).
+ */
+const onLiveRole = (d: Dispute, deal: Deal | null) => dealContract(deal)?.key === d.contract && d.type !== "trial";
+
 /** Move money out of the trial's escrow (or record it outright on a contract with none), into both ledgers. */
 function settle(d: Dispute, m: Money) {
   const deal = getDeal();
+  // The role's pay held for it is paid on or refunded by the contract's clock — never recorded twice.
+  if (onLiveRole(d, deal)) return;
   // Out of escrow only while there's a trial's escrow in play; otherwise it's pay, recorded outright.
   if (escrowOfDispute(d, deal, snapshot) && (m.refund > 0 || m.release > 0)) settleEscrow({ refunded: m.refund, released: m.release });
   const row = { contract: d.links.independent, title: d.title, company: d.team.company, period: `Dispute · ${d.reason}`, chapter: d.type };
@@ -252,12 +261,17 @@ function settle(d: Dispute, m: Money) {
 
 export type FileBlock = "open" | "filed" | "withdrawn" | "starts" | "trial" | "ended" | "settled";
 
+/** The part of a contract a dispute is about: its trial, or the full-time / part-time role after it. */
+export type Chapter = "trial" | "role";
+export const chapterOf = (d: Pick<Dispute, "type">): Chapter => (d.type === "trial" ? "trial" : "role");
+
 /**
  * Why `party` can't file on this contract right now, if they can't:
  *   open      one is already open on it, from either side — the other party answers it instead
  *             of filing a second;
- *   filed     the independent has filed on it before — one per contract (IN-032 / IN-082);
- *   withdrawn the Team Builder withdrew one here, and can't refile (TB-093);
+ *   filed     the independent has filed on this chapter before — one per chapter: the trial and
+ *             the role it became each get their own (IN-032 / IN-082);
+ *   withdrawn the Team Builder withdrew one on this chapter, and can't refile (TB-093);
  *   starts    its first day hasn't come — the trial's, or the role's after a trial converted:
  *             nothing has happened yet to dispute (TB-118 / IN-059: "an active contract");
  *   trial     the trial is still running — filing opens when it ends (TB-073 / IN-076);
@@ -265,15 +279,18 @@ export type FileBlock = "open" | "filed" | "withdrawn" | "starts" | "trial" | "e
  *             ending it (TB-071), and ending paid out what was owed;
  *   settled   nothing is left in the trial's escrow to move.
  * `phase` is where the contract is in its lifecycle; without one (a contract the demo only lists)
- * there's no timing to check. The store runs this same check on file, so no caller can skip it.
+ * there's no timing to check. `chapter` is what a new one would be about; without one, every
+ * dispute on the contract counts. The store runs this same check on file, so no caller can skip it.
  */
-export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escrow: Escrow | null, phase?: Phase): { block: FileBlock | null; dispute?: Dispute } {
+export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escrow: Escrow | null, phase?: Phase, chapter?: Chapter): { block: FileBlock | null; dispute?: Dispute } {
   const here = all.filter((d) => d.contract === key);
+  // An open one, from either side and about either chapter, is answered rather than filed over.
   const open = here.find(holds);
   if (open) return { block: "open", dispute: open };
-  const own = here.find((d) => d.filedBy === "independent");
+  const same = chapter ? here.filter((d) => chapterOf(d) === chapter) : here;
+  const own = same.find((d) => d.filedBy === "independent");
   if (party === "independent" && own) return { block: "filed", dispute: own };
-  const withdrawn = here.find((d) => d.filedBy === "team" && d.status === "Withdrawn");
+  const withdrawn = same.find((d) => d.filedBy === "team" && d.status === "Withdrawn");
   if (party === "team" && withdrawn) return { block: "withdrawn", dispute: withdrawn };
   if (phase === "starts" || phase === "trial" || phase === "ended") return { block: phase };
   if (escrow && escrow.held <= 0) return { block: "settled" };
@@ -294,7 +311,11 @@ export function fileBlockHint(block: FileBlock | null, side: DisputeParty, days:
     case "ended":
       return "This contract has ended, so it can't be disputed any more";
     case "withdrawn":
-      return side === "team" ? "You withdrew a dispute on this contract, so it can't be disputed again" : undefined;
+      return side === "team" ? "You withdrew a dispute on this part of the contract, so it can't be disputed again" : undefined;
+    case "filed":
+      return side === "independent" ? "You've filed a dispute on this part of the contract. One can be filed per chapter" : undefined;
+    case "open":
+      return "A dispute is already open on this contract";
     case "settled":
       return "The trial's escrow has been paid out, so there's nothing left in it to dispute";
     default:
@@ -305,6 +326,20 @@ export function fileBlockHint(block: FileBlock | null, side: DisputeParty, days:
 /** The live contract's phase, for fileBlock — undefined for any other contract. */
 function phaseOf(deal: Deal | null, key: string): Phase | undefined {
   return dealContract(deal)?.key === key ? lifecycleOfDeal(deal)?.phase : undefined;
+}
+
+/** The chapter a new dispute on the live contract would be about: the trial while it is one, then the role. */
+export const liveChapter = (deal: Deal | null): Chapter => (contractTypeOf(deal) === "trial" ? "trial" : "role");
+
+/**
+ * The most a dispute can be for: what the trial's escrow still holds, or on a role a month's pay —
+ * the most one payday can keep back.
+ */
+export function disputeCap(deal: Deal | null, all: Dispute[], rate: string): { cap: number; note: string } {
+  const inPlay = escrowInPlay(deal, all);
+  if (inPlay) return { cap: inPlay.held, note: "what is still held in escrow" };
+  const monthly = rateAmount(deal?.conversion?.status === "accepted" ? deal.conversion.salary : rate);
+  return { cap: monthly, note: `a month's pay, ${usd(monthly)}, kept back from the next payday until it closes` };
 }
 
 /** Admin's process check, from the live contract where there is one, else as it was when filed. */
@@ -376,6 +411,8 @@ function act(id: string, step: (d: Dispute, ctx: Ctx) => Step | Refusal | null, 
     const next = handler ? { ...out.next, adminSeen: out.next.updated } : out.next;
     write(snapshot.map((x) => (x.id === id ? next : x)));
     for (const n of out.notices) tell(next, n);
+    // Closed about the role: the contract's clock pays on, or refunds, the pay it held.
+    if (onLiveRole(next, getDeal()) && !holds(next)) void import("@/lib/demo/contract").then((m) => m.sweepContract());
     return { ok: true, dispute: next };
   });
 }
@@ -384,14 +421,19 @@ function act(id: string, step: (d: Dispute, ctx: Ctx) => Step | Refusal | null, 
  * TB-073 / TB-118 / IN-059 — file a dispute. It opens as a case with the other side's turn to
  * respond, and they're told. Resolves to null when fileBlock says no.
  */
-export function fileDispute(input: { ref: ContractRef; filedBy: DisputeParty; reason: string; description: string; amount: number; evidence?: string; attachments?: Attachment[] }): Promise<Dispute | null> {
-  return exclusive(() => {
+export function fileDispute(input: { ref: ContractRef; filedBy: DisputeParty; reason: string; description: string; amount: number; evidence?: string; attachments?: Attachment[] }): Promise<Done> {
+  return exclusive((): Done => {
     refresh();
     const deal = getDeal();
     // The same check the button runs — the escrow in play (not a converted contract's paid-out trial
-    // escrow, which used to refuse every filing on it) and where the contract is in its lifecycle.
+    // escrow, which used to refuse every filing on it), where the contract is in its lifecycle, and
+    // the chapter it would be about.
     const live = dealContract(deal)?.key === input.ref.key;
-    if (fileBlock(snapshot, input.ref.key, input.filedBy, live ? escrowInPlay(deal, snapshot) : null, phaseOf(deal, input.ref.key)).block) return null;
+    const { block } = fileBlock(snapshot, input.ref.key, input.filedBy, live ? escrowInPlay(deal, snapshot) : null, phaseOf(deal, input.ref.key), live ? liveChapter(deal) : undefined);
+    if (block) return { ok: false, error: fileBlockHint(block, input.filedBy, { starts: "its first day", trialEnds: "its last day" }) ?? "This contract can't be disputed right now." };
+    // The amount is checked here too, not only in the form: a real sum, no more than is at stake.
+    const cap = live ? disputeCap(deal, snapshot, input.ref.rate).cap : 0;
+    if (!(input.amount > 0) || (cap > 0 && input.amount > cap)) return { ok: false, error: `The amount has to be more than $0 and no more than ${usd(cap)}.` };
     const now = Date.now();
     const out = Case.openCase(
       {
@@ -415,7 +457,7 @@ export function fileDispute(input: { ref: ContractRef; filedBy: DisputeParty; re
     );
     write([out.next, ...snapshot]);
     for (const n of out.notices) tell(out.next, n);
-    return out.next;
+    return { ok: true, dispute: out.next };
   });
 }
 
