@@ -154,4 +154,17 @@ test.describe("keyboard and accessibility · inline editing", () => {
     await expect(bio).toBeHidden();
     await expect(pencil).toBeFocused();
   });
+
+  test("opening an editor with no field of its own to focus puts the focus in it", async ({ page }) => {
+    await page.goto("/independent/profile");
+    const pencil = page.getByRole("button", { name: "Edit skills" });
+    await pencil.press("Enter");
+    // Its first control takes the focus, so Tab and Escape carry on from the editor.
+    await expect(page.getByRole("combobox")).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("combobox")).toBeHidden();
+    await expect(pencil).toBeFocused();
+  });
 });

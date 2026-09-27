@@ -51,11 +51,16 @@ export function EditButton({ label, onClick, disabled, href, tip = "Edit" }: { l
   );
 }
 
+/** The first control Tab stops on inside `box`: enabled, on screen, and not an item a roving group holds back. */
+function firstStop(box: HTMLElement) {
+  return [...box.querySelectorAll<HTMLElement>('a[href], button, input:not([type="hidden"]), select, textarea, [tabindex]')].find((el) => !el.matches(":disabled") && el.tabIndex >= 0 && el.getClientRects().length > 0);
+}
+
 /**
  * The part being edited, in line with the page — no outline or tint around it: its label, its fields,
  * then Cancel / Save on the right. Escape cancels, unless something inside (an open menu) claimed the
- * key. Closing, either way, hands the focus to the part's pencil as it comes back. `saveTip` says why
- * Save is disabled.
+ * key. Opening takes the focus into the fields, and closing, either way, hands it to the part's pencil
+ * as it comes back. `saveTip` says why Save is disabled.
  */
 export function EditPanel({
   label,
@@ -75,18 +80,24 @@ export function EditPanel({
   onCancel: () => void;
   children: ReactNode;
 }) {
-  // As it goes: the pencil that appears in the same update takes the focus (see `editorClosed`).
-  useEffect(
-    () => () => {
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // Opening took the pencil away with the part, so unless a field took the focus (autoFocus) it's on
+    // <body>, where Tab starts from the top of the page and Escape reaches nothing: the first control
+    // takes it. The skill search opens its suggestions as it does, as it would when clicked.
+    const box = panel.current;
+    if (box && (!document.activeElement || document.activeElement === document.body)) firstStop(box)?.focus();
+    // As it goes: the pencil that appears in the same update takes the focus (see `editorClosed`).
+    return () => {
       editorClosed = true;
       queueMicrotask(() => {
         editorClosed = false;
       });
-    },
-    [],
-  );
+    };
+  }, []);
   return (
     <div
+      ref={panel}
       className="flex flex-col gap-4"
       onKeyDown={(e) => {
         if (e.key === "Escape" && !e.defaultPrevented) onCancel();
