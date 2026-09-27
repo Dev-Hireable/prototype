@@ -23,6 +23,14 @@ export const PATH: Record<Portal, string> = {
   admin: "/admin/contracts/brand-designer",
 };
 
+/** A trial that ran 10 Aug – 18 Sep and was evaluated, its escrow paid out. */
+export const EVALUATED = {
+  started: "2026-08-10",
+  ends: "2026-09-18",
+  evaluations: [{ stars: 4, scores: [{ label: "Quality of work", value: 4 }], feedback: "A strong trial.", recommendation: "Hire full-time", date: "21 Sep 2026", tfp: 80 }],
+  escrow: { released: 1600, refunded: 0 },
+};
+
 type SeedOptions = {
   /** Replace the seeded work items. */
   tasks?: Record<string, unknown>[];
@@ -36,6 +44,11 @@ type SeedOptions = {
   empty?: boolean;
   /** Disputes already on file. */
   disputes?: Record<string, unknown>[];
+  /**
+   * Other saved stores, by their key under `hireable.demo.` (`"team.roles"`, `"ind.payouts"`, …): set once
+   * with the rest, so a reload keeps what the test changed.
+   */
+  stores?: Record<string, unknown>;
 };
 
 export async function seed(context: BrowserContext, opts: SeedOptions = {}) {
@@ -46,8 +59,9 @@ export async function seed(context: BrowserContext, opts: SeedOptions = {}) {
   if (opts.deal) Object.assign(deal.deal, opts.deal);
   const value = opts.raw ?? (opts.empty ? null : JSON.stringify(deal));
   const disputes = opts.disputes ? JSON.stringify(opts.disputes) : null;
+  const stores = Object.entries(opts.stores ?? {}).map(([key, v]) => [`hireable.demo.${key}`, JSON.stringify(v)]);
   await context.addInitScript(
-    ({ run, value, disputes }) => {
+    ({ run, value, disputes, stores }) => {
       if (localStorage.getItem("hireable.e2e.run") === run) return;
       for (const k of Object.keys(localStorage)) if (k.startsWith("hireable.")) localStorage.removeItem(k);
       localStorage.setItem("hireable.e2e.run", run);
@@ -55,8 +69,9 @@ export async function seed(context: BrowserContext, opts: SeedOptions = {}) {
       localStorage.setItem("hireable.demo.ind.workStyle", "[4,5,1,2,4,5]");
       if (value !== null) localStorage.setItem("hireable.demo.deal", value);
       if (disputes !== null) localStorage.setItem("hireable.demo.disputes", disputes);
+      for (const [k, v] of stores) localStorage.setItem(k, v);
     },
-    { run, value, disputes },
+    { run, value, disputes, stores },
   );
 }
 
@@ -121,6 +136,16 @@ export async function open(page: Page, portal: Portal, query = "") {
 export async function saved(page: Page): Promise<Record<string, Record<string, unknown>>> {
   const tasks = await page.evaluate(() => JSON.parse(localStorage.getItem("hireable.demo.deal") ?? "null")?.deal?.contract?.tasks ?? []);
   return Object.fromEntries((tasks as Record<string, unknown>[]).map((t) => [t.id as string, t]));
+}
+
+/** The deal as it's saved: the contract, the trial offer and any post-trial offer. */
+export async function savedDeal(page: Page) {
+  return page.evaluate(() => JSON.parse(localStorage.getItem("hireable.demo.deal") ?? "null")?.deal);
+}
+
+/** Any other saved store under `hireable.demo.` (`"team.profile"`, `"ind.payouts"`…), or null before its first save. */
+export async function stored(page: Page, key: string) {
+  return page.evaluate((k) => JSON.parse(localStorage.getItem(`hireable.demo.${k}`) ?? "null"), key);
 }
 
 export async function savedItem(page: Page, id: string) {

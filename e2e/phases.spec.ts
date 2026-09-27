@@ -1,12 +1,10 @@
-import { api, card, closePanel, expect, open, PATH, panel, projectPicker, test, tickFilter, toast } from "./fixtures";
+import { api, card, closePanel, EVALUATED, expect, open, PATH, panel, projectPicker, test, tickFilter, toast } from "./fixtures";
 
 // What each side can do to the work, at every point in a contract's life and in every state a
 // project can be in — the edge cases a Monday, Asana, Jira or Notion board would have to get right.
 // Checked on screen (the controls offered) and against the repository (what a save accepts), so a
 // button that's hidden is also a change that's refused. Today is Fri 25 Sep 2026.
 
-/** A trial that ran 10 Aug – 18 Sep and was evaluated, its escrow paid out. */
-const EVALUATED = { started: "2026-08-10", ends: "2026-09-18", evaluations: [{ stars: 4, scores: [{ label: "Quality of work", value: 4 }], feedback: "A strong trial.", recommendation: "Hire full-time", date: "21 Sep 2026", tfp: 80 }], escrow: { released: 1600, refunded: 0 } };
 const conversion = (status: "sent" | "accepted", start: string) => ({ conversion: { type: "full-time", salary: "$4,000", start, benefits: [], status, sent: "22 Sep 2026", ...(status === "accepted" ? { accepted: "22 Sep 2026" } : {}) } });
 
 /** The header's Add task — the board's per-column quick add is named the same, so this counts them all. */

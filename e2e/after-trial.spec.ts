@@ -1,4 +1,4 @@
-import { expect, NOW, notes, open, PATH, test, toast } from "./fixtures";
+import { EVALUATED, expect, NOW, notes, open, PATH, savedDeal, test, toast } from "./fixtures";
 
 // After the trial (user rules 2026-09-26, @/lib/contract/lifecycle and @/lib/demo/contract): a
 // post-trial offer expires on its start date; either side ends a role with notice, and the company
@@ -8,17 +8,6 @@ import { expect, NOW, notes, open, PATH, test, toast } from "./fixtures";
 const DAY = 86_400_000;
 const T = NOW.getTime();
 
-async function savedDeal(page: import("@playwright/test").Page) {
-  return page.evaluate(() => JSON.parse(localStorage.getItem("hireable.demo.deal") ?? "null")?.deal);
-}
-
-/** A trial that ran 10 Aug – 18 Sep and was evaluated, its escrow paid out. */
-const EVALUATED = {
-  started: "2026-08-10",
-  ends: "2026-09-18",
-  evaluations: [{ stars: 4, scores: [{ label: "Quality of work", value: 4 }], feedback: "A strong trial.", recommendation: "Hire full-time", date: "21 Sep 2026", tfp: 80 }],
-  escrow: { released: 1600, refunded: 0 },
-};
 const offer = (status: "sent" | "accepted", start: string) => ({ conversion: { type: "full-time", salary: "$4,000", start, benefits: ["Health Insurance Coverage"], status, sent: "22 Sep 2026", accepted: status === "accepted" ? "22 Sep 2026" : undefined } });
 
 test.describe("a post-trial offer nobody answers", () => {

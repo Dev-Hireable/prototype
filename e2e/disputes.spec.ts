@@ -1,4 +1,4 @@
-import { expect, NOW, notes, open, PATH, savedDispute, savedEscrow, test, toast } from "./fixtures";
+import { EVALUATED, expect, NOW, notes, open, PATH, savedDispute, savedEscrow, test, toast } from "./fixtures";
 
 // Disputes as cases worked in turns — filed on one side, answered on the other within five days,
 // reviewed by Hireable support, settled between the two or ruled on — with the files both sides
@@ -181,8 +181,6 @@ async function allDisabled(buttons: import("@playwright/test").Locator) {
   for (const button of await buttons.all()) await expect(button).toBeDisabled();
 }
 
-/** A trial that ran 10 Aug – 18 Sep, evaluated, its escrow paid out. */
-const EVALUATED = { started: "2026-08-10", ends: "2026-09-18", evaluations: [{ stars: 4, scores: [{ label: "Quality of work", value: 4 }], feedback: "A strong trial.", recommendation: "Hire full-time", date: "21 Sep 2026", tfp: 80 }], escrow: { released: 1600, refunded: 0 } };
 /** …then hired full-time, from `start`. */
 const HIRED = (start: string, contract: Record<string, unknown> = {}) => ({
   contract: { ...EVALUATED, ...contract },
