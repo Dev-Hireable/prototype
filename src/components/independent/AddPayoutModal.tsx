@@ -33,12 +33,12 @@ export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onCl
   const [number, setNumber] = useState("");
   const [isDefault, setIsDefault] = useState(true);
   const isBank = type === TYPES[0];
-  const valid = name.trim().length > 1 && number.replace(/\s/g, "").length >= 4;
+  /** What Add still waits for, shown as its tip; nothing once the form is complete. */
+  const missing = name.trim().length <= 1 ? "Enter the account name." : number.replace(/\s/g, "").length < 4 ? `Enter the ${isBank ? "account" : "mobile"} number.` : undefined;
 
   const submit = () => {
-    const m = payoutFrom({ type, bank, name, number, isDefault });
-    addPayout(m);
-    onAdded(m);
+    // What was saved, not what was ticked: a method pending verification doesn't become the default.
+    onAdded(addPayout(payoutFrom({ type, bank, name, number, isDefault })));
     onClose();
     setNumber("");
   };
@@ -52,7 +52,7 @@ export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onCl
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" disabled={!valid} onClick={submit}>
+          <Button variant="primary" disabled={!!missing} title={missing} onClick={submit}>
             Add payout method
           </Button>
         </>

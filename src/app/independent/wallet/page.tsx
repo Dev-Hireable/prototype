@@ -11,7 +11,7 @@ import { escrowOf, useDisputes, type Dispute } from "@/lib/demo/disputes";
 import { PAIR } from "@/lib/demo/live";
 import { EARNINGS_LABEL, EARNINGS_TYPES } from "@/lib/independent/data";
 import type { PayoutMethod, Transaction } from "@/lib/independent/data";
-import { useWallet } from "@/lib/independent/wallet";
+import { heirOf, useWallet } from "@/lib/independent/wallet";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { keyed } from "@/lib/portal/keys";
 import { useToast } from "@/lib/portal/toast";
@@ -60,7 +60,8 @@ export default function Wallet() {
   const [toast, setToast] = useToast();
   const { all, contractName, filters } = useLedger(transactions);
   const defaultPayout = payouts.find((p) => p.isDefault);
-  const canWithdraw = available > 0 && !!defaultPayout?.verified.startsWith("Verified");
+  /** Why Withdraw is off, shown as its tip; nothing while it's on. */
+  const noWithdraw = available <= 0 ? "Nothing is available to withdraw yet." : defaultPayout?.verified.startsWith("Verified") ? undefined : "No verified payout method to send it to yet.";
 
   return (
     <Page title="Earnings">
@@ -79,7 +80,7 @@ export default function Wallet() {
         />
 
         <FilterBar filters={filters} total={all.length}>
-          <Button variant="primary" size="lg" className="ml-auto" disabled={!canWithdraw} onClick={() => setWithdrawing(true)}>
+          <Button variant="primary" size="lg" className="ml-auto" disabled={!!noWithdraw} title={noWithdraw} onClick={() => setWithdrawing(true)}>
             Withdraw {money(available)}
           </Button>
         </FilterBar>
@@ -93,7 +94,7 @@ export default function Wallet() {
       <TransactionDetail detail={detail} contractName={contractName} onClose={() => setDetail(null)} onReceipt={() => setToast("Receipt downloaded")} />
 
       <AddPayoutModal open={adding} onClose={() => setAdding(false)} onAdded={(m) => setToast(`${m.brand} ····${m.last4} added${m.isDefault ? " and set as default" : ""}`)} />
-      <RemoveMethod method={removing} onClose={() => setRemoving(null)} onRemove={() => { if (removing) removePayout(removing.id); setRemoving(null); setToast("Payout method removed"); }} />
+      <RemoveMethod method={removing} heir={removing ? heirOf(payouts, removing.id) : undefined} onClose={() => setRemoving(null)} onRemove={() => { if (removing) removePayout(removing.id); setRemoving(null); setToast("Payout method removed"); }} />
       <WithdrawDialog open={withdrawing} amount={available} to={defaultPayout} onClose={() => setWithdrawing(false)} onWithdraw={() => { withdrawFunds(); setWithdrawing(false); setToast(`${money(available)} on its way`); }} />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
@@ -127,15 +128,21 @@ function DisputesNote({ all }: { all: Dispute[] }) {
   );
 }
 
+/** What removing `method` means: for the default, the method that takes over (`heir`), or that none can yet. */
+function removalNote(method: PayoutMethod | null, heir: PayoutMethod | undefined) {
+  if (!method?.isDefault) return "Payouts already scheduled to this method complete; nothing new is sent here.";
+  return heir ? `This is your default method. Your next payout goes to ${heir.brand} ····${heir.last4} instead.` : "This is your default method, and no other is verified yet: withdrawing waits until one is.";
+}
+
 /** Removing a payout method: what's already scheduled to it still arrives — and, for the default, where the next payout goes. */
-function RemoveMethod({ method, onClose, onRemove }: { method: PayoutMethod | null; onClose: () => void; onRemove: () => void }) {
+function RemoveMethod({ method, heir, onClose, onRemove }: { method: PayoutMethod | null; heir: PayoutMethod | undefined; onClose: () => void; onRemove: () => void }) {
   return (
     <Modal
       open={!!method}
       onClose={onClose}
       tone="danger"
       title={`Remove ${method?.brand} ····${method?.last4}?`}
-      description={method?.isDefault ? "This is your default method. Your next payout goes to the remaining method instead." : "Payouts already scheduled to this method complete; nothing new is sent here."}
+      description={removalNote(method, heir)}
       footer={
         <>
           <Button size="lg" onClick={onClose}>
@@ -335,13 +342,13 @@ function PayoutCard({ method: m, open, onOpenChange, removable, onSetDefault, on
         {brand ? <Image src={brand.src} alt={m.brand} width={brand.w} height={26} className={`${brand.cls} object-contain`} /> : <span className="h-[26px] text-[20px] leading-[26px] font-bold text-ink">Bank</span>}
         <span className="flex-1" />
         <KebabMenu label="Payout method actions" open={open} onOpenChange={onOpenChange} buttonClassName="!size-7">
-          <MenuAction disabled={m.isDefault || !verified} onClick={onSetDefault} icon={<SetDefault size={18} aria-hidden />}>
+          <MenuAction disabled={m.isDefault || !verified} title={m.isDefault ? "This is already your default." : verified ? undefined : "It can be your default once it's verified."} onClick={onSetDefault} icon={<SetDefault size={18} aria-hidden />}>
             Set as default
           </MenuAction>
           <MenuAction onClick={onHistory} icon={<History size={18} aria-hidden />}>
             View payout history
           </MenuAction>
-          <MenuAction destructive disabled={!removable} onClick={onRemove} icon={<Trash size={18} aria-hidden />}>
+          <MenuAction destructive disabled={!removable} title={removable ? undefined : "Your only payout method can't be removed. Add another first."} onClick={onRemove} icon={<Trash size={18} aria-hidden />}>
             Remove
           </MenuAction>
         </KebabMenu>

@@ -6,7 +6,7 @@ import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
 import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
-import { useWallet } from "@/lib/independent/wallet";
+import { payoutTitle, useWallet } from "@/lib/independent/wallet";
 import { useToast } from "@/lib/portal/toast";
 
 /** Figma "Settings / Payout methods" (+ add modal): 720 card, p 24, gap 16; method rows p 16, gap 16. */
@@ -77,7 +77,7 @@ function MethodRow({ method: m, only, onSetDefault, onRemove }: { method: Payout
       brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
       title={
         <>
-          {m.brand === "Bank" ? `BPI · account ending ${m.last4}` : `${m.brand} · ${m.brand === "GCash" ? "0917 555 0142" : `····${m.last4}`}`}
+          {payoutTitle(m)}
           {m.isDefault && <StatusDot tone="ok">Default</StatusDot>}
         </>
       }
@@ -85,11 +85,11 @@ function MethodRow({ method: m, only, onSetDefault, onRemove }: { method: Payout
       actions={
         <>
           {!m.isDefault && (
-            <Button size="sm" disabled={!m.verified.startsWith("Verified")} onClick={onSetDefault}>
+            <Button size="sm" disabled={!m.verified.startsWith("Verified")} title={m.verified.startsWith("Verified") ? undefined : "It can be your default once it's verified."} onClick={onSetDefault}>
               Set as default
             </Button>
           )}
-          <Button size="sm" variant="danger" disabled={only || m.isDefault} onClick={onRemove}>
+          <Button size="sm" variant="danger" disabled={only || m.isDefault} title={only ? "Your only payout method can't be removed. Add another first." : m.isDefault ? "Make another method the default first." : undefined} onClick={onRemove}>
             Remove
           </Button>
         </>

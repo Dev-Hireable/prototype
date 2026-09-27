@@ -325,7 +325,7 @@ test.describe("wallet · removing a method", () => {
 
     const maya = page.getByRole("dialog", { name: "Remove Maya ····4471?" });
     await removeFromMenu(page, "4471");
-    await expect(maya).toContainText("This is your default method. Your next payout goes to the remaining method instead.");
+    await expect(maya).toContainText("This is your default method. Your next payout goes to GCash ····9023 instead.");
     await maya.getByRole("button", { name: "Close" }).click();
     await expect(maya).toBeHidden();
 
@@ -340,10 +340,7 @@ test.describe("wallet · removing a method", () => {
 test.describe("wallet · removing the default method", () => {
   test.use({ seedOptions: { stores: { ...LEDGER, "ind.payouts": [MAYA, GCASH] } } });
 
-  // Bug: the dialog says the next payout goes to the remaining method, but removePayout
-  // (src/lib/independent/wallet.ts) drops the default without making another method the default:
-  // none is, the DEFAULT mark is gone, and Withdraw turns off.
-  test.fixme("removing the default hands the default to the method that remains", async ({ page }) => {
+  test("removing the default hands the default to the method that remains", async ({ page }) => {
     await openWallet(page);
     await removeFromMenu(page, "4471");
     await page.getByRole("dialog", { name: "Remove Maya ····4471?" }).getByRole("button", { name: "Remove", exact: true }).click();
@@ -352,6 +349,21 @@ test.describe("wallet · removing the default method", () => {
     expect(await savedDefaults(page)).toEqual(["gcash"]);
     await page.getByRole("button", { name: "Withdraw $2,200.00" }).click();
     await expect(page.getByRole("dialog", { name: "Withdraw $2,200.00?" })).toContainText("Sent to your default method (GCash ····9023).");
+  });
+});
+
+test.describe("wallet · removing the default with no other verified", () => {
+  test.use({ seedOptions: { stores: { ...LEDGER, "ind.payouts": [MAYA, PENDING] } } });
+
+  test("the dialog says withdrawing waits, and no method pending verification becomes the default", async ({ page }) => {
+    await openWallet(page);
+    await removeFromMenu(page, "4471");
+    const maya = page.getByRole("dialog", { name: "Remove Maya ····4471?" });
+    await expect(maya).toContainText("This is your default method, and no other is verified yet: withdrawing waits until one is.");
+    await maya.getByRole("button", { name: "Remove", exact: true }).click();
+    await expect(toast(page, "Payout method removed")).toBeVisible();
+    expect(await savedDefaults(page)).toEqual([]);
+    await expect(page.getByRole("button", { name: "Withdraw $2,200.00" })).toBeDisabled();
   });
 });
 
@@ -400,10 +412,8 @@ test.describe("wallet · adding a method", () => {
 });
 
 test.describe("wallet · adding a method as the default", () => {
-  // Bug: both pages' toasts go by the dialog's tick ("… added and set as default"), but addPayout
-  // (src/lib/independent/wallet.ts) never makes a method pending verification the default — the old
-  // default keeps it, as the cards show.
-  test.fixme("the add toast only calls the new method the default when it was made the default", async ({ page }) => {
+  // A method pending verification can't be the default, ticked or not: the old default keeps it.
+  test("the add toast only calls the new method the default when it was made the default", async ({ page }) => {
     await openWallet(page);
     await page.getByRole("button", { name: "Add payout method", exact: true }).click();
     await addMethod(page, "GCash", "0917 555 1234", { asDefault: true });
@@ -493,9 +503,8 @@ test.describe("payout settings · the only method", () => {
 test.describe("payout settings · a new method", () => {
   test.use({ seedOptions: PAYOUTS });
 
-  // Bug: MethodRow (src/app/independent/settings/payout/page.tsx) titles every bank "BPI" and every
-  // GCash with the seed's number, not the method's own detail — a BDO account reads "BPI · account ending 9012".
-  test.fixme("a new bank account is listed under its own bank", async ({ page }) => {
+  // Each row goes by its own method: every bank used to read "BPI", and every GCash the seed's number.
+  test("a new bank account is listed under its own bank", async ({ page }) => {
     await openSettings(page);
     await page.getByRole("button", { name: "Add payout method", exact: true }).click();
     await addMethod(page, "Bank", "1234 5678 9012", { bank: "BDO" });

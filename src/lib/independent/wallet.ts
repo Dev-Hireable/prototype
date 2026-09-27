@@ -51,14 +51,37 @@ function ledgerOf(payments: LivePayment[], withdrawals: Transaction[]) {
   return { transactions, available };
 }
 
-const addPayout = (m: PayoutMethod) =>
+const isVerified = (m: PayoutMethod) => m.verified.startsWith("Verified");
+
+/**
+ * The method as saved, which is what the toasts go by: only a verified method becomes the default,
+ * so a new one, pending verification, leaves the default where it was whatever the tick said.
+ */
+function addPayout(m: PayoutMethod) {
+  const saved = { ...m, isDefault: m.isDefault && isVerified(m) };
+  payoutsStore.set((p) => (saved.isDefault ? p.map((x) => ({ ...x, isDefault: false })) : p).concat(saved));
+  return saved;
+}
+
+/** Where the default goes when `id`, the default, is removed: the first other verified method, if any. */
+export const heirOf = (payouts: PayoutMethod[], id: string) => payouts.find((x) => x.id !== id && isVerified(x));
+
+/** Removing the default hands it on (heirOf), so Withdraw still has somewhere to send the money. */
+const removePayout = (id: string) =>
   payoutsStore.set((p) => {
-    const canBeDefault = m.isDefault && m.verified.startsWith("Verified");
-    const next = { ...m, isDefault: canBeDefault };
-    return (canBeDefault ? p.map((x) => ({ ...x, isDefault: false })) : p).concat(next);
+    const rest = p.filter((x) => x.id !== id);
+    const heir = p.find((x) => x.id === id)?.isDefault ? heirOf(p, id) : undefined;
+    return heir ? rest.map((x) => ({ ...x, isDefault: x.id === heir.id })) : rest;
   });
-const removePayout = (id: string) => payoutsStore.set((p) => p.filter((x) => x.id !== id));
-const setDefaultPayout = (id: string) => payoutsStore.set((p) => p.map((x) => ({ ...x, isDefault: x.id === id && x.verified.startsWith("Verified") })));
+const setDefaultPayout = (id: string) => payoutsStore.set((p) => p.map((x) => ({ ...x, isDefault: x.id === id && isVerified(x) })));
+
+/** A method as the settings list titles it: the bank and the account's last digits, or the e-wallet and its number. */
+export function payoutTitle(m: PayoutMethod) {
+  // New methods keep "BDO · InstaPay / PESONet" or "GCash · 0917 555 1234"; the seed's bank has no prefix, and is BPI.
+  const [lead, rest] = m.detail.split(" · ");
+  if (m.brand === "Bank") return `${rest ? lead : "BPI"} · account ending ${m.last4}`;
+  return `${m.brand} · ${m.brand === "GCash" && rest ? rest : `····${m.last4}`}`;
+}
 
 export function useWallet() {
   const { payments } = useLive();
