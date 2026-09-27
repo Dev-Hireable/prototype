@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { trialClosed } from "@/lib/contract/lifecycle";
 import { dayLabel, momentLabel, today } from "@/lib/demo/dates";
-import { canMessage, clearDeal, consumeInvite, contractTypeOf, fillPosting, getDeal, getInvites, lifecycleOfDeal, proposalSource, stageOf, startDeal, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
+import { canMessage, clearDeal, consumeInvite, contractTypeOf, fillPosting, getInvites, lifecycleOfDeal, proposalSource, readDeal, stageOf, startDeal, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal, DealProposal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { move, PAIR, persisted, sendChat, sendFile, useStored } from "@/lib/demo/live";
@@ -98,7 +98,7 @@ function interviewsOf(deal: Deal | null): Interview[] {
   return [live, ...seedInterviews];
 }
 
-const applicationsNow = () => applicationsOf(getDeal(), applicationsStore.get());
+const applicationsNow = () => applicationsOf(readDeal(), applicationsStore.get());
 
 /**
  * Turned down before any hire (dropped, or its proposal declined): it no longer holds the talent. A
@@ -115,7 +115,7 @@ const released = (deal: Deal | null) => !!deal?.dropped && !deal.contract;
 function setStage(id: string, stage: Stage, status?: Application["status"], notify?: MoveKind | false) {
   const app = applicationsNow().find((x) => x.id === id);
   if (id === DEAL_ID) {
-    const d = getDeal();
+    const d = readDeal();
     // IN-074 — only an open offer can be signed; a declined or withdrawn one stays that way.
     // Nothing moves on an application the company has dropped (TB-044).
     if (!d || d.dropped || (stage === "hired" && d.offer?.status !== "sent")) return;
@@ -161,7 +161,7 @@ function setStage(id: string, stage: Stage, status?: Application["status"], noti
 /** IN-075 — the reason, if one is given, goes to the Team Builder with the answer. */
 function declineOffer(id: string, reason?: string) {
   if (id !== DEAL_ID) return;
-  const d = getDeal();
+  const d = readDeal();
   if (!d?.offer || d.offer.status !== "sent") return;
   move("offer_declined", { slug: d.roleSlug, title: d.title });
   updateDeal((x) => (x.offer ? { ...x, offer: { ...x.offer, status: "declined", declineReason: reason?.trim() || undefined } } : x));
@@ -172,7 +172,7 @@ const canWithdraw = (app: Application) => withdrawable(app.stage);
 /** Refused (false) once an offer has been accepted: a signed contract is ended, not withdrawn. */
 function withdraw(id: string): boolean {
   if (id === DEAL_ID) {
-    const d = getDeal();
+    const d = readDeal();
     if (!d || !withdrawable(d.stage)) return false;
     move("withdrawn", { slug: d.roleSlug, title: d.title });
     withdrawnStore.set((slugs) => (slugs.includes(d.roleSlug) ? slugs : [...slugs, d.roleSlug]));
@@ -189,7 +189,7 @@ function withdraw(id: string): boolean {
 
 /** IN-017 — false when it can't go: applied or withdrawn already, or engaged on another role. */
 function apply(roleSlug: string, title: string, company: string, match: number, extras?: { note?: string; quiz?: boolean }): boolean {
-  const deal = getDeal();
+  const deal = readDeal();
   // IN-017: cannot apply twice — unless the company invited them to apply again (TB-017).
   const invited = !!getInvites()[roleSlug];
   if (!invited && (withdrawnStore.get().includes(roleSlug) || declinedStore.get().includes(roleSlug))) return false;
@@ -216,7 +216,7 @@ function apply(roleSlug: string, title: string, company: string, match: number, 
 /** IN-072 / IN-073 — only while a proposal is actually requested; false otherwise. */
 function submitProposal(id: string, proposal: Omit<DealProposal, "version" | "sent">): boolean {
   if (id !== DEAL_ID) return false;
-  const d = getDeal();
+  const d = readDeal();
   // Only an open request can be answered — the wizard used to reach the deal at any stage and
   // move a signed, even ended, contract back to "Proposal submitted".
   if (!d || d.stage !== "proposal_requested" || d.dropped) return false;
@@ -232,7 +232,7 @@ function submitProposal(id: string, proposal: Omit<DealProposal, "version" | "se
 /** TB-106 — a note on the proposal's history; it goes to the thread too, so the Team Builder reads it either way. */
 function commentOnProposal(text: string, file?: File) {
   const body = file ? `Sent an attachment: ${file.name}` : text.trim();
-  const source = proposalSource(getDeal());
+  const source = proposalSource(readDeal());
   if (!body || !source) return;
   // It goes to the thread too, marked as written on the proposal so the inbox links back to it.
   // The chat message's id, so the note shows the same sent / seen receipt as the thread.
@@ -242,7 +242,7 @@ function commentOnProposal(text: string, file?: File) {
 
 /** IN-071 — declining keeps the application open and tells the Team Builder. */
 function declineInterview(id: string) {
-  const deal = getDeal();
+  const deal = readDeal();
   if (id !== DEAL_ID || !deal) return;
   move("interview_declined", { slug: deal.roleSlug, title: deal.title });
   updateDeal((d) => (d.interview ? { ...d, interview: { ...d.interview, past: true, accepted: false, outcome: "declined" } } : d));

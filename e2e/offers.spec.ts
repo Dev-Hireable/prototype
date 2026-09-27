@@ -425,17 +425,14 @@ test.describe("offers · an offer answered while it's being edited", () => {
     expect((await savedDeal(page)).offer).toMatchObject({ status: "accepted", rate: "$1,600 /month" });
   });
 
-  // BUG: updateOffer (src/lib/team/offers.ts) checks the offer is still open on this tab's copy of the
-  // deal (getDeal), then writes the new terms over what's saved without checking again. An edit sent
-  // before the tab has heard of Juan's answer reopens his accepted offer — status back to "sent", the
-  // stage back to "offer_received" — with the contract already started. withdrawOffer, the talent's
-  // setStage and declineOffer (src/lib/independent/applications.ts) and declineConversion
-  // (src/lib/independent/contracts.ts) check the same way; acceptConversion re-reads first (readDeal).
-  test.fixme("an edit sent before the editor has heard Juan accepted leaves his accepted offer alone", async ({ page }) => {
+  // The tab's copy still has the offer open. Sending checks what's saved, finds Juan's answer and sends
+  // nothing: the page says why, as it does when the answer arrives first.
+  test("an edit sent before the editor has heard Juan accepted leaves his accepted offer alone", async ({ page }) => {
     await readyToSend(page);
     await acceptUnheard(page);
     await page.getByRole("button", { name: "Send updated offer" }).click();
-    await expect(page).toHaveURL(/\/team\/hire\/offers$/);
+    await expect(page.getByText("This offer was accepted and can't be edited.")).toBeVisible();
+    await expect(page).toHaveURL(/\/edit$/);
     expect(await savedDeal(page)).toMatchObject({ stage: "hired", offer: { status: "accepted", rate: "$1,600 /month" } });
   });
 });

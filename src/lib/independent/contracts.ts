@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { statusOf } from "@/lib/contract/lifecycle";
 import { acceptConversion, endContract as endLiveContract, withdrawNotice } from "@/lib/demo/contract";
 import { dayLabel, parseDay, reviewQuarter, sinceOrFrom } from "@/lib/demo/dates";
-import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, getDeal, lifecycleOfDeal, startedAsTrial, trialStateOf, updateDeal, useDeal } from "@/lib/demo/deal";
+import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, startedAsTrial, trialStateOf, updateDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { move, PAIR, persisted, useStored } from "@/lib/demo/live";
@@ -78,7 +78,7 @@ function contractFromDeal(deal: Deal): Contract | null {
 
 /** IN-084 — refused once the offer has expired (its start date went by), been withdrawn, or the contract ended. */
 function declineConversion(reason?: string): { ok: true } | { ok: false; error: string } {
-  const d = getDeal();
+  const d = readDeal();
   const offer = d?.conversion;
   // Only an offer still out: one that expired on its start date, or was withdrawn, has nothing to decline.
   if (!d || offer?.status !== "sent" || lifecycleOfDeal(d)?.phase !== "offer") return { ok: false, error: "This offer isn't open any more." };

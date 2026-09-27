@@ -448,15 +448,16 @@ function readRaw(): string | null {
   }
 }
 
-/** Make `raw` — what's saved now — this tab's snapshot. */
+/** Make `raw` — what's saved now — this tab's snapshot. True when that changed it. */
 function adopt(raw: string | null) {
-  if (loaded && raw === lastRaw) return;
+  if (loaded && raw === lastRaw) return false;
   lastRaw = raw;
   const state = parseState(raw);
   if (!state) {
     backup(raw);
     snapshot = { ...EMPTY, status: "corrupt" };
   } else snapshot = { ...share(snapshot, state), status: "ready" };
+  return true;
 }
 
 /** One listener for the whole tab: another tab saved, so read what it saved. */
@@ -483,7 +484,9 @@ function ensureLoaded() {
  */
 function fresh(): State | null {
   ensureLoaded();
-  adopt(readRaw());
+  // Another tab saved and its event hasn't arrived yet: the screens catch up now, so an action this
+  // re-read refuses shows why (an offer already accepted) rather than waiting for the next write.
+  if (adopt(readRaw())) emit();
   return snapshot.status === "corrupt" ? null : snapshot;
 }
 

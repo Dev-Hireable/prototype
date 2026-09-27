@@ -4,7 +4,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import * as Case from "@/lib/disputes/case";
 import type { Attachment, Ctx, Dispute, DisputeFacts, DisputeNotice, DisputeParty, DisputeStatus, Money, Refusal, Say, Step } from "@/lib/disputes/case";
 import { dayLabel, momentLabel, parseDay } from "@/lib/demo/dates";
-import { contractTypeOf, converted, evaluationsOf, getDeal, lifecycleOfDeal, settleEscrow, startedAsTrial } from "@/lib/demo/deal";
+import { contractTypeOf, converted, evaluationsOf, lifecycleOfDeal, readDeal, settleEscrow, startedAsTrial } from "@/lib/demo/deal";
 import type { Phase } from "@/lib/contract/lifecycle";
 import type { Deal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
@@ -247,7 +247,7 @@ const onLiveRole = (d: Dispute, deal: Deal | null) => dealContract(deal)?.key ==
 
 /** Move money out of the trial's escrow (or record it outright on a contract with none), into both ledgers. */
 function settle(d: Dispute, m: Money) {
-  const deal = getDeal();
+  const deal = readDeal();
   // The role's pay held for it is paid on or refunded by the contract's clock — never recorded twice.
   if (onLiveRole(d, deal)) return;
   // Out of escrow only while there's a trial's escrow in play; otherwise it's pay, recorded outright.
@@ -392,7 +392,7 @@ function tell(d: Dispute, n: DisputeNotice) {
 
 /** The escrow a step may move, and how its notices say a moment. */
 function ctxFor(d: Dispute, handler?: string): Ctx {
-  const deal = getDeal();
+  const deal = readDeal();
   const held = escrowOfDispute(d, deal, snapshot)?.held;
   return { now: Date.now(), when: stampOf, handler, held };
 }
@@ -412,7 +412,7 @@ function act(id: string, step: (d: Dispute, ctx: Ctx) => Step | Refusal | null, 
     write(snapshot.map((x) => (x.id === id ? next : x)));
     for (const n of out.notices) tell(next, n);
     // Closed about the role: the contract's clock pays on, or refunds, the pay it held.
-    if (onLiveRole(next, getDeal()) && !holds(next)) void import("@/lib/demo/contract").then((m) => m.sweepContract());
+    if (onLiveRole(next, readDeal()) && !holds(next)) void import("@/lib/demo/contract").then((m) => m.sweepContract());
     return { ok: true, dispute: next };
   });
 }
@@ -424,7 +424,7 @@ function act(id: string, step: (d: Dispute, ctx: Ctx) => Step | Refusal | null, 
 export function fileDispute(input: { ref: ContractRef; filedBy: DisputeParty; reason: string; description: string; amount: number; evidence?: string; attachments?: Attachment[] }): Promise<Done> {
   return exclusive((): Done => {
     refresh();
-    const deal = getDeal();
+    const deal = readDeal();
     // The same check the button runs — the escrow in play (not a converted contract's paid-out trial
     // escrow, which used to refuse every filing on it), where the contract is in its lifecycle, and
     // the chapter it would be about.

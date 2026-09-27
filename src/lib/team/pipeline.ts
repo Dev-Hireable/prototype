@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { dayLabel, momentLabel, today } from "@/lib/demo/dates";
-import { canMessage, contractTypeOf, getDeal, lifecycleOfDeal, proposalSource, recordInvite, stageOf, startDeal, trialStateOf, updateDeal, useDeal, withProposalEvent } from "@/lib/demo/deal";
+import { canMessage, contractTypeOf, lifecycleOfDeal, proposalSource, readDeal, recordInvite, stageOf, startDeal, trialStateOf, updateDeal, useDeal, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { move, PAIR, persisted, sendChat, sendFile, useStored } from "@/lib/demo/live";
@@ -108,8 +108,8 @@ function interviewsOf(deal: Deal | null, interviews: Interview[]): Interview[] {
 }
 
 /** The tracker and the interview list as they stand now, for an action. */
-const cardsNow = () => cardsOf(getDeal(), candidatesStore.get(), removedStore.get());
-const interviewsNow = () => interviewsOf(getDeal(), interviewsStore.get());
+const cardsNow = () => cardsOf(readDeal(), candidatesStore.get(), removedStore.get());
+const interviewsNow = () => interviewsOf(readDeal(), interviewsStore.get());
 
 /** Only the live pair emits notifications — everyone else is static background data. */
 const livePair = (c: Candidate) => c.independent === PAIR.independent.slug;
@@ -146,7 +146,7 @@ function commentOnProposal(id: string, text: string, file?: File) {
   const body = file ? `Sent an attachment: ${file.name}` : text.trim();
   if (!body || id !== DEAL_ID) return;
   // It goes to the thread too, marked as written on the proposal so the inbox links back to it.
-  const source = proposalSource(getDeal());
+  const source = proposalSource(readDeal());
   // The chat message's id, so the note shows the same sent / seen receipt as the thread.
   const chatId = file ? sendFile("team", file, source) : sendChat("team", body, source);
   updateDeal((d) => withProposalEvent(d, { kind: "comment", at: momentLabel(), by: "team", text: body, chatId }));
@@ -170,7 +170,7 @@ function deleteCandidate(id: string) {
   const c = cardsNow().find((x) => x.id === id);
   // Only from Dropped: anyone still in the running is dropped first.
   if (!c?.dropped) return;
-  const deal = getDeal();
+  const deal = readDeal();
   if (id === DEAL_ID) {
     if (deal) removedStore.set((r) => (r.includes(dealKey(deal)) ? r : [...r, dealKey(deal)]));
     return;
@@ -211,7 +211,7 @@ function inviteToInterview(candidateId: string, slot: { when: string; format: st
   // The pair without an engagement: start it at the interview, so the invitation has an
   // application to land on in their pipeline. (One engagement at a time — a second role for
   // the pair stays on this side only rather than overwrite the first.)
-  if (livePair(c) && !getDeal() && startDeal({ roleSlug: c.role, title: role.title, company: PAIR.team.company, match: byName(c.independent).match, stage: "invited", invited: true, interview })) {
+  if (livePair(c) && !readDeal() && startDeal({ roleSlug: c.role, title: role.title, company: PAIR.team.company, match: byName(c.independent).match, stage: "invited", invited: true, interview })) {
     move("interview_invited", role);
     return;
   }
@@ -227,7 +227,7 @@ function inviteToInterview(candidateId: string, slot: { when: string; format: st
 function rescheduleInterview(id: string, when: string) {
   if (!interviewsNow().some((i) => i.id === id)) return;
   if (id === DEAL_ID) {
-    const deal = getDeal();
+    const deal = readDeal();
     if (deal) move("interview_rescheduled", roleOf(deal.roleSlug));
     return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, when, accepted: false, past: false, outcome: undefined } } : d));
   }
@@ -239,7 +239,7 @@ function cancelInterview(id: string) {
   const iv = interviewsNow().find((i) => i.id === id);
   if (!iv) return;
   if (id === DEAL_ID) {
-    const deal = getDeal();
+    const deal = readDeal();
     if (deal) move("interview_cancelled", roleOf(deal.roleSlug));
     return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, past: true, outcome: "cancelled" } } : d));
   }

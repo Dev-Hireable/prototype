@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { statusOf } from "@/lib/contract/lifecycle";
 import { endContract as endLiveContract, sendEvaluation, withdrawNotice, type EndResult, type EvaluationResult } from "@/lib/demo/contract";
 import { dayLabel, parseDay, reviewQuarter, today } from "@/lib/demo/dates";
-import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, getDeal, lifecycleOfDeal, startedAsTrial, trialStateOf, useDeal } from "@/lib/demo/deal";
+import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, startedAsTrial, trialStateOf, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { dealContract as contractRefOf, escrowOf, rateAmount, usd } from "@/lib/demo/disputes";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
@@ -73,7 +73,7 @@ function contractFromDeal(deal: Deal, manager: string): Contract | null {
 }
 
 /** Whether `slug` names the live contract — the one on the shared engagement. */
-const isLive = (slug: string) => !!getDeal()?.contract && slug === PAIR.independent.slug;
+const isLive = (slug: string) => !!readDeal()?.contract && slug === PAIR.independent.slug;
 
 /**
  * TB-071 — close the engagement for good: what's owed is paid (a trial's escrow still held, a

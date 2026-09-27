@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { dayLabel, isoDay, today } from "@/lib/demo/dates";
-import { getDeal, lifecycleOfDeal, updateDeal, useDeal } from "@/lib/demo/deal";
+import { lifecycleOfDeal, readDeal, updateDeal, useDeal } from "@/lib/demo/deal";
 import type { ConversionStatus, Deal, DealOffer } from "@/lib/demo/deal";
 import type { OngoingType } from "@/lib/demo/job-types";
 import { move, PAIR, persisted, useStored } from "@/lib/demo/live";
@@ -77,23 +77,27 @@ const talentSide = (d: Deal) => ({ slug: d.roleSlug, title: d.title });
  * and on a trial the escrow funded with it.
  */
 function sendOffer(terms: Omit<DealOffer, "status" | "sent" | "updated" | "declineReason">) {
-  const d = getDeal();
+  const d = readDeal();
   if (!d) return;
   move("offer_sent", talentSide(d), { type: terms.type });
   updateDeal((x) => ({ ...x, stage: "offer_received", dropped: false, proposalDeclined: undefined, offer: { ...terms, status: "sent", sent: today() } }));
 }
 
-/** TB-105 — new terms or tasks on a sent offer; the talent is told and signs the new version. */
+/**
+ * TB-105 — new terms or tasks on a sent offer; the talent is told and signs the new version. False
+ * when it has had its answer since the editor opened — accepted in the talent's tab, say.
+ */
 function updateOffer({ rate, start, end, deposit, hours, tasks }: Pick<DealOffer, "rate" | "start" | "end" | "deposit" | "hours" | "tasks">) {
-  const d = getDeal();
-  if (!d?.offer || d.offer.status === "accepted") return;
+  const d = readDeal();
+  if (d?.offer?.status !== "sent") return false;
   move("offer_updated", talentSide(d), { type: d.offer.type });
   updateDeal((x) => (x.offer ? { ...x, stage: "offer_received", offer: { ...x.offer, rate, start, end, deposit, hours, tasks, status: "sent", updated: today(), declineReason: undefined } } : x));
+  return true;
 }
 
 /** The talent is told; the proposal is back in review, and a new offer can be sent. */
 function withdrawOffer(id: string) {
-  const d = getDeal();
+  const d = readDeal();
   if (id === DEAL_ID && d?.offer?.status === "sent") {
     move("offer_withdrawn", talentSide(d));
     // Back to the proposal: it is still on file, and a new offer can go out from it.
@@ -113,7 +117,7 @@ function withdrawOffer(id: string) {
  * engagement. False when it can't go out: not at the decision, or a start date already gone by.
  */
 function sendConversionOffer({ type, salary, start, benefits, hours }: { type: OngoingType; salary: string; start: string; benefits: string[]; hours?: number }) {
-  const d = getDeal();
+  const d = readDeal();
   // Only once the trial is evaluated and nothing else is out — never on an ended contract.
   if (!d?.contract || lifecycleOfDeal(d)?.phase !== "decision") return false;
   // It expires on its start date if unanswered, so a start already gone by would be dead on arrival.

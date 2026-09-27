@@ -50,8 +50,9 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
   const { trial, partTime, amount, end, escrow, fee, weekly, tasks } = edit;
   const send = () => {
     const offerTasks = tasks.map((t, i) => ({ ...t, id: `task-${i + 1}` }));
-    updateOffer(trial ? { rate: `${usd(amount)}/mo`, start, end, deposit: { escrow, fee }, tasks: offerTasks } : { rate: `${usd(amount)}/mo`, start, hours: partTime ? weekly : undefined, tasks: offerTasks });
-    back();
+    const sent = updateOffer(trial ? { rate: `${usd(amount)}/mo`, start, end, deposit: { escrow, fee }, tasks: offerTasks } : { rate: `${usd(amount)}/mo`, start, hours: partTime ? weekly : undefined, tasks: offerTasks });
+    // Answered in the meantime: the page stays, now saying what happened to the offer.
+    if (sent) back();
   };
 
   return (
