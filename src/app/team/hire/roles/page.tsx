@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
 import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
 import { Tip } from "@/components/portal/Tip";
 import { Row, Table, Toolbar } from "@/components/team/ui";
@@ -12,6 +12,7 @@ import { columnOf, ROLE_STATUS } from "@/lib/team/data";
 import type { Candidate, Role, RoleStatus } from "@/lib/team/data";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { shortDayLabel } from "@/lib/demo/dates";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { draftReady, useRoles } from "@/lib/team/roles";
 import { usePipeline } from "@/lib/team/pipeline";
 
@@ -174,7 +175,7 @@ export default function AllRoles() {
       </div>
 
       <ConfirmDialog confirm={actions.confirm} onClose={() => actions.setConfirm(null)} onConfirm={actions.apply} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -199,7 +200,7 @@ type RoleFilters = ReturnType<typeof useRoleFilters>;
  * What the row menus do: which menu is open, the two actions that happen straight from it
  * (duplicate, publish a draft), and the close / reopen / archive / delete confirmation.
  */
-function useRoleActions(setToast: (message: string) => void) {
+function useRoleActions(setToast: SetToast) {
   const { setRoleStatus, removeRole, duplicateRole, canPublish } = useRoles();
   const [menu, setMenu] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
@@ -208,19 +209,19 @@ function useRoleActions(setToast: (message: string) => void) {
   const duplicate = (r: Role) => {
     setMenu(null);
     const copy = duplicateRole(r.slug);
-    setToast(copy ? `${r.title} duplicated as a draft` : "Could not duplicate that role");
+    setToast(copy ? `${r.title} duplicated as a draft` : "Could not duplicate that role", copy ? "success" : "danger");
   };
 
   /** TB-035 — incomplete drafts can't go live; send the user back to finish them instead. */
   const publishDraft = (r: Role) => {
     setMenu(null);
     if (!canPublish) {
-      setToast("Finish your company profile and add a payment method before publishing");
+      setToast("Finish your company profile and add a payment method before publishing", "danger");
       router.push("/team/profile/company");
       return;
     }
     if (!draftReady(r)) {
-      setToast("Some required fields are still empty — opening the draft so you can finish it");
+      setToast("Some required fields are still empty — opening the draft so you can finish it", "danger");
       router.push(`/team/hire/new?edit=${r.slug}`);
       return;
     }
@@ -238,7 +239,7 @@ function useRoleActions(setToast: (message: string) => void) {
     const { role, action } = confirm;
     if (action === "reopen" && !canPublish) {
       setConfirm(null);
-      setToast("Finish your company profile and add a payment method before reopening a role");
+      setToast("Finish your company profile and add a payment method before reopening a role", "danger");
       return;
     }
     if (action === "delete") removeRole(role.slug);

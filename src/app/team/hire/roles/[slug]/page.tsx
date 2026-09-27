@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Card, Chip, JobBadge, LinkButton, MatchPill, Modal, Page, StatusDot, Tabs, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, JobBadge, LinkButton, MatchPill, Modal, Page, StatusDot, Tabs, Toast } from "@/components/independent/ui";
 import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board";
 import { FactStrip } from "@/components/portal/PageParts";
 import { BreadcrumbBack } from "@/components/portal/nav";
@@ -23,6 +23,7 @@ import { PAIR, unreadChat, useLive } from "@/lib/demo/live";
 import { useRoles } from "@/lib/team/roles";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useQueryState } from "@/lib/portal/query-state";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { stageCanMessage } from "@/lib/demo/deal";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
@@ -105,7 +106,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
         )}
       </div>
       <BoardDialogs role={role} dialogs={dialogs} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -151,7 +152,7 @@ function useCardDialogs(candidates: Candidate[]) {
 type CardDialogs = ReturnType<typeof useCardDialogs>;
 
 /** The confirmations the cards open, each for the card it came from: drop, delete, invite, mark the interview done, request and review the proposal. */
-function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: CardDialogs; onToast: (message: string) => void }) {
+function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: CardDialogs; onToast: SetToast }) {
   const { interviews, requestProposal, deleteCandidate, completeInterview } = usePipeline();
   const { dropping, deleting, inviting, completing, requesting, reviewing } = dialogs;
   return (

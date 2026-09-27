@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
-import { Button, Chip, LinkButton, MatchPill, Toast, useToast } from "@/components/independent/ui";
+import { Button, Chip, LinkButton, MatchPill, Toast } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
 import { TalentProfile, type TalentProfileData } from "@/components/portal/TalentProfile";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,6 +14,7 @@ import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
 import { traitTagsFor } from "@/lib/demo/work-style";
 import { pastEvaluations, type PastEvaluation } from "@/lib/independent/data";
+import { useToast } from "@/lib/portal/toast";
 import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useSavedTalent } from "@/lib/team/saved";
@@ -325,7 +326,7 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
           <TeamProfile
             person={p}
             onInvite={() => onInvite(p)}
-            onPlayIntro={() => setToast("Intro video plays here")}
+            onPlayIntro={() => setToast("Intro video plays here", "info")}
             inSheet
             // A plain ink link by the photo, not a button or the brand blue: it leaves the preview for the full page.
             // No underline on hover — the arrow nudges the way it points instead.
@@ -345,7 +346,7 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
           />
         )}
       </Drawer>
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }

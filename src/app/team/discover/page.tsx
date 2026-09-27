@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Page, Toast, useToast } from "@/components/independent/ui";
+import { Page, Toast } from "@/components/independent/ui";
 import { IndependentCard } from "@/components/team/ui";
+import { useToast } from "@/lib/portal/toast";
 import { liveIndependents } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { ReturnNav } from "@/components/portal/return";
@@ -29,7 +30,7 @@ export default function Discover() {
       />
 
       <TalentOverlays target={target} preview={preview} onTarget={setTarget} onPreview={setPreview} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

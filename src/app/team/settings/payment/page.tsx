@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { Button, Card, Checkbox, EmptyState, Field, InfoBanner, Input, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Checkbox, EmptyState, Field, InfoBanner, Input, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import { CardHeading } from "@/components/team/ui";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { PaymentMethod } from "@/lib/team/data";
 import { useCards } from "@/lib/team/account";
 
@@ -45,7 +46,7 @@ export default function PaymentMethods() {
 
       <AddCardDialog open={adding} onClose={() => setAdding(false)} onToast={setToast} />
       <RemoveCardDialog card={removing} onClose={() => setRemoving(null)} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -79,7 +80,7 @@ function CardRow({ card: c, only, onDefault, onRemove }: { card: PaymentMethod; 
 }
 
 /** A new card — number, expiry and CVC, and whether it becomes the default. Only the number is kept once it's added. */
-function AddCardDialog({ open, onClose, onToast }: { open: boolean; onClose: () => void; onToast: (message: string) => void }) {
+function AddCardDialog({ open, onClose, onToast }: { open: boolean; onClose: () => void; onToast: SetToast }) {
   const { cards, addCard } = useCards();
   const [number, setNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -133,7 +134,7 @@ function AddCardDialog({ open, onClose, onToast }: { open: boolean; onClose: () 
 }
 
 /** Removing a card, once confirmed: what's already scheduled to it still goes through. */
-function RemoveCardDialog({ card, onClose, onToast }: { card: PaymentMethod | null; onClose: () => void; onToast: (message: string) => void }) {
+function RemoveCardDialog({ card, onClose, onToast }: { card: PaymentMethod | null; onClose: () => void; onToast: SetToast }) {
   const { removeCard } = useCards();
   return (
     <Modal

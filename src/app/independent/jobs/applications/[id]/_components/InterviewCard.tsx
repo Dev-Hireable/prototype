@@ -1,6 +1,7 @@
 import { ICONS } from "@/components/admin/icons";
 import { Button, Card, StatusDot } from "@/components/independent/ui";
 import { Tip } from "@/components/portal/Tip";
+import type { SetToast } from "@/lib/portal/toast";
 import type { InterviewActions, StepProps } from "../_lib/steps";
 
 const Copy = ICONS.copy;
@@ -54,7 +55,7 @@ function InterviewWhen({ date, time, format }: { date: string; time: string; for
 }
 
 /** The meeting link on a confirmed interview, and a button that copies it. */
-function MeetingLink({ link, onToast }: { link: string; onToast: (m: string) => void }) {
+function MeetingLink({ link, onToast }: { link: string; onToast: SetToast }) {
   const copyLink = () => {
     navigator.clipboard?.writeText(link);
     onToast("Link copied");
@@ -84,7 +85,7 @@ function InterviewAnswer({ accepted, link, onAccept, onDecline, onToast }: { acc
       size="lg"
       variant="primary"
       onClick={() => {
-        if (!link) return onToast("No meeting link yet — ask the Team Builder to share one.");
+        if (!link) return onToast("No meeting link yet — ask the Team Builder to share one.", "danger");
         window.open(link, "_blank", "noopener");
       }}
     >

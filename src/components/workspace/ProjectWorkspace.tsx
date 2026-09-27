@@ -406,7 +406,7 @@ function ItemSheet({ shown, open, work, focus, onClose }: { shown: WorkItem | un
 
 /** The toast for what an action had to say, with its button when it offers one. */
 function WorkToast({ toast, onClose }: { toast: WorkMessage | null; onClose: () => void }) {
-  return <Toast message={toast?.message ?? null} tone={toast?.tone} action={toast?.action ? { label: toast.action.label, onClick: toast.action.run } : undefined} onClose={onClose} />;
+  return <Toast toast={toast} action={toast?.action ? { label: toast.action.label, onClick: toast.action.run } : undefined} onClose={onClose} />;
 }
 
 /** A project with nothing in it yet, or the open work with nothing open — said plainly, with the way to add some. */

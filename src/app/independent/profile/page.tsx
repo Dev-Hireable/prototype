@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { BioEditor, HeroEditor, LinksEditor, SkillsEditor } from "@/components/independent/ProfileEditors";
-import { Button, Modal, Page, Toast, useToast } from "@/components/independent/ui";
+import { Button, Modal, Page, Toast } from "@/components/independent/ui";
 import { EditButton } from "@/components/portal/InlineEdit";
 import { FlatBadge, TalentProfile } from "@/components/portal/TalentProfile";
 import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
@@ -13,6 +13,7 @@ import type { Contract } from "@/lib/independent/data";
 import { useIndependentAccount, type Profile as ProfileData } from "@/lib/independent/account";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { useQueryState } from "@/lib/portal/query-state";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 
 const Eye = ICONS.visibility;
 const AddVideo = ICONS.videoAdd;
@@ -56,7 +57,7 @@ export default function Profile() {
             This is exactly how your profile appears to Team Builders.
           </p>
         }
-        onPlayIntro={() => setToast("Intro video plays here")}
+        onPlayIntro={() => setToast("Intro video plays here", "info")}
         introAction={<IntroAction hasVideo={!!introVideo} onMessage={setToast} />}
         edit={pencilsFor(editing, tags.length > 0, setEditing, () => setRetake(true))}
         editor={editorsFor(editing, profile, { onCancel: done, onSave: save, onMessage: setToast })}
@@ -79,7 +80,7 @@ export default function Profile() {
           </>
         }
       />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -97,7 +98,7 @@ function historyOf(contracts: Contract[]) {
 }
 
 /** The talent's own Add / Change intro over the intro card: it picks a video, checks it and saves it. */
-function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: (message: string) => void }) {
+function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: SetToast }) {
   const introFile = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -111,12 +112,12 @@ function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: (m
           e.target.value = "";
           if (!file) return;
           const problem = checkIntro(file);
-          if (problem) return onMessage(problem);
+          if (problem) return onMessage(problem, "danger");
           try {
             await saveIntro(file);
             onMessage(hasVideo ? "Intro video changed" : "Intro video added");
           } catch {
-            onMessage("That video couldn't be saved. Try a shorter one.");
+            onMessage("That video couldn't be saved. Try a shorter one.", "danger");
           }
         }}
       />
@@ -160,7 +161,7 @@ function pencilsFor(editing: Edit, hasTags: boolean, onEdit: (part: Edit) => voi
 }
 
 /** The open part's editor, in place of the part: Cancel closes it, and Save saves that part and says so. */
-function editorsFor(editing: Edit, profile: ProfileData, { onCancel, onSave, onMessage }: { onCancel: () => void; onSave: (patch: Partial<ProfileData>, message: string) => void; onMessage: (message: string) => void }) {
+function editorsFor(editing: Edit, profile: ProfileData, { onCancel, onSave, onMessage }: { onCancel: () => void; onSave: (patch: Partial<ProfileData>, message: string) => void; onMessage: SetToast }) {
   /**
    * An editor starts from the saved profile, which loads from storage just after mount; keying on it
    * re-seeds an editor opened straight from the URL, instead of leaving it on the seed.

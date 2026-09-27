@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { use, useEffect } from "react";
 import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Toast, useToast } from "@/components/independent/ui";
+import { Button, Toast } from "@/components/independent/ui";
 import { DisputeCase } from "@/components/portal/DisputeCase";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { useWithReturn } from "@/components/portal/return";
@@ -14,6 +14,7 @@ import type { Deal } from "@/lib/demo/deal";
 import { dealContract, escrowOf, factsFor, isOpen, markAdminSeen, otherParty, partyName, partyTurn, usd, useDisputes, waitingOn } from "@/lib/demo/disputes";
 import type { Dispute, DisputeFacts } from "@/lib/demo/disputes";
 import type { PartyTurn } from "@/lib/disputes/case";
+import { useToast } from "@/lib/portal/toast";
 import { useNow } from "@/lib/portal/use-now";
 import { AskDialog, ExtendDialog, RejectDialog, ReleaseDialog, ResolveDialog } from "./_components/Dialogs";
 import { amountNote, clockNote, processChecks, roleOf, waitingLabel } from "./_lib/copy";
@@ -74,7 +75,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
       <RejectDialog d={d} dialogs={dialogs} />
       <ResolveDialog d={d} refundable={refundable} dialogs={dialogs} />
       <ReleaseDialog d={d} amount={refundable} dialogs={dialogs} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </AdminPage>
   );
 }

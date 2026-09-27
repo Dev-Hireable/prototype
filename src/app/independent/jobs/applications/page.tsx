@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Button, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/ScrollFade";
@@ -10,6 +10,7 @@ import { usePostings } from "@/lib/demo/deal";
 import { COLUMNS, MATCH_TOOLTIP, roleFromPosting } from "@/lib/independent/data";
 import type { Application, Role } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
+import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 /** Figma "Job Board / My Applications": 360px columns in the app's kanban panels (KanbanColumn), cards p 12, gap 12. */
@@ -42,7 +43,7 @@ export default function MyApplications() {
               onClick={() => {
                 const done = target ? withdraw(target.id) : false;
                 setTarget(null);
-                setToast(done ? "Application withdrawn" : "This application can't be withdrawn any more");
+                setToast(done ? "Application withdrawn" : "This application can't be withdrawn any more", done ? "success" : "danger");
               }}
             >
               Withdraw application
@@ -50,7 +51,7 @@ export default function MyApplications() {
           </>
         }
       />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

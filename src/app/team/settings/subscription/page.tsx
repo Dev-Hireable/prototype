@@ -1,7 +1,8 @@
 "use client";
 
-import { Button, Card, Chip, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { CardHeading } from "@/components/team/ui";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { PLAN, PLANS } from "@/lib/team/data";
 
 type Plan = (typeof PLANS)[number];
@@ -37,11 +38,11 @@ export default function Subscription() {
 
         {/* Read-only otherwise: the only thing you can do from here is move plan. */}
         <div className="flex justify-end gap-3">
-          <Button size="lg" onClick={() => setToast("Billing portal opens here")}>
+          <Button size="lg" onClick={() => setToast("Billing portal opens here", "info")}>
             Manage plan
           </Button>
           {current.next && (
-            <Button size="lg" variant="primary" onClick={() => setToast(`Upgrade to ${current.next} opens here`)}>
+            <Button size="lg" variant="primary" onClick={() => setToast(`Upgrade to ${current.next} opens here`, "info")}>
               Upgrade to {current.next}
             </Button>
           )}
@@ -49,7 +50,7 @@ export default function Subscription() {
       </Card>
 
       <OtherPlans current={current} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -77,7 +78,7 @@ function PlanTerms({ current }: { current: Plan }) {
 }
 
 /** Every plan this account isn't on: its price and headline feature, and Switch. */
-function OtherPlans({ current, onToast }: { current: Plan; onToast: (message: string) => void }) {
+function OtherPlans({ current, onToast }: { current: Plan; onToast: SetToast }) {
   return (
     <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-6">
       <CardHeading>Other plans</CardHeading>
@@ -89,7 +90,7 @@ function OtherPlans({ current, onToast }: { current: Plan; onToast: (message: st
             </p>
             <p className="truncate text-[12.5px] text-ink-2">{p.features[0]}</p>
           </div>
-          <Button size="sm" onClick={() => onToast(`Switch to ${p.name} opens here`)}>
+          <Button size="sm" onClick={() => onToast(`Switch to ${p.name} opens here`, "info")}>
             Switch
           </Button>
         </div>

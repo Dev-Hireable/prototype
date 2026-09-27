@@ -47,7 +47,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
       </div>
 
       <SentDialog open={sent} company={job.company} onClose={close} />
-      <Toast message={wizard.toast} onClose={() => wizard.setToast(null)} />
+      <Toast toast={wizard.toast} onClose={() => wizard.setToast(null)} />
     </Page>
   );
 }

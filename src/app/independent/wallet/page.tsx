@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
-import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
 import { MenuAction } from "@/components/portal/controls";
 import { useDeal } from "@/lib/demo/deal";
 import { escrowOf, useDisputes, type Dispute } from "@/lib/demo/disputes";
@@ -14,6 +14,7 @@ import type { PayoutMethod, Transaction } from "@/lib/independent/data";
 import { useWallet } from "@/lib/independent/wallet";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { keyed } from "@/lib/portal/keys";
+import { useToast } from "@/lib/portal/toast";
 
 const Verified = ICONS.checkCircle;
 const Check = ICONS.check;
@@ -73,7 +74,7 @@ export default function Wallet() {
             setDefaultPayout(m.id);
             setToast(`${m.brand} ····${m.last4} is now your default`);
           }}
-          onHistory={() => setToast("Payout history opens below")}
+          onHistory={() => setToast("Payout history opens below", "info")}
           onRemove={setRemoving}
         />
 
@@ -94,7 +95,7 @@ export default function Wallet() {
       <AddPayoutModal open={adding} onClose={() => setAdding(false)} onAdded={(m) => setToast(`${m.brand} ····${m.last4} added${m.isDefault ? " and set as default" : ""}`)} />
       <RemoveMethod method={removing} onClose={() => setRemoving(null)} onRemove={() => { if (removing) removePayout(removing.id); setRemoving(null); setToast("Payout method removed"); }} />
       <WithdrawDialog open={withdrawing} amount={available} to={defaultPayout} onClose={() => setWithdrawing(false)} onWithdraw={() => { withdrawFunds(); setWithdrawing(false); setToast(`${money(available)} on its way`); }} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

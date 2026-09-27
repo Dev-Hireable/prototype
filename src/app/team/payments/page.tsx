@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Chip, EmptyState, LinkButton, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, EmptyState, LinkButton, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
 import { Drawer, Row, Table, Toolbar } from "@/components/team/ui";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { Transaction } from "@/lib/team/data";
 import { useLedger } from "@/lib/team/contracts";
 
@@ -51,7 +52,7 @@ export default function Transactions() {
       <TransactionTable filters={filters} onView={setDetail} />
 
       <TransactionDrawer open={!!detail} viewing={viewing} onClose={() => setDetail(null)} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -257,7 +258,7 @@ function TransactionTable({ filters, onView }: { filters: Filters; onView: (t: T
 }
 
 /** One transaction in the drawer: amount and status, its details, breakdown and timeline, a receipt, and the way to report a problem. */
-function TransactionDrawer({ open, viewing, onClose, onToast }: { open: boolean; viewing: Transaction | null; onClose: () => void; onToast: (message: string) => void }) {
+function TransactionDrawer({ open, viewing, onClose, onToast }: { open: boolean; viewing: Transaction | null; onClose: () => void; onToast: SetToast }) {
   return (
     <Drawer open={open} onClose={onClose} title="Transaction">
       {viewing && (

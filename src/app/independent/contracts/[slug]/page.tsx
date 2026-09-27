@@ -2,7 +2,7 @@
 
 import { notFound } from "next/navigation";
 import { Suspense, use } from "react";
-import { JobBadge, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { JobBadge, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { ContractScore } from "@/components/portal/ContractParts";
 import { ContractWork } from "@/components/workspace/ContractWork";
 import { UnreadableGate } from "@/components/workspace/UnreadableGate";
@@ -13,6 +13,7 @@ import { useIndependentContracts } from "@/lib/independent/contracts";
 import { useWallet } from "@/lib/independent/wallet";
 import { useIndependentAccount } from "@/lib/independent/account";
 import { useQueryState } from "@/lib/portal/query-state";
+import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 import { CompanyCard } from "./_components/Company";
 import { TrackerDialogs } from "./_components/Dialogs";
@@ -64,7 +65,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   /** IN-091 — the talent takes back the notice they gave. */
   const withdraw = () => {
     const r = withdrawNotice();
-    setToast(r.ok ? "Notice withdrawn — the role carries on" : r.error);
+    setToast(r.ok ? "Notice withdrawn — the role carries on" : r.error, r.ok ? "success" : "danger");
   };
 
   return (
@@ -89,7 +90,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
 
       <TrackerDialogs t={t} dialogs={dialogs} endContract={endContract} onToast={setToast} />
 
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

@@ -9,6 +9,7 @@ import { EXPERIENCE_LEVELS } from "@/lib/demo/job-types";
 import { BIO_MAX, SKILL_SUGGESTIONS } from "@/lib/independent/data";
 import type { Profile } from "@/lib/independent/account";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
+import type { SetToast } from "@/lib/portal/toast";
 import { checkImage, IMAGE_MAX_MB, isUrl, readImage } from "@/lib/team/data";
 import { ImagePicker } from "@/components/portal/ProfileEditor";
 
@@ -72,7 +73,7 @@ function heroErrors(form: HeroForm) {
  * IN-061 — the header: photo, name and headline, where you are and your links, then rate and
  * experience. The required fields are the ones a Team Builder-facing profile can't go without.
  */
-export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: Profile; onSave: (patch: Partial<Profile>) => void; onCancel: () => void; onMessage: (message: string) => void }) {
+export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: Profile; onSave: (patch: Partial<Profile>) => void; onCancel: () => void; onMessage: SetToast }) {
   const [form, setForm] = useState(() => heroForm(profile));
   const [photo, setPhoto] = useState(profile.photo);
   const set = (k: keyof HeroForm) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -132,7 +133,7 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
  * file, read into a data URL so it survives the reload the demo runs on; it's saved with the rest on
  * Save. `saved` is the photo on the profile now, so a new pick can say it isn't saved yet.
  */
-function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved: string; onPhoto: (photo: string) => void; onMessage: (message: string) => void }) {
+function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved: string; onPhoto: (photo: string) => void; onMessage: SetToast }) {
   return (
     <div className="flex items-center gap-4">
       <ImagePicker
@@ -141,7 +142,7 @@ function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved
         onPick={async (f) => {
           if (!f) return;
           const problem = checkImage(f);
-          if (problem) return onMessage(problem);
+          if (problem) return onMessage(problem, "danger");
           onPhoto(await readImage(f));
         }}
       />

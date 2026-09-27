@@ -2,7 +2,7 @@
 
 import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { Page, Toast, useToast } from "@/components/independent/ui";
+import { Page, Toast } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ReturnNav } from "@/components/portal/return";
 import { usePostings } from "@/lib/demo/deal";
@@ -12,6 +12,7 @@ import { roleFromPosting } from "@/lib/independent/data";
 import { useSavedRoles } from "@/lib/independent/saved";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentAccount } from "@/lib/independent/account";
+import { useToast } from "@/lib/portal/toast";
 import { ApplyDialog } from "./_components/ApplyDialog";
 import { CompanyCard } from "./_components/CompanyCard";
 import { RoleHeader, RoleSections } from "./_components/RolePost";
@@ -52,7 +53,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
     // IN-017 — the note and the quiz choice go with the application; they used to be dropped here.
     const sent = apply(role.slug, role.title, role.company, match, extras);
     setOpen(false);
-    setToast(sent ? `Application sent to ${role.company}` : "This application couldn't be sent");
+    setToast(sent ? `Application sent to ${role.company}` : "This application couldn't be sent", sent ? "success" : "danger");
   };
 
   return (
@@ -73,7 +74,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
       </div>
 
       <ApplyDialog open={open && !blocked} title={role.title} company={role.company} onClose={() => setOpen(false)} onSend={send} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

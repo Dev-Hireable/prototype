@@ -3,10 +3,11 @@
 import Image from "next/image";
 import { useState } from "react";
 import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
-import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { useWallet } from "@/lib/independent/wallet";
+import { useToast } from "@/lib/portal/toast";
 
 /** Figma "Settings / Payout methods" (+ add modal): 720 card, p 24, gap 16; method rows p 16, gap 16. */
 export default function PayoutSettings() {
@@ -61,7 +62,7 @@ export default function PayoutSettings() {
           </>
         }
       />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

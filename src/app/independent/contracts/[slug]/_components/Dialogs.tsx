@@ -3,6 +3,7 @@ import { DisputeForm } from "@/components/portal/disputes";
 import { disputeLimit } from "@/lib/contract/view";
 import type { EndResult } from "@/lib/demo/contract";
 import { caseHref, fileDispute } from "@/lib/demo/disputes";
+import type { SetToast } from "@/lib/portal/toast";
 import { endToast } from "../_lib/copy";
 import type { Dialogs, Tracker } from "../_lib/tracker";
 import { CompanyDialog } from "./Company";
@@ -12,7 +13,7 @@ import { EndDialog } from "./Ending";
  * The page's three dialogs — the company's profile, the dispute form, and cancelling or giving
  * notice — opened from the tabs and the header; what filing or ending does is told in the toast.
  */
-export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tracker; dialogs: Dialogs; endContract: (how: "cancel" | "notice") => EndResult; onToast: (message: string) => void }) {
+export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tracker; dialogs: Dialogs; endContract: (how: "cancel" | "notice") => EndResult; onToast: SetToast }) {
   const { contract, view } = t;
   const router = useRouter();
   const limit = disputeLimit(contract.rate, view, `a month's pay, ${contract.rate}`);
@@ -35,7 +36,7 @@ export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tra
           d.setFiling(false);
           // Straight to the case, where it now waits on the company to respond.
           if (r.ok) router.push(caseHref("independent", r.dispute.id));
-          else onToast(r.error);
+          else onToast(r.error, "danger");
         }}
       />
 
@@ -50,7 +51,7 @@ export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tra
         onConfirm={() => {
           const r = endContract(t.cancelOpt ? "cancel" : "notice");
           d.setEnding(false);
-          onToast(endToast(r));
+          onToast(endToast(r), r.ok ? "success" : "danger");
         }}
       />
     </>

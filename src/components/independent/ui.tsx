@@ -15,6 +15,7 @@ import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { JobType } from "@/lib/demo/job-types";
 import { keyed } from "@/lib/portal/keys";
+import type { PageToast } from "@/lib/portal/toast";
 
 export { KebabMenu, Select } from "@/components/portal/controls";
 
@@ -687,22 +688,14 @@ const TOAST_TONE = {
 } as const;
 
 /**
- * A short confirmation in the corner. `danger` explains something that didn't work and is
- * announced at once (role="alert"); `action` offers the one thing to do about it — Undo, Retry,
- * Use mine — and keeps the toast up longer so there's time to click it. While the pointer is on it or
- * it has focus, the countdown waits (WCAG 2.2.1): reaching for Undo never loses it.
+ * A page's toast (`useToast` in @/lib/portal/toast), in the corner. A `danger` one explains something
+ * that was refused or didn't work and is announced at once (role="alert"); `action` offers the one
+ * thing to do about it — Undo, Retry, Use mine — and keeps the toast up longer so there's time to
+ * click it. While the pointer is on it or it has focus, the countdown waits (WCAG 2.2.1): reaching
+ * for Undo never loses it.
  */
-export function Toast({
-  message,
-  onClose,
-  tone = "success",
-  action,
-}: {
-  message: string | null;
-  onClose: () => void;
-  tone?: "success" | "danger" | "info";
-  action?: { label: string; onClick: () => void };
-}) {
+export function Toast({ toast, onClose, action }: { toast: PageToast | null; onClose: () => void; action?: { label: string; onClick: () => void } }) {
+  const tone = toast?.tone ?? "success";
   const t = TOAST_TONE[tone];
   const X = ICONS.close;
   const lasts = action || tone === "danger" ? 8000 : 3500;
@@ -710,17 +703,17 @@ export function Toast({
   const [held, setHeld] = useState(false);
   const mounted = useSyncExternalStore(NOOP_SUBSCRIBE, CLIENT_MOUNTED, SERVER_MOUNTED);
   useEffect(() => {
-    if (!message || held) return;
+    if (!toast || held) return;
     const timer = setTimeout(onClose, lasts);
     return () => clearTimeout(timer);
-  }, [message, onClose, lasts, held]);
-  if (!message || !mounted) return null;
+  }, [toast, onClose, lasts, held]);
+  if (!toast || !mounted) return null;
   return createPortal(
     // aria-live spelled out, not just implied by the role: a modal (an item's sheet, say) hides
     // the rest of the page from screen readers, except live regions it can find by that attribute.
     <div onPointerEnter={() => setHeld(true)} onPointerLeave={() => setHeld(false)} onFocus={() => setHeld(true)} onBlur={() => setHeld(false)} role={tone === "danger" ? "alert" : "status"} aria-live={tone === "danger" ? "assertive" : "polite"} className={`ui-zoom fixed top-5 right-5 z-[70] flex max-w-[min(480px,calc(100vw-40px))] items-center gap-3 rounded-lg ${t.bg} px-4 py-3 text-[14px] leading-[1.4] text-ink shadow-[0_8px_24px_rgba(0,0,0,.12)]`}>
       <t.icon size={20} aria-hidden className={`shrink-0 ${t.ink}`} />
-      <span className="min-w-0">{message}</span>
+      <span className="min-w-0">{toast.message}</span>
       {action && (
         <button
           type="button"
@@ -739,11 +732,6 @@ export function Toast({
     </div>,
     document.body,
   );
-}
-
-/** One-liner for pages: `const [toast, setToast] = useToast();` */
-export function useToast(): [string | null, (m: string | null) => void] {
-  return useState<string | null>(null);
 }
 
 /* ------------------------------------------------------------- stepper ---- */

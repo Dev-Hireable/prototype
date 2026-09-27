@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, type ChangeEvent, type ReactNode } from "react";
-import { Button, Card, Checkbox, Field, Input, Select, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Checkbox, Field, Input, Select, Toast } from "@/components/independent/ui";
 import { DEMO_PASSWORD, PASSWORD_RULES as AUTH_RULES } from "@/lib/demo/auth";
 import { ImagePicker } from "@/components/portal/ProfileEditor";
 import { TimeZonePicker } from "@/components/portal/TimeZonePicker";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { checkImage, IMAGE_MAX_MB, readImage } from "@/lib/team/data";
 
 function SettingsHeading({ children }: { children: ReactNode }) {
@@ -31,60 +32,73 @@ export type AccountSettingsCardProps = {
   onPhoto?: (dataUrl: string) => void;
 };
 
-export function AccountSettingsCard({ initial, avatar, emailLabel, languageOptions, accountType, onSave, onPhoto }: AccountSettingsCardProps) {
-  const [form, setForm] = useState(initial);
-  /** TB-099 — the new address only takes effect once the code that went to it is entered. */
-  const [pending, setPending] = useState<string | null>(null);
+/**
+ * The account card, with its toast kept outside the form. The form is keyed on the saved values:
+ * they arrive after hydration and the form copies `initial` into state once, so without the key it
+ * keeps showing the seed. A save that changes them remounts the form, and the toast out here still
+ * says it was saved.
+ */
+export function AccountSettingsCard(props: AccountSettingsCardProps) {
   const [toast, setToast] = useToast();
-  const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
   return (
     <>
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
-        <SettingsHeading>Account</SettingsHeading>
-        {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
-        <PhotoField avatar={avatar} onPhoto={onPhoto} onToast={setToast} />
-        <div className="flex gap-4">
-          <Field label="First name" className="flex-1">
-            <Input value={form.first} onChange={set("first")} />
-          </Field>
-          <Field label="Last name" className="flex-1">
-            <Input value={form.last} onChange={set("last")} />
-          </Field>
-        </div>
-        {accountType && (
-          <Field label="Account type">
-            <p className="flex h-11 items-center rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">{accountType}</p>
-          </Field>
-        )}
-        <EmailChange label={emailLabel} value={form.email} saved={initial.email} onChange={(email) => setForm((current) => ({ ...current, email }))} pending={pending} onPending={setPending} onToast={setToast} />
-        <Field label="Phone">
-          <Input value={form.phone} onChange={set("phone")} />
-        </Field>
-        <div className="flex gap-4">
-          <Field label="Time zone" className="flex-1">
-            <TimeZonePicker value={form.tz} onChange={(tz) => setForm((current) => ({ ...current, tz }))} />
-          </Field>
-          <Field label="Language" className="flex-1">
-            <Select options={languageOptions} value={form.lang} onChange={set("lang")} />
-          </Field>
-        </div>
-        <CardActions
-          submit="Save changes"
-          disabled={!!pending}
-          onCancel={() => setForm(initial)}
-          onSubmit={() => {
-            onSave?.(form);
-            setToast(pending ? "Verify the new email first" : "Changes saved");
-          }}
-        />
-      </Card>
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <AccountForm key={Object.values(props.initial).join("|")} {...props} onToast={setToast} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }
 
+/** The account's photo and fields, with Cancel and Save; what they did is said in the card's toast. */
+function AccountForm({ initial, avatar, emailLabel, languageOptions, accountType, onSave, onPhoto, onToast }: AccountSettingsCardProps & { onToast: SetToast }) {
+  const [form, setForm] = useState(initial);
+  /** TB-099 — the new address only takes effect once the code that went to it is entered. */
+  const [pending, setPending] = useState<string | null>(null);
+  const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  return (
+    <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
+      <SettingsHeading>Account</SettingsHeading>
+      {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
+      <PhotoField avatar={avatar} onPhoto={onPhoto} onToast={onToast} />
+      <div className="flex gap-4">
+        <Field label="First name" className="flex-1">
+          <Input value={form.first} onChange={set("first")} />
+        </Field>
+        <Field label="Last name" className="flex-1">
+          <Input value={form.last} onChange={set("last")} />
+        </Field>
+      </div>
+      {accountType && (
+        <Field label="Account type">
+          <p className="flex h-11 items-center rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">{accountType}</p>
+        </Field>
+      )}
+      <EmailChange label={emailLabel} value={form.email} saved={initial.email} onChange={(email) => setForm((current) => ({ ...current, email }))} pending={pending} onPending={setPending} onToast={onToast} />
+      <Field label="Phone">
+        <Input value={form.phone} onChange={set("phone")} />
+      </Field>
+      <div className="flex gap-4">
+        <Field label="Time zone" className="flex-1">
+          <TimeZonePicker value={form.tz} onChange={(tz) => setForm((current) => ({ ...current, tz }))} />
+        </Field>
+        <Field label="Language" className="flex-1">
+          <Select options={languageOptions} value={form.lang} onChange={set("lang")} />
+        </Field>
+      </div>
+      <CardActions
+        submit="Save changes"
+        disabled={!!pending}
+        onCancel={() => setForm(initial)}
+        onSubmit={() => {
+          onSave?.(form);
+          onToast(pending ? "Verify the new email first" : "Changes saved", pending ? "danger" : "success");
+        }}
+      />
+    </Card>
+  );
+}
+
 /** The account's photo: the shared ImagePicker, with what it takes beside it. A picked file is checked and read here. */
-function PhotoField({ avatar, onPhoto, onToast }: { avatar: ReactNode; onPhoto?: (dataUrl: string) => void; onToast: (message: string) => void }) {
+function PhotoField({ avatar, onPhoto, onToast }: { avatar: ReactNode; onPhoto?: (dataUrl: string) => void; onToast: SetToast }) {
   return (
     <div className="flex items-center gap-4">
       <ImagePicker
@@ -92,9 +106,9 @@ function PhotoField({ avatar, onPhoto, onToast }: { avatar: ReactNode; onPhoto?:
         label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
         onPick={async (picked) => {
           if (!picked) return;
-          if (!onPhoto) return onToast("File picker opens here");
+          if (!onPhoto) return onToast("File picker opens here", "info");
           const problem = checkImage(picked);
-          if (problem) return onToast(problem);
+          if (problem) return onToast(problem, "danger");
           onPhoto(await readImage(picked));
           onToast("Photo updated");
         }}
@@ -120,7 +134,7 @@ function EmailChange({ label, value, saved, onChange, pending, onPending, onToas
   /** The new address waiting on its code. */
   pending: string | null;
   onPending: (email: string | null) => void;
-  onToast: (message: string) => void;
+  onToast: SetToast;
 }) {
   const [code, setCode] = useState("");
   return (
@@ -250,7 +264,7 @@ export function PasswordSettingsCard() {
           }}
         />
       </Card>
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }
@@ -300,7 +314,7 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
           </Button>
         </div>
       </Card>
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }

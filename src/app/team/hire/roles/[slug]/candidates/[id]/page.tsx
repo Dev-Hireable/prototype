@@ -3,7 +3,7 @@
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Card, CardTitle, Field, JobBadge, LinkButton, MessageButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, CardTitle, Field, JobBadge, LinkButton, MessageButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { Tip } from "@/components/portal/Tip";
 import { SaveButton, TeamProfile } from "@/components/team/ui";
@@ -13,6 +13,7 @@ import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/tea
 import { ProposalReviewDialog } from "@/components/team/ProposalReviewDialog";
 import { useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { EMPLOYER_STAGE_LABELS, INTERVIEW_DECLINED, awaitsApplication, byName, needsNewSlot } from "@/lib/team/data";
 import type { Candidate, Independent, Interview, Role } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
@@ -66,7 +67,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
     >
       <TeamProfile
         person={p}
-        onPlayIntro={() => setToast("Intro video plays here")}
+        onPlayIntro={() => setToast("Intro video plays here", "info")}
         actions={
           <>
             <NextAction cand={cand} role={role} person={p} live={live} onOpen={setDialog} />
@@ -78,7 +79,7 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
       />
 
       <CandidateDialogs view={view} dialog={dialog} onClose={() => setDialog(null)} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -99,7 +100,7 @@ function RoleTabs({ pipeline }: { pipeline: string }) {
 }
 
 /** The column under the intro: the booked interview, the notes, the pipeline tracker, and Flag / Drop. */
-function ProfileAside({ view, onOpen, onToast }: { view: CandidateView; onOpen: (d: Dialog) => void; onToast: (message: string) => void }) {
+function ProfileAside({ view, onOpen, onToast }: { view: CandidateView; onOpen: (d: Dialog) => void; onToast: SetToast }) {
   const { cand, live, first, booked } = view;
   /** Booked and not declined or cancelled: when it is, and the link to join. */
   const interviewSet = (cand.stage === "invited" || cand.stage === "invite_accepted") && !cand.dropped && !needsNewSlot(cand);
@@ -123,7 +124,7 @@ function ProfileAside({ view, onOpen, onToast }: { view: CandidateView; onOpen: 
 }
 
 /** The page's dialogs, one open at a time: invite to interview, drop, flag, mark the interview done, request and review the proposal. */
-function CandidateDialogs({ view, dialog, onClose, onToast }: { view: CandidateView; dialog: Dialog; onClose: () => void; onToast: (message: string) => void }) {
+function CandidateDialogs({ view, dialog, onClose, onToast }: { view: CandidateView; dialog: Dialog; onClose: () => void; onToast: SetToast }) {
   const { cand, role, person, first, booked } = view;
   const { completeInterview, requestProposal } = usePipeline();
   return (

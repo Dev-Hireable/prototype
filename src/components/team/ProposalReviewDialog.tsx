@@ -7,6 +7,7 @@ import { ProposalReview } from "@/components/portal/ProposalReview";
 import { SendOfferDialog } from "@/components/team/SendOfferDialog";
 import { proposalHistory, useDeal, type Deal, type DealProposal } from "@/lib/demo/deal";
 import { applySuggestions, type SuggestionDecision } from "@/lib/demo/suggestions";
+import type { SetToast } from "@/lib/portal/toast";
 import { byName } from "@/lib/team/data";
 import type { Candidate, Independent, PaymentMethod, Role } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
@@ -51,7 +52,7 @@ type CandidateProposal = ReturnType<typeof useCandidateProposal>;
  * decline), in one place so the pipeline card and the candidate's profile open the same dialog:
  * the proposal is one click from the board, not behind the profile.
  */
-export function ProposalReviewDialog({ candidate, role, open, onClose, onToast }: { candidate: Candidate; role: Role; open: boolean; onClose: () => void; onToast: (message: string) => void }) {
+export function ProposalReviewDialog({ candidate, role, open, onClose, onToast }: { candidate: Candidate; role: Role; open: boolean; onClose: () => void; onToast: SetToast }) {
   const { requestRevision, declineProposal, commentOnProposal, decideSuggestion } = usePipeline();
   const [step, setStep] = useState<Step>(null);
   const review = useCandidateProposal(candidate);
@@ -113,7 +114,7 @@ export function ProposalReviewDialog({ candidate, role, open, onClose, onToast }
  * Send offer, from the proposal: the offer starts from the job post's tasks with the talent's
  * accepted suggestions (`decisions`) applied, and its deposit goes on the default card.
  */
-function OfferDialog({ open, onClose, person, role, proposal, decisions, onToast }: { open: boolean; onClose: () => void; person: Independent; role: Role; proposal: DealProposal; decisions: Deal["suggestionDecisions"]; onToast: (message: string) => void }) {
+function OfferDialog({ open, onClose, person, role, proposal, decisions, onToast }: { open: boolean; onClose: () => void; person: Independent; role: Role; proposal: DealProposal; decisions: Deal["suggestionDecisions"]; onToast: SetToast }) {
   const { cards } = useCards();
   const { sendOffer } = useOffers();
   return (
@@ -155,7 +156,7 @@ function ReviewModal({
   role: Role;
   review: CandidateProposal;
   onClose: () => void;
-  onToast: (message: string) => void;
+  onToast: SetToast;
   onRevise: (note: string) => void;
   onComment: (id: string, text: string, file?: File) => void;
   onDecide: (id: string, decision: SuggestionDecision) => void;

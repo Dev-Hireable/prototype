@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
 import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
 import { Tip } from "@/components/portal/Tip";
 import { Person, Row, Table, Toolbar } from "@/components/team/ui";
 import { hoursLabel } from "@/lib/demo/job-types";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { byName } from "@/lib/team/data";
 import type { Offer } from "@/lib/team/data";
 import { useOffers } from "@/lib/team/offers";
@@ -61,7 +62,7 @@ export default function OffersSent() {
       {offers.length > 0 && list.length === 0 && <p className="text-[14px] leading-[1.4] text-ink-2">No offers match these filters.</p>}
 
       <WithdrawDialog offer={withdrawing} onClose={() => setWithdrawing(null)} onWithdraw={withdrawOffer} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -192,7 +193,7 @@ function OfferMenu({ o, name, onWithdraw }: { o: Offer; name: string; onWithdraw
 }
 
 /** Withdrawing a pending offer, once confirmed: the candidate is told and can no longer accept it. */
-function WithdrawDialog({ offer, onClose, onWithdraw, onToast }: { offer: Offer | null; onClose: () => void; onWithdraw: (id: string) => void; onToast: (message: string) => void }) {
+function WithdrawDialog({ offer, onClose, onWithdraw, onToast }: { offer: Offer | null; onClose: () => void; onWithdraw: (id: string) => void; onToast: SetToast }) {
   return (
     <Modal
       open={!!offer}

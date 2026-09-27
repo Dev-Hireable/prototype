@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { DisputeParty } from "@/lib/demo/disputes";
+import type { SetToast } from "@/lib/portal/toast";
 
 /** Support's dialogs on a case; one is open at a time. */
 export type Dialog = "ask" | "extend" | "reject" | "resolve" | "release";
@@ -9,7 +10,7 @@ export type Dialog = "ask" | "extend" | "reject" | "resolve" | "release";
  * ruled for, the days added. Closing any of them clears it all; `done` closes and toasts how the
  * move went.
  */
-export function useSupportDialogs(onToast: (message: string | null) => void) {
+export function useSupportDialogs(onToast: SetToast) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [notes, setNotes] = useState("");
   const [favor, setFavor] = useState<DisputeParty | null>(null);
@@ -24,7 +25,7 @@ export function useSupportDialogs(onToast: (message: string | null) => void) {
   };
   const done = (r: { ok: boolean; error?: string }, message: string) => {
     close();
-    onToast(r.ok ? message : (r.error ?? "That didn't work — try again."));
+    onToast(r.ok ? message : (r.error ?? "That didn't work — try again."), r.ok ? "success" : "danger");
   };
   return { dialog, setDialog, notes, setNotes, favor, setFavor, who, setWho, days, setDays, close, done };
 }

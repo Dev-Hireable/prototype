@@ -2,7 +2,7 @@
 
 import { notFound } from "next/navigation";
 import { Suspense, use } from "react";
-import { JobBadge, MessageButton, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { JobBadge, MessageButton, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { UnreadableGate } from "@/components/workspace/UnreadableGate";
 import { CONTRACT_NAMES, byName } from "@/lib/team/data";
 import { CONTRACT_TABS, useContractView } from "@/lib/contract/view";
@@ -10,6 +10,7 @@ import { ContractTabs } from "@/components/portal/ContractTabs";
 import { PAIR } from "@/lib/demo/live";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { useQueryState } from "@/lib/portal/query-state";
+import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 import { TrackerDialogs } from "./_components/Dialogs";
 import { Crumbs, DisputeButton } from "./_components/Header";
@@ -69,7 +70,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
     >
       <TabContent tab={tab} t={t} draft={draft} on={on} onTab={setTab} />
       <TrackerDialogs t={t} on={on} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

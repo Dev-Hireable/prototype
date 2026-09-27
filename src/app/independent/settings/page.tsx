@@ -12,10 +12,8 @@ export default function AccountSettings() {
 
   return (
     <Page title="Settings">
-      {/* Keyed on the stored values: the saved profile arrives after hydration, and the card copies
-          `initial` into state once, so without this the form keeps showing the seed. */}
+      {/* The card starts its form over whenever these saved values change: when the stored profile arrives after hydration, and after a save. */}
       <AccountSettingsCard
-        key={`${profile.name}|${profile.email}|${profile.phone}|${profile.timezone}|${profile.photo.length}`}
         initial={{ first, last: rest.join(" "), email: profile.email, phone: profile.phone, tz: profile.timezone, lang: "English" }}
         avatar={<Image src={profile.photo} alt="" width={128} height={128} className="size-16 rounded-full bg-white object-cover" />}
         emailLabel="Email"

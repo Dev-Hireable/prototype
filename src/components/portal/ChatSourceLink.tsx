@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { ApplicationProposalDialog } from "@/components/independent/ApplicationProposalDialog";
-import { Toast, useToast } from "@/components/independent/ui";
+import { Toast } from "@/components/independent/ui";
 import { ProposalReviewDialog } from "@/components/team/ProposalReviewDialog";
 import type { ChatSource } from "@/lib/demo/live";
 import { useApplications } from "@/lib/independent/applications";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import type { Side } from "@/lib/work/model";
 import { useRoles } from "@/lib/team/roles";
@@ -37,14 +38,14 @@ export function ChatSourceLink({ source, side, mine }: { source: ChatSource; sid
         </span>
       </button>
       {open && (side === "team" ? <TeamProposal source={source} onClose={close} onToast={setToast} /> : <IndependentProposal source={source} onClose={close} onToast={setToast} />)}
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );
 }
 
 /* Each side reads its own store, so each gets its own component — neither hook runs in the other portal. */
 
-function TeamProposal({ source, onClose, onToast }: { source: ChatSource; onClose: () => void; onToast: (message: string) => void }) {
+function TeamProposal({ source, onClose, onToast }: { source: ChatSource; onClose: () => void; onToast: SetToast }) {
   const { candidates } = usePipeline();
   const { roles } = useRoles();
   const role = roles.find((r) => r.slug === source.roleSlug);
@@ -53,7 +54,7 @@ function TeamProposal({ source, onClose, onToast }: { source: ChatSource; onClos
   return <ProposalReviewDialog candidate={candidate} role={role} open onClose={onClose} onToast={onToast} />;
 }
 
-function IndependentProposal({ source, onClose, onToast }: { source: ChatSource; onClose: () => void; onToast: (message: string) => void }) {
+function IndependentProposal({ source, onClose, onToast }: { source: ChatSource; onClose: () => void; onToast: SetToast }) {
   const { applications } = useApplications();
   const app = applications.find((a) => a.roleSlug === source.roleSlug);
   if (!app) return null;

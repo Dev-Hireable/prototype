@@ -2,12 +2,13 @@
 
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { InfoBanner, Page, Toast, useToast } from "@/components/independent/ui";
+import { InfoBanner, Page, Toast } from "@/components/independent/ui";
 import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
 import type { ConversionOffer } from "@/lib/demo/deal";
 import { escrowOf, usd, useDisputes } from "@/lib/demo/disputes";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { useIndependentContracts } from "@/lib/independent/contracts";
+import { useToast } from "@/lib/portal/toast";
 import { DeclineDialog } from "./_components/DeclineDialog";
 import { OfferCard } from "./_components/OfferCard";
 import { SignCard } from "./_components/SignCard";
@@ -41,12 +42,12 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
 
   const accept = () => {
     const r = acceptConversion();
-    setToast(r.ok ? `You're ${kind.toLowerCase()} with ${contract.company}` : r.error);
+    setToast(r.ok ? `You're ${kind.toLowerCase()} with ${contract.company}` : r.error, r.ok ? "success" : "danger");
   };
   const decline = (reason: string) => {
     const r = declineConversion(reason);
     setDeclining(false);
-    setToast(r.ok ? `${kind} offer declined` : r.error);
+    setToast(r.ok ? `${kind} offer declined` : r.error, r.ok ? "success" : "danger");
   };
 
   return (
@@ -62,7 +63,7 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
       </div>
 
       <DeclineDialog open={declining} kind={kind} manager={contract.manager} onClose={() => setDeclining(false)} onDecline={decline} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

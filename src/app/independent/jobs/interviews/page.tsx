@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, LinkButton, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, LinkButton, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
 import { canJoin } from "@/lib/demo/dates";
 import { Row, Table } from "@/components/team/ui";
 import type { Interview } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
 import { useQueryState } from "@/lib/portal/query-state";
+import { useToast } from "@/lib/portal/toast";
 import { ROW_LINK } from "@/components/portal/toolbar";
 import { ViewSwitch } from "@/components/portal/ViewSwitch";
 import { useWithReturn } from "@/components/portal/return";
@@ -80,7 +81,7 @@ export default function Interviews() {
           setToast("Interview declined");
         }}
       />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

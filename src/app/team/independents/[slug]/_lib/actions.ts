@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { SetToast } from "@/lib/portal/toast";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { CONVERSION_ID, useOffers } from "@/lib/team/offers";
 import { evaluationToast } from "./copy";
@@ -10,7 +11,7 @@ import type { Tracker } from "./tracker";
  * for it), end the contract, file a dispute, send the evaluation, and withdraw the post-trial offer
  * or the notice — each reporting back in a toast.
  */
-export function useTrackerActions(t: Tracker, draft: EvaluationDraft, toast: (message: string) => void) {
+export function useTrackerActions(t: Tracker, draft: EvaluationDraft, toast: SetToast) {
   const { withdrawOffer } = useOffers();
   const { withdrawNotice, addEvaluation } = useTeamContracts();
   const [converting, setConverting] = useState(false);
@@ -37,7 +38,7 @@ export function useTrackerActions(t: Tracker, draft: EvaluationDraft, toast: (me
     sendEvaluation: () => {
       const r = addEvaluation(contract.slug, { stars: Math.round(draft.scores.reduce((a, b) => a + b, 0) / draft.scores.length), scores: SCORES.map((label, i) => ({ label, value: draft.scores[i] })), feedback: draft.feedback.trim(), recommendation: draft.recommendation });
       if (r.ok && !isTrial) draft.clear();
-      toast(evaluationToast(r, first));
+      toast(evaluationToast(r, first), r.ok ? "success" : "danger");
     },
     withdrawOffer: () => {
       withdrawOffer(CONVERSION_ID);
@@ -45,7 +46,7 @@ export function useTrackerActions(t: Tracker, draft: EvaluationDraft, toast: (me
     },
     withdrawNotice: () => {
       const r = withdrawNotice();
-      toast(r.ok ? `Notice withdrawn — ${first}'s role carries on` : r.error);
+      toast(r.ok ? `Notice withdrawn — ${first}'s role carries on` : r.error, r.ok ? "success" : "danger");
     },
   };
 }

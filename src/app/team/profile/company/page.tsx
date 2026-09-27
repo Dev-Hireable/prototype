@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button, LinkButton, Modal, Page, Toast, useToast } from "@/components/independent/ui";
+import { Button, LinkButton, Modal, Page, Toast } from "@/components/independent/ui";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/ProfileEditor";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { COMPANY_DESC_MAX, COMPANY_FIELDS, COMPANY_SIZES, INDUSTRIES, isUrl } from "@/lib/team/data";
 import { useTeamAccount } from "@/lib/team/account";
 import { useRoles } from "@/lib/team/roles";
@@ -67,7 +68,7 @@ export default function CompanyProfile() {
         {/* TB-097 / TB-096 — the badges are public, so the quiz that produces them lives beside them. */}
         <WorkStyle />
       </div>
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -83,7 +84,7 @@ function CompanyLogo({ src, name }: { src: string | null; name: string }) {
 }
 
 /** The six company fields, each edited in place and saved on its own, and the progress while any is empty. */
-function CompanyDetails({ liveOn, onToast }: { liveOn: string; onToast: (message: string) => void }) {
+function CompanyDetails({ liveOn, onToast }: { liveOn: string; onToast: SetToast }) {
   const { company, setCompany } = useTeamAccount();
   const done = ROWS.filter((r) => String(company[r.key]).trim()).length;
   return (

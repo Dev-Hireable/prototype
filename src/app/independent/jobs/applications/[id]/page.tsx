@@ -4,7 +4,7 @@ import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { ApplicationProposalDialog } from "@/components/independent/ApplicationProposalDialog";
-import { Button, Card, Chip, JobBadge, Modal, Page, PipelineTracker, Toast, useToast } from "@/components/independent/ui";
+import { Button, Card, Chip, JobBadge, Modal, Page, PipelineTracker, Toast } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { FactStrip } from "@/components/portal/PageParts";
 import { TaskPlanList } from "@/components/portal/tasks/TaskPlan";
@@ -16,6 +16,7 @@ import { storedWorkStyle } from "@/lib/demo/work-style";
 import { useJobView, type JobView } from "@/lib/independent/job-view";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentAccount } from "@/lib/independent/account";
+import { useToast } from "@/lib/portal/toast";
 import { ReturnNav } from "@/components/portal/return";
 import { NextStep } from "./_components/NextStep";
 import type { InterviewActions, StepProps } from "./_lib/steps";
@@ -77,7 +78,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
       />
       {/* The same Review proposal dialog the Team Builder opens: one layout, one history, both sides. */}
       <ApplicationProposalDialog app={app} open={reading} onClose={() => setReading(false)} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

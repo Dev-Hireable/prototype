@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { ICONS } from "@/components/admin/icons";
-import { Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
+import { Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/independent/ui";
 import { Callout } from "@/components/portal/Callout";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { PanelCard } from "@/components/portal/PanelCard";
@@ -44,6 +44,7 @@ import type { PartyTurn } from "@/lib/disputes/case";
 import { CASE_FILE_TYPES, checkCaseFile, keepFile, MAX_CASE_FILE_MB, MAX_CASE_FILES, sizeLabel, useFileUrl } from "@/lib/demo/files";
 import { PAIR, useLive, type LivePayment } from "@/lib/demo/live";
 import { keyed } from "@/lib/portal/keys";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { useNow } from "@/lib/portal/use-now";
 
 /**
@@ -128,7 +129,7 @@ export function DisputeCasePage({ side, id }: { side: DisputeParty; id: string }
               onClick={async () => {
                 const r = await withdrawDispute(d.id, side);
                 setWithdrawing(false);
-                setToast(r.ok ? "Dispute withdrawn — the other side and Hireable support have been told" : r.error);
+                setToast(r.ok ? "Dispute withdrawn — the other side and Hireable support have been told" : r.error, r.ok ? "success" : "danger");
               }}
             >
               Withdraw dispute
@@ -136,13 +137,13 @@ export function DisputeCasePage({ side, id }: { side: DisputeParty; id: string }
           </>
         }
       />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
 
 /** The case itself, for whichever of the three is looking. */
-export function DisputeCase({ dispute: d, viewer, onToast }: { dispute: Dispute; viewer: CaseViewer; onToast: (m: string) => void }) {
+export function DisputeCase({ dispute: d, viewer, onToast }: { dispute: Dispute; viewer: CaseViewer; onToast: SetToast }) {
   const now = useNow();
   const reply = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<"say" | "propose">("say");
@@ -495,7 +496,7 @@ function Split({ d, p }: { d: Dispute; p: Pick<Proposal, "refund" | "release"> }
 }
 
 /** The settlement on the table: the other side accepts or declines; the proposer and support wait. */
-function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; viewer: CaseViewer; onToast: (m: string) => void }) {
+function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; viewer: CaseViewer; onToast: SetToast }) {
   const receiver = otherParty(p.by);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -505,7 +506,7 @@ function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; view
     try {
       const r = await answerSettlement(d.id, viewer, accept);
       setConfirming(false);
-      onToast(r.ok ? (accept ? "Settled — the dispute is closed and the money has moved" : `Declined — ${partyName(d, p.by)} has been told`) : r.error);
+      onToast(r.ok ? (accept ? "Settled — the dispute is closed and the money has moved" : `Declined — ${partyName(d, p.by)} has been told`) : r.error, r.ok ? "success" : "danger");
     } finally {
       setBusy(false);
     }
@@ -550,7 +551,7 @@ function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; view
 
 /* ------------------------------------------------------------ replying -- */
 
-function Composer({ d, side, now, mode, setMode, textRef, onToast }: { d: Dispute; side: DisputeParty; now: number; mode: "say" | "propose"; setMode: (m: "say" | "propose") => void; textRef: RefObject<HTMLTextAreaElement | null>; onToast: (m: string) => void }) {
+function Composer({ d, side, now, mode, setMode, textRef, onToast }: { d: Dispute; side: DisputeParty; now: number; mode: "say" | "propose"; setMode: (m: "say" | "propose") => void; textRef: RefObject<HTMLTextAreaElement | null>; onToast: SetToast }) {
   const can = partyCan(d, side, now);
   if (!can.respond && !can.add && !can.propose) return null;
   return (
@@ -570,7 +571,7 @@ function Composer({ d, side, now, mode, setMode, textRef, onToast }: { d: Disput
 }
 
 /** A response (when it's their turn) or more for the case (when it isn't), with files and a link. */
-function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: DisputeParty; respond: boolean; textRef: RefObject<HTMLTextAreaElement | null>; onToast: (m: string) => void }) {
+function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: DisputeParty; respond: boolean; textRef: RefObject<HTMLTextAreaElement | null>; onToast: SetToast }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [link, setLink] = useState("");
@@ -618,7 +619,7 @@ function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: Dis
 }
 
 /** How to split the amount in question — the other side accepts it to close the case. */
-function ProposeForm({ d, side, onDone, onToast }: { d: Dispute; side: DisputeParty; onDone: () => void; onToast: (m: string) => void }) {
+function ProposeForm({ d, side, onDone, onToast }: { d: Dispute; side: DisputeParty; onDone: () => void; onToast: SetToast }) {
   const { refund, release, note, setNote, busy, error, problem, setPart, preset, send } = useSettlementDraft(d, side, () => {
     onDone();
     onToast(`Proposal sent — ${partyName(d, otherParty(side))} can accept or decline`);

@@ -1,6 +1,5 @@
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { useToast } from "@/components/independent/ui";
 import { useDeal } from "@/lib/demo/deal";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount } from "@/lib/demo/disputes";
@@ -8,6 +7,7 @@ import type { TaskSuggestion } from "@/lib/demo/suggestions";
 import { useIndependentAccount } from "@/lib/independent/account";
 import { useApplications } from "@/lib/independent/applications";
 import { useJobView } from "@/lib/independent/job-view";
+import { useToast } from "@/lib/portal/toast";
 import type { Terms } from "./proposal";
 
 /** A saved draft. Drafts saved while proposals still listed tasks keep them too; they're ignored. */
@@ -107,7 +107,7 @@ export function useProposalWizard(id: string) {
    * used to drop it, and the Team Builder reviewed a sample proposal instead of this one.
    */
   const submit = (terms: Terms) => {
-    if (!submitProposal(app.id, terms)) return setToast("This proposal can't be sent — no proposal is requested right now");
+    if (!submitProposal(app.id, terms)) return setToast("This proposal can't be sent — no proposal is requested right now", "danger");
     form.discard();
     setSent(true);
   };

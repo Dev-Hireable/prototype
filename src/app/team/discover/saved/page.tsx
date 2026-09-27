@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, EmptyState, LinkButton, Modal, Page, Toast, useToast } from "@/components/independent/ui";
+import { Button, EmptyState, LinkButton, Modal, Page, Toast } from "@/components/independent/ui";
 import { IndependentCard } from "@/components/team/ui";
+import { useToast } from "@/lib/portal/toast";
 import type { Independent } from "@/lib/team/data";
 import { independents } from "@/lib/team/data";
 import { useSavedTalent } from "@/lib/team/saved";
@@ -58,7 +59,7 @@ export default function SavedIndependents() {
       />
 
       <TalentOverlays target={target} preview={preview} onTarget={setTarget} onPreview={setPreview} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }

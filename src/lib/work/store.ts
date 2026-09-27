@@ -4,6 +4,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { dayLabel, momentLabel } from "@/lib/demo/dates";
 import { getDeal, transactDeal, useDeal, useDealStatus } from "@/lib/demo/deal";
 import { move as notifyMove, noteComment } from "@/lib/demo/live";
+import type { ToastTone } from "@/lib/portal/toast";
 import { accessOf } from "./access";
 import { todayDay } from "./dates";
 import { isWorkError, messageOf, WorkError } from "./errors";
@@ -151,7 +152,7 @@ export function useWork(): WorkSnapshot {
 /** What the workspace tells the user about a change: a toast (maybe with an action), or a quiet announcement. */
 export type WorkMessage = {
   id: string;
-  tone: "success" | "danger" | "info";
+  tone: ToastTone;
   message: string;
   action?: { label: string; run: () => void };
   /** Only for screen readers — no toast. */

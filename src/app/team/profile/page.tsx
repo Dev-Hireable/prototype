@@ -1,10 +1,11 @@
 "use client";
 
-import { LinkButton, Page, Toast, useToast } from "@/components/independent/ui";
+import { LinkButton, Page, Toast } from "@/components/independent/ui";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/ProfileEditor";
 import { TraitTag } from "@/components/portal/TraitTag";
 import { Avatar } from "@/components/team/ui";
 import { traitTagsFor } from "@/lib/demo/work-style";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { IMAGE_MAX_MB } from "@/lib/team/data";
 import { useTeamAccount } from "@/lib/team/account";
 import { usePickedImage } from "./_lib/image";
@@ -57,13 +58,13 @@ export default function PersonalProfile() {
         {/* TB-096 — the badges are the company's, shown where independents see them; the quiz lives there. */}
         <WorkStyle />
       </div>
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
 
 /** The fields in their two groups, each edited in place and saved on its own, and the progress while any is empty. */
-function ProfileFields({ onToast }: { onToast: (message: string) => void }) {
+function ProfileFields({ onToast }: { onToast: SetToast }) {
   const { profile, setProfile } = useTeamAccount();
   const keys = GROUPS.flatMap((g) => g.rows.map((r) => r[1]));
   const done = keys.filter((k) => String(profile[k] ?? "").trim()).length;

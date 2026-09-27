@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Checkbox, Field, LinkButton, Modal, Page, Select, StatusDot, Toast, useToast } from "@/components/independent/ui";
+import { Button, Checkbox, Field, LinkButton, Modal, Page, Select, StatusDot, Toast } from "@/components/independent/ui";
 import { DatePicker } from "@/components/portal/DatePicker";
 import { canJoin, formatDate, startOfToday } from "@/lib/demo/dates";
 import { ICONS } from "@/components/admin/icons";
@@ -12,6 +12,7 @@ import { Avatar, Row, Table } from "@/components/team/ui";
 import { byName, INTERVIEW_TIMES } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useQueryState } from "@/lib/portal/query-state";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { useWithReturn } from "@/components/portal/return";
 import type { Interview } from "@/lib/team/data";
 
@@ -72,7 +73,7 @@ export default function Interviews() {
       <RescheduleDialog interview={rescheduling} onClose={() => setRescheduling(null)} onSend={rescheduleInterview} onToast={setToast} />
       <CancelDialog interview={cancelling} onClose={() => setCancelling(null)} onCancel={cancelInterview} onToast={setToast} />
       <AvailabilityDialog open={availability} onClose={() => setAvailability(false)} onToast={setToast} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
@@ -154,7 +155,7 @@ function UpcomingActions({ iv, onReschedule, onCancel }: { iv: Interview } & Row
 }
 
 /** A new date and time for one interview, sent to the candidate. Closing it, either way, clears the slot it was given. */
-function RescheduleDialog({ interview, onClose, onSend, onToast }: { interview: Interview | null; onClose: () => void; onSend: (id: string, when: string) => void; onToast: (message: string) => void }) {
+function RescheduleDialog({ interview, onClose, onSend, onToast }: { interview: Interview | null; onClose: () => void; onSend: (id: string, when: string) => void; onToast: SetToast }) {
   /** The new slot. It used to be a date box that was ignored: every reschedule said Thu 17 Sep 2026, 2:00 PM. */
   const [newDate, setNewDate] = useState<Date | undefined>();
   const [newTime, setNewTime] = useState(INTERVIEW_TIMES[0]);
@@ -202,7 +203,7 @@ function RescheduleDialog({ interview, onClose, onSend, onToast }: { interview: 
 }
 
 /** Calling off one interview, once confirmed: the candidate gets a note and keeps their place in the tracker. */
-function CancelDialog({ interview, onClose, onCancel, onToast }: { interview: Interview | null; onClose: () => void; onCancel: (id: string) => void; onToast: (message: string) => void }) {
+function CancelDialog({ interview, onClose, onCancel, onToast }: { interview: Interview | null; onClose: () => void; onCancel: (id: string) => void; onToast: SetToast }) {
   return (
     <Modal
       open={!!interview}
@@ -225,7 +226,7 @@ function CancelDialog({ interview, onClose, onCancel, onToast }: { interview: In
 }
 
 /** The slots candidates pick from when they accept an invite: which days, between which hours, and how long each is. */
-function AvailabilityDialog({ open, onClose, onToast }: { open: boolean; onClose: () => void; onToast: (message: string) => void }) {
+function AvailabilityDialog({ open, onClose, onToast }: { open: boolean; onClose: () => void; onToast: SetToast }) {
   const [days, setDays] = useState(new Set(["Mon", "Tue", "Wed", "Thu"]));
   const toggle = (d: string, on: boolean) =>
     setDays((s) => {

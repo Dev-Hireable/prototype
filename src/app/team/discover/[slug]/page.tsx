@@ -2,10 +2,11 @@
 
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
-import { Page, Toast, useToast } from "@/components/independent/ui";
+import { Page, Toast } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { InviteModal } from "@/components/team/InviteModal";
 import { TeamProfile } from "@/components/team/ui";
+import { useToast } from "@/lib/portal/toast";
 import { liveIndependents } from "@/lib/team/data";
 import { ReturnNav } from "@/components/portal/return";
 
@@ -22,10 +23,10 @@ export default function IndependentProfile({ params }: { params: Promise<{ slug:
 
   return (
     <Page title="Discover independents" nav={<ReturnNav fallback={<BreadcrumbBack href="/team/discover">Back to independents</BreadcrumbBack>} />}>
-      <TeamProfile person={person} onInvite={() => setInviting(true)} onPlayIntro={() => setToast("Intro video plays here")} />
+      <TeamProfile person={person} onInvite={() => setInviting(true)} onPlayIntro={() => setToast("Intro video plays here", "info")} />
 
       <InviteModal target={inviting ? person : null} onClose={() => setInviting(false)} onSent={(name) => setToast(`Invite sent to ${name}`)} />
-      <Toast message={toast} onClose={() => setToast(null)} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
