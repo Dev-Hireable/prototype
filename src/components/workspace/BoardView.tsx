@@ -383,8 +383,8 @@ function CardBlockers({ item: t, blockers }: { item: WorkItem; blockers: number 
 }
 
 /**
- * When and how urgent, as one quiet line — and whether it's contract work or internal, which every
- * live item says (ScopeChip).
+ * When and how urgent, as one quiet line — and where it stands against the contract (ScopeChip): a
+ * contract task says so, and so does internal work on a trial.
  */
 function CardWhen({ item: t }: { item: WorkItem }) {
   const { today } = useWorkspace();

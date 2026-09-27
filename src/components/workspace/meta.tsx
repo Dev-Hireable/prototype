@@ -201,22 +201,23 @@ export function PlaceChip({ item }: { item: WorkItem }) {
 
 /**
  * Where an item stands against the contract: a contract task — agreed scope, which only an amendment
- * both sides accept changes — or internal work, run day to day. A contract task an open amendment
- * would change or remove says that too.
+ * both sides accept changes — says so, and so does one an open amendment would change or remove. On
+ * a trial, whose work is the agreed list, anything else is internal and says that; on a full-time or
+ * part-time role it's the everyday work, which needs no label.
  */
 export function ScopeChip({ item }: { item: WorkItem }) {
   const env = useOptionalWorkspace();
   if (isArchived(item)) return null;
   const pending = env?.agreement.pending.get(item.id);
   if (!item.agreed)
-    return (
+    return env?.access.trial ? (
       <Tip label="Added to run the work — not part of the agreed contract">
         <span className={FACT}>
           <ICONS.workOutline size={14} aria-hidden className="shrink-0" />
           Internal
         </span>
       </Tip>
-    );
+    ) : null;
   return (
     <>
       <Tip label="Part of the agreed contract: its scope changes only by an amendment both sides accept">

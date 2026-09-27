@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { api, card, closePanel, expect, notes, open, panel, savedDeal, savedItem, test, toast } from "./fixtures";
+import { api, card, closePanel, expect, notes, open, panel, ROLE, savedDeal, savedItem, test, toast } from "./fixtures";
 
 // TB-150 / IN-093 / TB-151 / IN-094 — what the signed offer agreed is locked: its contract tasks and
 // terms change only by an amendment the other side accepts, which makes the next version, and the
@@ -230,6 +230,19 @@ test.describe("agreement · on a trial", () => {
     await expect.poll(async () => (await savedDeal(juan)).contract.escrowAdjustments).toEqual([{ version: 2, amount: 400, fee: 40, at: "25 Sep 2026" }]);
     expect((await savedDeal(juan)).contract.rate).toBe("$2,000.00/mo");
     expect((await notes(juan, "team")).map((n) => n.title)).toContain("Escrow re-priced");
+  });
+});
+
+test.describe("agreement · on a role", () => {
+  test.use({ seedOptions: ROLE });
+
+  test("contract tasks keep their tag, and the role's everyday work has none", async ({ page }) => {
+    await open(page, "team");
+    await expect(card(page, /#4 Pick a typography pairing/)).toContainText("Contract");
+    const everyday = card(page, /#9 Social media templates/);
+    await expect(everyday).toBeVisible();
+    await expect(everyday).not.toContainText("Internal");
+    await expect(everyday).not.toContainText("Contract");
   });
 });
 
