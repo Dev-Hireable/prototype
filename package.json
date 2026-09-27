@@ -12,7 +12,8 @@
     "test:unit": "playwright test -c playwright.unit.config.ts",
     "test:e2e": "playwright test -c playwright.config.ts --project desktop --project los-angeles --project mobile",
     "test": "npm run test:unit && npm run test:e2e",
-    "test:perf": "playwright test -c playwright.config.ts --project perf"
+    "test:perf": "playwright test -c playwright.config.ts --project perf",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
