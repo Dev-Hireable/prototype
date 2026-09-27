@@ -1,4 +1,4 @@
-import { durationDays } from "@/lib/demo/dates";
+import { durationDays, isoDay } from "@/lib/demo/dates";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount } from "@/lib/demo/disputes";
 import type { TaskSuggestion } from "@/lib/demo/suggestions";
@@ -15,23 +15,26 @@ const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigi
 export type Terms = Omit<DealProposal, "version" | "sent">;
 
 /** The wizard's fields and their setters, as the steps write them. */
-export type ProposalFields = { rate: string; setRate: (v: string) => void; hours: string; setHours: (v: string) => void; letter: string; setLetter: (v: string) => void; portfolio: string; setPortfolio: (v: string) => void };
+export type ProposalFields = { rate: string; setRate: (v: string) => void; hours: string; setHours: (v: string) => void; start: string; setStart: (v: string) => void; letter: string; setLetter: (v: string) => void; portfolio: string; setPortfolio: (v: string) => void };
 
 /**
  * What the fields add up to: the monthly amount, whether a part-time role's hours are whole and in
- * range, whether the trial's tasks take suggestions, and the terms as the Team Builder reads them.
+ * range, whether the start is a day to come, whether the trial's tasks take suggestions, and the
+ * terms as the Team Builder reads them. The start is what the offer will carry, unchanged (TB-105).
  */
-export function proposalTerms(job: JobView, { rate, hours, letter, portfolio }: ProposalFields, revise: boolean, suggestions: TaskSuggestion[]) {
+export function proposalTerms(job: JobView, { rate, hours, start, letter, portfolio }: ProposalFields, revise: boolean, suggestions: TaskSuggestion[]) {
   const { type } = job;
   const trial = type === "trial";
   /** Pay is monthly on every kind of role — the trial's escrow, a salary, a part-time rate. */
   const amount = rateAmount(rate);
   const weekly = Number(hours);
   const hoursOk = type !== "part-time" || (Number.isInteger(weekly) && weekly >= 1 && weekly <= 40);
+  /** IN-072 — the day they'd start: today or later. */
+  const startOk = !!start && start >= isoDay();
   /** IN-073 — a revision of a trial's proposal can push back on its tasks: suggest changes the company decides on. */
   const suggesting = revise && trial && !!job.tasks?.length;
-  const terms: Terms = { rate: `${money(amount)}/mo`, letter: letter.trim(), portfolio: portfolio.trim() || undefined, hours: type === "part-time" ? weekly : undefined, ...(suggesting && suggestions.length ? { suggestions } : {}) };
-  return { amount, hoursOk, suggesting, terms };
+  const terms: Terms = { rate: `${money(amount)}/mo`, letter: letter.trim(), portfolio: portfolio.trim() || undefined, hours: type === "part-time" ? weekly : undefined, start, ...(suggesting && suggestions.length ? { suggestions } : {}) };
+  return { amount, hoursOk, startOk, suggesting, terms };
 }
 
 /** The page's title: revising, reading the role's details (a trial's tasks), or submitting. */
@@ -48,6 +51,6 @@ export function introLine(job: JobView, revise: boolean, reviewOnly: boolean, pr
         ? `What ${job.company} wants done in the ${durationDays(job.duration)}-day trial. Your proposal names your rate for it.`
         : `What the role involves. Your proposal names your ${pay} for it.`
       : trial
-        ? `Read the trial's tasks, propose your monthly rate for them and send your proposal. ${job.company} sets the tasks; you work from them once the offer is signed.`
-        : `Name your ${pay} and send your proposal for this ${job.contract.toLowerCase()} role. ${job.company} sets your first tasks in the offer.`;
+        ? `Read the trial's tasks, propose your monthly rate and the day you'd start, and send your proposal. What you agree with ${job.company} here is what the offer carries.`
+        : `Name your ${pay} and the day you'd start, and send your proposal for this ${job.contract.toLowerCase()} role. What you agree with ${job.company} here is what the offer carries.`;
 }

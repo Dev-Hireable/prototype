@@ -124,7 +124,6 @@ function ProposalRequest({ app, job, note }: { app: Application; job: JobView; n
 /** IN-075 / TB-105 — the offer: open to review, declined, or signed with its contract (and a post-trial offer after it). */
 function OfferCard({ app, job, live }: StepProps) {
   const withReturn = useWithReturn();
-  const offerUpdated = app.status?.label === "Offer updated";
   const received = app.stage === "offer_received";
   return (
     <Card className="flex flex-col gap-2 p-4">
@@ -139,8 +138,8 @@ function OfferCard({ app, job, live }: StepProps) {
           </LinkButton>
         </>
       ) : received ? (
-        <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/offer${offerUpdated ? "?updated=1" : ""}`}>
-          {offerUpdated ? "Review updated offer" : "Review offer"}
+        <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/offer`}>
+          Review offer
         </LinkButton>
       ) : (
         <>

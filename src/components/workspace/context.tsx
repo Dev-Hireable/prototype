@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useMemo } from "react";
 import type { ProjectCtx, ProjectSummary, Scope } from "@/lib/work/projects";
 import { useSearchParams } from "next/navigation";
-import type { DraftStart } from "@/components/agreement/draft";
 import type { TaskPeople } from "@/components/portal/tasks/task-bits";
 import type { Day } from "@/lib/work/dates";
 import type { AssigneeKey } from "@/lib/work/model";
@@ -34,22 +33,6 @@ export type WorkspaceEnv = {
   tagColors: Readonly<Record<string, string>>;
   /** TB-148 — the role's projects: where each item sits, every place work can sit, and which one is showing. */
   projects: WorkspaceProjects;
-  /** On a trial: the Team Builder adds internal items of their own — kept apart from Add task, which a trial doesn't have. */
-  canAddInternal: boolean;
-  /** The contract's agreement, as the work sees it: amendments, and the contract tasks they'd change. */
-  agreement: WorkspaceAgreement;
-};
-
-/** What the work needs of the agreement (@/lib/work/scope). */
-export type WorkspaceAgreement = {
-  /** Contract tasks the open amendment would change or remove, by id. */
-  pending: ReadonlyMap<string, "change" | "remove">;
-  /** The open amendment's number and who it waits on, for the banner. */
-  open: { number: number; by: "team" | "independent"; byName: string; waiting: boolean } | null;
-  /** Why this person can't propose a change right now, or null when they can. */
-  blocked: string | null;
-  /** Opens the amendment builder — on a task's change, or with a removal already in it. The task's sheet closes first. */
-  propose: (start?: DraftStart) => void;
 };
 
 export type WorkspaceProjects = {

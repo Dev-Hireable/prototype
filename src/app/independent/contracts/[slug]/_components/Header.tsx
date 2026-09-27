@@ -8,7 +8,7 @@ import type { Contract } from "@/lib/independent/data";
 
 type Section = (typeof CONTRACT_TABS)[number];
 
-const SECTION_LABEL: Record<Exclude<Section, "tasks">, string> = { evaluation: "Evaluation", overview: "Overview", agreement: "Agreement", contract: "Contract & Payment" };
+const SECTION_LABEL: Record<Exclude<Section, "tasks">, string> = { evaluation: "Evaluation", overview: "Overview", contract: "Contract & Payment" };
 
 /** All contracts › the contract — and, on a tab other than Work, the tab, with the contract's crumb leading back to Work. */
 export function Crumbs({ contract, tab }: { contract: Contract; tab: Section }) {

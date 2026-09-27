@@ -110,7 +110,7 @@ function RoleColumn({ job, tasksShared, mine }: { job: JobView; tasksShared: boo
             <h3 className={H2}>Trial tasks</h3>
             <p className="text-[13px] leading-[1.4] text-ink-2">{job.company} set these for the trial. Your proposal prices them, and they become its task list once the offer is signed.</p>
           </div>
-          <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet — they're set in the offer.`} />
+          <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet. They're agreed in the proposal, before any offer.`} />
         </Card>
       )}
       <Card className="flex flex-col gap-6 p-4">

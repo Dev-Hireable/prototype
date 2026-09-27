@@ -25,7 +25,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
   const trial = job.type === "trial";
 
   /** The trial's tasks as its Team Builder set them — what the rate is for. */
-  const trialTasks = trial ? <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet — they're set in the offer.`} /> : null;
+  const trialTasks = trial ? <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet. They're agreed in the proposal, before any offer.`} /> : null;
 
   // Not once it has just been sent: the stage has moved on, and the confirmation belongs on top of the form.
   if (!reviewOnly && !open && !sent) return <NothingToSubmit stage={app.stage} company={job.company} back={back} onClose={close} />;

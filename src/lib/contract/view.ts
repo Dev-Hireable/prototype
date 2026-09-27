@@ -17,7 +17,7 @@ import type { Phase } from "./lifecycle";
  * A contract page's sections, on both sides; `?tab=` holds the open one, so leaving from the
  * Evaluation tab comes back to it. "tasks" is the Work tab: the key links and notifications use.
  */
-export const CONTRACT_TABS = ["tasks", "overview", "agreement", "contract", "evaluation"] as const;
+export const CONTRACT_TABS = ["tasks", "overview", "contract", "evaluation"] as const;
 
 /** How a list of contracts is laid out, `?view=` on both portals' lists. */
 export const CONTRACT_LAYOUTS = ["grid", "list"] as const;

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { openRequest } from "@/lib/contract/negotiation";
 import { dayLabel, momentLabel, today } from "@/lib/demo/dates";
 import { canMessage, contractTypeOf, lifecycleOfDeal, proposalSource, readDeal, recordInvite, stageOf, startDeal, trialStateOf, updateDeal, useDeal, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
@@ -45,9 +44,7 @@ function dealStatus(deal: Deal): Candidate["status"] {
   if (deal.proposalDeclined) return { label: "Proposal declined", tone: "danger", meta: deal.proposalDeclined.date };
   if (deal.offer?.status === "declined") return { label: "Offer declined", tone: "danger", meta: deal.offer.declineReason };
   if (deal.offer?.status === "withdrawn") return { label: "Offer withdrawn", tone: "neutral" };
-  // IN-092 — the talent asked for changes: the next revision is the Team Builder's.
-  if (openRequest(deal.offer)) return { label: "Changes requested", tone: "warn", meta: deal.offer?.request?.at };
-  if (deal.offer?.status === "sent") return { label: deal.offer.updated ? "Offer updated" : "Offer sent", tone: "warn", meta: `Starts ${dayLabel(deal.offer.start)}` };
+  if (deal.offer?.status === "sent") return { label: "Offer sent", tone: "warn", meta: `Starts ${dayLabel(deal.offer.start)}` };
   if (deal.revision) return { label: "Revision requested", tone: "warn", meta: deal.revision.date };
   if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
   if (deal.stage === "proposal_requested") return { label: "Awaiting proposal", tone: "warn" };

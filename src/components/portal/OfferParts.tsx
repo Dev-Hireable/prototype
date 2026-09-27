@@ -17,7 +17,7 @@ export function OfferTerms({ rows }: { rows: [string, ReactNode][] }) {
   return (
     <>
       <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Offer Details</h3>
-      <dl aria-label="Offer details" className="flex flex-col text-[14px] leading-[1.2] tracking-[0.2px]">
+      <dl className="flex flex-col text-[14px] leading-[1.2] tracking-[0.2px]">
         {rows.map(([k, v]) => (
           <div key={k} className="flex items-center justify-between border-b border-[#e5e5e5] pt-3 pb-[13px]">
             <dt className="text-ink-2">{k}</dt>

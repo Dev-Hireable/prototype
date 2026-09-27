@@ -126,10 +126,10 @@ function ApplicationCard({ app: a, role, menu }: { app: Application; role: Role 
           </div>
         </>
       )}
-      {/* IN-018 — an offer on the table gets its own way in; so does one they asked to change (IN-092), to see it or withdraw the request. */}
-      {a.stage === "offer_received" && (a.status?.label === "Offer received" || a.status?.label === "Offer updated" || a.status?.label === "Changes requested") && (
-        <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}/offer${a.status.label === "Offer updated" ? "?updated=1" : ""}`} className="justify-center">
-          {a.status.label === "Offer updated" ? "Review updated offer" : a.status.label === "Changes requested" ? "View offer" : "Review offer"}
+      {/* IN-018 — an offer on the table gets its own way in. */}
+      {a.stage === "offer_received" && a.status?.label === "Offer received" && (
+        <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}/offer`} className="justify-center">
+          Review offer
         </LinkButton>
       )}
     </li>

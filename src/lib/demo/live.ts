@@ -215,7 +215,6 @@ export type MoveKind =
   | "proposal_revision" // TB-106 Request Changes to Proposal
   | "proposal_declined" // TB-107 Decline Proposal
   | "offer_sent" // TB-105 Send Offer
-  | "offer_updated" // TB-105 Edit a sent offer
   | "offer_withdrawn" // TB-105 Withdraw a sent offer
   | "task_approved" // TB-109 / TB-114 Approve Task
   | "task_changes" // TB-110 / TB-115 Request Changes on a Task
@@ -230,8 +229,6 @@ export type MoveKind =
   | "proposal_sent" // IN-072 / IN-073 Submit or revise proposal
   | "offer_accepted" // IN-074 Accept Offer
   | "offer_declined" // IN-075 Decline Offer
-  | "offer_changes_requested" // IN-092 Ask for changes to an offer
-  | "offer_request_withdrawn" // IN-092 Withdraw a change request
   | "task_submitted" // IN-030 Submit a Task for Review
   | "interview_declined" // IN-071 Decline an interview invitation
   | "hire_accepted" // IN-084 Accept the post-trial offer
@@ -293,12 +290,6 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     story: "TB-105",
     title: (_r, x) => (x?.type ? `${JOB_TYPE_LABEL[x.type]} offer received` : "Offer received"),
     body: (r, x) => `${PAIR.team.company} sent you ${x?.type === "trial" ? "a trial offer" : "an offer"} for ${r}. Review the terms and the tasks.`,
-  },
-  offer_updated: {
-    to: "independent",
-    story: "TB-105",
-    title: () => "Your offer was updated",
-    body: (r) => `${PAIR.team.company} changed the terms of your ${r} offer. Review and sign the new version — the earlier one no longer applies.`,
   },
   offer_withdrawn: {
     to: "independent",
@@ -379,18 +370,6 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     story: "IN-075",
     title: () => `${PAIR.independent.name} declined your offer`,
     body: (r) => `The ${r} offer was turned down. The card stays in Sent Offers with a Declined status.`,
-  },
-  offer_changes_requested: {
-    to: "team",
-    story: "IN-092",
-    title: () => `${PAIR.independent.name} asked for changes to your offer`,
-    body: (r, x) => `Before signing the ${r} offer: “${x?.note ?? ""}” Answer each change in a revised offer.`,
-  },
-  offer_request_withdrawn: {
-    to: "team",
-    story: "IN-092",
-    title: () => `${PAIR.independent.name} withdrew their change request`,
-    body: (r) => `The ${r} offer stands as you sent it, and it's with them to sign.`,
   },
   task_submitted: {
     to: "team",
@@ -497,8 +476,6 @@ function independentTarget(kind: MoveKind, slug: string, x?: MoveExtra): { href:
       return { href: application, kind: "contracts" };
     case "offer_sent":
       return { href: `${application}/offer`, kind: "offers" };
-    case "offer_updated":
-      return { href: `${application}/offer?updated=1`, kind: "offers" };
     case "offer_withdrawn":
       return { href: application, kind: "offers" };
     // The talent's contract lives under the role's slug; callers pass it (see the team store).
@@ -523,10 +500,7 @@ function teamTarget(kind: MoveKind, slug: string, x?: MoveExtra): string {
     case "proposal_sent":
       return `${board}/candidates/${DEAL}`;
     case "offer_declined":
-    case "offer_request_withdrawn":
       return "/team/hire/offers";
-    case "offer_changes_requested":
-      return `/team/hire/offers/${DEAL}/edit`;
     case "task_submitted":
       return `${contract}${x?.task ? `?task=${x.task.id}` : ""}`;
     case "offer_accepted":
@@ -592,31 +566,12 @@ export function noteComment(from: Side, role: { slug: string; title: string }, t
   const at = `?task=${encodeURIComponent(task.id)}&focus=comments`;
   const href = to === "independent" ? `/independent/contracts/${role.slug}${at}` : `/team/independents/${PAIR.independent.slug}${at}`;
   const note = { id: uid(), group: "Today" as const, title: `${PAIR[from].name} commented on a task`, body: `On “${task.title}” for ${role.title}: “${excerpt(text)}”`, time: clock(), at: Date.now(), unread: true, href, avatar: PAIR[from].avatar };
-  fileContractNote(to, note, (n) => !(n.unread && n.href === href));
-}
-
-/** A notice about the live contract, as both sides' feeds hold it. */
-type ContractNote = { id: string; group: "Today"; title: string; body: string; time: string; at: number; unread: boolean; href: string; avatar: string };
-
-/** Files a notice with `to`'s contracts, dropping the unread ones it supersedes (`fresh` keeps the rest). */
-function fileContractNote(to: Side, note: ContractNote, fresh: (n: { unread: boolean; href: string; title: string }) => boolean) {
+  const fresh = (n: { unread: boolean; href: string }) => !(n.unread && n.href === href);
   if (to === "independent") {
     write({ ...snapshot, independent: [{ ...note, kind: "contracts" } satisfies IndNote, ...snapshot.independent.filter(fresh)].slice(0, MAX_NOTES) });
     return;
   }
   write({ ...snapshot, team: [{ ...note, kind: "independents" } satisfies TeamNote, ...snapshot.team.filter(fresh)].slice(0, MAX_NOTES) });
-}
-
-/**
- * A notice about the live contract's agreement — an amendment proposed, answered or accepted — for
- * `to`, filed with that side's contracts and opening where it's answered. A newer one about the same
- * amendment replaces its unread notice, so a back-and-forth doesn't flood the feed.
- */
-export function noteAgreement(to: Side, n: { title: string; body: string; href: string; about: string }) {
-  refresh();
-  const from: Side = to === "team" ? "independent" : "team";
-  const note = { id: uid(), group: "Today" as const, title: n.title, body: excerpt(n.body, 220), time: clock(), at: Date.now(), unread: true, href: n.href, avatar: PAIR[from].avatar };
-  fileContractNote(to, note, (x) => !(x.unread && x.title.startsWith(n.about)));
 }
 
 function markRead(side: Side, noteId?: string) {

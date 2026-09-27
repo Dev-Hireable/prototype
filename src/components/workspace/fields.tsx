@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import { ASSIGNEE_KEYS, assigneeKey, assigneeOf, EFFORT_HELP, EFFORT_MAX, EFFORT_PRESETS, isArchived, isCompleted, refOf, STATUS_META, TAG_COLOR_KEYS, TAG_COLORS, tagColorOf, TYPE_META, WORK_TYPES, type TagColor, type WorkItem, type WorkStatus } from "@/lib/work/model";
 import { matchesSearch } from "@/lib/work/query";
-import { assigneesFor, capsFor, targetsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
+import { capsFor, targetsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
 import { checkDependency, checkEffort, checkTag, normalizeTag } from "@/lib/work/validate";
 import { movedTo, NO_PROJECT, NO_PROJECT_NAME, projectKeyOf } from "@/lib/work/projects";
 import { LockedValue, type LockedPart } from "./contract-lock";
@@ -87,9 +87,7 @@ export function StatusField({ item }: { item: WorkItem }) {
 
 export function AssigneeField({ item, onLocked }: { item: WorkItem; onLocked?: (part: LockedPart) => void }) {
   const { actor, access, people, actions, assigneeLabel } = useWorkspace();
-  const choices = assigneesFor(item, actor, access);
-  const allowed = new Set(choices);
-  if (!choices.length) {
+  if (!capsFor(item, actor, access).assign) {
     const face = <AssigneeChip assignee={item.assignee} people={people} />;
     if (lockable(item, actor.role, access, onLocked))
       return (
@@ -112,7 +110,7 @@ export function AssigneeField({ item, onLocked }: { item: WorkItem; onLocked?: (
             if (assignee !== item.assignee) void actions.patch(item, { assignee }, { announce: `${refOf(item)} assigned to ${assigneeLabel(v as (typeof ASSIGNEE_KEYS)[number])}` });
           }}
         >
-          {ASSIGNEE_KEYS.filter((k) => allowed.has(assigneeOf(k)) || assigneeKey(item.assignee) === k).map((k) => (
+          {ASSIGNEE_KEYS.map((k) => (
             <DropdownMenuRadioItem key={k} value={k} closeOnClick>
               <AssigneeChip assignee={assigneeOf(k)} people={people} />
             </DropdownMenuRadioItem>

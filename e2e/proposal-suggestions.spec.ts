@@ -1,8 +1,9 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
-// IN-073 / TB-106 — in a revision the talent can suggest changes to the trial's tasks; the Team
-// Builder accepts or ignores each, and the offer's tasks start from what they accepted.
+// IN-073 / TB-106 — in a revision the talent can suggest changes to the trial's tasks and propose
+// another start; the Team Builder accepts or ignores each suggestion, and the offer carries what the
+// proposal settled — the tasks as accepted and the start proposed, read, not edited (TB-105).
 
 const TASKS = [
   { title: "Take over inbox triage", week: 1, priority: "high" },
@@ -23,7 +24,7 @@ async function postTheRole(page: Page) {
   }, { role: ROLE, tasks: TASKS });
 }
 
-/** Juan suggests Week 2 for the triage (only once he says why) and removing the contact sheet, and sends the revision. */
+/** Juan suggests Week 2 for the triage (only once he says why) and removing the contact sheet, starts on Mon 5 Oct, and sends the revision. */
 async function suggestChanges(juan: Page) {
   // Juan revises, suggesting a later week for one task and removing another.
   await juan.goto("/independent/jobs/applications/deal/proposal?revise=1");
@@ -44,36 +45,50 @@ async function suggestChanges(juan: Page) {
   await second.getByRole("button", { name: "Add suggestion" }).click();
   await expect(juan.getByText("2 suggestions goes with your revision.", { exact: false })).toBeVisible();
 
+  // A later start: the trial's end follows from it, and the offer will carry both.
+  await juan.getByRole("button", { name: "Start date" }).click();
+  await juan.getByRole("button", { name: "Go to the Next Month" }).click();
+  await juan.getByRole("button", { name: /October 5th, 2026/ }).click();
+  await expect(juan.getByText("The trial runs 30 working days from it, to 13 Nov 2026.")).toBeVisible();
   await juan.getByRole("button", { name: "Continue" }).click();
   await juan.getByRole("button", { name: "Review & send" }).click();
   await expect(juan.getByText("Suggested task changes")).toBeVisible();
   await juan.getByRole("button", { name: "Send revised proposal" }).click();
 }
 
-/** Alex accepts the week change and ignores the removal, and each row says which. Returns the review, still open. */
+/** Alex reads the proposed dates, then accepts the week change and ignores the removal — Send offer waits for both. Returns the review, still open. */
 async function acceptOneIgnoreOne(page: Page) {
-  // Alex reviews: accepts the week change, ignores the removal.
+  // Alex reviews: the dates Juan proposed, then each suggestion — no offer until both are answered.
   await page.goto(`/team/hire/roles/${ROLE.slug}`);
   await page.getByRole("button", { name: "Review Proposal" }).click();
   const review = page.getByRole("dialog");
   await expect(review.getByText("Juan suggested 2 changes to the tasks.", { exact: false })).toBeVisible();
+  await expect(review).toContainText("05 Oct 2026 → 13 Nov 2026");
+  await expect(review.getByRole("button", { name: "Send offer" })).toBeDisabled();
   const rows = review.getByRole("listitem").filter({ hasText: /Take over inbox triage|Clean up the contact sheet/ });
   await rows.filter({ hasText: "move it to Week 2" }).getByRole("button", { name: "Accept" }).click();
   await rows.filter({ hasText: "Remove “Clean up the contact sheet”" }).getByRole("button", { name: "Ignore" }).click();
   await expect(rows.filter({ hasText: "move it to Week 2" })).toContainText("Accepted");
   await expect(rows.filter({ hasText: "Remove" })).toContainText("Ignored");
+  await expect(review.getByRole("button", { name: "Send offer" })).toBeEnabled();
   return review;
 }
 
-/** From the review, Alex starts the offer: its tasks keep the triage, now in Week 2, and the contact sheet. */
+/** From the review, Alex starts the offer: its tasks keep the triage, now in Week 2, and the contact sheet — read-only — and it starts on Juan's date. */
 async function offerStartsFromAccepted(page: Page, review: Locator) {
-  // The offer's tasks start from the accepted change: triage in week 2, the contact sheet kept.
+  // The offer carries the accepted change — triage in week 2, the contact sheet kept — and Juan's start.
   await review.getByRole("button", { name: "Send offer" }).click();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("textbox", { name: "Task 1" })).toHaveValue("Take over inbox triage");
-  await expect(page.getByRole("textbox", { name: "Task 3" })).toHaveValue("Clean up the contact sheet");
-  const firstRow = page.getByRole("textbox", { name: "Task 1" }).locator("xpath=ancestor::div[contains(@class,'items-center')][1]");
-  await expect(firstRow).toContainText("Week 2");
+  const offer = page.getByRole("dialog", { name: "Send an offer to Juan" });
+  await offer.getByRole("button", { name: "Continue" }).click();
+  // The task rows — the stepper above is a list too.
+  const items = offer.getByRole("listitem").filter({ hasText: /Take over inbox triage|Run both calendars|Clean up the contact sheet/ });
+  await expect(items).toHaveCount(3);
+  await expect(items.nth(0)).toContainText("Take over inbox triage");
+  await expect(items.nth(0)).toContainText("Week 2");
+  await expect(items.nth(2)).toContainText("Clean up the contact sheet");
+  await expect(offer.getByRole("textbox")).toHaveCount(0);
+  await offer.getByRole("button", { name: "Continue" }).click();
+  await expect(offer).toContainText("05 Oct 2026");
 }
 
 /** Juan's saved proposal records the week change as accepted and the removal as ignored. */

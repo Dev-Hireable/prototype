@@ -1,4 +1,4 @@
-import { durationDays } from "@/lib/demo/dates";
+import { durationDays, isoDay } from "@/lib/demo/dates";
 
 /**
  * The three kinds of role a Team Builder posts, and the contract each one turns into.
@@ -68,4 +68,12 @@ export function postedStart(duration: string, from = new Date()) {
   if (day.getDay() === 6) day.setDate(day.getDate() + 2);
   if (day.getDay() === 0) day.setDate(day.getDate() + 1);
   return day;
+}
+
+/**
+ * The day an offer starts: the one the talent's proposal gave (IN-072). A proposal from before it
+ * asked for one reads as the earliest start — today for a trial, the posted start for an ongoing role.
+ */
+export function proposedStart(type: JobType, duration: string, start: string | undefined): string {
+  return start ?? isoDay(type === "trial" ? new Date() : postedStart(duration));
 }

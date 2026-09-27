@@ -46,17 +46,9 @@ test("the contract lifecycle is pure, and only its store moves the lifecycle's m
 });
 
 test("the domain layer is pure", () => {
-  const pure = ["dates", "model", "validate", "permissions", "order", "query", "calendar", "timeline", "workload", "migrate", "errors", "overlay", "repository", "scope", "amendments", "word-diff"];
+  const pure = ["dates", "model", "validate", "permissions", "order", "query", "calendar", "timeline", "workload", "migrate", "errors", "overlay", "repository"];
   for (const name of pure) {
     const src = read(join("src", "lib", "work", `${name}.ts`));
     expect(src, name).not.toMatch(/from "react"|from "@\/|"use client"|window\.|localStorage|document\./);
   }
-});
-
-test("the agreement's rules are pure, and only amendments change an agreed scope", () => {
-  for (const name of ["negotiation", "history"]) expect(read(join("src", "lib", "contract", `${name}.ts`)), name).not.toMatch(/from "react"|from "@\/|"use client"|window\.|localStorage|document\./);
-  // A contract's versions are written when an offer is signed (./offer) and by the amendments, and
-  // worked out on read for contracts signed before they were kept (deal-scope); nothing else sets them.
-  const allowed = [join("lib", "work", "amendments.ts"), join("lib", "work", "deal-scope.ts"), join("lib", "independent", "offer.ts")];
-  for (const f of files("src")) if (!allowed.some((a) => f.endsWith(a))) expect(read(f), f).not.toMatch(/\bversions: \[(?!\])/);
 });

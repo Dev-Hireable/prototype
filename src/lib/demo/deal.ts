@@ -1,7 +1,6 @@
 "use client";
 
 import type { SuggestionDecision, TaskSuggestion } from "@/lib/demo/suggestions";
-import type { OfferEvent, OfferRequest, OfferRevision } from "@/lib/contract/negotiation";
 import { useSyncExternalStore } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { TFP_WEIGHTS } from "@/lib/team/data";
@@ -14,7 +13,6 @@ import type { ChatSource } from "@/lib/demo/live";
 import { STORAGE_MESSAGE, WorkError } from "@/lib/work/errors";
 import { migrateItems } from "@/lib/work/migrate";
 import type { WorkProject } from "@/lib/work/model";
-import type { ContractScope } from "@/lib/work/scope";
 import { isCompleted } from "@/lib/work/model";
 
 
@@ -39,13 +37,18 @@ import { isCompleted } from "@/lib/work/model";
 
 /**
  * IN-072 / IN-073 — the proposal exactly as the talent submitted it: their rate (or expected salary),
- * on a part-time role the hours a week they offer, and a cover letter. The work itself is the Team
- * Builder's to set — the trial's tasks in its job post, every role's in the offer — so a proposal
- * carries no tasks; `tasks` is only on proposals sent before that, when the talent wrote them.
+ * on a part-time role the hours a week they offer, the day they'd start, and a cover letter. The work
+ * itself is the Team Builder's to set — the trial's tasks in its job post, a role's once it starts —
+ * so a proposal carries no tasks; `tasks` is only on proposals sent before that, when the talent
+ * wrote them. What the proposal settles is what the offer carries (TB-105).
  * `version` counts resubmissions after a revision request.
  */
 /** `suggestions`: changes to the trial's tasks the talent suggested in a revision (./suggestions). */
-export type DealProposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; hours?: number; tasks?: PlannedTask[]; suggestions?: TaskSuggestion[] };
+/**
+ * A proposal as sent. `start` is the day the talent proposes to start (yyyy-mm-dd) — the offer takes
+ * it as agreed (TB-105); proposals from before it was asked for have none (proposedStart).
+ */
+export type DealProposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; hours?: number; start?: string; tasks?: PlannedTask[]; suggestions?: TaskSuggestion[] };
 
 /**
  * TB-106 — one entry in a proposal's history, oldest first (Figma "Review proposal" Activity pane):
@@ -104,16 +107,7 @@ export type DealOffer = {
   status: OfferStatus;
   sent: string;
   deposit?: { escrow: number; fee: number };
-  updated?: string;
   declineReason?: string;
-  /** Which revision of the offer this is: 1 as first sent, one more each time it's revised. Missing is 1. */
-  revision?: number;
-  /** The revisions before this one, oldest first, as they were sent — what "What changed" compares (@/lib/contract/negotiation). */
-  history?: OfferRevision[];
-  /** The talent's request for changes to a revision, open until the next revision answers it or they withdraw it. */
-  request?: OfferRequest;
-  /** What happened to the offer, oldest first: sent, revised, changes asked for, answered. */
-  log?: OfferEvent[];
 };
 
 /**
@@ -192,12 +186,6 @@ export type Deal = {
     tagColors?: Record<string, string>;
     /** TB-148 — a full-time or part-time role's projects (@/lib/work/projects); written only by the work repository. */
     projects?: WorkProject[];
-    /**
-     * What both sides agreed — the contract's versions, its amendments and their history
-     * (@/lib/work/scope). v1 is written when the offer is signed; after that only the work
-     * repository's amendments change it. Contracts signed before it was kept work out v1 on read.
-     */
-    scope?: ContractScope;
     /** Legacy tiles; the heatmap and streak are worked out from `logs` (see `activityOf`). */
     activity: number[];
     streak: number;
@@ -234,12 +222,6 @@ export type Deal = {
      * part of it first. Absent means nothing has moved yet.
      */
     escrow?: { released: number; refunded: number };
-    /**
-     * A trial's escrow re-priced by an accepted amendment that changed its rate (@/lib/work/scope):
-     * what was added (charged to the company, with the platform fee) or given back — once per
-     * version. The escrow's total is the deposit plus these.
-     */
-    escrowAdjustments?: { version: number; amount: number; fee: number; at: string }[];
   };
   /** TB-072 / IN-084 — the full-time or part-time role offered after the trial, and the talent's answer. */
   conversion?: ConversionOffer;

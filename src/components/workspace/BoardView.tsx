@@ -5,14 +5,15 @@ import { ICONS } from "@/components/admin/icons";
 import { KanbanColumn, KanbanEmpty, KanbanList, type ColumnFrame } from "@/components/portal/board";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/Tip";
+import { dayOf } from "@/lib/work/dates";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, TYPE_META, type WorkItem } from "@/lib/work/model";
-import { capsFor, targetsFor, transitionFor } from "@/lib/work/permissions";
+import { capsFor, lockedReason, targetsFor, transitionFor } from "@/lib/work/permissions";
 import type { Group, WorkQuery } from "@/lib/work/query";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "./group-actions";
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./ItemMenu";
 import { itemData } from "./item-data";
-import { AssigneeChip, BlockedChip, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, PriorityFact, Ref, ScopeChip, TagChip, TypeChip } from "./meta";
+import { AssigneeChip, BlockedChip, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, PriorityFact, Ref, TagChip, TypeChip } from "./meta";
 import { dropPlan, placeAt, refusal, runPlan, type DropPlan } from "./moves";
 import { QuickAdd } from "./QuickAdd";
 import { useTimedMessage } from "./timed-message";
@@ -382,15 +383,14 @@ function CardBlockers({ item: t, blockers }: { item: WorkItem; blockers: number 
   );
 }
 
-/**
- * When and how urgent, as one quiet line — and where it stands against the contract (ScopeChip): a
- * contract task says so, and so does internal work on a trial.
- */
+/** When and how urgent, as one quiet line — and no empty line when there's neither. */
 function CardWhen({ item: t }: { item: WorkItem }) {
-  const { today } = useWorkspace();
+  const { projects, access, today } = useWorkspace();
+  /** Whether the details line carries a place or a read-only chip (PlaceChip, LockChip). */
+  const placed = (projects.showPlace && !!t.project) || (projects.showPlace && !!t.trial) || !!lockedReason(t, access);
+  if (!(dayOf(t.due) !== null || !!t.priority || isArchived(t) || placed)) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-      <ScopeChip item={t} />
       <DueChip item={t} today={today} />
       <PriorityFact priority={t.priority} />
       {/* Which project, when the view mixes them; and read-only, when it's finished work. */}

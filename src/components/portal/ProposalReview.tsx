@@ -14,6 +14,7 @@ import { ScrollFade } from "@/components/portal/ScrollFade";
 import { Tip } from "@/components/portal/Tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, MATCH_TOOLTIP } from "@/components/team/ui";
+import { addWorkingDays, dayLabel, durationDays, fromISODate } from "@/lib/demo/dates";
 import type { DealProposal, ProposalEvent } from "@/lib/demo/deal";
 import { hoursLabel, JOB_TYPE_LABEL, startLabel } from "@/lib/demo/job-types";
 import { readBy, useLive } from "@/lib/demo/live";
@@ -21,8 +22,7 @@ import type { JobType } from "@/lib/demo/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
 import { keyed } from "@/lib/portal/keys";
 import type { Side } from "@/lib/work/model";
-import type { SuggestionDecision, TaskSuggestion } from "@/lib/demo/suggestions";
-import { SuggestionRows } from "@/components/portal/SuggestionRows";
+import { describeSuggestion, type SuggestionDecision, type TaskSuggestion } from "@/lib/demo/suggestions";
 
 const Calendar = ICONS.calendar;
 const Close = ICONS.close;
@@ -69,11 +69,43 @@ function Suggestions({ suggestions, decisions, onDecide, team, first }: { sugges
       <div className="flex flex-col gap-1">
         <p className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Suggested task changes</p>
         <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">
-          {team ? `${first} suggested ${suggestions.length === 1 ? "a change" : `${suggestions.length} changes`} to the tasks. What you accept goes into the offer's tasks, which you can still edit before sending.` : "Your suggestions. The company decides; what it accepts goes into the offer's tasks."}
+          {team ? `${first} suggested ${suggestions.length === 1 ? "a change" : `${suggestions.length} changes`} to the tasks. Accept or ignore each: the offer carries the tasks as you settle them here.` : "Your suggestions. The company decides; what it accepts goes into the offer's tasks."}
           {accepted > 0 && ` ${accepted} accepted so far.`}
         </p>
       </div>
-      <SuggestionRows suggestions={suggestions} decisions={decisions} onDecide={onDecide} team={team} />
+      <ul className="flex flex-col">
+        {suggestions.map((s) => {
+          const d = decisions?.[s.id];
+          return (
+            <li key={s.id} className="flex items-start gap-3 border-t border-[#eeeeee] py-3 first:border-t-0 first:pt-0 last:pb-0">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <p className="text-[14px] leading-[1.35] text-ink">{describeSuggestion(s)}</p>
+                <p className="text-[13px] leading-[1.4] whitespace-pre-line text-ink-2 [overflow-wrap:anywhere]">“{s.note}”</p>
+              </div>
+              {onDecide && !d ? (
+                <div className="flex shrink-0 gap-2">
+                  <button type="button" onClick={() => onDecide(s.id, "ignored")} className="h-8 rounded-lg border border-border bg-white px-3 text-[13px] font-medium text-ink hover:bg-surface-alt">
+                    Ignore
+                  </button>
+                  <button type="button" onClick={() => onDecide(s.id, "accepted")} className="h-8 rounded-lg bg-primary px-3 text-[13px] font-semibold text-white hover:brightness-110">
+                    Accept
+                  </button>
+                </div>
+              ) : (
+                <span className="flex shrink-0 items-center gap-2">
+                  <Badge tone={d === "accepted" ? "ok" : "neutral"}>{d === "accepted" ? "Accepted" : d === "ignored" ? (team ? "Ignored" : "Not taken") : "Awaiting decision"}</Badge>
+                  {/* A decision can be taken back until the offer goes out. */}
+                  {onDecide && d && (
+                    <button type="button" onClick={() => onDecide(s.id, d === "accepted" ? "ignored" : "accepted")} className="text-[12.5px] font-medium text-accent-ink hover:underline">
+                      {d === "accepted" ? "Ignore" : "Accept"}
+                    </button>
+                  )}
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
     </Card>
   );
 }
@@ -98,12 +130,24 @@ const shortName = (name: string) => {
 /** The Duration / Start term: how long a trial runs, or when any other role starts. */
 const durationOf = (post: ProposalPost) => (post.type === "trial" ? post.duration : startLabel(post.duration));
 
-/** What they propose — the rate and, on a part-time role, the hours — beside the role's terms. */
+/**
+ * When they'd start (IN-072): the day they proposed — a trial's with the end its working days come to
+ * — or, on a proposal from before a start was asked for, the one the role was posted with.
+ */
+function startOf(post: ProposalPost, proposal: DealProposal): string {
+  const start = fromISODate(proposal.start ?? "");
+  if (!start) return post.type === "trial" ? "Not given" : startLabel(post.duration);
+  if (post.type !== "trial") return dayLabel(start);
+  return `${dayLabel(start)} → ${dayLabel(addWorkingDays(start, durationDays(post.duration) - 1))}`;
+}
+
+/** What they propose — the rate, when they'd start and, on a part-time role, the hours — beside the role's terms. */
 function termsOf(post: ProposalPost, proposal: DealProposal): [string, string][] {
   return [
     [post.type === "full-time" ? "Salary" : "Rate", proposal.rate],
     ["Contract", JOB_TYPE_LABEL[post.type]],
-    [post.type === "trial" ? "Duration" : "Start", durationOf(post)],
+    ...(post.type === "trial" ? ([["Duration", post.duration]] as [string, string][]) : []),
+    [post.type === "trial" ? "Dates" : "Start", startOf(post, proposal)],
     ...(post.type === "part-time" ? ([["Hours", hoursLabel(proposal.hours ?? post.hours)]] as [string, string][]) : []),
   ];
 }
@@ -128,19 +172,19 @@ function tasksCopy({ legacy, trial, team, first }: { legacy: boolean; trial: boo
     title: legacy ? (team ? "Tasks they proposed" : "Tasks you proposed") : trial ? "Trial tasks" : "Starting tasks",
     empty: trial
       ? team
-        ? "Your job post has no trial tasks yet. Add them when you send the offer."
-        : "No trial tasks are listed yet. They're set in the offer."
+        ? `Your job post has no trial tasks yet. Add them, then ask ${first} for a revision — the offer carries the tasks the proposal settles.`
+        : "No trial tasks are listed yet. They're agreed in the proposal, before any offer."
       : team
-        ? `None yet. You set the first tasks when you send ${first} the offer.`
-        : "None yet. Your first tasks are set in the offer.",
+        ? `None yet. You add the work once ${first} starts.`
+        : "None yet. The work is added once you start.",
     note: legacy
       ? team
-        ? "Sent before the tasks were yours to set. They're filled into the offer, where you can change them before sending."
-        : "Sent before the tasks were set by the company. They carry into the offer, where they can be changed."
+        ? "Sent before the tasks were yours to set. The offer carries them as they stand."
+        : "Sent before the tasks were set by the company. The offer carries them as they stand."
       : trial
         ? team
-          ? `From your job post. You can change them for ${first} when you send the offer; you approve each one as it's finished.`
-          : "From the job post. Your rate covers these; they can be adjusted in the offer before you sign."
+          ? `From your job post. The offer carries them as the proposal settles them — with any changes ${first} suggests that you accept; you approve each one as it's finished.`
+          : "From the job post. Your rate covers these, and the offer carries them as agreed here."
         : "Once the contract starts, new tasks are added as work comes in, and each is approved as it's finished.",
   };
 }

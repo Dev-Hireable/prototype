@@ -13,12 +13,10 @@ import { fromISODate, isoDay } from "@/lib/demo/dates";
 /**
  * "Add task" with everything at once — name, who does it, what kind of work, when it's due and how
  * big it is. The same rules as a save: the name is required, a due date can't be in the past (or
- * after a trial's last day), effort is a whole number. `internal` is a trial's own kind (canAddInternal):
- * the Team Builder's to-do, theirs or nobody's — the Independent's trial work is the contract's tasks.
+ * after a trial's last day), effort is a whole number.
  */
-export function NewTaskDialog({ open, internal = false, onClose }: { open: boolean; internal?: boolean; onClose: () => void }) {
-  const { names } = useWorkspace();
-  const { draft, set, errors, reset, create } = useNewTask(onClose, internal);
+export function NewTaskDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { draft, set, errors, reset, create } = useNewTask(onClose);
   return (
     <Modal
       open={open}
@@ -26,8 +24,7 @@ export function NewTaskDialog({ open, internal = false, onClose }: { open: boole
         reset();
         onClose();
       }}
-      title={internal ? "Add internal task" : "Add task"}
-      description={internal ? `Your own to-do beside the contract tasks. It isn't part of the agreement or ${names.independent}'s work — new work for them is proposed as a change to the contract.` : undefined}
+      title="Add task"
       closeButton
       footer={
         <>
@@ -35,12 +32,12 @@ export function NewTaskDialog({ open, internal = false, onClose }: { open: boole
             Cancel
           </Button>
           <Button size="lg" variant="primary" onClick={() => void create()}>
-            {internal ? "Add internal task" : "Add task"}
+            Add task
           </Button>
         </>
       }
     >
-      <NewTaskForm draft={draft} set={set} errors={errors} internal={internal} onSubmit={() => void create()} />
+      <NewTaskForm draft={draft} set={set} errors={errors} onSubmit={() => void create()} />
     </Modal>
   );
 }
@@ -49,8 +46,6 @@ export function NewTaskDialog({ open, internal = false, onClose }: { open: boole
 type Draft = { title: string; assignee: AssigneeKey; type: WorkType; due: string; effort: string; description: string };
 
 const BLANK: Draft = { title: "", assignee: "independent", type: "task", due: "", effort: "", description: "" };
-/** An internal item on a trial starts as the Team Builder's own. */
-const BLANK_INTERNAL: Draft = { ...BLANK, assignee: "team" };
 
 /** What's wrong with the fields, each said under its own. */
 type DraftErrors = { title?: string; date?: string; effort?: string };
@@ -59,11 +54,10 @@ type DraftErrors = { title?: string; date?: string; effort?: string };
  * The task being filled in and what's wrong with it — the name only once Add has been tried — and
  * adding it: checked like a save, then the dialog is cleared and closed, and the task opened once it's saved.
  */
-function useNewTask(onClose: () => void, internal: boolean) {
+function useNewTask(onClose: () => void) {
   const env = useWorkspace();
   const { actions, access, today, assigneeLabel, openTask } = env;
-  const blank = internal ? BLANK_INTERNAL : BLANK;
-  const [draft, setDraft] = useState(blank);
+  const [draft, setDraft] = useState(BLANK);
   const [tried, setTried] = useState(false);
   const { title, type, due, effort } = draft;
   const errors: DraftErrors = {
@@ -74,7 +68,7 @@ function useNewTask(onClose: () => void, internal: boolean) {
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
 
   const reset = () => {
-    setDraft(blank);
+    setDraft(BLANK);
     setTried(false);
   };
 
@@ -84,9 +78,7 @@ function useNewTask(onClose: () => void, internal: boolean) {
     const input = { title, assignee: assigneeOf(draft.assignee), type, due: due || undefined, effort: effort.trim() && type !== "milestone" ? Number(effort) : undefined, description: draft.description.trim() || undefined };
     reset();
     onClose();
-    const id = internal
-      ? await actions.createInternal(input, { success: `Added the internal task “${input.title.trim()}”` })
-      : await actions.create({ ...input, ...newItemPlace(env) }, { success: `Added “${input.title.trim()}”${input.assignee === "independent" ? ` — ${assigneeLabel("independent")} has been told` : ""}` });
+    const id = await actions.create({ ...input, ...newItemPlace(env) }, { success: `Added “${input.title.trim()}”${input.assignee === "independent" ? ` — ${assigneeLabel("independent")} has been told` : ""}` });
     if (id) openTask(id);
   };
 
@@ -94,13 +86,11 @@ function useNewTask(onClose: () => void, internal: boolean) {
 }
 
 /** The form: name; who does it and what kind of work; the due date (a milestone's date) and effort; a description. Enter submits it. */
-function NewTaskForm({ draft, set, errors, internal, onSubmit }: { draft: Draft; set: (patch: Partial<Draft>) => void; errors: DraftErrors; internal: boolean; onSubmit: () => void }) {
+function NewTaskForm({ draft, set, errors, onSubmit }: { draft: Draft; set: (patch: Partial<Draft>) => void; errors: DraftErrors; onSubmit: () => void }) {
   const { access, today, assigneeLabel } = useWorkspace();
   const { type } = draft;
   const last = dayOf(access.lastDay);
-  // On a trial an internal item isn't the Independent's to do (canAddInternal).
-  const keys = internal ? ASSIGNEE_KEYS.filter((k) => k !== "independent") : ASSIGNEE_KEYS;
-  const assigneeOptions = keys.map((k) => assigneeLabel(k));
+  const assigneeOptions = ASSIGNEE_KEYS.map((k) => assigneeLabel(k));
   const typeOptions = WORK_TYPES.map((k) => TYPE_META[k].label);
   return (
     <form
@@ -115,7 +105,7 @@ function NewTaskForm({ draft, set, errors, internal, onSubmit }: { draft: Draft;
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Assignee">
-          <Select aria-label="Assignee" options={assigneeOptions} value={assigneeLabel(draft.assignee)} onChange={(e) => set({ assignee: keys[assigneeOptions.indexOf(e.target.value)] ?? keys[0] })} />
+          <Select aria-label="Assignee" options={assigneeOptions} value={assigneeLabel(draft.assignee)} onChange={(e) => set({ assignee: ASSIGNEE_KEYS[assigneeOptions.indexOf(e.target.value)] ?? "independent" })} />
         </Field>
         <Field label="Work type">
           <Select aria-label="Work type" options={typeOptions} value={TYPE_META[type].label} onChange={(e) => set({ type: WORK_TYPES[typeOptions.indexOf(e.target.value)] ?? "task" })} />

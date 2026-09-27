@@ -80,7 +80,7 @@ function TrialTasks({ company, tasks, shared }: { company: string; tasks: Planne
   return (
     <Section title="Trial tasks" action={shared && tasks.length > 0 && <span className="text-[13px] leading-[1.4] text-ink-2">Set by {company} · due by week</span>}>
       {shared ? (
-        <TaskPlanList tasks={tasks} empty={`${company} hasn't listed the trial's tasks yet — they're set in the offer.`} />
+        <TaskPlanList tasks={tasks} empty={`${company} hasn't listed the trial's tasks yet. They're agreed in the proposal, before any offer.`} />
       ) : (
         <div className="flex items-start gap-3 rounded-lg bg-surface-alt p-4 outline -outline-offset-1 outline-border">
           <Lock size={20} aria-hidden className="mt-0.5 shrink-0 text-ink-2" />
@@ -113,7 +113,7 @@ function HiringSteps({ type, company, duration }: { type: JobType; company: stri
           { title: "Apply", body: "Send your profile, with a short note if you like." },
           { title: "Interview", body: `${company} invites its best matches to a call.` },
           { title: "Proposal", body: `Your ${type === "full-time" ? "expected salary" : "rate and hours a week"}, with a cover letter.` },
-          { title: "Offer", body: `Hired straight onto the ${JOB_TYPE_LABEL[type].toLowerCase()} role, paid monthly. ${company} sets your first tasks.` },
+          { title: "Offer", body: `Hired straight onto the ${JOB_TYPE_LABEL[type].toLowerCase()} role, paid monthly, on the terms your proposal agreed. ${company} adds the work once you start.` },
         ];
   return (
     // Four across where there's room, two by two where there isn't — the line runs on to the next step in its row.

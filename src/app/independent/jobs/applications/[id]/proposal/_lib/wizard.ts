@@ -1,8 +1,10 @@
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { isoDay } from "@/lib/demo/dates";
 import { useDeal } from "@/lib/demo/deal";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount } from "@/lib/demo/disputes";
+import { postedStart } from "@/lib/demo/job-types";
 import type { TaskSuggestion } from "@/lib/demo/suggestions";
 import { useIndependentAccount } from "@/lib/independent/account";
 import { useApplications } from "@/lib/independent/applications";
@@ -11,7 +13,7 @@ import { useToast } from "@/lib/portal/toast";
 import type { Terms } from "./proposal";
 
 /** A saved draft. Drafts saved while proposals still listed tasks keep them too; they're ignored. */
-type Draft = { rate: string; letter: string; portfolio: string; hours?: string };
+type Draft = { rate: string; letter: string; portfolio: string; hours?: string; start?: string };
 const draftKey = (roleSlug: string) => `hireable.demo.ind.proposalDraft.${roleSlug}`;
 /** Portal pages render after hydration, so the draft can be read straight into the first render. */
 function loadDraft(roleSlug: string): Draft | null {
@@ -24,22 +26,24 @@ function loadDraft(roleSlug: string): Draft | null {
 }
 
 /** A sent proposal as a draft to revise. */
-const draftOf = (p: DealProposal): Draft => ({ rate: String(rateAmount(p.rate)), letter: p.letter, portfolio: p.portfolio ?? "", hours: p.hours ? String(p.hours) : undefined });
+const draftOf = (p: DealProposal): Draft => ({ rate: String(rateAmount(p.rate)), letter: p.letter, portfolio: p.portfolio ?? "", hours: p.hours ? String(p.hours) : undefined, start: p.start });
 
 /**
  * The wizard's fields. A saved draft wins over a blank form; a revision starts from the version
  * that was sent. `save` keeps where the talent got to for next time; `discard` drops it once sent.
  */
-function useProposalForm(roleSlug: string | undefined, revising: DealProposal | undefined, postedHours: number | undefined, portfolioLink: string | undefined) {
+function useProposalForm(roleSlug: string | undefined, revising: DealProposal | undefined, posted: { hours?: number; start: string }, portfolioLink: string | undefined) {
   const [initial] = useState<Draft | null>(() => (roleSlug ? loadDraft(roleSlug) : null));
   const seed = initial ?? (revising ? draftOf(revising) : null);
   const [rate, setRate] = useState(seed?.rate ?? "");
-  const [hours, setHours] = useState(seed?.hours ?? (postedHours ? String(postedHours) : "20"));
+  const [hours, setHours] = useState(seed?.hours ?? (posted.hours ? String(posted.hours) : "20"));
+  /** IN-072 — the day they'd start: the draft's or the version revised, or else the earliest the role allows. */
+  const [start, setStart] = useState(seed?.start ?? posted.start);
   const [letter, setLetter] = useState(seed?.letter ?? "");
   const [portfolio, setPortfolio] = useState(seed?.portfolio ?? portfolioLink ?? "");
   const save = () => {
     try {
-      if (roleSlug) localStorage.setItem(draftKey(roleSlug), JSON.stringify({ rate, letter, portfolio, hours } satisfies Draft));
+      if (roleSlug) localStorage.setItem(draftKey(roleSlug), JSON.stringify({ rate, letter, portfolio, hours, start } satisfies Draft));
     } catch {
       /* private mode — nothing to keep */
     }
@@ -51,7 +55,7 @@ function useProposalForm(roleSlug: string | undefined, revising: DealProposal | 
       /* ignore */
     }
   };
-  return { fromDraft: !!initial, rate, setRate, hours, setHours, letter, setLetter, portfolio, setPortfolio, save, discard };
+  return { fromDraft: !!initial, rate, setRate, hours, setHours, start, setStart, letter, setLetter, portfolio, setPortfolio, save, discard };
 }
 
 /**
@@ -82,7 +86,8 @@ export function useProposalWizard(id: string) {
   const { profile } = useIndependentAccount();
   const { app, job, live, previous, revising, revise, reviewOnly, submitProposal } = useProposalRequest(id);
   const router = useRouter();
-  const form = useProposalForm(app?.roleSlug, revising, job.hours, profile.links.portfolio);
+  // A trial can start today; an ongoing role from the start it was posted with.
+  const form = useProposalForm(app?.roleSlug, revising, { hours: job.hours, start: isoDay(job.type === "trial" ? new Date() : postedStart(job.duration)) }, profile.links.portfolio);
   const [step, setStep] = useState(0);
   const [sent, setSent] = useState(false);
   /** IN-073 — changes to the trial's tasks suggested with this revision; the company decides on each. */

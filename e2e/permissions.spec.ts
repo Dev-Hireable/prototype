@@ -22,8 +22,8 @@ test.describe("permissions", () => {
     const r1 = await api(page, "patch", "t-guide", { due: "2026-10-20" });
     expect(r1).toMatchObject({ ok: false, code: "forbidden" });
     expect((r1 as { message: string }).message).toMatch(/plans the work/);
-    // A contract task's due date is the contract's, for either side (TB-150).
-    expect(await api(page, "patch", "t-type", { due: "2026-10-20" })).toMatchObject({ ok: false, code: "forbidden", message: "This task is part of an agreed contract. Changes to its scope require approval from both parties." });
+    // A due date the signed offer agreed stays as agreed, for either side (TB-077).
+    expect(await api(page, "patch", "t-type", { due: "2026-10-20" })).toMatchObject({ ok: false, code: "forbidden", message: "It was agreed in the signed offer, so it stays as agreed." });
     expect(await api(page, "create", { id: "sneaky", title: "Not mine to add" })).toMatchObject({ ok: false, code: "forbidden" });
     expect(await api(page, "transition", "t-logos", { to: "done" })).toMatchObject({ ok: false, code: "forbidden" });
     expect(await api(page, "archive", "t-kickoff")).toMatchObject({ ok: false, code: "forbidden" });
@@ -86,5 +86,31 @@ test.describe("an ended contract", () => {
     await expect(panel(page).getByRole("button", { name: /Approve/ })).toHaveCount(0);
     await expect(panel(page).getByRole("textbox", { name: "Add a comment" })).toHaveCount(0);
     expect(await api(page, "comment", "t-logos", { id: "c9", text: "Late note" })).toMatchObject({ ok: false, code: "forbidden" });
+  });
+});
+
+// TB-077 — a task from the signed offer stays as agreed: its agreed fields show a lock and trying one
+// says why. There's no deleting it and nothing to propose — what it is was settled in the proposal.
+test.describe("permissions · the signed offer's tasks", () => {
+  test("their agreed fields are locked for the Team Builder too, and trying one says why", async ({ page }) => {
+    await open(page, "team", "?task=t-type");
+    await panel(page).getByRole("button", { name: /^Name: agreed in the signed offer/ }).click();
+    await expect(panel(page).getByRole("alert")).toContainText("Name was agreed in the signed offer, so it stays as agreed.");
+    await panel(page).getByRole("button", { name: "OK" }).click();
+    await expect(panel(page).getByRole("alert")).toHaveCount(0);
+    await panel(page).getByRole("button", { name: "Due date: agreed in the signed offer" }).click();
+    await expect(panel(page).getByRole("alert")).toContainText("Due date was agreed in the signed offer, so it stays as agreed.");
+    await expect(panel(page).getByRole("button", { name: /Propose/ })).toHaveCount(0);
+    await expect(panel(page).getByRole("button", { name: "Item actions" })).toHaveCount(0);
+  });
+
+  test("the rules hold without the screens: nothing agreed changes, and it can't be deleted", async ({ page }) => {
+    await open(page, "team");
+    const AGREED = "It was agreed in the signed offer, so it stays as agreed.";
+    for (const change of [{ title: "Renamed" }, { effort: 8 }, { type: "milestone" }, { assignee: "team" }]) expect(await api(page, "patch", "t-type", change)).toMatchObject({ ok: false, code: "forbidden", message: AGREED });
+    expect(await api(page, "archive", "t-type")).toMatchObject({ ok: false, message: AGREED });
+    // Running the work isn't what was agreed: priority still changes.
+    expect(await api(page, "patch", "t-type", { priority: "high" })).toMatchObject({ ok: true });
+    expect((await savedItem(page, "t-type")).title).toBe("Pick a typography pairing");
   });
 });

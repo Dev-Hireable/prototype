@@ -2,14 +2,12 @@
 
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Button, Checkbox, Chip, Field, InfoBanner, Input, KeyValue, MatchPill, Modal, Steps } from "@/components/independent/ui";
-import { DatePicker } from "@/components/portal/DatePicker";
-import { TaskPlanEditor } from "@/components/portal/tasks/TaskPlan";
+import { TaskPlanList } from "@/components/portal/tasks/TaskPlan";
 import { Avatar, MATCH_TOOLTIP } from "@/components/team/ui";
 import { addWorkingDays, dayLabel, durationDays, trialMonths, fromISODate, startOfToday, isoDay } from "@/lib/demo/dates";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount, usd } from "@/lib/demo/disputes";
-import { hoursLabel, JOB_TYPE_LABEL, postedStart, startLabel } from "@/lib/demo/job-types";
-import { planWeeks, blankDraft, fromDrafts, toDrafts, withIds, type DraftTask } from "@/lib/demo/tasks";
+import { hoursLabel, JOB_TYPE_LABEL, proposedStart } from "@/lib/demo/job-types";
 import type { OfferTask, PlannedTask } from "@/lib/demo/tasks";
 import { FT_BENEFITS } from "@/lib/team/data";
 import type { Independent, PaymentMethod, Role } from "@/lib/team/data";
@@ -53,11 +51,13 @@ function plannedTasks(startTasks: PlannedTask[] | undefined, role: Role, proposa
   return startTasks?.length ? startTasks : role.tasks?.length ? role.tasks : (proposal.tasks ?? []);
 }
 
-/** The dates and money the offer adds up to, from the start, pay and hours entered so far. */
+/** The dates and money the offer adds up to, from the start, pay and hours the proposal settled. */
 function offerFigures(role: Role, proposal: DealProposal, start: string, pay: string, hours: string) {
   const trial = role.type === "trial";
   const days = durationDays(role.duration);
   const startDate = fromISODate(start);
+  /** The proposal's start has gone by: the offer can't start in the past, so it waits for a revision. */
+  const startPassed = !!startDate && startDate < startOfToday();
   // The start day is day one of the trial, so its last day is `days - 1` working days later.
   const end = trial && startDate ? isoDay(addWorkingDays(startDate, days - 1)) : "";
   /**
@@ -73,14 +73,18 @@ function offerFigures(role: Role, proposal: DealProposal, start: string, pay: st
   /** $0 can't pay anyone — the proposal step refuses it too. */
   const payable = rate > 0;
   const payLabel = `${usd(rate)}/mo`;
-  return { days, startDate, end, rate, months, escrow, fee, weekly, hoursOk, payable, payLabel };
+  return { days, startDate, startPassed, end, rate, months, escrow, fee, weekly, hoursOk, payable, payLabel };
 }
 
 type Figures = ReturnType<typeof offerFigures>;
 
-/** Whether a step is done enough to continue from. A trial is judged on its tasks, so it needs one; an ongoing role can start with none. */
-function canLeave(kind: StepKey, { trial, tasks, start, payable, hoursOk, deposited }: { trial: boolean; tasks: PlannedTask[]; start: string; payable: boolean; hoursOk: boolean; deposited: boolean }) {
-  return kind === "letter" ? payable : kind === "tasks" ? !trial || tasks.length > 0 : kind === "dates" ? !!start : kind === "terms" ? !!start && payable && hoursOk : kind === "deposit" ? deposited : true;
+/**
+ * Whether a step is done enough to continue from. A trial is judged on its tasks, so it needs one; an
+ * ongoing role can start with none. A start that has passed stops it: that takes a revision.
+ */
+function canLeave(kind: StepKey, { trial, tasks, figures, deposited }: { trial: boolean; tasks: PlannedTask[]; figures: Figures; deposited: boolean }) {
+  const { payable, hoursOk, startPassed } = figures;
+  return kind === "letter" ? payable : kind === "tasks" ? !trial || tasks.length > 0 : kind === "dates" ? !startPassed : kind === "terms" ? !startPassed && payable && hoursOk : kind === "deposit" ? deposited : true;
 }
 
 /** Review & Sign's summary: the role and pay, then the trial's dates and escrow or the ongoing role's start and terms, then the tasks. */
@@ -109,31 +113,27 @@ function reviewRows({ role, person, proposal, trial, figures, start, benefits, t
 function offerTerms({ role, proposal, figures, start, benefits, tasks }: { role: Role; proposal: DealProposal; figures: Figures; start: string; benefits: string[]; tasks: PlannedTask[] }): OfferTerms {
   const { end, escrow, fee, weekly, payLabel } = figures;
   // Ids the tasks keep on the contract, so a notification can link straight to one.
-  const offerTasks = withIds(tasks);
+  const offerTasks = tasks.map((t, i) => ({ ...t, id: `task-${i + 1}` }));
   return role.type === "trial"
     ? { rate: proposal.rate, start, end, deposit: { escrow, fee }, tasks: offerTasks }
     : { rate: payLabel, start, hours: role.type === "part-time" ? weekly : undefined, benefits: role.type === "full-time" ? benefits : undefined, tasks: offerTasks };
 }
 
 /**
- * The offer as it's filled in, step by step — the start, the pay, hours and benefits, the task rows,
- * the deposit and the signature — with the tasks and the figures they come to.
+ * The offer as it's filled in. What the proposal settled — the tasks, the start, the pay and a
+ * part-time role's hours — is read, not entered (TB-105): only the deposit, a full-time role's
+ * benefits and the signature are the Team Builder's to add here.
  */
 function useOfferDraft(role: Role, proposal: DealProposal, startTasks: PlannedTask[] | undefined) {
-  const trial = role.type === "trial";
-  /** A trial starts on the day it is offered; an ongoing role on the start it was posted with. */
-  const [start, setStart] = useState(() => isoDay(trial ? new Date() : postedStart(role.duration)));
+  const start = proposedStart(role.type, role.duration, proposal.start);
   const [deposited, setDeposited] = useState(false);
   const [signature, setSignature] = useState("");
-  /** An ongoing role's pay starts from what was proposed; the Team Builder can offer another figure. */
-  const [pay, setPay] = useState(String(rateAmount(proposal.rate) || ""));
-  const [hours, setHours] = useState(String(proposal.hours ?? role.hours ?? 20));
+  const pay = String(rateAmount(proposal.rate) || "");
+  const hours = String(proposal.hours ?? role.hours ?? 20);
   const [benefits, setBenefits] = useState<string[]>(() => (role.benefits?.length ? role.benefits.map((b) => b.label) : FT_BENEFITS));
-  const planned = plannedTasks(startTasks, role, proposal);
-  const [rows, setRows] = useState<DraftTask[]>(() => (planned.length ? toDrafts(planned) : [blankDraft()]));
-  const tasks = fromDrafts(rows);
+  const tasks = plannedTasks(startTasks, role, proposal);
   const figures = offerFigures(role, proposal, start, pay, hours);
-  return { start, setStart, deposited, setDeposited, signature, setSignature, pay, setPay, hours, setHours, benefits, setBenefits, rows, setRows, tasks, figures };
+  return { start, deposited, setDeposited, signature, setSignature, benefits, setBenefits, tasks, figures };
 }
 
 type OfferDraft = ReturnType<typeof useOfferDraft>;
@@ -159,7 +159,7 @@ function useOfferDialog({ role, proposal, startTasks, onClose, onSend }: { role:
     draft.setDeposited(false);
     draft.setSignature("");
   };
-  const canAdvance = canLeave(kind, { trial, tasks, start, payable: figures.payable, hoursOk: figures.hoursOk, deposited });
+  const canAdvance = canLeave(kind, { trial, tasks, figures, deposited });
   const send = () => {
     onSend(offerTerms({ role, proposal, figures, start, benefits: draft.benefits, tasks }));
     close();
@@ -168,13 +168,13 @@ function useOfferDialog({ role, proposal, startTasks, onClose, onSend }: { role:
 }
 
 /**
- * TB-105 Send Offer. The Team Builder sets the work here: the Tasks step starts from the trial's
- * tasks in the job post (or, on a proposal sent before the tasks were theirs to set, the ones it
- * listed) and can be changed for this candidate. They become the contract's task list once the offer
- * is signed. A trial then runs Start & End Dates → Deposit Payment → Review & Sign, and the deposit
+ * TB-105 Send Offer. The offer carries what the proposal settled, and nothing here changes it: the
+ * tasks (the job post's, with the talent's accepted suggestions), the start the talent proposed with
+ * the end it comes to, and the pay and hours. Changing any of it is a proposal revision (TB-106),
+ * before an offer. A trial runs Start & End Dates → Deposit Payment → Review & Sign, and the deposit
  * gates the send: it can't go out until escrow is funded. A full-time or part-time role hires
  * straight onto the contract, with no trial and no escrow — Start & Salary or Start & Hours, then
- * Review & Sign — and its tasks are optional, since more can be added once it starts.
+ * Review & Sign; a full-time offer's benefits are the one thing chosen here.
  */
 export function SendOfferDialog({
   open,
@@ -235,27 +235,14 @@ function OfferStep({ kind, person, role, proposal, card, draft }: { kind: StepKe
   const { figures, tasks } = draft;
   return (
     <>
-      {kind === "letter" && <LetterStep person={person} role={role} proposal={proposal} trial={trial} payable={figures.payable} first={first} />}
+      {kind === "letter" && <LetterStep person={person} role={role} proposal={proposal} trial={trial} start={draft.start} payable={figures.payable} first={first} />}
 
-      {/* TB-105 — the work the offer sets: it becomes the contract's task list when it's signed. */}
-      {kind === "tasks" && <TasksStep role={role} trial={trial} days={figures.days} first={first} rows={draft.rows} onRows={draft.setRows} tasks={tasks} />}
+      {/* TB-105 — the work the proposal settled: it becomes the contract's task list when it's signed. */}
+      {kind === "tasks" && <TasksStep trial={trial} first={first} tasks={tasks} start={draft.start} end={figures.end} />}
 
-      {kind === "dates" && <DatesStep role={role} proposal={proposal} figures={figures} onStart={draft.setStart} />}
+      {kind === "dates" && <DatesStep role={role} proposal={proposal} figures={figures} start={draft.start} first={first} />}
 
-      {kind === "terms" && (
-        <TermsStep
-          type={role.type}
-          figures={figures}
-          onStart={draft.setStart}
-          pay={draft.pay}
-          onPay={draft.setPay}
-          hours={draft.hours}
-          onHours={draft.setHours}
-          benefits={draft.benefits}
-          onBenefits={draft.setBenefits}
-          first={first}
-        />
-      )}
+      {kind === "terms" && <TermsStep type={role.type} proposal={proposal} figures={figures} start={draft.start} benefits={draft.benefits} onBenefits={draft.setBenefits} first={first} />}
 
       {kind === "deposit" && <DepositStep figures={figures} card={card} deposited={draft.deposited} onDeposited={draft.setDeposited} />}
 
@@ -305,7 +292,7 @@ function OfferFooter({
 }
 
 /** Offer Letter: who the offer is for, the terms they proposed, and their cover letter. */
-function LetterStep({ person, role, proposal, trial, payable, first }: { person: Independent; role: Role; proposal: DealProposal; trial: boolean; payable: boolean; first: string }) {
+function LetterStep({ person, role, proposal, trial, start, payable, first }: { person: Independent; role: Role; proposal: DealProposal; trial: boolean; start: string; payable: boolean; first: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3">
@@ -321,7 +308,8 @@ function LetterStep({ person, role, proposal, trial, payable, first }: { person:
       <div className="flex gap-2">
         <KeyValue label={role.type === "full-time" ? "Proposed salary" : "Rate"} value={proposal.rate} />
         <KeyValue label="Contract" value={JOB_TYPE_LABEL[role.type]} />
-        <KeyValue label={trial ? "Duration" : "Start"} value={trial ? role.duration : startLabel(role.duration)} />
+        {trial && <KeyValue label="Duration" value={role.duration} />}
+        <KeyValue label="Starts" value={pretty(start)} />
         {role.type === "part-time" && <KeyValue label="Hours" value={hoursLabel(proposal.hours ?? role.hours)} />}
       </div>
       <div className="flex flex-wrap gap-2">
@@ -340,37 +328,40 @@ function LetterStep({ person, role, proposal, trial, payable, first }: { person:
   );
 }
 
-/** Tasks: the list the offer sets — the job post's for a trial, or an ongoing role's optional first tasks. */
-function TasksStep({ role, trial, days, first, rows, onRows, tasks }: { role: Role; trial: boolean; days: number; first: string; rows: DraftTask[]; onRows: (rows: DraftTask[]) => void; tasks: PlannedTask[] }) {
+/** Tasks: the list the proposal settled, read-only — the trial's, or an ongoing role's first tasks if it has any. */
+function TasksStep({ trial, first, tasks, start, end }: { trial: boolean; first: string; tasks: PlannedTask[]; start: string; end: string }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] leading-[1.45] text-ink-2">
         {trial
-          ? role.tasks?.length
-            ? `The trial's tasks from your job post. Change any for ${first} before you send — they become the trial's shared task list when ${first} signs.`
-            : `What ${first} should get done in the trial. The list becomes the trial's shared task list when ${first} signs.`
-          : `The first tasks ${first} starts on. Optional — you can add more any time once the contract starts.`}
+          ? `The trial's tasks as ${first}'s proposal settled them: your job post's, with the changes you accepted. They become the trial's task list when ${first} signs. To change them, ask ${first} for a revision.`
+          : `The first tasks, as ${first}'s proposal settled them. You add the rest once the contract starts.`}
       </p>
-      <TaskPlanEditor rows={rows} onChange={onRows} weeks={planWeeks(trial ? days : null)} placeholder={trial ? "Name a task for the trial" : "Name a first task"} />
-      {trial && tasks.length === 0 && <p className="text-[12px] leading-[1.4] text-ink-2">A trial needs at least one task to be judged on.</p>}
+      <TaskPlanList tasks={tasks} start={start} lastDay={trial ? end : undefined} empty={trial ? "No trial tasks." : `None — you add work once ${first} starts.`} />
+      {trial && tasks.length === 0 && <InfoBanner tone="warn">A trial needs at least one task to be judged on. Add the tasks to your job post, then ask {first} for a revision.</InfoBanner>}
     </div>
   );
 }
 
-/** Start & End Dates: a trial's start, with its end counted in working days from it. */
-function DatesStep({ role, proposal, figures, onStart }: { role: Role; proposal: DealProposal; figures: Figures; onStart: (start: string) => void }) {
-  const { startDate, days, end } = figures;
+/** A proposal's start that has gone by: the offer can't start in the past, so it waits for a revision with a new date. */
+function PassedStart({ start, first }: { start: string; first: string }) {
+  return (
+    <InfoBanner tone="warn">
+      {first}&apos;s proposed start, {pretty(start)}, has passed. Ask {first} for a revision with a new start date before sending an offer.
+    </InfoBanner>
+  );
+}
+
+/** Start & End Dates: the start the talent proposed, with the end its working days come to — read, not picked. */
+function DatesStep({ role, proposal, figures, start, first }: { role: Role; proposal: DealProposal; figures: Figures; start: string; first: string }) {
+  const { days, end, startPassed } = figures;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-3">
-        <Field label="Trial start date" className="flex-1">
-          <DatePicker value={startDate} onChange={(d) => onStart(d ? isoDay(d) : "")} disabled={{ before: startOfToday() }} />
-        </Field>
-        <Field label={`End date (${days} working days)`} className="flex-1">
-          <Input value={pretty(end)} readOnly />
-        </Field>
+      <div className="flex gap-2">
+        <KeyValue label="Trial start date" value={pretty(start)} />
+        <KeyValue label={`End date (${days} working days)`} value={pretty(end)} />
       </div>
-      <InfoBanner>The trial duration automatically counts only weekdays as working days, excluding weekends.</InfoBanner>
+      {startPassed ? <PassedStart start={start} first={first} /> : <InfoBanner>The start {first} proposed, and the end its {days} working days come to — weekends don&apos;t count. To change them, ask {first} for a revision.</InfoBanner>}
       <div className="flex gap-2">
         <KeyValue label="Rate" value={proposal.rate} />
         <KeyValue label="Trial duration" value={role.duration} />
@@ -380,46 +371,21 @@ function DatesStep({ role, proposal, figures, onStart }: { role: Role; proposal:
   );
 }
 
-/** Start & Salary or Start & Hours: an ongoing role's start and pay, then its hours (part-time) or benefits (full-time). */
-function TermsStep({
-  type,
-  figures,
-  onStart,
-  pay,
-  onPay,
-  hours,
-  onHours,
-  benefits,
-  onBenefits,
-  first,
-}: {
-  type: Role["type"];
-  figures: Figures;
-  onStart: (start: string) => void;
-  pay: string;
-  onPay: (pay: string) => void;
-  hours: string;
-  onHours: (hours: string) => void;
-  benefits: string[];
-  onBenefits: Dispatch<SetStateAction<string[]>>;
-  first: string;
-}) {
-  const { startDate, payable, hoursOk } = figures;
+/**
+ * Start & Salary or Start & Hours: an ongoing role's start, pay and part-time hours as the proposal
+ * settled them — read, not entered — then a full-time role's benefits, which are the offer's to choose.
+ */
+function TermsStep({ type, proposal, figures, start, benefits, onBenefits, first }: { type: Role["type"]; proposal: DealProposal; figures: Figures; start: string; benefits: string[]; onBenefits: Dispatch<SetStateAction<string[]>>; first: string }) {
+  const { payLabel, weekly, startPassed } = figures;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-3">
-        <Field label="Start date" className="flex-1">
-          <DatePicker value={startDate} onChange={(d) => onStart(d ? isoDay(d) : "")} disabled={{ before: startOfToday() }} />
-        </Field>
-        <Field label={type === "full-time" ? "Salary (USD / month)" : "Rate (USD / month)"} className="flex-1" error={pay.trim() && !payable ? "Enter an amount above $0." : undefined}>
-          <Input value={pay} onChange={(e) => onPay(e.target.value.replace(/[^0-9.,]/g, ""))} inputMode="decimal" />
-        </Field>
+      <div className="flex gap-2">
+        <KeyValue label="Start date" value={pretty(start)} />
+        <KeyValue label={type === "full-time" ? "Salary" : "Rate"} value={proposal.rate ? payLabel : "—"} />
+        {type === "part-time" && <KeyValue label="Hours a week" value={hoursLabel(weekly)} />}
       </div>
-      {type === "part-time" ? (
-        <Field label="Hours a week" error={hours.trim() && !hoursOk ? "Enter whole hours between 1 and 40." : undefined}>
-          <Input value={hours} onChange={(e) => onHours(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" className="!w-[160px]" />
-        </Field>
-      ) : (
+      {startPassed ? <PassedStart start={start} first={first} /> : <InfoBanner>As {first}&apos;s proposal settled them. To change them, ask {first} for a revision.</InfoBanner>}
+      {type === "part-time" ? null : (
         <Field label="Exclusive benefits">
           <div className="flex flex-col gap-2">
             {FT_BENEFITS.map((b) => (

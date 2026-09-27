@@ -2,8 +2,7 @@ import { dayOf, isoOf, stampLabel, type Day } from "./dates";
 import { WorkError } from "./errors";
 import { datesOf, hearsComments, indexById, isArchived, isCompleted, isTagColor, PRIORITY_META, refOf, STATUS_META, TAG_COLORS, TYPE_META, type Assignee, type Side, type TagColor, type WorkItem, type WorkPriority, type WorkProject, type WorkStatus, type WorkType } from "./model";
 import { orderLast, placeBetween } from "./order";
-import { assigneesFor, canAddInternal, canCreate, canPlanProjects, canReorder, capsFor, lockedReason, sideOf, transitionFor, type Actor, type Caps, type Names, type TransitionKind, type WorkAccess } from "./permissions";
-import { CONTRACT_LOCK, type ContractScope } from "./scope";
+import { AGREED, canCreate, canPlanProjects, canReorder, capsFor, lockedReason, sideOf, transitionFor, type Actor, type Caps, type Names, type TransitionKind, type WorkAccess } from "./permissions";
 import { checkComment, checkDates, checkDependency, checkDescription, checkEffort, checkNote, checkProjectName, checkSubtaskTitle, checkTag, checkTitle, normalizeTag, type Invalid } from "./validate";
 
 /**
@@ -34,8 +33,6 @@ export type WorkState = {
   tagColors?: Record<string, TagColor>;
   /** TB-148 — the role's projects (./projects); none while it's a trial. */
   projects?: WorkProject[];
-  /** The agreed scope: its versions, amendments and history (./scope). Only ./amendments changes it. */
-  scope?: ContractScope;
 };
 
 export type WorkContext = { access: WorkAccess };
@@ -236,14 +233,14 @@ function need(r: Repo, ok: boolean, message: () => string) {
   if (!ok) throw new WorkError("forbidden", message());
 }
 
-/** A contract task's fields that are what both sides agreed: only an accepted amendment changes them (./amendments). */
-const CONTRACTUAL: readonly PatchField[] = ["title", "description", "due", "effort", "type", "assignee"];
+/** What the signed offer set for each of its tasks: nobody changes these once it's signed (TB-077). */
+const AGREED_FIELDS: readonly PatchField[] = ["title", "description", "due", "effort", "type", "assignee"];
 
 /** Why a field can't be changed, in the reader's terms. */
 function fieldDenied(r: Repo, t: WorkItem, field: PatchField, access: WorkAccess): string {
   if (!access.open) return whyClosed(access);
   if (field === "project" && access.trial) return PROJECTS_LATER;
-  if (t.agreed && CONTRACTUAL.includes(field)) return CONTRACT_LOCK;
+  if (t.agreed && AGREED_FIELDS.includes(field)) return AGREED;
   if (field === "title" || field === "description") {
     if (t.status === "review" || t.status === "done") return "It can't be reworded once it's been sent for review.";
     return "Only whoever added it can reword it.";
@@ -269,7 +266,7 @@ function needPlan(r: Repo, t: WorkItem, access: WorkAccess) {
   need(r, capsFor(t, r.actor, access).plan, () => fieldDenied(r, t, "due", access));
 }
 
-/** The cap each field needs: its wording, who does it, when it starts, its project, its contractual plan, or the rest of the plan. */
+/** The cap each field needs: its wording, who does it, when it starts, its project, what the offer agreed of its plan, or the rest of the plan. */
 function capFor(caps: Caps, field: PatchField, access: WorkAccess): boolean {
   if (field === "title" || field === "description") return caps.editText;
   if (field === "assignee") return caps.assign;
@@ -278,9 +275,6 @@ function capFor(caps: Caps, field: PatchField, access: WorkAccess): boolean {
   if (field === "due" || field === "effort" || field === "type") return caps.scope;
   return caps.plan;
 }
-
-/** On a trial the Independent's work is the contract tasks: an internal item there isn't given to them. */
-const internalOnTrial = (r: Repo) => `On a trial, ${r.names.independent}'s work is the tasks in the contract. Propose an amendment to add work for them.`;
 
 /** Where work can go: an active project on this contract, or no project (null). */
 function checkTarget(projects: readonly WorkProject[] | undefined, id: string | null | undefined) {
@@ -313,11 +307,10 @@ const FIELD_LINE: Record<PatchField, FieldLine> = {
   },
 };
 
-/** Each field is this person's to change, on this item as it is now — and a new assignee is one it can go to. */
-function checkAllowed(r: Repo, t: WorkItem, fields: readonly PatchField[], access: WorkAccess, changes: WorkPatch) {
+/** Each field is this person's to change, on this item as it is now. */
+function checkAllowed(r: Repo, t: WorkItem, fields: readonly PatchField[], access: WorkAccess) {
   const caps = capsFor(t, r.actor, access);
   for (const f of fields) need(r, capFor(caps, f, access), () => fieldDenied(r, t, f, access));
-  if (fields.includes("assignee") && !same(t.assignee, changes.assignee)) need(r, assigneesFor(t, r.actor, access).includes(changes.assignee ?? null), () => internalOnTrial(r));
 }
 
 /** Nobody else changed a field since the caller read it (`base`) — unless they changed it to what the caller wants. */
@@ -354,7 +347,7 @@ function checkPatched(merged: WorkItem, t: WorkItem, fields: readonly PatchField
  */
 function applyPatch(r: Repo, t: WorkItem, changes: WorkPatch, base: PatchBase | undefined, access: WorkAccess, today: Day, projects?: readonly WorkProject[]): { merged: WorkItem; lines: string[]; notices: WorkNotice[] } {
   const fields = Object.keys(changes) as PatchField[];
-  checkAllowed(r, t, fields, access, changes);
+  checkAllowed(r, t, fields, access);
   checkUnchanged(t, fields, changes, base);
   const merged: WorkItem = { ...t };
   const lines: string[] = [];
@@ -380,7 +373,7 @@ function applyPatch(r: Repo, t: WorkItem, changes: WorkPatch, base: PatchBase | 
  * (planned, or from before a pause), or is overdue, where a start today would come after its due
  * date. Finishing it (approved, or the Team Builder's own marked Done) ends it today; the feed
  * keeps the due date it had. Milestones are a planned date, so they keep theirs — and so does a
- * contract task: its due date is the deadline both sides agreed, which finishing doesn't rewrite.
+ * task from the signed offer: its due date is the one agreed, which finishing doesn't rewrite.
  */
 function startedDates(t: WorkItem, today: Day): { item: WorkItem; line?: string } {
   const { start, due } = datesOf(t);
@@ -592,20 +585,10 @@ function newItem(r: Repo, input: CreateInput, state: WorkState, access: WorkAcce
   };
 }
 
-/** Who may add this item: the Team Builder to a role (canCreate) — or, on a trial, an internal item of their own (canAddInternal). */
-function checkAdd(r: Repo, input: CreateInput, access: WorkAccess, internal: boolean) {
-  if (!internal) return need(r, canCreate(r.actor, access), () => refusal(access, access.trial ? TRIAL_AGREED : `Only ${r.names.team} adds work to this contract.`));
-  need(r, canAddInternal(r.actor, access), () => refusal(access, access.trial ? `Only ${r.names.team} adds internal items.` : "A role's work goes on the list with Add task."));
-  need(r, input.assignee !== "independent", () => internalOnTrial(r));
-}
-
-/**
- * A new item, while the contract is open. `internal` is a trial's own kind: the Team Builder's to-do
- * beside the contract tasks, theirs or nobody's. A retry with the same id and title is harmless.
- */
-function create(r: Repo, input: CreateInput, internal = false) {
-  return run(r, internal ? "createInternal" : "create", input.id, (state, { access }, now) => {
-    checkAdd(r, input, access, internal);
+/** A new item — added by the Team Builder to a role, never a trial (TB-064). A retry with the same id and title is harmless. */
+function create(r: Repo, input: CreateInput) {
+  return run(r, "create", input.id, (state, { access }, now) => {
+    need(r, canCreate(r.actor, access), () => refusal(access, access.trial ? TRIAL_AGREED : `Only ${r.names.team} adds work to this contract.`));
     const existing = state.items.find((t) => t.id === input.id);
     if (existing) {
       if (existing.title === input.title.trim()) return { result: { item: existing } };
@@ -695,7 +678,7 @@ function archive(r: Repo, id: string) {
     unlocked(r, t, access);
     if (isArchived(t)) return { result: { item: t } };
     need(r, capsFor(t, r.actor, access).archive, () =>
-      refusal(access, t.agreed ? CONTRACT_LOCK : t.addedBy !== r.side ? "Only whoever added it can delete it." : "It's been sent for review or approved, so it stays on the list."),
+      refusal(access, t.agreed ? AGREED : t.addedBy !== r.side ? "Only whoever added it can delete it." : "It's been sent for review or approved, so it stays on the list."),
     );
     const { next, item } = save(r, state, { ...t, archivedAt: now.ms, archivedBy: r.actor.name }, now, [`Deleted by ${r.actor.name}`]);
     return { next, result: { item } };
@@ -833,8 +816,6 @@ export function createWorkRepository(opts: { actor: Actor; port: WorkPort; clock
     deleteProject: (id: string) => deleteProject(r, id),
     reopenProject: (id: string) => reopenProject(r, id),
     create: (input: CreateInput) => create(r, input),
-    /** On a trial: the Team Builder's own internal item — theirs unless it's given to nobody. */
-    createInternal: (input: CreateInput) => create(r, { ...input, assignee: input.assignee === undefined ? "team" : input.assignee }, true),
     patch: (id: string, changes: WorkPatch, base?: PatchBase) => patch(r, id, changes, base),
     transition: (id: string, input: TransitionInput) => transition(r, id, input),
     move: (id: string, input: MoveInput) => move(r, id, input),

@@ -172,7 +172,7 @@ type DayDrag = ReturnType<typeof useDayDrag>;
 /** What the month's days work from: the month shown, the drag in progress, which day is adding a task, and whether deleted work is showing. */
 type MonthState = { m: number; dnd: DayDrag; adding: Day | null; setAdding: (day: Day | null) => void; archived: boolean };
 
-/** Whoever plans an item can drag it to another day — not once it's deleted, and not a contract task, whose date was agreed (caps.scope). */
+/** Whoever plans an item can drag it to another day — not once it's deleted, and not a task from the signed offer, whose date was agreed (caps.scope). */
 const movable = (t: WorkItem, { actor, access }: Pick<WorkspaceEnv, "actor" | "access">) => capsFor(t, actor, access).scope && !isArchived(t);
 
 /** The month as a grid, Monday first: the weekdays, then a row per week — its days, and its items as bars across them. */

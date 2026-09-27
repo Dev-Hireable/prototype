@@ -1,15 +1,15 @@
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { card, EVALUATED, expect, notes, savedDeal, test, toast } from "./fixtures";
 
-// Offers, on both sides: the trial offer the talent signs or declines on their application (IN-074 /
-// IN-075), the full-time or part-time offer that follows an evaluated trial (TB-072 / IN-084), and
-// the Team Builder's edit of a sent offer, reached from Offers sent (TB-105). Today is Fri 25 Sep
-// 2026. A post-trial offer left to run past its start date is after-trial.spec's.
+// Offers, on both sides: the trial offer the Team Builder sends from the proposal — carrying what the
+// proposal settled, nothing edited (TB-105) — and the talent signs or declines on their application
+// (IN-074 / IN-075), the full-time or part-time offer that follows an evaluated trial (TB-072 /
+// IN-084), and a sent offer's one action, withdrawing it. Today is Fri 25 Sep 2026. A post-trial offer
+// left to run past its start date is after-trial.spec's.
 
 const APPLICATION_OFFER = "/independent/jobs/applications/deal/offer";
 const CONTRACT_OFFER = "/independent/contracts/brand-designer/offer";
 const OFFERS_SENT = "/team/hire/offers";
-const EDITOR = "/team/hire/offers/deal/edit";
 const REASON = "The start date is too soon.";
 
 /** The tasks the trial offer sets, as the Team Builder wrote them. */
@@ -26,7 +26,7 @@ const OFFER_OUT = {
   offer: { type: "trial", rate: "$1,600 /month", start: "2026-10-05", end: "2026-11-13", tasks: TASKS, status: "sent", sent: "22 Sep 2026", deposit: { escrow: 1600, fee: 80 } },
 };
 
-/** The role on the Team Builder's side, which the editor reads the title and trial length from. */
+/** The role on the Team Builder's side: its title, its trial length and the trial's tasks. */
 const ROLE = {
   slug: "brand-designer",
   title: "Brand Designer",
@@ -45,10 +45,19 @@ const ROLE = {
   skills: ["Branding"],
   expectation: "",
   attachment: "",
-  tasks: [{ title: "Audit the brand assets", week: 1 }],
+  tasks: [
+    { title: "Audit the brand assets", week: 1, priority: "high" },
+    { title: "Draft two logo directions", week: 2, priority: "medium" },
+  ],
   hires: 1,
 };
 const OFFER_OUT_SEED = { deal: OFFER_OUT, stores: { "team.roles": [ROLE] } };
+
+/** Juan's proposal, in and not yet answered: $1,600 a month, starting on `start`. */
+const PROPOSAL_IN = (start: string) => ({
+  deal: { contract: null, offer: null, stage: "proposal_sent", proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600.00/mo", letter: "Happy to start with the audit.", start } },
+  stores: { "team.roles": [ROLE] },
+});
 
 /** The post-trial offer, sent 22 Sep for a start on Mon 28 Sep: full-time with health cover, unless `over` says otherwise. */
 const conversion = (status: string, over: Record<string, unknown> = {}) => ({ conversion: { type: "full-time", salary: "$4,000", start: "2026-09-28", benefits: ["Health Insurance Coverage"], status, sent: "22 Sep 2026", ...over } });
@@ -81,11 +90,10 @@ const agreement = (page: Page) => page.getByRole("checkbox", { name: "I agree to
 const acceptButton = (page: Page) => page.getByRole("button", { name: "Accept", exact: true });
 const offerActions = (page: Page) => page.getByRole("button", { name: "Actions for the offer to Juan Dela Cruz" });
 
-/** The offer's terms, a row each: every label, then every value, in order — not a revision's changes above them. */
+/** The offer's terms, a row each: every label, then every value, in order. */
 async function expectTerms(page: Page, rows: [string, string][]) {
-  const details = page.getByLabel("Offer details");
-  await expect(details.getByRole("term")).toHaveText(rows.map(([label]) => label));
-  await expect(details.getByRole("definition")).toHaveText(rows.map(([, value]) => value));
+  await expect(page.getByRole("term")).toHaveText(rows.map(([label]) => label));
+  await expect(page.getByRole("definition")).toHaveText(rows.map(([, value]) => value));
 }
 
 /** Accept stays off until the offer is signed: a typed name of three letters or more, and the tick. */
@@ -128,28 +136,53 @@ async function declineAfterBackingOut(page: Page, d: { title: string; descriptio
   await expect(dialog).toBeHidden();
 }
 
-/** Offers sent reads the declined offer with the talent's reason and nothing left to do; its editor says it can't be changed. */
+/** Offers sent reads the declined offer with the talent's reason and nothing left to do. */
 async function teamSeesTheDecline(alex: Page) {
   await alex.goto(OFFERS_SENT);
   await expect(alex.getByText("1 offer · 0 pending")).toBeVisible();
   await expect(alex.getByText("Declined", { exact: true })).toBeVisible();
   await expect(alex.getByText(`“${REASON}”`)).toBeVisible();
   await expect(offerActions(alex)).toHaveCount(0);
-  await alex.goto(EDITOR);
-  await expect(alex.getByText("This offer was declined and can't be edited. Send Juan a new offer from their candidate profile instead.")).toBeVisible();
-  await expect(alex.getByRole("link", { name: "Open Juan's profile" })).toHaveAttribute("href", "/team/hire/roles/brand-designer/candidates/deal");
 }
 
-/** A post-trial offer's Edit offer is off in its menu, and its tip says to withdraw it and send a new one. */
-async function expectEditRefused(alex: Page) {
+/** A sent offer's one action is withdrawing it: what it carries was settled in the proposal, so it isn't edited (TB-105). */
+async function expectOnlyWithdraw(alex: Page) {
   await offerActions(alex).click();
-  const edit = alex.getByRole("menuitem", { name: "Edit offer" });
-  await expect(edit).toBeDisabled();
-  // A disabled item takes no pointer events: the tip hangs on the span around it.
-  await edit.locator("..").hover();
-  await expect(alex.locator('[data-slot="tooltip-content"]').filter({ hasText: "Withdraw it and send a new one to change a post-trial offer" })).toBeVisible();
+  await expect(alex.getByRole("menuitem")).toHaveText(["Withdraw offer"]);
   await alex.keyboard.press("Escape");
   await expect(alex.getByRole("menu")).toBeHidden();
+}
+
+/** From the role's pipeline, Alex opens Juan's proposal and starts the offer from it. Returns the offer dialog. */
+async function startTheOffer(alex: Page) {
+  await alex.goto("/team/hire/roles/brand-designer");
+  await alex.getByRole("button", { name: "Review Proposal" }).click();
+  await alex.getByRole("dialog").getByRole("button", { name: "Send offer" }).click();
+  return alex.getByRole("dialog", { name: "Send an offer to Juan" });
+}
+
+/** The Tasks and dates steps read what the proposal settled: the tasks with their dates, the start and the end — nothing to edit. */
+async function settledTermsRead(offer: Locator) {
+  await expect(offer).toContainText("Starts");
+  await offer.getByRole("button", { name: "Continue" }).click();
+  await expect(offer.getByRole("listitem").filter({ hasText: "Audit the brand assets" })).toContainText("Week 1 · 9 Oct");
+  await expect(offer.getByRole("listitem").filter({ hasText: "Draft two logo directions" })).toContainText("Week 2 · 16 Oct");
+  await expect(offer.getByRole("textbox")).toHaveCount(0);
+  await expect(offer.getByRole("button", { name: "Add task" })).toHaveCount(0);
+  await offer.getByRole("button", { name: "Continue" }).click();
+  await expect(offer).toContainText("05 Oct 2026");
+  await expect(offer).toContainText("13 Nov 2026");
+  await expect(offer.getByRole("button", { name: /start date/i })).toHaveCount(0);
+}
+
+/** Deposits the escrow and signs: the offer goes out as the proposal settled it. */
+async function depositAndSign(alex: Page, offer: Locator) {
+  await offer.getByRole("button", { name: "Continue" }).click();
+  await offer.getByRole("checkbox", { name: /^Charge \$1,760\.00/ }).check();
+  await offer.getByRole("button", { name: "Deposit & continue" }).click();
+  await offer.getByRole("textbox", { name: "Type your full name to sign" }).fill("Alex Rivera");
+  await offer.getByRole("button", { name: "Sign & send offer" }).click();
+  await expect(toast(alex, "Offer sent to candidate")).toBeVisible();
 }
 
 /** Withdraws the one pending offer from its menu, once the confirmation has said what that does. */
@@ -162,65 +195,6 @@ async function withdrawTheOffer(alex: Page, description: string) {
   await expect(toast(alex, "Offer withdrawn")).toBeVisible();
   await expect(alex.getByText("Withdrawn", { exact: true })).toBeVisible();
   await expect(offerActions(alex)).toHaveCount(0);
-}
-
-/** In the editor: moves the start to Mon 12 Oct and the rate to $1,800, adds a task and signs — the note, end date and escrow follow. */
-async function editTheTerms(alex: Page) {
-  await expect(alex.getByText("Revision 1 sent on 22 Sep 2026, not signed yet. Edit the rate, start date or tasks to send an updated version.")).toBeVisible();
-  await alex.getByRole("textbox", { name: "Rate" }).fill("1800");
-  await alex.getByRole("button", { name: "Start date" }).click();
-  await alex.getByRole("button", { name: /October 12th, 2026/ }).click();
-  await alex.getByRole("button", { name: "Add task" }).click();
-  await alex.getByRole("textbox", { name: "Task 3" }).fill("Present the brand book");
-  await expect(alex.getByText("Revision 1 sent on 22 Sep 2026, not signed yet. Changing rate $1,600 /month → $1,800.00/mo · start to 12 Oct 2026 · the tasks (3).")).toBeVisible();
-  // Thirty working days from the new start, and one more month's difference in escrow.
-  await expect(alex.getByText("20 Nov 2026", { exact: true })).toBeVisible();
-  await expect(alex.getByText("The escrow goes from $1,600.00 to $1,800.00: $200.00 more, plus its $20.00 fee, is charged to your card.")).toBeVisible();
-  const send = alex.getByRole("button", { name: "Send revision 2" });
-  await expect(send).toBeDisabled();
-  await nameField(alex).fill("Alex Rivera");
-  await agreement(alex).check();
-  await expect(send).toBeEnabled();
-}
-
-/** Juan's offer after the edit: the updated heading, the new terms and task, and a fresh week to answer it. */
-async function talentReadsTheUpdate(juan: Page) {
-  await expect(juan.getByRole("heading", { name: "Updated offer from Nairobi Solutions Inc." })).toBeVisible();
-  await expect(juan.getByText("Revision 2, sent 25 Sep 2026. What changed is below; the earlier revision no longer applies.")).toBeVisible();
-  await expectTerms(juan, trialTerms({ start: "Mon 12 Oct 2026", end: "Fri 20 Nov 2026", rate: "$1,800.00/mo", total: "$1,800.00" }));
-  // The new task is in the offer's tasks, and what changed says it was added.
-  await expect(juan.getByRole("listitem").filter({ hasText: /^Present the brand book$/ })).toBeVisible();
-  await expect(juan.getByRole("list", { name: "Changes in revision 2" })).toContainText(/Added\s*Present the brand book/);
-  await expect(juan.getByText("This updated offer expires on Fri 2 Oct 2026")).toBeVisible();
-}
-
-/** Deletes the first task in the editor's plan, from its ⋯ menu. */
-async function deleteFirstTask(alex: Page) {
-  await alex.getByRole("button", { name: "Options for task 1" }).click();
-  await alex.getByRole("menuitem", { name: "Delete task" }).click();
-}
-
-/** Opens the editor on a new rate, $1,800, signed and ready to send. */
-async function readyToSend(alex: Page) {
-  await alex.goto(EDITOR);
-  await alex.getByRole("textbox", { name: "Rate" }).fill("1800");
-  await nameField(alex).fill("Alex Rivera");
-  await agreement(alex).check();
-  await expect(alex.getByRole("button", { name: "Send revision 2" })).toBeEnabled();
-}
-
-/**
- * Saves Juan's acceptance as his tab would — the offer accepted, the contract started — but from this
- * page: a write from the page itself raises no storage event, so this tab keeps its older copy, as it
- * does in the moment before the other tab's event arrives.
- */
-async function acceptUnheard(alex: Page) {
-  await alex.evaluate(() => {
-    const saved = JSON.parse(localStorage.getItem("hireable.demo.deal") ?? "{}");
-    const offer = { ...saved.deal.offer, status: "accepted" };
-    saved.deal = { ...saved.deal, stage: "hired", offer, contract: { started: offer.start, ends: offer.end, rate: offer.rate, deposit: 1600, tasks: [], activity: [], streak: 0 } };
-    localStorage.setItem("hireable.demo.deal", JSON.stringify(saved));
-  });
 }
 
 test.describe("offers · signing a trial offer", () => {
@@ -329,7 +303,7 @@ test.describe("offers · withdrawing a post-trial offer", () => {
     const alex = await secondPage();
     await alex.goto(OFFERS_SENT);
     await expect(alex.getByText("After the trial", { exact: true })).toBeVisible();
-    await expectEditRefused(alex);
+    await expectOnlyWithdraw(alex);
     await withdrawTheOffer(alex, "Juan Dela Cruz is told the offer was withdrawn and can no longer accept it. Their contract is unchanged.");
     await expect(alex.getByText("2 offers · 0 pending")).toBeVisible();
     expect((await savedDeal(alex)).conversion.status).toBe("withdrawn");
@@ -359,83 +333,37 @@ test.describe("offers · a part-time offer after the trial", () => {
   });
 });
 
-test.describe("offers · editing a sent offer", () => {
-  test.use({ seedOptions: OFFER_OUT_SEED });
+test.describe("offers · sending a trial offer", () => {
+  test.use({ seedOptions: PROPOSAL_IN("2026-10-05") });
 
-  test("Edit offer opens it from Offers sent, and new terms and tasks reach Juan as an updated offer", async ({ page, secondPage }) => {
-    await page.goto(OFFERS_SENT);
-    await expect(page.getByText("1 offer · 1 pending")).toBeVisible();
-    await offerActions(page).click();
-    await page.getByRole("menuitem", { name: "Edit offer" }).click();
-    await expect(page).toHaveURL(/\/team\/hire\/offers\/deal\/edit$/);
-    await expect(page.getByRole("heading", { name: "Edit the offer to Juan Dela Cruz" })).toBeVisible();
-    await editTheTerms(page);
-    await page.getByRole("button", { name: "Send revision 2" }).click();
-
-    // Back on Offers sent: still pending, with the new pay and dates, sent today.
-    await expect(page).toHaveURL(/\/team\/hire\/offers$/);
-    await expect(page.getByText("12 Oct – 20 Nov 2026", { exact: true })).toBeVisible();
-    await expect(page.getByText("Sent 25 Sep 2026", { exact: true })).toBeVisible();
-    expect((await savedDeal(page)).offer).toMatchObject({ status: "sent", updated: "25 Sep 2026", rate: "$1,800.00/mo", start: "2026-10-12", end: "2026-11-20", deposit: { escrow: 1800, fee: 180 } });
-    const [told] = await notes(page, "independent");
-    expect(told).toMatchObject({ title: "Your offer was updated", href: `${APPLICATION_OFFER}?updated=1` });
-
-    const juan = await secondPage();
-    await juan.goto(told.href);
-    await talentReadsTheUpdate(juan);
-  });
-
-  test("Send revision 2 waits for a real change, a signature, a rate and a trial task, and the start can't go back in time", async ({ page }) => {
-    await page.goto(EDITOR);
-    const send = page.getByRole("button", { name: "Send revision 2" });
-    const rate = page.getByRole("textbox", { name: "Rate" });
-    await nameField(page).fill("Alex Rivera");
-    await agreement(page).check();
-    await expect(send).toBeDisabled();
-    await rate.fill("");
-    await expect(send).toBeDisabled();
-    await rate.fill("1800");
-    await expect(send).toBeEnabled();
-
-    // A trial is judged on its tasks: with none left it can't go out.
-    await deleteFirstTask(page);
-    await deleteFirstTask(page);
-    await expect(page.getByText("A trial needs at least one task.")).toBeVisible();
-    await expect(send).toBeDisabled();
-    await page.getByRole("textbox", { name: "Task 1" }).fill("Audit the brand assets");
-    await expect(send).toBeEnabled();
-
-    await page.getByRole("button", { name: "Start date" }).click();
-    await page.getByRole("button", { name: "Go to the Previous Month" }).click();
-    await expect(page.getByRole("button", { name: /September 24th, 2026/ })).toBeDisabled();
-    await expect(page.getByRole("button", { name: /September 25th, 2026/ })).toBeEnabled();
+  test("the offer carries what the proposal settled — the tasks, the start and the end are read, not edited", async ({ page }) => {
+    const offer = await startTheOffer(page);
+    await settledTermsRead(offer);
+    await depositAndSign(page, offer);
+    const sent = (await savedDeal(page)).offer;
+    expect(sent).toMatchObject({ status: "sent", start: "2026-10-05", end: "2026-11-13", rate: "$1,600.00/mo", deposit: { escrow: 1600, fee: 160 } });
+    expect(sent.tasks.map((t: { title: string }) => t.title)).toEqual(["Audit the brand assets", "Draft two logo directions"]);
   });
 });
 
-test.describe("offers · an offer answered while it's being edited", () => {
+test.describe("offers · a proposed start that has passed", () => {
+  test.use({ seedOptions: PROPOSAL_IN("2026-09-21") });
+
+  test("the offer can't start in the past: it waits for a revision with a new start date", async ({ page }) => {
+    const offer = await startTheOffer(page);
+    await offer.getByRole("button", { name: "Continue" }).click();
+    await offer.getByRole("button", { name: "Continue" }).click();
+    await expect(offer).toContainText("Juan's proposed start, 21 Sep 2026, has passed. Ask Juan for a revision with a new start date before sending an offer.");
+    await expect(offer.getByRole("button", { name: "Continue" })).toBeDisabled();
+  });
+});
+
+test.describe("offers · a sent offer", () => {
   test.use({ seedOptions: OFFER_OUT_SEED });
 
-  test("the editor closes and says why, and the terms Juan accepted stand", async ({ page, secondPage }) => {
-    await readyToSend(page);
-    const juan = await secondPage();
-    await juan.goto(APPLICATION_OFFER);
-    await signAndAccept(juan);
-    await expect(juan.getByRole("dialog", { name: "You’ve accepted the offer" })).toBeVisible();
-
-    // The editor, open all along, takes the answer in: there's nothing left to send.
-    await expect(page.getByText("This offer was accepted and can't be edited.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Send revision 2" })).toHaveCount(0);
-    expect((await savedDeal(page)).offer).toMatchObject({ status: "accepted", rate: "$1,600 /month" });
-  });
-
-  // The tab's copy still has the offer open. Sending checks what's saved, finds Juan's answer and sends
-  // nothing: the page says why, as it does when the answer arrives first.
-  test("an edit sent before the editor has heard Juan accepted leaves his accepted offer alone", async ({ page }) => {
-    await readyToSend(page);
-    await acceptUnheard(page);
-    await page.getByRole("button", { name: "Send revision 2" }).click();
-    await expect(page.getByText("This offer was accepted and can't be edited.")).toBeVisible();
-    await expect(page).toHaveURL(/\/edit$/);
-    expect(await savedDeal(page)).toMatchObject({ stage: "hired", offer: { status: "accepted", rate: "$1,600 /month" } });
+  test("its one action is withdrawing it — a sent offer isn't edited", async ({ page }) => {
+    await page.goto(OFFERS_SENT);
+    await expect(page.getByText("1 offer · 1 pending")).toBeVisible();
+    await expectOnlyWithdraw(page);
   });
 });

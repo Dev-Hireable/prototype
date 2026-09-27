@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
-import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
+import { KebabMenu, MenuAction } from "@/components/portal/controls";
 import { Tip } from "@/components/portal/Tip";
 import { Person, Row, Table, Toolbar } from "@/components/team/ui";
 import { hoursLabel } from "@/lib/demo/job-types";
@@ -14,7 +14,6 @@ import type { Offer } from "@/lib/team/data";
 import { useOffers } from "@/lib/team/offers";
 import { ReturnNav } from "@/components/portal/return";
 
-const Edit = ICONS.edit;
 const Undo = ICONS.undo;
 
 /**
@@ -67,9 +66,6 @@ export default function OffersSent() {
   );
 }
 
-/** Still waiting on an answer: out with the talent, or back with the Team Builder because they asked for changes (IN-092). */
-const waiting = (o: Offer) => o.status.label === "Pending" || o.status.label === "Changes requested";
-
 /** The search and the role and status filters, and the offers they leave. */
 function useOfferFilters(offers: Offer[]) {
   const [q, setQ] = useState("");
@@ -78,7 +74,7 @@ function useOfferFilters(offers: Offer[]) {
   const [roleFilter, setRoleFilter] = useState("All roles");
   const roleOptions = ["All roles", ...new Set(offers.map((o) => o.role))];
   const list = offers.filter(
-    (o) => (status === "All statuses" || o.status.label === status || (status === "Pending" && waiting(o))) && (roleFilter === "All roles" || o.role === roleFilter) && `${byName(o.independent).name} ${o.role}`.toLowerCase().includes(q.toLowerCase()),
+    (o) => (status === "All statuses" || o.status.label === status) && (roleFilter === "All roles" || o.role === roleFilter) && `${byName(o.independent).name} ${o.role}`.toLowerCase().includes(q.toLowerCase()),
   );
   return { q, setQ, status, setStatus, roleFilter, setRoleFilter, roleOptions, list };
 }
@@ -88,7 +84,7 @@ type OfferFilters = ReturnType<typeof useOfferFilters>;
 /** The search and the two filters, with how many offers are out and how many still wait on an answer. */
 function OffersToolbar({ offers, filters }: { offers: Offer[]; filters: OfferFilters }) {
   const { q, setQ, status, setStatus, roleFilter, setRoleFilter, roleOptions } = filters;
-  const pending = offers.filter(waiting).length;
+  const pending = offers.filter((o) => o.status.label === "Pending").length;
   return (
     <Toolbar
       right={
@@ -107,7 +103,7 @@ function OffersToolbar({ offers, filters }: { offers: Offer[]; filters: OfferFil
 /** One offer: the candidate, the role, the terms, where it stands, and — while it's pending — its menu. */
 function OfferRow({ o, onWithdraw }: { o: Offer; onWithdraw: (o: Offer) => void }) {
   const p = byName(o.independent);
-  const open = waiting(o);
+  const open = o.status.label === "Pending";
   return (
     <Row>
       <span className={COLS[0]}>
@@ -173,21 +169,13 @@ function StatusCell({ o }: { o: Offer }) {
   );
 }
 
-/** A pending offer's actions: edit it, or say why not, and withdraw it. */
+/**
+ * A pending offer's one action: withdrawing it. Its terms were settled in the proposal before it went
+ * out, so it isn't edited — changing them takes a proposal revision and a new offer (TB-106).
+ */
 function OfferMenu({ o, name, onWithdraw }: { o: Offer; name: string; onWithdraw: (o: Offer) => void }) {
-  // The offer a proposal was answered with can be edited; the post-trial offer is withdrawn and sent again instead.
-  const editable = !o.conversion;
   return (
     <KebabMenu label={`Actions for the offer to ${name}`} iconSize={20} menuWidth={232} buttonClassName="!size-7">
-      {editable ? (
-        <MenuLink href={`/team/hire/offers/${o.id}/edit`} icon={<Edit size={18} aria-hidden />}>
-          Edit offer
-        </MenuLink>
-      ) : (
-        <MenuAction disabled icon={<Edit size={18} aria-hidden />} title="Withdraw it and send a new one to change a post-trial offer">
-          Edit offer
-        </MenuAction>
-      )}
       <MenuAction destructive onClick={() => onWithdraw(o)} icon={<Undo size={18} aria-hidden />}>
         Withdraw offer
       </MenuAction>

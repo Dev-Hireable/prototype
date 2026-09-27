@@ -11,7 +11,7 @@ import { ORDER_STEP } from "@/lib/work/order";
  * planning types (a job post's and an offer's tasks) and the summaries other screens show.
  *
  * One flow for the Independent's work: To do → In progress → In review → Done. The Team Builder
- * plans it — writes the tasks (a trial's in its job post, every role's in the offer), adds more as
+ * plans it — writes the tasks (a trial's in its job post, settled with the proposal), adds more as
  * a full-time or part-time role goes on (a trial keeps the list its offer agreed), sets dates,
  * effort and priority — and approves each or asks for changes.
  */
@@ -28,29 +28,13 @@ export const PRIORITY_LABEL = Object.fromEntries(WORK_PRIORITIES.map((p) => [p, 
 
 /**
  * A task as the Team Builder plans it before the contract starts: a trial's tasks in its job post,
- * and every role's in the offer. Due dates are due weeks — the start date isn't set until the
- * offer — so "Week 2" becomes a date once the contract starts.
+ * which the offer carries as the proposal settled them. Due dates are due weeks — the start is the
+ * one the proposal agreed — so "Week 2" becomes a date once the contract starts.
  */
-export type PlannedTask = { title: string; description?: string; priority?: TaskPriority; week?: number; /** Kept from revision to revision of an offer, so what changed can be told apart (@/lib/contract/negotiation). */ id?: string };
+export type PlannedTask = { title: string; description?: string; priority?: TaskPriority; week?: number };
 
 /** A planned task on an offer, with the id it keeps on the contract. */
 export type OfferTask = PlannedTask & { id: string };
-
-/**
- * The offer's tasks with an id each: a task keeps the one it has, from one revision to the next, and a
- * new one takes the next free "task-N" — the id it keeps on the contract, too.
- */
-export function withIds(tasks: readonly PlannedTask[]): OfferTask[] {
-  const used = new Set(tasks.flatMap((t) => (t.id ? [t.id] : [])));
-  let n = 0;
-  const next = () => {
-    do n++;
-    while (used.has(`task-${n}`));
-    used.add(`task-${n}`);
-    return `task-${n}`;
-  };
-  return tasks.map((t) => ({ ...t, id: t.id ?? next() }));
-}
 
 /* ------------------------------------------------------------------ dates */
 
@@ -126,7 +110,7 @@ export const toDrafts = (tasks: PlannedTask[]): DraftTask[] => tasks.map((t) => 
 
 /** What the plan keeps: rows with a real title (two characters or more), trimmed. */
 export const fromDrafts = (rows: DraftTask[]): PlannedTask[] =>
-  rows.filter((r) => r.title.trim().length > 1).map((r) => ({ ...(r.id ? { id: r.id } : {}), title: r.title.trim(), description: r.description?.trim() || undefined, priority: r.priority, week: r.week }));
+  rows.filter((r) => r.title.trim().length > 1).map((r) => ({ title: r.title.trim(), description: r.description?.trim() || undefined, priority: r.priority, week: r.week }));
 
 /**
  * An agreed task as the contract starts it: from the offer the Team Builder wrote it into, with its

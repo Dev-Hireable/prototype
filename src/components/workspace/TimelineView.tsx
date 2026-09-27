@@ -496,8 +496,8 @@ function Unscheduled({ item: t, left, schedulable }: { item: WorkItem; left: num
 
 /**
  * What of an item's plan this person may change: `can`, all of it — move it, either end; `canStart`,
- * its start alone — the Independent, on their own open work, and anyone on a contract task, whose due
- * date was agreed (caps.scope). A start-only bar is all start, so it moves.
+ * its start alone — the Independent, on their own open work, and anyone on a task from the signed
+ * offer, whose due date was agreed (caps.scope). A start-only bar is all start, so it moves.
  */
 function planRights(t: WorkItem, caps: ReturnType<typeof capsFor>) {
   const live = !isArchived(t);

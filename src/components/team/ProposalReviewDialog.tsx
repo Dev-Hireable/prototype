@@ -27,7 +27,9 @@ function reviewFlags(candidate: Candidate, live: Deal | null) {
   const offerDeclined = live?.offer?.status === "declined";
   /** Only one revision request per round — asking again is what the resubmission is for. */
   const canRevise = !awaitingRevision && !offerDeclined && !candidate.dropped;
-  return { awaitingRevision, offerDeclined, canRevise };
+  /** TB-105 — the offer carries what the proposal settled, so every suggested task change is answered before one goes out. */
+  const unanswered = (live?.proposal?.suggestions ?? []).filter((s) => !live?.suggestionDecisions?.[s.id]).length;
+  return { awaitingRevision, offerDeclined, canRevise, unanswered };
 }
 
 /** The card an offer's deposit is charged to: the default one, or else the first on file. */
@@ -129,7 +131,7 @@ function OfferDialog({ open, onClose, person, role, proposal, decisions, onToast
       proposal={proposal}
       card={defaultCard(cards)}
       onSend={(terms) => {
-        // TB-105 — the tasks set in the offer travel with it, so the talent signs the list and the
+        // TB-105 — the tasks the proposal settled travel with the offer, so the talent signs the list and the
         // contract starts from it; a trial carries the escrow just funded.
         sendOffer({ type: role.type, ...terms });
         onToast("Offer sent to candidate");
@@ -163,7 +165,7 @@ function ReviewModal({
   onStep: (step: Step) => void;
 }) {
   const { live, proposal, person, first } = review;
-  const { awaitingRevision, offerDeclined, canRevise } = reviewFlags(candidate, live);
+  const { awaitingRevision, offerDeclined, canRevise, unanswered } = reviewFlags(candidate, live);
   return (
     <Modal open={open && !!proposal} onClose={onClose} title={`${first}'s proposal for ${role.title}`} width={1100} bare>
       {proposal && live && (
@@ -185,18 +187,29 @@ function ReviewModal({
           }}
           decisions={live.suggestionDecisions}
           onDecide={awaitingRevision || candidate.dropped || live.offer?.status === "sent" || live.offer?.status === "accepted" ? undefined : onDecide}
-          actions={<ReviewActions awaitingRevision={awaitingRevision} dropped={candidate.dropped} offerDeclined={offerDeclined} canRevise={canRevise} onStep={onStep} />}
+          actions={<ReviewActions awaitingRevision={awaitingRevision} dropped={candidate.dropped} offerDeclined={offerDeclined} canRevise={canRevise} unanswered={unanswered} first={first} onStep={onStep} />}
         />
       )}
     </Modal>
   );
 }
 
-/** The review's action bar: send an offer (a new one after a decline), request a revision, or decline the proposal. */
-function ReviewActions({ awaitingRevision, dropped, offerDeclined, canRevise, onStep }: { awaitingRevision: boolean; dropped?: boolean; offerDeclined: boolean; canRevise: boolean; onStep: (step: Step) => void }) {
+/**
+ * The review's action bar: send an offer (a new one after a decline), request a revision, or decline
+ * the proposal. An offer waits until each of the talent's suggested task changes has an answer.
+ */
+function ReviewActions({ awaitingRevision, dropped, offerDeclined, canRevise, unanswered, first, onStep }: { awaitingRevision: boolean; dropped?: boolean; offerDeclined: boolean; canRevise: boolean; unanswered: number; first: string; onStep: (step: Step) => void }) {
+  const waiting = !awaitingRevision && !dropped && unanswered > 0;
   return (
     <>
-      <Button size="xl" variant="primary" className="flex-1" disabled={awaitingRevision || dropped} onClick={() => onStep("offer")}>
+      <Button
+        size="xl"
+        variant="primary"
+        className="flex-1"
+        disabled={awaitingRevision || dropped || unanswered > 0}
+        title={waiting ? `Accept or ignore each change ${first} suggested first — the offer carries the tasks as you settle them` : undefined}
+        onClick={() => onStep("offer")}
+      >
         {offerDeclined ? "Send a new offer" : "Send offer"}
       </Button>
       <Button size="xl" disabled={!canRevise} onClick={() => onStep("revision")}>

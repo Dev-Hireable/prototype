@@ -111,8 +111,8 @@ export type Role = {
   attachment: string;
   /**
    * TB-024 — a trial's tasks, written in its job post: what the Independent gets done during the
-   * trial. They go into the offer, where they can be changed per candidate. Ongoing roles leave this
-   * empty; their first tasks are set in the offer.
+   * trial. The offer carries them as the proposal settled them — with the talent's suggestions the
+   * Team Builder accepted. Ongoing roles leave this empty; their work is added once they start.
    */
   tasks?: PlannedTask[];
   /** "How many to hire" from the wizard; roles saved before it was kept count as one. */

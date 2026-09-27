@@ -1,5 +1,5 @@
 import { refOf, STATUS_META, TYPE_META, type WorkItem, type WorkStatus } from "@/lib/work/model";
-import { assigneesFor, capsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
+import { capsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
 import type { GroupValue } from "@/lib/work/query";
 import type { WorkPatch } from "@/lib/work/repository";
 import { movedTo, NO_PROJECT, projectKeyOf } from "@/lib/work/projects";
@@ -22,12 +22,11 @@ export function dropPlan(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv
     case "assignee": {
       const value = target.value === "none" ? null : target.value;
       if (value === t.assignee) return { kind: "reorder" };
-      // Only to someone it can go to: on a trial, an internal item isn't the Independent's (assigneesFor).
-      return assigneesFor(t, env.actor, env.access).includes(value) ? { kind: "set", set: { assignee: value }, label: `assigned to ${env.assigneeLabel(target.value)}` } : null;
+      return capsFor(t, env.actor, env.access).assign ? { kind: "set", set: { assignee: value }, label: `assigned to ${env.assigneeLabel(target.value)}` } : null;
     }
     case "type": {
       if (target.value === t.type) return { kind: "reorder" };
-      // A contract task's kind of work is what was agreed (caps.scope).
+      // A task from the signed offer keeps the kind of work agreed (caps.scope).
       if (!capsFor(t, env.actor, env.access).scope) return null;
       // A milestone is one date and no effort: clear them in the same save.
       const clears = target.value === "milestone" ? { ...(t.start ? { start: null } : {}), ...(t.effort !== undefined ? { effort: null } : {}) } : {};

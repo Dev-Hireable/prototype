@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { Button, Card, Field, InfoBanner, Input, Steps, Textarea } from "@/components/independent/ui";
+import { DatePicker } from "@/components/portal/DatePicker";
 import { SuggestTasks } from "@/components/independent/SuggestTasks";
 import { ProposalBody, type ProposalAuthor } from "@/components/portal/ProposalReview";
-import { durationDays, today } from "@/lib/demo/dates";
+import { addWorkingDays, dayLabel, durationDays, fromISODate, isoDay, startOfToday, today } from "@/lib/demo/dates";
 import type { DealProposal } from "@/lib/demo/deal";
 import { hoursLabel } from "@/lib/demo/job-types";
 import type { JobType } from "@/lib/demo/job-types";
@@ -25,8 +26,8 @@ const STEPS: Record<JobType, string[]> = {
  */
 export function ProposalSteps({ wizard: w, trialTasks }: { wizard: Wizard; trialTasks: ReactNode }) {
   const { job, step, form, revise } = w;
-  const { amount, hoursOk, suggesting, terms } = proposalTerms(job, form, revise, w.suggestions);
-  const canContinue = [amount > 0 && hoursOk, form.letter.trim().length > 0, true][step];
+  const { amount, hoursOk, startOk, suggesting, terms } = proposalTerms(job, form, revise, w.suggestions);
+  const canContinue = [amount > 0 && hoursOk && startOk, form.letter.trim().length > 0, true][step];
   return (
     <>
       <div className="px-4 py-10">
@@ -60,7 +61,7 @@ export function ProposalSteps({ wizard: w, trialTasks }: { wizard: Wizard; trial
   );
 }
 
-/** Step one: the monthly pay, and on a part-time role the hours a week — with the trial's tasks above to price against. */
+/** Step one: the monthly pay, on a part-time role the hours a week, and the day they'd start — with the trial's tasks above to price against. */
 function RateStep({ job, form, hoursOk, amount, tasks, footer }: { job: JobView; form: ProposalFields; hoursOk: boolean; amount: number; tasks: ReactNode; footer: ReactNode }) {
   const { title, body } = rateCopy(job.type);
   return (
@@ -69,6 +70,7 @@ function RateStep({ job, form, hoursOk, amount, tasks, footer }: { job: JobView;
       <div className="flex flex-col gap-4">
         <RateField job={job} rate={form.rate} onRate={form.setRate} amount={amount} />
         {job.type === "part-time" && <HoursField posted={job.hours} hours={form.hours} onHours={form.setHours} hoursOk={hoursOk} />}
+        <StartField job={job} start={form.start} onStart={form.setStart} />
       </div>
       {footer}
     </StepCard>
@@ -104,11 +106,26 @@ function HoursField({ posted, hours, onHours, hoursOk }: { posted: number | unde
   );
 }
 
+/**
+ * IN-072 — the day they'd start: today or later. The offer carries it as agreed, and a trial's end
+ * follows from its working days, so it says where that lands.
+ */
+function StartField({ job, start, onStart }: { job: JobView; start: string; onStart: (v: string) => void }) {
+  const date = fromISODate(start);
+  const days = durationDays(job.duration);
+  const hint = job.type === "trial" && date ? `The trial runs ${days} working days from it, to ${dayLabel(addWorkingDays(date, days - 1))}.` : "The offer starts on it, as agreed here.";
+  return (
+    <Field label="Start date" hint={hint} error={start && !date ? "Pick the day you'd start." : undefined}>
+      <DatePicker value={date} onChange={(d) => onStart(d ? isoDay(d) : "")} disabled={{ before: startOfToday() }} placeholder="Pick the day you'd start" aria-label={date ? `Start date: ${dayLabel(date)}` : "Start date"} />
+    </Field>
+  );
+}
+
 /** Step one's heading and line, for the kind of role. */
 function rateCopy(type: JobType) {
   return {
     title: STEPS[type][0] === "Propose Rate" ? "Propose rate" : STEPS[type][0] === "Expected Salary" ? "Expected salary" : "Rate & hours",
-    body: type === "trial" ? "Set your monthly rate for the trial's tasks. This is what the client sees when reviewing your proposal." : type === "full-time" ? "The monthly salary you're looking for. The company sees it with your proposal and makes the offer." : "Your monthly rate, and the hours a week it covers.",
+    body: type === "trial" ? "Set your monthly rate for the trial's tasks, and the day you'd start. This is what the client sees when reviewing your proposal." : type === "full-time" ? "The monthly salary you're looking for, and the day you'd start. The offer carries them as agreed." : "Your monthly rate, the hours a week it covers, and the day you'd start.",
   };
 }
 

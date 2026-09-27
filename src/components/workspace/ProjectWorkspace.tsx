@@ -4,19 +4,16 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ICONS, type IconName } from "@/components/admin/icons";
 import { Button, InfoBanner, Toast } from "@/components/independent/ui";
-import { Callout } from "@/components/portal/Callout";
 import type { TaskPeople } from "@/components/portal/tasks/task-bits";
 import { ViewTabsList } from "@/components/portal/ViewSwitch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { writeParams } from "@/lib/portal/query-state";
 import { todayDay, type Day } from "@/lib/work/dates";
 import { countsOf, isArchived, type AssigneeKey, type WorkItem } from "@/lib/work/model";
-import { canAddInternal, canCreate, canPlanProjects, canReorder, readOnlyReason, type Actor, type WorkAccess } from "@/lib/work/permissions";
+import { canCreate, canPlanProjects, canReorder, readOnlyReason, type Actor, type WorkAccess } from "@/lib/work/permissions";
 import { ALL, inScope, knownScope, NO_PROJECT, OPEN, projectCtx, projectKeyOf, summarize, type ProjectSummary, type Scope } from "@/lib/work/projects";
 import { activeFilterCount, applyFilters, EMPTY_FILTERS, groupItems, sortItems, VIEW_LABEL, VIEWS, type Group, type ViewKey, type WorkQuery } from "@/lib/work/query";
-import { onWorkMessage, tellWorkspace, useWork, useWorkActions, type WorkActions, type WorkMessage, type WorkSnapshot } from "@/lib/work/store";
-import { AmendmentBuilder } from "@/components/agreement/AmendmentBuilder";
-import { useWorkspaceAgreement } from "./agreement";
+import { onWorkMessage, useWork, useWorkActions, type WorkActions, type WorkMessage, type WorkSnapshot } from "@/lib/work/store";
 import { BoardView } from "./BoardView";
 import { CalendarView } from "./CalendarView";
 import { useWorkspace, useWorkspaceQuery, WorkspaceProvider, type DetailFocus, type WorkspaceEnv } from "./context";
@@ -49,9 +46,9 @@ export function ProjectWorkspace({ actor, people, context, closedNote }: Workspa
   const work = useWork();
   const [query, setQuery] = useWorkspaceQuery();
   const { taskId, focus, open, shown, openTask, closeTask } = useOpenTask(work.byId);
-  const [adding, setAdding] = useState<false | "task" | "internal">(false);
+  const [adding, setAdding] = useState(false);
   const [rootRef, width] = useWidth<HTMLDivElement>();
-  const { env, projectScope, builder } = useWorkspaceEnv(actor, people, work, query, openTask, closeTask);
+  const { env, projectScope } = useWorkspaceEnv(actor, people, work, query, openTask);
   const { split, scope, closedPlaceNote } = projectScope;
   useE2ESeam(env.actions.repo);
   const { toast, closeToast, live } = useWorkMessages();
@@ -67,14 +64,13 @@ export function ProjectWorkspace({ actor, people, context, closedNote }: Workspa
     <WorkspaceProvider value={env}>
       <div ref={rootRef} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workspace" data-view={query.view} data-role={env.actor.role}>
         <Tabs value={query.view} onValueChange={(v) => setQuery({ view: v as ViewKey })} className="flex min-h-0 flex-1 flex-col gap-0">
-          <WorkspaceHead context={context} list={list} split={split} scope={scope} query={query} setQuery={setQuery} onAdd={() => setAdding("task")} onAddInternal={() => setAdding("internal")} />
+          <WorkspaceHead context={context} list={list} split={split} scope={scope} query={query} setQuery={setQuery} onAdd={() => setAdding(true)} />
           <ReadOnlyNote closedNote={closedNote} closedPlaceNote={closedPlaceNote} />
-          <AmendmentNote />
           {taskId && !open && <MissingItemNote onDismiss={closeTask} />}
           <TabsContent value={query.view} className="flex min-h-0 min-w-0 flex-1 flex-col text-[14px]">
             <ViewBoundary key={query.view} label={VIEW_LABEL[query.view].toLowerCase()}>
               {empty ? (
-                <EmptyWork kind={empty} archived={query.archived} onAdd={() => setAdding("task")} onClear={clearFilters} />
+                <EmptyWork kind={empty} archived={query.archived} onAdd={() => setAdding(true)} onClear={clearFilters} />
               ) : (
                 <CurrentView query={query} setQuery={setQuery} groups={list.groups} sorted={list.sorted} byId={work.byId} pendingIds={work.pendingIds} width={width} />
               )}
@@ -82,9 +78,7 @@ export function ProjectWorkspace({ actor, people, context, closedNote }: Workspa
           </TabsContent>
         </Tabs>
         <ItemSheet shown={shown} open={!!open} work={work} focus={focus} onClose={closeTask} />
-        {/* Keyed by which kind it adds, so an internal item never starts from a task's draft (assigned to the Independent). */}
-        {(env.canCreate || env.canAddInternal) && <NewTaskDialog key={adding === "internal" ? "internal" : "task"} open={!!adding} internal={adding === "internal"} onClose={() => setAdding(false)} />}
-        {builder && <AmendmentBuilder key={builder.key} open base={builder.base} items={builder.items} access={builder.access} actions={builder.actions} counterpart={builder.counterpart} start={builder.start} onClose={builder.onClose} onDone={tellWorkspace} />}
+        {env.canCreate && <NewTaskDialog open={adding} onClose={() => setAdding(false)} />}
         <WorkToast toast={toast} onClose={closeToast} />
         {/* Stays audible while an item's sheet is open: the modal hides the page but keeps [aria-live]. */}
         <p aria-live="polite" className="sr-only" data-testid="announcer">
@@ -109,7 +103,7 @@ type WorkspaceProps = {
  * do, the actions, the projects showing — and the projects' scope for the list. Each part is kept
  * stable by value, so a page's fresh objects, or a save elsewhere, don't re-render every card.
  */
-function useWorkspaceEnv(actor: Actor, people: TaskPeople, work: WorkSnapshot, query: WorkQuery, openTask: WorkspaceEnv["openTask"], closeTask: () => void) {
+function useWorkspaceEnv(actor: Actor, people: TaskPeople, work: WorkSnapshot, query: WorkQuery, openTask: WorkspaceEnv["openTask"]) {
   const { who2, names } = usePeople(people);
   const { role, name } = actor;
   const who = useMemo(() => ({ role, name }), [role, name]);
@@ -122,12 +116,11 @@ function useWorkspaceEnv(actor: Actor, people: TaskPeople, work: WorkSnapshot, q
   const { projects, closedPlace } = projectScope;
   // Kept by value, like `access`: every save re-reads the contract, and a new-but-equal map would re-render every card.
   const tagColors = useByValue(work.tagColors);
-  const { agreement, builder } = useWorkspaceAgreement(who, names, access, closeTask);
   const env = useMemo<WorkspaceEnv>(
-    () => ({ actor: who, names, people: who2, access, actions, today, canCreate: canCreate(who, access) && !closedPlace, canAddInternal: canAddInternal(who, access), canReorder: canReorder(who, access) && !closedPlace, openTask, assigneeLabel, tagColors, projects, agreement }),
-    [who, names, who2, access, actions, today, openTask, assigneeLabel, tagColors, projects, closedPlace, agreement],
+    () => ({ actor: who, names, people: who2, access, actions, today, canCreate: canCreate(who, access) && !closedPlace, canReorder: canReorder(who, access) && !closedPlace, openTask, assigneeLabel, tagColors, projects }),
+    [who, names, who2, access, actions, today, openTask, assigneeLabel, tagColors, projects, closedPlace],
   );
-  return { env, projectScope, builder };
+  return { env, projectScope };
 }
 
 /** The two people as the workspace shows them, and their first names. */
@@ -159,12 +152,12 @@ function useE2ESeam(repo: WorkActions["repo"]) {
 }
 
 /** Above the view: the summary line, the place picker and view tabs, the toolbar, and the filters that are on. */
-function WorkspaceHead({ context, list, split, scope, query, setQuery, onAdd, onAddInternal }: { context?: ReactNode; list: WorkList; split: boolean; scope: Scope; query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void; onAdd: () => void; onAddInternal: () => void }) {
+function WorkspaceHead({ context, list, split, scope, query, setQuery, onAdd }: { context?: ReactNode; list: WorkList; split: boolean; scope: Scope; query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void; onAdd: () => void }) {
   const { assigneeLabel } = useWorkspace();
   return (
     <div className="flex shrink-0 flex-col gap-3 border-b border-border px-[var(--ws-gutter,1rem)] pt-1 pb-3">
       <SummaryLine context={context} counts={list.counts} split={split} scope={scope} />
-      <ViewBar split={split} setQuery={setQuery} inReview={list.inReview} onAdd={onAdd} onAddInternal={onAddInternal} />
+      <ViewBar split={split} setQuery={setQuery} inReview={list.inReview} onAdd={onAdd} />
       <Toolbar
         query={query}
         setQuery={setQuery}
@@ -334,12 +327,8 @@ function SummaryLine({ context, counts, split, scope }: { context?: ReactNode; c
   );
 }
 
-/**
- * The place picker and the view tabs; then, at the end, Review for work waiting on the Team Builder,
- * Propose a change (to the contract, for either side), and Add task — on a trial, whose tasks were
- * agreed, the Team Builder's Add internal task instead.
- */
-function ViewBar({ split, setQuery, inReview, onAdd, onAddInternal }: { split: boolean; setQuery: (p: Partial<WorkQuery>) => void; inReview: WorkItem[]; onAdd: () => void; onAddInternal: () => void }) {
+/** The place picker and the view tabs; then, at the end, Review for work waiting on the Team Builder, and Add task. */
+function ViewBar({ split, setQuery, inReview, onAdd }: { split: boolean; setQuery: (p: Partial<WorkQuery>) => void; inReview: WorkItem[]; onAdd: () => void }) {
   const env = useWorkspace();
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -351,38 +340,11 @@ function ViewBar({ split, setQuery, inReview, onAdd, onAddInternal }: { split: b
           Review {inReview.length === 1 ? "1 item" : `${inReview.length} items`}
         </Button>
       )}
-      {!env.agreement.blocked && (
-        <Button size="md" onClick={() => env.agreement.propose()}>
-          <ICONS.contracts size={18} aria-hidden /> Propose a change
-        </Button>
-      )}
-      {env.canAddInternal && (
-        <Button size="md" onClick={onAddInternal}>
-          <ICONS.add size={18} aria-hidden /> Add internal task
-        </Button>
-      )}
       {env.canCreate && (
         <Button size="md" variant="primary" onClick={onAdd}>
           <ICONS.add size={18} aria-hidden /> Add task
         </Button>
       )}
-    </div>
-  );
-}
-
-/** An amendment is open: whose move it is, with the way to it on the Agreement tab. */
-function AmendmentNote() {
-  const { agreement, actor, names } = useWorkspace();
-  const a = agreement.open;
-  if (!a || actor.role === "viewer") return null;
-  const mine = (a.by === "team") === (actor.role === "manager");
-  const other = actor.role === "manager" ? names.independent : names.team;
-  const text = a.waiting ? (mine ? `${other} sent Amendment ${a.number} back to you to revise.` : `${a.byName} proposed Amendment ${a.number} to the contract. It needs your answer.`) : mine ? `Your Amendment ${a.number} is with ${other}. Nothing in the contract changes until it's accepted.` : `Amendment ${a.number} is back with ${a.byName} to revise.`;
-  return (
-    <div className="shrink-0 px-[var(--ws-gutter,1rem)] pt-3">
-      <Callout tone={a.waiting ? "warn" : "info"} action={<Button size="sm" onClick={() => writeParams({ tab: "agreement", task: null })}>{a.waiting ? "Review" : "View"}</Button>}>
-        {text}
-      </Callout>
     </div>
   );
 }
