@@ -77,8 +77,7 @@ async function signInAs(page: Page, name: string) {
 
 /**
  * Lets the clock run on from the pinned today. GSAP's ticker reads Date.now, so under the fixture's
- * fixed time every GSAP timeline stands still — and the intro's exit, which Start quiz and Retake
- * quiz wait on, plays even with reduced motion.
+ * fixed time every GSAP timeline stands still.
  */
 async function letTimeRun(page: Page) {
   await page.clock.setSystemTime(NOW);
@@ -321,6 +320,12 @@ test.describe("onboarding · answering in your own words", () => {
     await expect(page.getByText("Question 2 of 6")).toBeVisible();
     await expect(log).toContainText("You stay balanced and communicative. Got it.");
     await expect(log.getByText(TALENT_Q1_FOLLOWUP)).toHaveCount(1);
+  });
+
+  // The intro's exit used to play with reduced motion too, and stood still with the clock.
+  test("with reduced motion, Start quiz leads on without waiting for an animation", async ({ page }) => {
+    await page.goto("/onboarding/talent");
+    await startFirstQuiz(page, "Looking for a lasting match? You're in the right place.");
   });
 });
 

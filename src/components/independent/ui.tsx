@@ -433,11 +433,14 @@ export function SearchBox({ value, onChange, placeholder, className = "" }: { va
   return (
     <label className={`flex h-11 items-center gap-2 rounded-lg border border-border bg-white px-4 text-ink-2 ${className}`}>
       <S size={16} aria-hidden />
+      {/* Named outright: from the label's content it had no name but its placeholder, and once
+          something was typed the Clear search button's name joined it. */}
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={placeholder}
         className="min-w-0 flex-1 bg-transparent text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2"
       />
       {/* TB-012: an explicit clear button while a search is active — restores the full list. */}

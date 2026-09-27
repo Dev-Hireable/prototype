@@ -281,7 +281,8 @@ function useIntroExit(
     };
     const targets = getIntroTargets(intro);
 
-    if (!targets) {
+    // Reduced motion hands over at once, as the entrance skips to the intro at rest.
+    if (!targets || prefersReducedMotion()) {
       proceed();
       return;
     }

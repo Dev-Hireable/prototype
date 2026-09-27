@@ -87,6 +87,7 @@ function DemoAccountPicker({ selectedEmail, onPick }: { selectedEmail: string; o
           key={a.email}
           type="button"
           onClick={() => onPick(a.email)}
+          aria-pressed={selectedEmail === a.email}
           className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition ${selectedEmail === a.email ? "border-primary bg-white" : "border-transparent bg-white/70 hover:border-border hover:bg-white"}`}
         >
           <span className="flex min-w-0 flex-col">

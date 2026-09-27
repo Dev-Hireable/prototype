@@ -194,12 +194,16 @@ test.describe("profile and settings · photos", () => {
     await pick(page, PHOTO, FILES.png);
     await expect(page.getByText("New photo — saved with the rest when you press Save.")).toBeVisible();
     await expect(imageOn(page, PHOTO)).toHaveAttribute("src", /^data:image\/png/);
+    // The rail's avatar, which opens My profile, is the saved photo: still the old one.
+    const rail = page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "My profile" }).locator("img");
+    await expect(rail).not.toHaveAttribute("src", /^data:/);
     expect(await stored(page, "ind.profile")).toBeNull();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(toast(page, "Profile saved")).toBeVisible();
-    // The header's first image is the photo, now the saved PNG.
+    // The header's first image is the photo, now the saved PNG, and so is the rail's.
     const header = page.getByRole("banner").filter({ has: page.getByRole("heading", { name: "Juan Dela Cruz" }) });
     await expect(header.locator("img").first()).toHaveAttribute("src", /^data:image\/png/);
+    await expect(rail).toHaveAttribute("src", /^data:image\/png/);
     expect(await stored(page, "ind.profile")).toMatchObject({ photo: expect.stringMatching(/^data:image\/png/) });
   });
 
