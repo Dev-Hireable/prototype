@@ -12,7 +12,7 @@ import type { TaskPeople } from "@/components/portal/tasks/task-bits";
 import { dayOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import type { Group } from "@/lib/work/query";
 import { useOptionalWorkspace } from "./context";
-import { isOverdue, refOf, TAG_COLORS, tagColorOf, TYPE_META, type Assignee, type WorkItem, type WorkType } from "@/lib/work/model";
+import { isArchived, isOverdue, refOf, TAG_COLORS, tagColorOf, TYPE_META, type Assignee, type WorkItem, type WorkType } from "@/lib/work/model";
 
 /**
  * How work reads in the workspace — the look that goes with the domain's tables (@/lib/work/model):
@@ -196,6 +196,42 @@ export function PlaceChip({ item }: { item: WorkItem }) {
       <span className="truncate">{place.name}</span>
       <span className="sr-only">{place.kind === "trial" ? " (the trial)" : " (project)"}</span>
     </span>
+  );
+}
+
+/**
+ * Where an item stands against the contract: a contract task — agreed scope, which only an amendment
+ * both sides accept changes — or internal work, run day to day. A contract task an open amendment
+ * would change or remove says that too.
+ */
+export function ScopeChip({ item }: { item: WorkItem }) {
+  const env = useOptionalWorkspace();
+  if (isArchived(item)) return null;
+  const pending = env?.agreement.pending.get(item.id);
+  if (!item.agreed)
+    return (
+      <Tip label="Added to run the work — not part of the agreed contract">
+        <span className={FACT}>
+          <ICONS.workOutline size={14} aria-hidden className="shrink-0" />
+          Internal
+        </span>
+      </Tip>
+    );
+  return (
+    <>
+      <Tip label="Part of the agreed contract: its scope changes only by an amendment both sides accept">
+        <span className={`${FACT} !text-accent`}>
+          <ICONS.contracts size={14} aria-hidden className="shrink-0" />
+          Contract
+        </span>
+      </Tip>
+      {pending && (
+        <span className={`${CHIP} bg-warn-bg text-[#7a5e0a]`}>
+          <ICONS.edit size={13} aria-hidden className="shrink-0" />
+          {pending === "remove" ? "Removal pending" : "Amendment pending"}
+        </span>
+      )}
+    </>
   );
 }
 

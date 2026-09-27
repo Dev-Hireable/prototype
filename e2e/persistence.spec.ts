@@ -1,7 +1,9 @@
-import { card, column, drag, expect, notes, open, panel, savedItem, test, toast, view } from "./fixtures";
+import { card, column, drag, expect, notes, open, panel, ROLE, savedItem, test, toast, view } from "./fixtures";
 
 // Scenario N — everything saved survives a hard reload; a notification opens the item.
-test.describe("persistence", () => {
+test.describe("persistence · on a role, where work is added", () => {
+  test.use({ seedOptions: ROLE });
+
   test("a run of changes, then a reload: all of it is still there", async ({ page }) => {
     await open(page, "team");
     const todo = column(page, "To do");
@@ -26,7 +28,9 @@ test.describe("persistence", () => {
     await page.goto("/team/independents/juan-dela-cruz?view=list&archived=1");
     await expect(page.getByTestId("list").getByRole("row", { name: /#9 Social media templates/ })).toBeVisible();
   });
+});
 
+test.describe("persistence · notifications", () => {
   test("a notification links straight to the item", async ({ page, secondPage }) => {
     await open(page, "team", "?task=t-logos");
     await panel(page).getByRole("button", { name: "Approve" }).click();

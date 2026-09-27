@@ -1,4 +1,4 @@
-import { card, column, drag, expect, fault, open, saved, savedItem, test } from "./fixtures";
+import { card, column, drag, expect, fault, open, ROLE, saved, savedItem, test } from "./fixtures";
 
 // Scenario J — a save that fails: the change shows at once, then goes back, and says why.
 test.describe("when a save fails · rollback and Retry", () => {
@@ -19,6 +19,10 @@ test.describe("when a save fails · rollback and Retry", () => {
     await expect(column(page, "In progress").getByRole("group", { name: /#6 Kickoff/ })).toBeVisible();
     await expect.poll(async () => (await savedItem(page, "t-kickoff")).status).toBe("doing");
   });
+});
+
+test.describe("when a save fails · an add, on a role", () => {
+  test.use({ seedOptions: ROLE });
 
   test("an add that fails goes away, and Retry adds it once", async ({ page }) => {
     await open(page, "team");

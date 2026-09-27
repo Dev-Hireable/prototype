@@ -19,9 +19,11 @@ test.describe("permissions", () => {
   test("a direct API call from the Independent is refused and changes nothing", async ({ page }) => {
     await open(page, "independent");
     const before = await saved(page);
-    const r1 = await api(page, "patch", "t-type", { due: "2026-10-20" });
+    const r1 = await api(page, "patch", "t-guide", { due: "2026-10-20" });
     expect(r1).toMatchObject({ ok: false, code: "forbidden" });
     expect((r1 as { message: string }).message).toMatch(/plans the work/);
+    // A contract task's due date is the contract's, for either side (TB-150).
+    expect(await api(page, "patch", "t-type", { due: "2026-10-20" })).toMatchObject({ ok: false, code: "forbidden", message: "This task is part of an agreed contract. Changes to its scope require approval from both parties." });
     expect(await api(page, "create", { id: "sneaky", title: "Not mine to add" })).toMatchObject({ ok: false, code: "forbidden" });
     expect(await api(page, "transition", "t-logos", { to: "done" })).toMatchObject({ ok: false, code: "forbidden" });
     expect(await api(page, "archive", "t-kickoff")).toMatchObject({ ok: false, code: "forbidden" });

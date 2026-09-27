@@ -12,6 +12,7 @@ import type { JobType } from "@/lib/demo/job-types";
 import { notify, PAIR, recordLedger } from "@/lib/demo/live";
 import { trialTasks } from "@/lib/demo/tasks";
 import { isArchived, isCompleted } from "@/lib/work/model";
+import { rateAmount } from "@/lib/work/scope";
 
 /**
  * Disputes, held where all three portals can see them — one record per dispute, keyed by the
@@ -174,8 +175,8 @@ export function dealContract(deal: Deal | null): ContractRef | null {
 /* ---------------------------------------------------------------- money */
 
 const usd = Case.usd;
-/** "$1,600" or "$2,000 /month" → the number in it. */
-export const rateAmount = (rate: string) => Number(rate.replace(/[^0-9.]/g, "")) || 0;
+/** "$1,600" or "$2,000 /month" → the number in it. The contract's own reading, shared with what was agreed (lib/work/scope.ts). */
+export { rateAmount };
 
 /**
  * TB-073 / IN-059 — the amount in question has to be a real, positive sum no bigger than what is
@@ -206,7 +207,8 @@ export function escrowOf(deal: Deal | null, all: Dispute[]): Escrow | null {
   const c = deal?.contract;
   // A direct full-time or part-time hire never had a trial, so nothing was ever put in escrow.
   if (!ref || !c || !startedAsTrial(deal)) return null;
-  const total = c.deposit ?? rateAmount(c.rate);
+  // What was funded with the offer, re-priced by any amendment that changed the trial's rate.
+  const total = (c.deposit ?? rateAmount(c.rate)) + (c.escrowAdjustments ?? []).reduce((n, x) => n + x.amount, 0);
   // A contract ended before escrow was tracked released everything when it ended.
   const released = c.escrow?.released ?? (c.ended ? total : 0);
   const refunded = c.escrow?.refunded ?? 0;

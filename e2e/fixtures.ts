@@ -4,7 +4,9 @@ import seedFile from "./fixtures/deal.json";
 /**
  * The E2E harness. Every test starts from the same contract (fixtures/deal.json): a trial between
  * Alex Rivera (Team Builder) and Juan Dela Cruz (Independent), a dozen work items across every
- * status, date combination and assignee, "today" pinned to Fri 25 Sep 2026.
+ * status, date combination and assignee, "today" pinned to Fri 25 Sep 2026. #1–#4 are the offer's
+ * agreed tasks; #5–#12 were added during the trial, which a trial no longer allows (TB-064) — saved
+ * data like that still loads and works.
  *
  * Seeding runs before the app's own scripts, once per test (a run id guards it), so a reload or a
  * second tab keeps what the test changed — persistence is tested for real, not re-seeded away.
@@ -29,6 +31,16 @@ export const EVALUATED = {
   ends: "2026-09-18",
   evaluations: [{ stars: 4, scores: [{ label: "Quality of work", value: 4 }], feedback: "A strong trial.", recommendation: "Hire full-time", date: "21 Sep 2026", tfp: 80 }],
   escrow: { released: 1600, refunded: 0 },
+};
+
+/**
+ * The same contract as a full-time role since Mon 21 Sep, after that trial: where work is added.
+ * A trial takes none — its tasks are the ones its signed offer agreed (TB-064) — so the specs that
+ * add work run on this.
+ */
+export const ROLE = {
+  contract: EVALUATED,
+  deal: { conversion: { type: "full-time", salary: "$4,000", start: "2026-09-21", benefits: [], status: "accepted", sent: "21 Sep 2026", accepted: "21 Sep 2026" } },
 };
 
 type SeedOptions = {

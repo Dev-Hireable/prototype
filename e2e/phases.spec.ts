@@ -1,4 +1,4 @@
-import { api, card, closePanel, EVALUATED, expect, open, PATH, panel, projectPicker, test, tickFilter, toast } from "./fixtures";
+import { api, card, closePanel, EVALUATED, expect, open, PATH, panel, projectPicker, ROLE, test, tickFilter, toast } from "./fixtures";
 
 // What each side can do to the work, at every point in a contract's life and in every state a
 // project can be in — the edge cases a Monday, Asana, Jira or Notion board would have to get right.
@@ -11,16 +11,22 @@ const conversion = (status: "sent" | "accepted", start: string) => ({ conversion
 const addTask = (page: import("@playwright/test").Page) => page.getByRole("button", { name: "Add task" });
 
 test.describe("while the trial runs", () => {
-  test("the Team Builder adds work; the Independent works it but doesn't add any; there are no projects yet", async ({ page, secondPage }) => {
+  test("its tasks are the ones the offer agreed: nobody adds work, the Independent works it, and there are no projects yet", async ({ page, secondPage }) => {
     await open(page, "team");
-    await expect(addTask(page).first()).toBeVisible();
+    await expect(card(page, /#4 Pick a typography pairing/)).toBeVisible();
+    await expect(addTask(page)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Change project$/ })).toHaveCount(0);
-    expect(await api(page, "create", { id: "n1", title: "Mood board" })).toMatchObject({ ok: true, value: { trial: true } });
+    const agreed = "The trial's tasks were agreed in the signed offer, so no more can be added.";
+    expect(await api(page, "create", { id: "n1", title: "Mood board" })).toMatchObject({ ok: false, code: "forbidden", message: agreed });
+    expect(await api(page, "create", { id: "n2", title: "Kickoff notes", assignee: "team" })).toMatchObject({ ok: false, code: "forbidden", message: agreed });
+    // The agreed tasks are still planned.
+    expect(await api(page, "patch", "t-type", { priority: "high" })).toMatchObject({ ok: true });
 
     const juan = await secondPage();
     await open(juan, "independent");
+    await expect(card(juan, /#4 Pick a typography pairing/)).toBeVisible();
     await expect(addTask(juan)).toHaveCount(0);
-    expect(await api(juan, "create", { id: "n2", title: "Mine" })).toMatchObject({ ok: false, code: "forbidden" });
+    expect(await api(juan, "create", { id: "n3", title: "Mine" })).toMatchObject({ ok: false, code: "forbidden" });
     expect(await api(juan, "transition", "t-type", { to: "doing" })).toMatchObject({ ok: true });
   });
 });
@@ -28,10 +34,11 @@ test.describe("while the trial runs", () => {
 test.describe("on the trial's last day", () => {
   test.use({ seedOptions: { contract: { ends: "2026-09-25" } } });
 
-  test("it still runs through the day: work can be added and moved", async ({ page }) => {
-    await open(page, "team");
-    await expect(addTask(page).first()).toBeVisible();
-    expect(await api(page, "create", { id: "n1", title: "Wrap-up notes", assignee: "team" })).toMatchObject({ ok: true });
+  test("it still runs through the day: the work moves on, though nothing is added", async ({ page }) => {
+    await open(page, "independent");
+    await expect(card(page, /#4 Pick a typography pairing/)).toBeVisible();
+    await expect(addTask(page)).toHaveCount(0);
+    expect(await api(page, "transition", "t-type", { to: "doing" })).toMatchObject({ ok: true });
   });
 });
 
@@ -178,6 +185,8 @@ test.describe("dependencies", () => {
 });
 
 test.describe("deleting a task", () => {
+  test.use({ seedOptions: ROLE });
+
   test("it's called Delete, can be undone, and a deleted task can be found and restored", async ({ page }) => {
     await open(page, "team");
     expect(await api(page, "create", { id: "n1", title: "Scratch idea", assignee: "team" })).toMatchObject({ ok: true });

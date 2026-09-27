@@ -4,7 +4,9 @@ import { useEffect } from "react";
 import { nextPay, noticeLastDay, type Notice, type PayPeriod, payPeriods } from "@/lib/contract/lifecycle";
 import type { Dispute } from "@/lib/disputes/case";
 import { dayLabel, isoDay, parseDay, today } from "@/lib/demo/dates";
-import { contractTypeOf, type Deal, type DealEvaluation, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, type RoleHold, settleEscrow, startedAsTrial, trialEvaluationOf, updateDeal } from "@/lib/demo/deal";
+import { contractTypeOf, converted, type Deal, type DealEvaluation, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, type RoleHold, settleEscrow, startedAsTrial, trialEvaluationOf, updateDeal } from "@/lib/demo/deal";
+import { scopeOfDeal } from "@/lib/work/deal-scope";
+import { currentVersion, type ContractVersion } from "@/lib/work/scope";
 // disputes.ts reaches back only through a lazy import() of sweepContract, so neither module needs the
 // other while it loads: a cycle on paper, not at runtime.
 // fallow-ignore-next-line circular-dependency
@@ -243,10 +245,74 @@ function tell(d: Deal, to: EndSide, title: string, body: string, tab?: string) {
   notify(to, { title, body, href: to === "team" ? teamHref(tab) : talentHref(d, tab), avatar: to === "team" ? PAIR.independent.avatar : PAIR.team.avatar, kind: "payments" });
 }
 
+/* -------------------------------------------------------- agreed terms */
+
+/** Hireable's platform fee on escrow, charged on top of it — the same as when the offer funded it. */
+const ESCROW_FEE = 0.1;
+
+/**
+ * What an accepted amendment agreed about the pay, made real (@/lib/work/scope). Each version is
+ * settled once (`fired`), so two open portals can't charge it twice:
+ *   a trial   its escrow follows the new rate: the difference is charged to the company (with the
+ *             platform fee) or goes back to it, and the contract reads the new rate from now
+ *   a role    a part-time role's hours change at once; the new pay starts on its `rateFrom` — the
+ *             months before are paid at the old rate (monthlyOn), and from then the contract reads it
+ */
+function settleAgreedTerms(d: Deal, now: Date) {
+  const scope = scopeOfDeal(d);
+  const v = scope ? currentVersion(scope) : undefined;
+  if (!d.contract || !v || v.source.kind !== "amendment") return;
+  if (v.terms.type === "trial") settleTrialRate(d, v);
+  else settleRoleTerms(d, v, now);
+}
+
+function settleTrialRate(d: Deal, v: ContractVersion) {
+  const key = `terms-v${v.version}`;
+  if (fired(d, key)) return;
+  fire(key);
+  const total = escrowOf(d, getDisputes())?.total ?? 0;
+  const delta = cents((v.terms.escrow ?? total) - total);
+  const adjustment = { version: v.version, amount: delta, fee: delta > 0 ? cents(delta * ESCROW_FEE) : 0, at: today() };
+  updateDeal((x) => (x.contract ? { ...x, contract: { ...x.contract, rate: v.terms.rate, ...(delta ? { escrowAdjustments: [...(x.contract.escrowAdjustments ?? []), adjustment] } : {}) } } : x));
+  if (!delta) return;
+  const what = delta > 0 ? `${usd(delta)} more, and its ${usd(adjustment.fee)} fee, was charged to your card` : `${usd(-delta)} went back to your card`;
+  tell(d, "team", "Escrow re-priced", `Contract v${v.version} set the ${d.title} trial's rate at ${v.terms.rate}, so its escrow is ${usd(total + delta)} now: ${what}.`, "contract");
+  tell(d, "independent", "Escrow re-priced", `Contract v${v.version} set your ${d.title} trial's rate at ${v.terms.rate}. ${d.company}'s escrow for it is ${usd(total + delta)} now.`, "contract");
+}
+
+function settleRoleTerms(d: Deal, v: ContractVersion, now: Date) {
+  const role = converted(d) ? "conversion" : "contract";
+  const hours = role === "conversion" ? d.conversion?.hours : d.contract?.hours;
+  if (v.terms.hours !== undefined && v.terms.hours !== hours) updateDeal((x) => (role === "conversion" && x.conversion ? { ...x, conversion: { ...x.conversion, hours: v.terms.hours } } : x.contract ? { ...x, contract: { ...x.contract, hours: v.terms.hours } } : x));
+  const from = parseDay(v.terms.rateFrom);
+  const rate = role === "conversion" ? d.conversion?.salary : d.contract?.rate;
+  if (!from || now < from || rateAmount(rate ?? "") === rateAmount(v.terms.rate)) return;
+  updateDeal((x) => (role === "conversion" && x.conversion ? { ...x, conversion: { ...x.conversion, salary: v.terms.rate } } : x.contract ? { ...x, contract: { ...x.contract, rate: v.terms.rate } } : x));
+}
+
 /* ----------------------------------------------------------------- pay */
 
 /** What a full-time or part-time role pays a month ("$4,000 /month" → 4000). */
 const monthlyOf = (d: Deal | null) => rateAmount(d?.conversion?.status === "accepted" ? d.conversion.salary : (d?.contract?.rate ?? ""));
+
+/**
+ * What a role pays for the month that starts on `day`: the rate agreed for it. An amendment's new pay
+ * applies from its `rateFrom` (the first of a month), so each month is paid at one rate — its own.
+ */
+function monthlyOn(d: Deal, day: Date): number {
+  const versions = scopeOfDeal(d)?.versions ?? [];
+  if (!versions.some((v) => v.terms.rateFrom)) return monthlyOf(d);
+  const iso = isoDay(day);
+  for (let i = versions.length - 1; i >= 0; i--) {
+    const v = versions[i];
+    if (v.terms.type === "trial") break;
+    if (!v.terms.rateFrom || v.terms.rateFrom <= iso) return rateAmount(v.terms.rate);
+  }
+  return monthlyOf(d);
+}
+
+/** A pay period's amount at the rate agreed for it, scaled from the one it was worked out at. */
+const atAgreedRate = (d: Deal, p: PayPeriod, monthly: number): PayPeriod => ({ ...p, amount: monthly ? cents((p.amount * monthlyOn(d, p.from)) / monthly) : p.amount });
 
 /**
  * The pay schedule on a full-time or part-time contract: what it pays a month, what's been paid
@@ -262,7 +328,7 @@ export function payScheduleOf(d: Deal | null, now = new Date()): { monthly: numb
   const paidThrough = parseDay(c.paidThrough);
   const held = d ? roleDisputes(d).filter(holds).reduce((n, x) => n + x.amount, 0) : 0;
   const running = l.phase === "ongoing" && !!monthly;
-  let next = running ? nextPay(since, paidThrough, monthly) : undefined;
+  let next = running && d ? atAgreedRate(d, nextPay(since, paidThrough, monthly), monthly) : undefined;
   // Under notice, the last payday is the notice's last day, pro rata.
   const last = l.notice ? parseDay(l.notice.lastDay) : undefined;
   if (next && last && next.to > last) next = { ...next, to: last, amount: payPeriods(next.from, last, monthly, true)[0]?.amount ?? 0 };
@@ -325,7 +391,7 @@ function payUpTo(d: Deal, until: Date, closing = false): number {
   if (!c || !l || l.type === "trial" || !since || !monthly) return 0;
   const paid = parseDay(c.paidThrough);
   const from = paid ? new Date(paid.getFullYear(), paid.getMonth(), paid.getDate() + 1) : since;
-  const periods = payPeriods(from, until, monthly, closing);
+  const periods = payPeriods(from, until, monthly, closing).map((p) => atAgreedRate(d, p, monthly));
   const heldBy = syncHolds(d);
   const row = { contract: d.roleSlug, title: d.title, company: d.company, chapter: l.type };
   const now = new Date();
@@ -375,12 +441,14 @@ const fire = (key: string) => updateDeal((x) => (x.contract ? { ...x, contract: 
  *   each month's pay on a full-time or part-time role, and the role disputes' holds on it
  *   notice running out: the role ends, paid through the notice's last day
  *
- * Exported for lib/demo/disputes.ts, which loads this module lazily to run it
- * (`import(…).then((m) => m.sweepContract())`); fallow can't see that use.
+ * Exported for lib/demo/disputes.ts and lib/work/store.ts, which load this module lazily to run it
+ * (`import(…).then((m) => m.sweepContract())`).
  */
-// fallow-ignore-next-line unused-export
 export function sweepContract(now = new Date()) {
   return exclusive(() => {
+    // What an accepted amendment agreed about the pay comes first, so what follows reads it.
+    const agreed = readDeal();
+    if (agreed) settleAgreedTerms(agreed, now);
     const d = readDeal();
     const l = lifecycleOfDeal(d, now);
     const c = d?.contract;

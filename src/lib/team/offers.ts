@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { dayLabel, isoDay, today } from "@/lib/demo/dates";
+import { currentRevision, openRequest, revisionOf, unanswered, type OfferEvent } from "@/lib/contract/negotiation";
+import { dayLabel, isoDay, momentLabel, today } from "@/lib/demo/dates";
+import type { SuggestionDecision } from "@/lib/demo/suggestions";
 import { lifecycleOfDeal, readDeal, updateDeal, useDeal } from "@/lib/demo/deal";
 import type { ConversionStatus, Deal, DealOffer } from "@/lib/demo/deal";
 import type { OngoingType } from "@/lib/demo/job-types";
@@ -58,7 +60,8 @@ function offersOf(deal: Deal | null, offers: Offer[]): Offer[] {
       end: deal.offer.end ? dayLabel(deal.offer.end) : undefined,
       hours: deal.offer.hours,
       href: `/team/hire/roles/${deal.roleSlug}/candidates/${DEAL_ID}`,
-      status: OFFER_STATUS[deal.offer.status],
+      // IN-092 — the talent asked for changes: the next revision is the Team Builder's to send.
+      status: openRequest(deal.offer) ? { label: "Changes requested", tone: "warn" } : OFFER_STATUS[deal.offer.status],
       type: deal.offer.type,
       declineReason: deal.offer.declineReason,
     });
@@ -72,26 +75,54 @@ function offersOf(deal: Deal | null, offers: Offer[]): Offer[] {
  */
 const talentSide = (d: Deal) => ({ slug: d.roleSlug, title: d.title });
 
+/** A line on the offer's log for the Team Builder's step. */
+const teamEvent = (kind: OfferEvent["kind"], revision: number): OfferEvent => ({ kind, revision, at: momentLabel(), ts: Date.now(), by: "team", name: PAIR.team.name });
+
 /**
  * TB-105 — the offer the talent actually opens: its type's terms, the tasks it commits them to,
- * and on a trial the escrow funded with it.
+ * and on a trial the escrow funded with it. After a declined or withdrawn one, the new offer is
+ * the next revision, so its history reads on from the last.
  */
 function sendOffer(terms: Omit<DealOffer, "status" | "sent" | "updated" | "declineReason">) {
   const d = readDeal();
   if (!d) return;
   move("offer_sent", talentSide(d), { type: terms.type });
-  updateDeal((x) => ({ ...x, stage: "offer_received", dropped: false, proposalDeclined: undefined, offer: { ...terms, status: "sent", sent: today() } }));
+  updateDeal((x) => {
+    const revision = x.offer ? revisionOf(x.offer) + 1 : 1;
+    const history = x.offer ? [...(x.offer.history ?? []), currentRevision(x.offer)] : [];
+    return { ...x, stage: "offer_received", dropped: false, proposalDeclined: undefined, offer: { ...terms, status: "sent", sent: today(), revision, history, log: [...(x.offer?.log ?? []), teamEvent("sent", revision)] } };
+  });
+}
+
+/** The offer's next revision: `terms` over the last, which is kept as it was, and the talent's open request answered with `decisions`. */
+function revised(o: DealOffer, terms: Pick<DealOffer, "rate" | "start" | "end" | "deposit" | "hours" | "tasks">, decisions: Readonly<Record<string, SuggestionDecision>> | undefined): DealOffer {
+  const revision = revisionOf(o) + 1;
+  const request = openRequest(o);
+  const answers = request ? Object.fromEntries(request.suggestions.map((s) => [s.id, decisions?.[s.id] ?? "ignored"])) : undefined;
+  return {
+    ...o,
+    ...terms,
+    status: "sent",
+    updated: today(),
+    declineReason: undefined,
+    revision,
+    history: [...(o.history ?? []), currentRevision(o)],
+    request: request ? { ...request, status: "answered", decisions: answers, answeredIn: revision } : o.request,
+    log: [...(o.log ?? []), teamEvent("revised", revision)],
+  };
 }
 
 /**
- * TB-105 — new terms or tasks on a sent offer; the talent is told and signs the new version. False
- * when it has had its answer since the editor opened — accepted in the talent's tab, say.
+ * TB-105 / IN-092 — the next revision of a sent offer; the talent is told and signs it, not the one
+ * before. While they've asked for changes, every suggestion needs an answer (`decisions`) first, so
+ * nothing they asked is left unresolved. False when it can't go: answered since the editor opened
+ * (accepted in the talent's tab, say), or a suggestion still unanswered.
  */
-function updateOffer({ rate, start, end, deposit, hours, tasks }: Pick<DealOffer, "rate" | "start" | "end" | "deposit" | "hours" | "tasks">) {
+function updateOffer(terms: Pick<DealOffer, "rate" | "start" | "end" | "deposit" | "hours" | "tasks">, decisions?: Readonly<Record<string, SuggestionDecision>>) {
   const d = readDeal();
-  if (d?.offer?.status !== "sent") return false;
+  if (d?.offer?.status !== "sent" || unanswered(openRequest(d.offer), decisions) > 0) return false;
   move("offer_updated", talentSide(d), { type: d.offer.type });
-  updateDeal((x) => (x.offer ? { ...x, stage: "offer_received", offer: { ...x.offer, rate, start, end, deposit, hours, tasks, status: "sent", updated: today(), declineReason: undefined } } : x));
+  updateDeal((x) => (x.offer?.status === "sent" ? { ...x, stage: "offer_received", offer: revised(x.offer, terms, decisions) } : x));
   return true;
 }
 
@@ -101,7 +132,7 @@ function withdrawOffer(id: string) {
   if (id === DEAL_ID && d?.offer?.status === "sent") {
     move("offer_withdrawn", talentSide(d));
     // Back to the proposal: it is still on file, and a new offer can go out from it.
-    updateDeal((x) => (x.offer ? { ...x, stage: "proposal_sent", offer: { ...x.offer, status: "withdrawn" } } : x));
+    updateDeal((x) => (x.offer ? { ...x, stage: "proposal_sent", offer: { ...x.offer, status: "withdrawn", log: [...(x.offer.log ?? []), teamEvent("withdrawn", revisionOf(x.offer))] } } : x));
     return;
   }
   if (id === CONVERSION_ID && d?.conversion?.status === "sent") {

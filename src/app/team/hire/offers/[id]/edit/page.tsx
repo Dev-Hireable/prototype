@@ -1,16 +1,21 @@
 "use client";
 
 import { notFound, useRouter } from "next/navigation";
-import { use } from "react";
+import { use, useState } from "react";
 import { Page } from "@/components/independent/ui";
-import { useDeal } from "@/lib/demo/deal";
-import { usd } from "@/lib/demo/disputes";
+import { openRequest, revisionOf, unanswered } from "@/lib/contract/negotiation";
+import { useDeal, type DealOffer } from "@/lib/demo/deal";
+import { rateAmount, usd } from "@/lib/demo/disputes";
+import { applySuggestions, type SuggestionDecision } from "@/lib/demo/suggestions";
+import { toDrafts, withIds, type DraftTask } from "@/lib/demo/tasks";
+import { formatMoney } from "@/lib/portal/money";
 import { byName } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { useOffers } from "@/lib/team/offers";
 import { useRoles } from "@/lib/team/roles";
 import { ClosedOffer } from "./_components/Closed";
 import { EditHeading } from "./_components/Heading";
+import { RequestCard } from "./_components/Request";
 import { SignCard } from "./_components/SignCard";
 import { TermsCard } from "./_components/TermsCard";
 import { offerEdit, useOfferEdits } from "./_lib/edit";
@@ -21,7 +26,8 @@ import { offerEdit, useOfferEdits } from "./_lib/edit";
  *
  * The editable terms follow the offer's type: a trial's rate and start date (its end date and escrow
  * follow), or an ongoing role's pay, start date and — part-time — hours a week. The tasks the offer
- * sets can be changed too. The talent is told and signs the new version.
+ * sets can be changed too. What goes out is the offer's next revision: the talent is told, reads what
+ * changed, and signs it. When they've asked for changes (IN-092), each is answered here first (TB-149).
  */
 export default function EditOffer({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -30,7 +36,8 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
   const deal = useDeal();
   const router = useRouter();
   const live = id === DEAL_ID ? deal?.offer : undefined;
-  const { rate, setRate, start, setStart, hours, setHours, taskRows, setTaskRows, name, setName, agree, setAgree } = useOfferEdits(live);
+  const e = useOfferEdits(live);
+  const answers = useAnswers(live, e.setTaskRows);
   const offer = offers.find((o) => o.id === id);
   const role = roles.find((r) => r.slug === deal?.roleSlug);
   if (!offer || !live || !deal || !role) notFound();
@@ -46,11 +53,12 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
       </Page>
     );
 
-  const edit = offerEdit(live, role, { rate, start, hours, taskRows, name, agree });
+  const request = openRequest(live);
+  const edit = offerEdit(live, role, e);
   const { trial, partTime, amount, end, escrow, fee, weekly, tasks } = edit;
   const send = () => {
-    const offerTasks = tasks.map((t, i) => ({ ...t, id: `task-${i + 1}` }));
-    const sent = updateOffer(trial ? { rate: `${usd(amount)}/mo`, start, end, deposit: { escrow, fee }, tasks: offerTasks } : { rate: `${usd(amount)}/mo`, start, hours: partTime ? weekly : undefined, tasks: offerTasks });
+    const offerTasks = withIds(tasks);
+    const sent = updateOffer(trial ? { rate: `${usd(amount)}/mo`, start: e.start, end, deposit: { escrow, fee }, tasks: offerTasks } : { rate: `${usd(amount)}/mo`, start: e.start, hours: partTime ? weekly : undefined, tasks: offerTasks }, answers.decisions);
     // Answered in the meantime: the page stays, now saying what happened to the offer.
     if (sent) back();
   };
@@ -58,26 +66,30 @@ export default function EditOffer({ params }: { params: Promise<{ id: string }> 
   return (
     <Page title="Edit offer" heading="modal" onClose={back} padded={false}>
       <div className="mx-auto flex w-[1080px] flex-col gap-10 pt-10 pb-20">
-        <EditHeading name={p.name} first={first} sent={live.sent} edit={edit} />
+        <EditHeading name={p.name} first={first} sent={live.updated ?? live.sent} revision={revisionOf(live)} answering={!!request} edit={edit} />
+        {request && <RequestCard request={request} first={first} decisions={answers.decisions} onDecide={answers.decide} rate={live.rate} onUseRate={() => e.setRate(formatMoney(String(rateAmount(request.rate ?? ""))))} />}
 
         <div className="flex items-start gap-6">
-          <TermsCard
-            live={live}
-            role={role}
-            edit={edit}
-            first={first}
-            rate={rate}
-            onRate={setRate}
-            onStart={setStart}
-            hours={hours}
-            onHours={setHours}
-            taskRows={taskRows}
-            onTaskRows={setTaskRows}
-          />
+          <TermsCard live={live} role={role} edit={edit} first={first} rate={e.rate} onRate={e.setRate} onStart={e.setStart} hours={e.hours} onHours={e.setHours} taskRows={e.taskRows} onTaskRows={e.setTaskRows} />
 
-          <SignCard person={p} role={role} edit={edit} name={name} onName={setName} agree={agree} onAgree={setAgree} onSend={send} onCancel={back} />
+          <SignCard person={p} role={role} edit={edit} next={revisionOf(live) + 1} answering={!!request} unanswered={unanswered(request, answers.decisions)} name={e.name} onName={e.setName} agree={e.agree} onAgree={e.setAgree} onSend={send} onCancel={back} />
         </div>
       </div>
     </Page>
   );
+}
+
+/**
+ * The answers to the talent's request, as they're given: each decision starts the task list again
+ * from the revision they read, with every change accepted so far applied to it.
+ */
+function useAnswers(live: DealOffer | undefined, setRows: (rows: DraftTask[]) => void) {
+  const [decisions, setDecisions] = useState<Record<string, SuggestionDecision>>({});
+  const decide = (sid: string, d: SuggestionDecision) => {
+    const next = { ...decisions, [sid]: d };
+    setDecisions(next);
+    const request = openRequest(live);
+    if (live && request) setRows(toDrafts(applySuggestions(live.tasks, request.suggestions, next)));
+  };
+  return { decisions, decide };
 }

@@ -7,6 +7,8 @@ import { ContractScore } from "@/components/portal/ContractParts";
 import { ContractWork } from "@/components/workspace/ContractWork";
 import { UnreadableGate } from "@/components/workspace/UnreadableGate";
 import { CONTRACT_TABS, useContractView } from "@/lib/contract/view";
+import { AgreementTab } from "@/components/agreement/AgreementTab";
+import { firstName } from "@/components/workspace/labels";
 import { ContractTabs } from "@/components/portal/ContractTabs";
 import { PAIR } from "@/lib/demo/live";
 import { useIndependentContracts } from "@/lib/independent/contracts";
@@ -82,6 +84,8 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
       navActions={<HeaderActions contract={contract} thread={thread} view={view} onFile={() => dialogs.setFiling(true)} />}
     >
       {tab === "tasks" && <ContractWork live={view.onDeal} contract={contract} life={view.life} notice={view.notice} cancelled={view.cancelled} ended={t.ended} scoreFinal={t.scoreFinal} actor={t.actor} people={t.people} closedNote={closedNote(contract, view, t.ended)} />}
+      {/* IN-094 — what was agreed, its amendments and its history. */}
+      {tab === "agreement" && (view.onDeal ? <AgreementTab actor={t.actor} names={{ team: contract.managerFirst, independent: firstName(t.actor.name) }} /> : <p className="text-[14px] text-ink-2">This contract&apos;s agreement isn&apos;t available.</p>)}
       {tab === "evaluation" && <EvaluationTab contract={contract} view={view} thread={thread} score={score} ended={t.ended} />}
       {tab === "contract" && <ContractTab t={t} wallet={wallet} score={score} company={company} onFile={() => dialogs.setFiling(true)} onEnd={() => dialogs.setEnding(true)} onWithdraw={withdraw} />}
       {/* IN-076 — the contract at a glance: its terms, how far the work has got, what's waiting on

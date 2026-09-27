@@ -9,7 +9,7 @@ import { addWorkingDays, dayLabel, durationDays, trialMonths, fromISODate, start
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount, usd } from "@/lib/demo/disputes";
 import { hoursLabel, JOB_TYPE_LABEL, postedStart, startLabel } from "@/lib/demo/job-types";
-import { planWeeks, blankDraft, fromDrafts, toDrafts, type DraftTask } from "@/lib/demo/tasks";
+import { planWeeks, blankDraft, fromDrafts, toDrafts, withIds, type DraftTask } from "@/lib/demo/tasks";
 import type { OfferTask, PlannedTask } from "@/lib/demo/tasks";
 import { FT_BENEFITS } from "@/lib/team/data";
 import type { Independent, PaymentMethod, Role } from "@/lib/team/data";
@@ -109,7 +109,7 @@ function reviewRows({ role, person, proposal, trial, figures, start, benefits, t
 function offerTerms({ role, proposal, figures, start, benefits, tasks }: { role: Role; proposal: DealProposal; figures: Figures; start: string; benefits: string[]; tasks: PlannedTask[] }): OfferTerms {
   const { end, escrow, fee, weekly, payLabel } = figures;
   // Ids the tasks keep on the contract, so a notification can link straight to one.
-  const offerTasks = tasks.map((t, i) => ({ ...t, id: `task-${i + 1}` }));
+  const offerTasks = withIds(tasks);
   return role.type === "trial"
     ? { rate: proposal.rate, start, end, deposit: { escrow, fee }, tasks: offerTasks }
     : { rate: payLabel, start, hours: role.type === "part-time" ? weekly : undefined, benefits: role.type === "full-time" ? benefits : undefined, tasks: offerTasks };

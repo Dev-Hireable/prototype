@@ -5,9 +5,10 @@ import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { isArchived, refOf, type WorkItem } from "@/lib/work/model";
+import { isArchived, newId, refOf, type WorkItem } from "@/lib/work/model";
 import { capsFor, transitionFor } from "@/lib/work/permissions";
 import { useWorkspace } from "./context";
+import { amendable } from "./lockable";
 
 /**
  * One "⋯" menu per view, shared by every card and row through Base UI's detached triggers — so a
@@ -75,6 +76,7 @@ function ItemMenuContent({ model: m }: { model: MenuModel }) {
       )}
       <MoveToGroup moves={m.moves} />
       <OrderGroup order={m.order} />
+      <ContractGroup item={t} />
       {(caps.archive || caps.restore) && (
         <>
           <DropdownMenuSeparator />
@@ -90,6 +92,29 @@ function ItemMenuContent({ model: m }: { model: MenuModel }) {
         </>
       )}
     </DropdownMenuContent>
+  );
+}
+
+/**
+ * A contract task's scope changes only by amendment: its menu proposes a change to it, or its
+ * removal — where an internal item's would delete it.
+ */
+function ContractGroup({ item: t }: { item: WorkItem }) {
+  const { actor, access, agreement } = useWorkspace();
+  if (!amendable(t, actor.role, access) || agreement.blocked) return null;
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>Contract task</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => agreement.propose({ editing: { kind: "task", id: t.id } })}>
+          <ICONS.edit size={16} aria-hidden /> Propose a change…
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => agreement.propose({ changes: [{ id: newId("ch"), kind: "remove", taskId: t.id }] })}>
+          <ICONS.trash size={16} aria-hidden /> Propose removing it…
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
+    </>
   );
 }
 

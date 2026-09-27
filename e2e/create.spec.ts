@@ -1,6 +1,9 @@
-import { card, closePanel, column, expect, notes, open, panel, saved, savedItem, test, toast, view } from "./fixtures";
+import { card, closePanel, column, expect, notes, open, panel, ROLE, saved, savedItem, test, toast, view } from "./fixtures";
 
-// Scenario C — creating work: quick add in a column, the full dialog, and who can.
+// Scenario C — creating work: quick add in a column, the full dialog, and who can. On a role: a
+// trial takes no new work (phases.spec).
+test.use({ seedOptions: ROLE });
+
 test.describe("creating work · quick add", () => {
   test("quick add: Enter adds and stays open for the next; Enter on nothing closes", async ({ page }) => {
     await open(page, "team");

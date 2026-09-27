@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { WorkStatus } from "../../src/lib/work/model";
 import { canCreate, canReorder, capsFor, readOnlyReason, targetsFor, transitionFor, type Role } from "../../src/lib/work/permissions";
-import { ENDED, item, OPEN, REVIEW_ONLY } from "./fixtures";
+import { ENDED, item, OPEN, REVIEW_ONLY, TRIAL } from "./fixtures";
 
 const manager = { role: "manager" as Role };
 const contributor = { role: "contributor" as Role };
@@ -102,6 +102,14 @@ test.describe("capabilities · roles and contracts", () => {
     expect(canReorder(contributor, OPEN)).toBe(false);
     expect(readOnlyReason(viewer, OPEN)).toMatch(/read-only/);
     expect(readOnlyReason(manager, OPEN)).toBeNull();
+  });
+
+  test("a trial takes no new work: its tasks are the ones its signed offer agreed", () => {
+    expect(canCreate(manager, TRIAL)).toBe(false);
+    expect(canCreate(contributor, TRIAL)).toBe(false);
+    expect(canCreate(manager, { ...TRIAL, startsOn: "28 Sep 2026" })).toBe(false);
+    // The agreed tasks are still planned, and still keep their wording.
+    expect(capsFor(item({ agreed: true, trial: true }), manager, TRIAL)).toMatchObject({ plan: true, editText: false, archive: false });
   });
 });
 

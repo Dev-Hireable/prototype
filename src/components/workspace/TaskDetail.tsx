@@ -14,6 +14,9 @@ import { checkComment, checkSubtaskTitle, checkTitle } from "@/lib/work/validate
 import { keyed } from "@/lib/portal/keys";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
 import { AssigneeField, DateField, DependenciesField, EffortField, PriorityField, ProjectField, Prop, StatusField, TagsField, TypeField } from "./fields";
+import { ContractNotice, PendingNotice, type LockedPart } from "./contract-lock";
+import { lockable } from "./lockable";
+import { ScopeChip } from "./meta";
 import { QuickAdd } from "./QuickAdd";
 
 /**
@@ -27,6 +30,8 @@ import { QuickAdd } from "./QuickAdd";
  */
 export function TaskDetail({ open, item, items, byId, focus, pending, onClose }: { open: boolean; item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean; onClose: () => void }) {
   const step = stepFor(item, useWorkspace());
+  /** The agreed part someone just tried to change on a contract task: its notice shows until they choose. */
+  const [locked, setLocked] = useState<LockedPart | null>(null);
   return (
     <Drawer
       open={open}
@@ -36,11 +41,11 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
       testId="task-panel"
       // The header's first control is the name: opening on it would put the name mid-edit every time.
       initialFocus="close"
-      header={<PanelHeading item={item} byId={byId} focus={focus} pending={pending} />}
-      actions={<PanelActions item={item} />}
+      header={<PanelHeading item={item} byId={byId} focus={focus} pending={pending} onLocked={setLocked} />}
+      actions={<PanelActions item={item} onLocked={setLocked} />}
       footer={step && <NextStep key={step} kind={step} item={item} focus={focus} />}
     >
-      <DetailBody item={item} items={items} byId={byId} focus={focus} />
+      <DetailBody item={item} items={items} byId={byId} focus={focus} locked={locked} onLocked={setLocked} />
     </Drawer>
   );
 }
@@ -50,8 +55,9 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
  * scrolls — the header used to hold only its number ("#1"), with the name down in the body. The
  * number sits over the name, where it's found again, with whether a change is still saving.
  */
-function PanelHeading({ item: t, byId, focus, pending }: { item: WorkItem; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean }) {
+function PanelHeading({ item: t, byId, focus, pending, onLocked }: { item: WorkItem; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean; onLocked: (part: LockedPart) => void }) {
   const { actor, access, actions } = useWorkspace();
+  const nameLocked = lockable(t, actor.role, access, onLocked);
   const caps = capsFor(t, actor, access);
   const blockers = isCompleted(t.status) ? [] : openBlockers(t, byId);
   return (
@@ -69,6 +75,7 @@ function PanelHeading({ item: t, byId, focus, pending }: { item: WorkItem; byId:
           label="Name"
           value={t.title}
           editable={caps.editText}
+          onLocked={nameLocked ? () => onLocked("name") : undefined}
           autoFocus={focus === "title"}
           updatedBy={t.updatedBy}
           validate={(v) => checkTitle(v)?.message ?? null}
@@ -78,6 +85,7 @@ function PanelHeading({ item: t, byId, focus, pending }: { item: WorkItem; byId:
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <StatusField item={t} />
+        <ScopeChip item={t} />
         {blockers.length > 0 && (
           <Tip label={`Waits on ${blockers.map((b) => `${refOf(b)} ${b.title}`).join(", ")}`}>
             <span className="inline-flex">
@@ -93,9 +101,24 @@ function PanelHeading({ item: t, byId, focus, pending }: { item: WorkItem; byId:
 }
 
 /** Deleting, from the menu. Restoring a deleted item is the deleted banner's one action, not a second copy here. */
-function PanelActions({ item }: { item: WorkItem }) {
-  const { actor, access, actions } = useWorkspace();
-  if (isArchived(item) || !capsFor(item, actor, access).archive) return null;
+function PanelActions({ item, onLocked }: { item: WorkItem; onLocked: (part: LockedPart) => void }) {
+  const { actor, access, actions, agreement } = useWorkspace();
+  if (isArchived(item)) return null;
+  // A contract task isn't deleted: removing it is proposed, and the notice says so.
+  if (lockable(item, actor.role, access, onLocked))
+    return (
+      <KebabMenu label="Item actions" icon="horizontal" iconSize={20} menuWidth={220}>
+        {!agreement.blocked && (
+          <MenuAction onClick={() => agreement.propose({ editing: { kind: "task", id: item.id } })} icon={<ICONS.edit size={18} aria-hidden />}>
+            Propose a change
+          </MenuAction>
+        )}
+        <MenuAction destructive onClick={() => onLocked("removal")} icon={<ICONS.trash size={18} aria-hidden />}>
+          Delete task
+        </MenuAction>
+      </KebabMenu>
+    );
+  if (!capsFor(item, actor, access).archive) return null;
   return (
     <KebabMenu label="Item actions" icon="horizontal" iconSize={20} menuWidth={200}>
       <MenuAction destructive onClick={() => void actions.archive(item)} icon={<ICONS.trash size={18} aria-hidden />}>
@@ -156,9 +179,9 @@ function ActivityFeed({ items }: { items: ReactNode[] }) {
 type FeedFilter = "all" | "comments" | "updates";
 
 /** How an item's creation reads in its history, whichever way it was made. */
-const CREATED = /^(Added by |Agreed in the signed offer)/;
+const CREATED = /^(Added by |Agreed in )/;
 
-function DetailBody({ item: t, items, byId, focus }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus }) {
+function DetailBody({ item: t, items, byId, focus, locked, onLocked }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; locked: LockedPart | null; onLocked: (part: LockedPart | null) => void }) {
   const { actor, access } = useWorkspace();
   const caps = capsFor(t, actor, access);
   /** A comment's notification opens the item on its comments: the history comes into view. */
@@ -172,14 +195,16 @@ function DetailBody({ item: t, items, byId, focus }: { item: WorkItem; items: re
     <>
       {/* What's needed now. */}
       {isArchived(t) && <DeletedBanner item={t} restorable={caps.restore} />}
+      <PendingNotice item={t} />
+      {locked && <ContractNotice item={t} part={locked} onClose={() => onLocked(null)} />}
       {changes && <ChangesBanner changes={changes} />}
       {review && <ReviewBanner review={review} />}
 
       {/* The plan: who, when, how much. A property list, a row each, on a white card with a hairline and a whisper of shadow. */}
-      <PlanCard item={t} items={items} />
+      <PlanCard item={t} items={items} onLocked={onLocked} />
 
       {/* Nothing to read and nothing to write: no empty section. */}
-      {(t.description || caps.editText) && <DescriptionSection item={t} editable={caps.editText} />}
+      {(t.description || caps.editText) && <DescriptionSection item={t} editable={caps.editText} onLocked={onLocked} />}
 
       {(t.subtasks.length > 0 || caps.subtasks) && <SubtasksSection item={t} caps={caps} />}
 
@@ -250,14 +275,14 @@ function ReviewBanner({ review }: { review: NonNullable<WorkItem["submitted"]> }
 }
 
 /** The plan's properties, each a field this person can change or plain text where they can't. */
-function PlanCard({ item: t, items }: { item: WorkItem; items: readonly WorkItem[] }) {
+function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonly WorkItem[]; onLocked: (part: LockedPart) => void }) {
   const { projects } = useWorkspace();
   /** Every tag in use on the contract, the most used first, to suggest when adding one. */
   const knownTags = tagsInUse(items);
   return (
     <dl className="flex flex-col rounded-xl border border-[#ebebeb] bg-white py-2 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
       <Prop label="Assignee" icon="person">
-        <AssigneeField item={t} />
+        <AssigneeField item={t} onLocked={onLocked} />
       </Prop>
       {/* A role's work sits in a project or none; a trial has no projects. */}
       {projects.ctx.split && (
@@ -274,15 +299,15 @@ function PlanCard({ item: t, items }: { item: WorkItem; items: readonly WorkItem
         </Prop>
       )}
       <Prop label={t.type === "milestone" ? "Date" : "Due"} icon="schedule">
-        <DateField item={t} which="due" />
+        <DateField item={t} which="due" onLocked={onLocked} />
       </Prop>
       {t.type !== "milestone" && (
         <Prop label="Effort" icon="effort" hint={EFFORT_HELP}>
-          <EffortField item={t} />
+          <EffortField item={t} onLocked={onLocked} />
         </Prop>
       )}
       <Prop label="Work type" icon="work">
-        <TypeField item={t} />
+        <TypeField item={t} onLocked={onLocked} />
       </Prop>
       <Prop label="Tags" icon="tag" flush>
         <TagsField item={t} known={knownTags} />
@@ -292,8 +317,8 @@ function PlanCard({ item: t, items }: { item: WorkItem; items: readonly WorkItem
 }
 
 /** What done looks like, edited in place by whoever may change the item's text. */
-function DescriptionSection({ item: t, editable }: { item: WorkItem; editable: boolean }) {
-  const { actions } = useWorkspace();
+function DescriptionSection({ item: t, editable, onLocked }: { item: WorkItem; editable: boolean; onLocked: (part: LockedPart) => void }) {
+  const { actions, actor, access } = useWorkspace();
   return (
     <Section title="Description">
       <DraftText
@@ -302,6 +327,7 @@ function DescriptionSection({ item: t, editable }: { item: WorkItem; editable: b
         multiline
         value={t.description ?? ""}
         editable={editable}
+        onLocked={lockable(t, actor.role, access, onLocked) ? () => onLocked("requirements") : undefined}
         updatedBy={t.updatedBy}
         placeholder="What done looks like, links, anything to check"
         onSave={(next, base) => void actions.patch({ ...t, description: base || undefined }, { description: next || null })}
@@ -619,8 +645,15 @@ function leaveOnly(e: KeyboardEvent) {
  * draft isn't wiped — it says so, and the save is checked against what was there when editing
  * began, so it can't silently overwrite theirs.
  */
-function DraftText({ value, editable, onSave, label, multiline = false, placeholder, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
+function DraftText({ value, editable, onLocked, onSave, label, multiline = false, placeholder, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
   const draft = useTextDraft(value, onSave, validate);
+  if (!editable && onLocked)
+    return (
+      <button type="button" onClick={onLocked} aria-label={`${label}: agreed in the contract. Change it`} className={`${className} flex w-full items-start gap-2 rounded-md px-1 py-1 text-left whitespace-pre-line break-words hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary`}>
+        <span className="min-w-0 flex-1">{value || empty}</span>
+        <ICONS.lock size={14} aria-hidden className="mt-1 shrink-0 text-ink-2" />
+      </button>
+    );
   if (!editable) return <p className={`${className} px-1 whitespace-pre-line break-words ${!value ? "text-ink-2" : ""}`}>{value || empty}</p>;
 
   const common = { value: draft.value, "aria-label": label, "aria-invalid": !!draft.error, placeholder, autoFocus, ...draft.handlers };
@@ -668,6 +701,8 @@ function DraftText({ value, editable, onSave, label, multiline = false, placehol
 type DraftTextProps = {
   value: string;
   editable: boolean;
+  /** A contract task's agreed text: trying to change it shows why it can't be changed here. */
+  onLocked?: () => void;
   onSave: (next: string, base: string) => void;
   label: string;
   multiline?: boolean;

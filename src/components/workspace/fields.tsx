@@ -11,9 +11,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import { ASSIGNEE_KEYS, assigneeKey, assigneeOf, EFFORT_HELP, EFFORT_MAX, EFFORT_PRESETS, isArchived, isCompleted, refOf, STATUS_META, TAG_COLOR_KEYS, TAG_COLORS, tagColorOf, TYPE_META, WORK_TYPES, type TagColor, type WorkItem, type WorkStatus } from "@/lib/work/model";
 import { matchesSearch } from "@/lib/work/query";
-import { capsFor, targetsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
+import { assigneesFor, capsFor, targetsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
 import { checkDependency, checkEffort, checkTag, normalizeTag } from "@/lib/work/validate";
 import { movedTo, NO_PROJECT, NO_PROJECT_NAME, projectKeyOf } from "@/lib/work/projects";
+import { LockedValue, type LockedPart } from "./contract-lock";
+import { lockable } from "./lockable";
 import { useWorkspace } from "./context";
 import { AssigneeChip, TagChip, TypeChip } from "./meta";
 import { fromISODate, isoDay } from "@/lib/demo/dates";
@@ -83,15 +85,20 @@ export function StatusField({ item }: { item: WorkItem }) {
   );
 }
 
-export function AssigneeField({ item }: { item: WorkItem }) {
+export function AssigneeField({ item, onLocked }: { item: WorkItem; onLocked?: (part: LockedPart) => void }) {
   const { actor, access, people, actions, assigneeLabel } = useWorkspace();
-  const can = capsFor(item, actor, access).assign;
-  if (!can)
-    return (
-      <span className={READ_ONLY}>
-        <AssigneeChip assignee={item.assignee} people={people} />
-      </span>
-    );
+  const choices = assigneesFor(item, actor, access);
+  const allowed = new Set(choices);
+  if (!choices.length) {
+    const face = <AssigneeChip assignee={item.assignee} people={people} />;
+    if (lockable(item, actor.role, access, onLocked))
+      return (
+        <LockedValue part="assignee" onLocked={onLocked}>
+          {face}
+        </LockedValue>
+      );
+    return <span className={READ_ONLY}>{face}</span>;
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger aria-label={`Assignee: ${assigneeLabel(assigneeKey(item.assignee))}. Change assignee`} className={FIELD_TRIGGER} onClick={(e) => e.stopPropagation()}>
@@ -105,7 +112,7 @@ export function AssigneeField({ item }: { item: WorkItem }) {
             if (assignee !== item.assignee) void actions.patch(item, { assignee }, { announce: `${refOf(item)} assigned to ${assigneeLabel(v as (typeof ASSIGNEE_KEYS)[number])}` });
           }}
         >
-          {ASSIGNEE_KEYS.map((k) => (
+          {ASSIGNEE_KEYS.filter((k) => allowed.has(assigneeOf(k)) || assigneeKey(item.assignee) === k).map((k) => (
             <DropdownMenuRadioItem key={k} value={k} closeOnClick>
               <AssigneeChip assignee={assigneeOf(k)} people={people} />
             </DropdownMenuRadioItem>
@@ -116,14 +123,18 @@ export function AssigneeField({ item }: { item: WorkItem }) {
   );
 }
 
-export function TypeField({ item, iconOnly = false }: { item: WorkItem; iconOnly?: boolean }) {
+export function TypeField({ item, iconOnly = false, onLocked }: { item: WorkItem; iconOnly?: boolean; onLocked?: (part: LockedPart) => void }) {
   const { actor, access, actions } = useWorkspace();
-  if (!capsFor(item, actor, access).plan)
-    return (
-      <span className={READ_ONLY}>
-        <TypeChip type={item.type} iconOnly={iconOnly} />
-      </span>
-    );
+  if (!capsFor(item, actor, access).scope) {
+    const face = <TypeChip type={item.type} iconOnly={iconOnly} />;
+    if (lockable(item, actor.role, access, onLocked))
+      return (
+        <LockedValue part="work type" onLocked={onLocked}>
+          {face}
+        </LockedValue>
+      );
+    return <span className={READ_ONLY}>{face}</span>;
+  }
   return (
     <DropdownMenu>
       <DropdownMenuTrigger aria-label={`Work type: ${TYPE_META[item.type].label}. Change work type`} className={FIELD_TRIGGER} onClick={(e) => e.stopPropagation()}>
@@ -217,14 +228,20 @@ export function PriorityField({ item, compact = false }: { item: WorkItem; compa
  * the past, one before the start, anything after a trial's last day — can't be picked, and the
  * same rules run again when the change is saved.
  */
-export function DateField({ item, which, compact = false }: { item: WorkItem; which: "start" | "due"; compact?: boolean }) {
+export function DateField({ item, which, compact = false, onLocked }: { item: WorkItem; which: "start" | "due"; compact?: boolean; onLocked?: (part: LockedPart) => void }) {
   const { actor, access, actions, today } = useWorkspace();
   const caps = capsFor(item, actor, access);
-  const can = which === "start" ? caps.start && item.type !== "milestone" : caps.plan;
+  const can = which === "start" ? caps.start && item.type !== "milestone" : caps.scope;
   const value = dayOf(item[which]);
   const label = which === "start" ? "Start" : "Due";
   const late = which === "due" && value !== null && value < today && item.status !== "done";
   const face = <DateFace text={dateText(value, today, can, compact, label)} late={late} dated={value !== null} />;
+  if (!can && which === "due" && lockable(item, actor.role, access, onLocked))
+    return (
+      <LockedValue part="due date" onLocked={onLocked}>
+        {face}
+      </LockedValue>
+    );
   if (!can) return <span className={READ_ONLY}>{face}</span>;
   return (
     <span onClick={(e) => e.stopPropagation()} className="inline-flex min-w-0">
@@ -274,12 +291,18 @@ function blockedDays(item: WorkItem, which: "start" | "due", today: Day, lastDay
 }
 
 /** Effort: the presets, any whole number up to 999, or none. Relative — not hours. */
-export function EffortField({ item, compact = false }: { item: WorkItem; compact?: boolean }) {
+export function EffortField({ item, compact = false, onLocked }: { item: WorkItem; compact?: boolean; onLocked?: (part: LockedPart) => void }) {
   const { actor, access, actions } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
-  const can = capsFor(item, actor, access).plan && item.type !== "milestone";
+  const can = capsFor(item, actor, access).scope && item.type !== "milestone";
   const face = <EffortFace effort={item.effort} can={can} compact={compact} />;
+  if (!can && item.type !== "milestone" && lockable(item, actor.role, access, onLocked))
+    return (
+      <LockedValue part="effort" onLocked={onLocked}>
+        {face}
+      </LockedValue>
+    );
   if (!can) return <span className={READ_ONLY}>{item.type === "milestone" ? <span className="text-ink-2">—</span> : face}</span>;
   const save = (effort: number | null) => {
     setOpen(false);

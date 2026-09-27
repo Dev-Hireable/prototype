@@ -15,6 +15,7 @@ export function ContractTabs({ value, onChange }: { value: Section; onChange: (t
       options={[
         { value: "tasks", label: "Work" },
         { value: "overview", label: "Overview" },
+        { value: "agreement", label: "Agreement" },
         { value: "contract", label: "Contract & Payment" },
         { value: "evaluation", label: "Evaluation" },
       ]}

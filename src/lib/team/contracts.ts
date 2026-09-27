@@ -177,13 +177,37 @@ function ledgerOf(deal: Deal | null, payments: LivePayment[]): Transaction[] {
         desc: "Escrow deposit",
         type: "Payment Deposited",
         chapter: "trial",
-        amount: usd(total),
+        // What was funded with the offer; an amendment's re-pricing is its own row below.
+        amount: usd(deal.contract.deposit ?? total),
         status: held > 0 ? { label: "Held", tone: "warn" } : { label: "Settled", tone: "neutral" },
         drawerStatus: held > 0 ? "Held in escrow" : "Settled",
         lines: [["Still in escrow", usd(held)], ...(fee ? ([["Platform fee (charged separately)", usd(fee)]] as [string, string][]) : [])],
       }),
+      ...adjustmentRows(deal, ref.key, row),
     );
   return [...rows, ...seedTransactions];
+}
+
+type LedgerRow = (t: Omit<Transaction, "independent" | "contract" | "contractHref" | "detail"> & { drawerStatus: string; lines: [string, string][]; chapter?: JobType }) => Transaction;
+
+/** An amendment that re-priced the trial: what it added to escrow (charged with its fee), or gave back. */
+function adjustmentRows(deal: Deal, key: string, row: LedgerRow): Transaction[] {
+  return (deal.contract?.escrowAdjustments ?? []).map((x) => {
+    const day = parseDay(x.at);
+    const added = x.amount > 0;
+    return row({
+      id: `escrow-v${x.version}-${key}`,
+      date: x.at,
+      at: day ? day.getFullYear() * 10000 + (day.getMonth() + 1) * 100 + day.getDate() : 0,
+      desc: added ? `Escrow top-up — contract v${x.version}` : `Escrow returned — contract v${x.version}`,
+      type: added ? "Payment Deposited" : "Payment Refunded",
+      chapter: "trial",
+      amount: usd(Math.abs(x.amount)),
+      status: added ? { label: "Held", tone: "warn" } : { label: "Refunded", tone: "neutral" },
+      drawerStatus: added ? "Added to escrow" : "Refunded to your card",
+      lines: [["Why", `The trial's rate changed in contract v${x.version}`], ...(x.fee ? ([["Platform fee (charged separately)", usd(x.fee)]] as [string, string][]) : [])],
+    });
+  });
 }
 
 export function useLedger() {

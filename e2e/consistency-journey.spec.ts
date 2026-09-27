@@ -1,8 +1,10 @@
 import type { Page } from "@playwright/test";
-import { card, closePanel, column, drag, expect, open, panel, saved, test, toast, view } from "./fixtures";
+import { card, closePanel, column, drag, expect, open, panel, ROLE, saved, test, toast, view } from "./fixtures";
 
 // Spec §48 — one item, end to end: create it, assign it, give it effort and dates, have the
-// Independent move it, and find it the same in every view, before and after a reload.
+// Independent move it, and find it the same in every view, before and after a reload. On a role:
+// a trial takes no new work.
+test.use({ seedOptions: ROLE });
 
 /** On the Team Builder's board, adds "Journey item" to To do with the column's quick add, and opens it. */
 async function addJourneyItem(page: Page) {

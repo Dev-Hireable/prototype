@@ -4,12 +4,12 @@ import { useMemo } from "react";
 import type { Stage } from "@/components/independent/ui";
 import { trialClosed } from "@/lib/contract/lifecycle";
 import { dayLabel, momentLabel, today } from "@/lib/demo/dates";
-import { canMessage, clearDeal, consumeInvite, contractTypeOf, fillPosting, getInvites, lifecycleOfDeal, proposalSource, readDeal, stageOf, startDeal, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
+import { canMessage, clearDeal, consumeInvite, contractTypeOf, getInvites, lifecycleOfDeal, proposalSource, readDeal, stageOf, startDeal, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal, DealProposal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { move, PAIR, persisted, sendChat, sendFile, useStored } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
-import { taskFromOffer } from "@/lib/demo/tasks";
+import { openRequest, revisionOf, type OfferEvent } from "@/lib/contract/negotiation";
 import { applications as seedApps, interviews as seedInterviews } from "./data";
 import type { Application, Interview } from "./data";
 
@@ -52,6 +52,8 @@ function dealStatus(deal: Deal): Application["status"] {
   if (deal.dropped) return { label: "Not moving forward", tone: "neutral" };
   if (deal.offer?.status === "declined") return { label: "Offer declined", tone: "danger" };
   if (deal.offer?.status === "withdrawn") return { label: "Offer withdrawn", tone: "neutral" };
+  // IN-092 — they asked for changes: the next revision is with the company.
+  if (openRequest(deal.offer)) return { label: "Changes requested", tone: "info", meta: `Revision ${revisionOf(deal.offer as NonNullable<Deal["offer"]>)}` };
   if (deal.offer?.status === "sent") return deal.offer.updated ? { label: "Offer updated", tone: "warn", meta: deal.offer.updated } : { label: "Offer received", tone: "ok" };
   if (deal.revision) return { label: "Revision requested", tone: "warn", meta: deal.revision.date };
   if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
@@ -116,41 +118,14 @@ function setStage(id: string, stage: Stage, status?: Application["status"], noti
   const app = applicationsNow().find((x) => x.id === id);
   if (id === DEAL_ID) {
     const d = readDeal();
-    // IN-074 — only an open offer can be signed; a declined or withdrawn one stays that way.
-    // Nothing moves on an application the company has dropped (TB-044).
-    if (!d || d.dropped || (stage === "hired" && d.offer?.status !== "sent")) return;
+    // IN-074 — signing the offer is acceptOffer's (./offer): it checks the revision read. Nothing
+    // moves on an application the company has dropped (TB-044).
+    if (!d || d.dropped || stage === "hired") return;
     const kind = notify === undefined ? STAGE_MOVE[stage as keyof typeof STAGE_MOVE] : notify || undefined;
     if (kind && app) move(kind, { slug: app.roleSlug, title: app.title });
     // The shared engagement moves in the shared store, so the Team Builder's tracker moves with it.
-    updateDeal((x) => {
-      // IN-070 — confirming is what the Team Builder's schedule reads as Confirmed.
-      if (stage === "invite_accepted" && x.interview) return { ...x, stage, interview: { ...x.interview, accepted: true } };
-      if (stage !== "hired" || !x.offer) return { ...x, stage };
-      // IN-074 — accepting starts the contract the offer was for: its agreed tasks become the
-      // list both trackers work from (due weeks turned into dates), and a trial holds the escrow
-      // funded with the offer. A full-time or part-time offer starts that contract directly.
-      const o = x.offer;
-      const trial = o.type === "trial";
-      return {
-        ...x,
-        stage,
-        offer: { ...o, status: "accepted" },
-        contract: x.contract ?? {
-          started: o.start,
-          ends: trial ? o.end : undefined,
-          rate: o.rate,
-          hours: o.type === "part-time" ? o.hours : undefined,
-          benefits: o.type === "full-time" ? o.benefits : undefined,
-          deposit: trial ? o.deposit?.escrow : undefined,
-          tasks: o.tasks.map((t, i) => taskFromOffer(t, i, o.start, { trialEnd: trial ? o.end : undefined, created: today(), name: PAIR.team.name })),
-          nextNumber: o.tasks.length + 1,
-          activity: [],
-          streak: 0,
-        },
-      };
-    });
-    // IN-074 — the hire takes the role's seat; a full posting leaves the job board.
-    if (stage === "hired" && app) fillPosting(app.roleSlug);
+    // IN-070 — confirming is what the Team Builder's schedule reads as Confirmed.
+    updateDeal((x) => (stage === "invite_accepted" && x.interview ? { ...x, stage, interview: { ...x.interview, accepted: true } } : { ...x, stage }));
     return;
   }
   const kind = notify === undefined ? STAGE_MOVE[stage as keyof typeof STAGE_MOVE] : notify || undefined;
@@ -164,7 +139,9 @@ function declineOffer(id: string, reason?: string) {
   const d = readDeal();
   if (!d?.offer || d.offer.status !== "sent") return;
   move("offer_declined", { slug: d.roleSlug, title: d.title });
-  updateDeal((x) => (x.offer ? { ...x, offer: { ...x.offer, status: "declined", declineReason: reason?.trim() || undefined } } : x));
+  const note = reason?.trim() || undefined;
+  const line: OfferEvent = { kind: "declined", revision: revisionOf(d.offer), at: momentLabel(), ts: Date.now(), by: "independent", name: PAIR.independent.name, ...(note ? { note } : {}) };
+  updateDeal((x) => (x.offer ? { ...x, offer: { ...x.offer, status: "declined", declineReason: note, log: [...(x.offer.log ?? []), line] } } : x));
 }
 
 const canWithdraw = (app: Application) => withdrawable(app.stage);

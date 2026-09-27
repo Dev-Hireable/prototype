@@ -3,10 +3,12 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { dayLabel, momentLabel } from "@/lib/demo/dates";
 import { getDeal, transactDeal, useDeal, useDealStatus } from "@/lib/demo/deal";
-import { move as notifyMove, noteComment } from "@/lib/demo/live";
+import { move as notifyMove, noteAgreement, noteComment, PAIR } from "@/lib/demo/live";
 import type { ToastTone } from "@/lib/portal/toast";
 import { accessOf } from "./access";
+import { createAgreementRepository, type AgreementNotice, type AgreementRepository, type AmendmentInput, type AnswerInput } from "./amendments";
 import { todayDay } from "./dates";
+import { scopeOfDeal } from "./deal-scope";
 import { isWorkError, messageOf, WorkError } from "./errors";
 import { migrateProjects } from "./migrate";
 import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, type TagColor, type WorkItem, type WorkProject, type WorkStatus } from "./model";
@@ -42,9 +44,9 @@ const dealPort: WorkPort = {
       const c = deal?.contract;
       if (!deal || !c) throw new WorkError("not_found", "This contract isn't available any more.");
       const tagColors = Object.fromEntries(Object.entries(c.tagColors ?? {}).filter(([, v]) => isTagColor(v))) as Record<string, TagColor>;
-      const state: WorkState = { items: c.tasks, nextNumber: c.nextNumber ?? c.tasks.length + 1, logs: c.logs ?? {}, tagColors, projects: migrateProjects(c.projects) };
+      const state: WorkState = { items: c.tasks, nextNumber: c.nextNumber ?? c.tasks.length + 1, logs: c.logs ?? {}, tagColors, projects: migrateProjects(c.projects), scope: scopeOfDeal(deal) ?? undefined };
       const { next, result } = fn(state, { access: accessOf(deal) });
-      return { deal: next ? { ...deal, contract: { ...c, tasks: next.items, nextNumber: next.nextNumber, logs: next.logs, tagColors: next.tagColors, projects: next.projects } } : undefined, result };
+      return { deal: next ? { ...deal, contract: { ...c, tasks: next.items, nextNumber: next.nextNumber, logs: next.logs, tagColors: next.tagColors, projects: next.projects, ...(next.scope ? { scope: next.scope } : {}) } } : undefined, result };
     });
   },
 };
@@ -172,6 +174,9 @@ function say(m: Omit<WorkMessage, "id">) {
   const msg = { id: newId("m"), ...m };
   for (const fn of messageListeners) fn(msg);
 }
+
+/** What the workspace should say that didn't come from a work item's change — an amendment proposed from it, say. */
+export const tellWorkspace = (message: string, tone: ToastTone = "success") => say({ tone, message });
 
 /* --------------------------------------------------------------- queue */
 
@@ -303,8 +308,8 @@ function draftOf(input: Omit<CreateInput, "id">, id: string, items: readonly Wor
   return draft;
 }
 
-/** Adding an item, changing its fields or its status, and dropping it on a board. */
-function itemActions(repo: WorkRepository) {
+/** Adding an item: to the work, or — on a trial — the Team Builder's own internal one. */
+function createActions(repo: WorkRepository) {
   const actions = {
     /** Adds an item; resolves to its id once saved, or null. A retry reuses the id, so it can't duplicate. */
     create(input: Omit<CreateInput, "id">, msgs: Messages = {}, id = newId("t")): Promise<string | null> {
@@ -318,6 +323,24 @@ function itemActions(repo: WorkRepository) {
       }).then((ok) => (ok ? id : null));
     },
 
+    /** On a trial: the Team Builder's own internal item, theirs unless given to nobody. Resolves to its id once saved, or null. */
+    createInternal(input: Omit<CreateInput, "id">, msgs: Messages = {}, id = newId("t")): Promise<string | null> {
+      const own = { ...input, assignee: input.assignee === undefined ? ("team" as const) : input.assignee };
+      return run({
+        ...msgs,
+        itemId: id,
+        create: draftOf(own, id, currentItems()),
+        call: () => repo.createInternal({ ...own, id }),
+        retry: () => void actions.createInternal(input, msgs, id),
+      }).then((ok) => (ok ? id : null));
+    },
+  };
+  return actions;
+}
+
+/** Changing an item's fields or its status, and dropping it on a board. */
+function itemActions(repo: WorkRepository) {
+  const actions = {
     /** Changes fields, checked against the values this screen showed (`t`) so nobody's change is lost. */
     patch(t: WorkItem, changes: WorkPatch, msgs: Messages = {}, opts: { force?: boolean } = {}) {
       const keys = Object.keys(changes) as PatchField[];
@@ -460,7 +483,7 @@ function projectActions(repo: WorkRepository) {
 
 /** Every change the UI can make, run as the repository's person. */
 function makeActions(repo: WorkRepository) {
-  return { repo, ...itemActions(repo), ...archiveActions(repo), ...partActions(repo), ...projectActions(repo) };
+  return { repo, ...createActions(repo), ...itemActions(repo), ...archiveActions(repo), ...partActions(repo), ...projectActions(repo) };
 }
 
 export type WorkActions = ReturnType<typeof makeActions>;
@@ -470,3 +493,74 @@ export function useWorkActions(actor: Actor, names: Names): WorkActions {
   const { team, independent } = names;
   return useMemo(() => makeActions(repositoryFor({ role, name }, { team, independent })), [role, name, team, independent]);
 }
+
+/* ------------------------------------------------------------ agreement */
+
+const agreementRepos = new Map<string, AgreementRepository>();
+
+/** One amendments repository per person, like the work's. */
+function agreementFor(actor: Actor, names: Names): AgreementRepository {
+  const key = JSON.stringify([actor.role, actor.name, names.team, names.independent]);
+  let r = agreementRepos.get(key);
+  if (!r) {
+    r = createAgreementRepository({ actor, port: dealPort, clock, names, notify: tellAgreement, hook });
+    agreementRepos.set(key, r);
+  }
+  return r;
+}
+
+const AGREEMENT_VERB: Record<AgreementNotice["kind"], string> = { proposed: "proposed", revised: "revised", withdrawn: "withdrawn", changes_requested: "sent back for changes", rejected: "rejected", accepted: "accepted" };
+
+/** What the other side reads: who did it, what the amendment does, and the note that came with it. */
+function agreementBody(n: AgreementNotice, title: string): string {
+  if (n.kind === "proposed" || n.kind === "revised") return `${n.by} ${n.kind === "proposed" ? "proposed a change to" : "revised their change to"} ${title}: it ${n.summary}. “${n.note}”`;
+  if (n.kind === "accepted") return `${n.by} accepted it, so ${title} is on contract v${n.version}: it ${n.summary}.`;
+  if (n.kind === "withdrawn") return `${n.by} withdrew it. ${title} stays as agreed.`;
+  return `${n.by}: “${n.note}”`;
+}
+
+/** An amendment's step, told to the side it's for; it opens the contract's Agreement tab. */
+function tellAgreement(n: AgreementNotice) {
+  const deal = getDeal();
+  if (!deal) return;
+  const href = n.to === "team" ? `/team/independents/${PAIR.independent.slug}?tab=agreement` : `/independent/contracts/${deal.roleSlug}?tab=agreement`;
+  noteAgreement(n.to, { title: `Amendment ${n.number} ${AGREEMENT_VERB[n.kind]}`, body: agreementBody(n, deal.title), href, about: `Amendment ${n.number} ` });
+}
+
+/** How a change to the agreement went: done, or refused with the reason to show. */
+type AgreementResult = { ok: true } | { ok: false; error: string; code?: string };
+
+async function settle(p: Promise<unknown>): Promise<AgreementResult> {
+  try {
+    await p;
+    return { ok: true };
+  } catch (e) {
+    if (!isWorkError(e)) console.error(e);
+    return { ok: false, error: messageOf(e), code: isWorkError(e) ? e.code : undefined };
+  }
+}
+
+/** Every change to the agreement this person can ask for. Each resolves to what happened, for the page to say. */
+export function useAgreementActions(actor: Actor, names: Names) {
+  const { role, name } = actor;
+  const { team, independent } = names;
+  return useMemo(() => {
+    const repo = agreementFor({ role, name }, { team, independent });
+    return {
+      /** `id` is made once per proposal, so a retry can't propose it twice. */
+      propose: (input: Omit<AmendmentInput, "id">, id: string) => settle(repo.propose({ ...input, id })),
+      revise: (id: string, input: Omit<AmendmentInput, "id"> & { revision: number }) => settle(repo.revise(id, input)),
+      withdraw: (id: string, revision: number) => settle(repo.withdraw(id, revision)),
+      askChanges: (id: string, input: AnswerInput) => settle(repo.askChanges(id, input)),
+      reject: (id: string, input: AnswerInput) => settle(repo.reject(id, input)),
+      accept: async (id: string, input: AnswerInput) => {
+        const r = await settle(repo.accept(id, input));
+        // What it agreed about the pay is settled at once: a trial's escrow re-priced, a role's hours.
+        if (r.ok) void import("@/lib/demo/contract").then((m) => m.sweepContract());
+        return r;
+      },
+    };
+  }, [role, name, team, independent]);
+}
+
+export type AgreementActions = ReturnType<typeof useAgreementActions>;

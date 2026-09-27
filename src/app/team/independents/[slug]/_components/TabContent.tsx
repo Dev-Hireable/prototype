@@ -1,3 +1,4 @@
+import { AgreementTab } from "@/components/agreement/AgreementTab";
 import { ContractOverview } from "@/components/portal/ContractOverview";
 import { firstName } from "@/components/workspace/labels";
 import { ContractWork } from "@/components/workspace/ContractWork";
@@ -33,6 +34,8 @@ export function TabContent({ tab, t, draft, on, onTab }: { tab: Tab; t: Tracker;
     <>
       {tab === "contract" && <PaymentTab t={t} payments={transactions.filter((x) => x.independent === name)} disputeButton={<DisputeButton size="md" view={view} onFile={on.openDispute} />} />}
       {tab === "evaluation" && <EvaluationTab t={t} draft={draft} actions={<EvaluationActions t={t} ready={draft.ready} onEnd={on.openEnd} onHire={on.openConvert} onSend={on.sendEvaluation} />} />}
+      {/* TB-151 — what was agreed, its amendments and its history. */}
+      {tab === "agreement" && (view.onDeal ? <AgreementTab actor={actor} names={{ team: firstName(profile.name), independent: first }} /> : <p className="text-[14px] text-ink-2">This contract&apos;s agreement isn&apos;t available.</p>)}
       {tab === "tasks" && <ContractWork live={view.onDeal} contract={contract} life={view.life} notice={view.notice} cancelled={view.cancelled} ended={ended} scoreFinal={submitted || !isTrial} actor={actor} people={people} closedNote={closedNote(t)} />}
       {/* TB-058 / TB-074 / TB-109 — the contract at a glance: its terms, how far the work has got,
           what's waiting on you (reviews don't sit unseen), what's due next and what changed. */}

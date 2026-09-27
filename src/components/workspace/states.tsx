@@ -48,18 +48,26 @@ function Panel({ icon, title, body, children }: { icon: ReactNode; title: string
   );
 }
 
+/** A trial with no tasks: its work is what the signed offer agreed, so none are coming (TB-064). */
+function noTrialWork(role: Role, independent: string) {
+  if (role === "manager") return `The offer ${independent} signed has no tasks, and none are added during a trial.`;
+  return role === "contributor" ? "The offer you signed has no tasks, and none are added during a trial." : "The signed offer has no tasks for this trial.";
+}
+
 /** Nothing on the contract yet — said for who's reading. */
-export function NoWork({ role, team, onAdd }: { role: Role; team: string; onAdd?: () => void }) {
+export function NoWork({ role, team, independent, trial, onAdd }: { role: Role; team: string; independent: string; trial: boolean; onAdd?: () => void }) {
   return (
     <Panel
       icon={<ICONS.inbox size={22} aria-hidden />}
-      title="No work yet"
+      title={trial ? "No trial tasks" : "No work yet"}
       body={
-        role === "manager"
-          ? "Add the first task. Give it a due date or a start and due, an effort estimate, and who does it — every view picks it up."
-          : role === "contributor"
-            ? `${team} adds the work here. You're told each time something is added, and it shows up in every view.`
-            : "Nothing has been added to this contract yet."
+        trial
+          ? noTrialWork(role, independent)
+          : role === "manager"
+            ? "Add the first task. Give it a due date or a start and due, an effort estimate, and who does it — every view picks it up."
+            : role === "contributor"
+              ? `${team} adds the work here. You're told each time something is added, and it shows up in every view.`
+              : "Nothing has been added to this contract yet."
       }
     >
       {onAdd && (

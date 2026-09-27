@@ -1,8 +1,28 @@
-import { expect, open, PATH, test, view } from "./fixtures";
+import { expect, open, PATH, ROLE, test, view } from "./fixtures";
 
 // Scenario L — empty, filtered-empty, unscheduled-only and unreadable states.
-test.describe("a contract with no work yet", () => {
+test.describe("a trial with no tasks", () => {
   test.use({ seedOptions: { tasks: [] } });
+
+  test("every view says its offer set none, and none can be added", async ({ page }) => {
+    await open(page, "team");
+    for (const name of ["Board", "List", "Calendar", "Timeline", "Workload"]) {
+      await view(page, name).click();
+      await expect(page.getByRole("heading", { name: "No trial tasks" })).toBeVisible();
+    }
+    // The summary line doesn't say "yet": none are coming.
+    await expect(page.getByLabel("Summary")).toContainText("No trial tasks");
+    await expect(page.getByText("The offer Juan signed has no tasks, and none are added during a trial.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add task" })).toHaveCount(0);
+    await open(page, "independent");
+    await expect(page.getByText("The offer you signed has no tasks, and none are added during a trial.")).toBeVisible();
+    await open(page, "admin");
+    await expect(page.getByText("The signed offer has no tasks for this trial.")).toBeVisible();
+  });
+});
+
+test.describe("a role with no work yet", () => {
+  test.use({ seedOptions: { ...ROLE, tasks: [] } });
 
   test("every view says so, in words for each person", async ({ page }) => {
     await open(page, "team");

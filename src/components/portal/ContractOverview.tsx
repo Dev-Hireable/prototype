@@ -106,7 +106,7 @@ function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; tria
       }
     >
       {counts.total === 0 ? (
-        <p className="text-[13px] leading-[1.4] text-ink-2">Nothing on the list yet.</p>
+        <p className="text-[13px] leading-[1.4] text-ink-2">{trial ? "No trial tasks: the signed offer has none." : "Nothing on the list yet."}</p>
       ) : (
         <>
           <div className="flex flex-wrap items-end gap-x-8 gap-y-3">

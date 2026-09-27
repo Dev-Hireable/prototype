@@ -1,6 +1,7 @@
 import { isIsoDay, MONTH_SHORT } from "./dates";
 import { PRIORITIES, PROJECT_NAME_MAX, STATUSES, TAGS_PER_ITEM, WORK_TYPES, type Side, type Subtask, type WorkComment, type WorkEvent, type WorkItem, type WorkProject } from "./model";
 import { ORDER_STEP } from "./order";
+import type { Amendment, ContractScope, ContractVersion, ScopeEvent } from "./scope";
 import { checkEffort, normalizeTag } from "./validate";
 
 /**
@@ -239,6 +240,28 @@ function projectOf(p: WithId & { name: string }, i: number): WorkProject {
   if (by) project.createdBy = by;
   if (project.status === "done") addFinished(project, p);
   return project;
+}
+
+/* ---------------------------------------------------------------- scope */
+
+const isVersion = (x: unknown): x is ContractVersion => isObj(x) && typeof x.version === "number" && Array.isArray(x.tasks) && isObj(x.terms) && isObj(x.source);
+const isAmendment = (x: unknown): x is Amendment => hasId(x) && typeof x.number === "number" && typeof x.base === "number" && Array.isArray(x.changes) && typeof x.status === "string";
+const isEvent = (x: unknown): x is ScopeEvent => hasId(x) && typeof x.kind === "string" && typeof x.ts === "number";
+
+/**
+ * A contract's agreed scope as saved (./scope): its versions in order, each once; its amendments;
+ * its history. Null when nothing readable was saved — a contract signed before the scope was kept,
+ * whose first version is worked out from what's on file instead (@/lib/work/deal-scope).
+ */
+export function migrateScope(raw: unknown): ContractScope | null {
+  if (!isObj(raw)) return null;
+  const seen = new Set<number>();
+  const versions = listOf(raw.versions)
+    .filter(isVersion)
+    .filter((v) => (seen.has(v.version) ? false : (seen.add(v.version), true)))
+    .sort((a, b) => a.version - b.version);
+  if (!versions.length) return null;
+  return { versions, amendments: listOf(raw.amendments).filter(isAmendment).filter(firstPerId()), log: listOf(raw.log).filter(isEvent).filter(firstPerId()) };
 }
 
 /** When a finished project was finished and by whom — and, only then, when it was archived and by whom. */

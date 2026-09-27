@@ -1,4 +1,4 @@
-import { card, column, drag, expect, notes, open, savedItem, test } from "./fixtures";
+import { card, column, drag, expect, notes, open, ROLE, savedItem, test } from "./fixtures";
 
 // Scenario E — who does the work: assigning, the Team Builder's own items, and the trial score.
 test.describe("assignment", () => {
@@ -17,6 +17,30 @@ test.describe("assignment", () => {
     expect((await notes(page, "independent")).some((n) => /Share the style tiles/.test(n.title))).toBe(false);
   });
 
+  test("on a trial, internal work goes to Alex or no one, and not back to Juan", async ({ page }) => {
+    await open(page, "team", "?group=assignee");
+    await drag(page, card(page, /#9 Social media templates/), column(page, "Alex"));
+    await expect(column(page, "Alex").getByRole("group", { name: /#9/ })).toBeVisible();
+    expect((await savedItem(page, "t-social")).assignee).toBe("team");
+    await drag(page, card(page, /#9 Social media templates/), column(page, "Unassigned"));
+    expect((await savedItem(page, "t-social")).assignee).toBe(null);
+    // Juan's trial work is the contract's tasks: new work for him is an amendment (TB-133).
+    await drag(page, card(page, /#9 Social media templates/), column(page, "Juan"));
+    await expect(column(page, "Unassigned").getByRole("group", { name: /#9/ })).toBeVisible();
+    expect((await savedItem(page, "t-social")).assignee).toBe(null);
+  });
+
+  test("work agreed in the offer stays with the Independent", async ({ page }) => {
+    await open(page, "team", "?view=list");
+    const row = page.getByTestId("list").getByRole("row", { name: /#4 Pick a typography pairing/ });
+    await expect(row.getByText("Juan")).toBeVisible();
+    await expect(row.getByRole("button", { name: /Change assignee/ })).toHaveCount(0);
+  });
+});
+
+test.describe("assignment · on a role", () => {
+  test.use({ seedOptions: ROLE });
+
   test("grouped by assignee, dropping on a person reassigns", async ({ page }) => {
     await open(page, "team", "?group=assignee");
     await drag(page, card(page, /#9 Social media templates/), column(page, "Alex"));
@@ -27,12 +51,5 @@ test.describe("assignment", () => {
     await drag(page, card(page, /#9 Social media templates/), column(page, "Juan"));
     expect((await savedItem(page, "t-social")).assignee).toBe("independent");
     expect((await notes(page, "independent"))[0].title).toBe("New task added");
-  });
-
-  test("work agreed in the offer stays with the Independent", async ({ page }) => {
-    await open(page, "team", "?view=list");
-    const row = page.getByTestId("list").getByRole("row", { name: /#4 Pick a typography pairing/ });
-    await expect(row.getByText("Juan")).toBeVisible();
-    await expect(row.getByRole("button", { name: /Change assignee/ })).toHaveCount(0);
   });
 });

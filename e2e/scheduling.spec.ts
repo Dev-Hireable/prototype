@@ -1,4 +1,10 @@
-import { card, closePanel, drag, expect, open, panel as detail, savedItem, test } from "./fixtures";
+import { card, closePanel, drag, expect, open, panel as detail, savedItem, SEED, test } from "./fixtures";
+
+/**
+ * #4 as internal work: the drags below move a span, and a contract task's agreed due date doesn't
+ * move that way (TB-150 — agreement.spec). Its start still would, as its own.
+ */
+const TYPE_INTERNAL = { tasks: SEED.deal.contract.tasks.map((t) => (t.id === "t-type" ? { ...t, agreed: undefined } : t)) };
 
 // Scenarios F and M — dates: in the panel, on the calendar, on the timeline; and dependencies.
 // This spec also runs in America/Los_Angeles, where a date-only value built through UTC would
@@ -33,6 +39,8 @@ test.describe("scheduling · dates in the panel", () => {
 });
 
 test.describe("scheduling · the calendar", () => {
+  test.use({ seedOptions: TYPE_INTERNAL });
+
   test("the calendar shows spans and moves them, keeping their length", async ({ page }) => {
     await open(page, "team", "?view=calendar");
     const calendar = page.getByTestId("calendar");
@@ -69,6 +77,8 @@ test.describe("scheduling · the calendar", () => {
 });
 
 test.describe("scheduling · the timeline", () => {
+  test.use({ seedOptions: TYPE_INTERNAL });
+
   test("the timeline: drag to move, drag an end to resize, arrow keys to nudge", async ({ page }) => {
     await open(page, "team", "?view=timeline&scale=day");
     const timeline = page.getByTestId("timeline");

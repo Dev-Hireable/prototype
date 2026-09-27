@@ -10,6 +10,11 @@ import { isArchived, isCompleted, STATUS_META, type Side, type WorkItem, type Wo
  *   contributor  the Independent: moves their own items, breaks them into subtasks, says what they
  *                wait on and when they start, sends them for review and can take a submission back;
  *   viewer       Hireable admin: reads everything, changes nothing.
+ *
+ * Contract tasks (`agreed`) are the scope both sides signed: nobody rewords, reschedules,
+ * re-estimates, reassigns or deletes one here — that takes an amendment the other side accepts
+ * (./amendments). Running the work — its status, start, priority, tags, subtasks and comments — works
+ * the same on every item. Everything else on the list is internal work.
  */
 
 export type Role = "manager" | "contributor" | "viewer";
@@ -51,8 +56,14 @@ const DEFAULT_NAMES: Names = { team: "the Team Builder", independent: "the Indep
 export type Caps = {
   /** Rename it or change its description. */
   editText: boolean;
-  /** Type, priority, start, due, effort and tags. The start has its own cap too (`start`), which the Independent shares. */
+  /** Type, priority, start, due, effort, tags and project. The start has its own cap too (`start`), which the Independent shares. */
   plan: boolean;
+  /**
+   * The plan's contractual part: the due date, the effort and the work type. On a contract task
+   * (`agreed`) they're what both sides agreed, so only an accepted amendment changes them (./scope);
+   * priority, tags and the project stay everyday planning.
+   */
+  scope: boolean;
   /** What it waits on. Whoever does the work knows that too, so it isn't only the plan's. */
   depend: boolean;
   /** When it starts. Also the Independent's on their own open work — they know when they begin it; the due date stays the plan's. */
@@ -67,7 +78,7 @@ export type Caps = {
   restore: boolean;
 };
 
-const NONE: Caps = { editText: false, plan: false, depend: false, start: false, assign: false, subtasks: false, tick: false, comment: false, archive: false, restore: false };
+const NONE: Caps = { editText: false, plan: false, scope: false, depend: false, start: false, assign: false, subtasks: false, tick: false, comment: false, archive: false, restore: false };
 
 const isActive = (s: WorkStatus) => s === "todo" || s === "doing";
 
@@ -101,6 +112,7 @@ export function capsFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAcc
     return {
       editText: access.open && mine && !t.agreed && active,
       plan: access.open && !completed,
+      scope: access.open && !completed && !t.agreed,
       depend: access.open && !completed,
       start: access.open && !completed,
       // Moving an agreed item off the Independent would take it out of the trial's score.
@@ -116,6 +128,7 @@ export function capsFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAcc
   return {
     editText: access.open && mine && !t.agreed && active,
     plan: false,
+    scope: false,
     // Their own work only: what someone else's item waits on is that person's call.
     depend: access.open && theirs && !completed,
     // Only while they're still working it: once it's sent for review, its dates are the Team Builder's.
@@ -129,7 +142,28 @@ export function capsFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAcc
   };
 }
 
-export const canCreate = (actor: Pick<Actor, "role">, access: WorkAccess) => actor.role === "manager" && access.open;
+/**
+ * TB-064 — only the Team Builder adds work, and only to a full-time or part-time role. A trial's
+ * work is the task list agreed in its signed offer, which the escrow and the Trial Fit Score were
+ * set on, so nothing is added to it.
+ */
+export const canCreate = (actor: Pick<Actor, "role">, access: WorkAccess) => actor.role === "manager" && access.open && !access.trial;
+
+/**
+ * On a trial, the Team Builder's own internal items: their to-dos beside the contract tasks, never
+ * the Independent's work — new work for them is a contract task, agreed by amendment. They're kept
+ * apart from Add task, which a trial doesn't have.
+ */
+export const canAddInternal = (actor: Pick<Actor, "role">, access: WorkAccess) => actor.role === "manager" && access.open && access.trial;
+
+/**
+ * Who `t` can be given to. On a trial the Independent's work is exactly the contract tasks, so an
+ * internal item there stays with the Team Builder or nobody.
+ */
+export function assigneesFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAccess): (Side | null)[] {
+  if (!capsFor(t, actor, access).assign) return [];
+  return access.trial && !t.agreed ? ["team", null] : ["independent", "team", null];
+}
 
 /**
  * TB-148 — projects are a role's, not a trial's (the trial is one plan already), and they're the

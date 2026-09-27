@@ -17,9 +17,10 @@ function setup(items = [item({ id: "a" }), item({ id: "b", assignee: "team" })],
 
 test.describe("create", () => {
   test("the Team Builder adds work, numbered and assigned to the Independent by default", async () => {
-    const { store, notices, alex } = setup([], TRIAL);
+    const { store, notices, alex } = setup([]);
     const t = await alex.create({ id: "n1", title: "  Draft the FAQ ", due: iso(5), effort: 3 });
-    expect(t).toMatchObject({ id: "n1", number: 50, title: "Draft the FAQ", status: "todo", assignee: "independent", type: "task", trial: true, version: 1, createdBy: "Alex Rivera", addedBy: "team" });
+    expect(t).toMatchObject({ id: "n1", number: 50, title: "Draft the FAQ", status: "todo", assignee: "independent", type: "task", version: 1, createdBy: "Alex Rivera", addedBy: "team" });
+    expect(t).not.toHaveProperty("trial");
     expect(t.activity[0].text).toBe("Added by Alex Rivera");
     expect(store.read().nextNumber).toBe(51);
     expect(notices).toEqual([{ role: "manager", n: { kind: "task_added", task: { id: "n1", title: "Draft the FAQ" } } }]);
@@ -50,6 +51,18 @@ test.describe("create", () => {
     expect(store.read().items).toEqual([]);
     const closed = setup([], REVIEW_ONLY);
     expect((await rejection(closed.alex.create({ id: "x", title: "After the trial" }))).message).toBe("The trial has closed.");
+  });
+
+  test("a trial takes no new work — its tasks were agreed in the signed offer", async () => {
+    const { store, notices, alex, juan } = setup([item({ id: "a", agreed: true, trial: true })], TRIAL);
+    for (const input of [{ id: "x", title: "One more logo" }, { id: "y", title: "Kickoff call", assignee: "team" as const }]) {
+      const e = await rejection(alex.create(input));
+      expect(e).toMatchObject({ code: "forbidden", message: "The trial's tasks were agreed in the signed offer, so no more can be added." });
+    }
+    expect((await rejection(juan.create({ id: "z", title: "Mine" }))).code).toBe("forbidden");
+    expect(store.read().items.map((t) => t.id)).toEqual(["a"]);
+    expect(store.writes()).toBe(0);
+    expect(notices).toEqual([]);
   });
 
   test("can be placed between two items", async () => {

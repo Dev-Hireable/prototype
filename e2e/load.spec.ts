@@ -8,7 +8,8 @@ test.describe("loading the workspace · for every role", () => {
     await expect(view(page, "Board")).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("region", { name: /^To do,/ })).toBeVisible();
     await expect(card(page, /#4 Pick a typography pairing/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add task" }).first()).toBeVisible();
+    // A trial's tasks are the ones its offer agreed, so it has no Add task.
+    await expect(page.getByRole("button", { name: "Add task" })).toHaveCount(0);
     // The summary line counts live work only: 11 items (one is archived), 2 done.
     await expect(page.getByLabel("Summary")).toContainText("2 of 11 done");
   });

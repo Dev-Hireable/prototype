@@ -11,7 +11,7 @@ import { AssigneeField, DateField, EffortField, PriorityField, StatusField, Type
 import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "./group-actions";
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./ItemMenu";
 import { itemData } from "./item-data";
-import { BlockedChip, ChangesChip, GroupLabel, LockChip, PlaceChip, TagChip } from "./meta";
+import { BlockedChip, ChangesChip, GroupLabel, LockChip, PlaceChip, ScopeChip, TagChip } from "./meta";
 import { QuickAdd } from "./QuickAdd";
 import { ago, useProgressive, useWidth } from "./util";
 import { groupColors } from "./labels";
@@ -297,6 +297,7 @@ function NameCell({ item: t, blockers, handle }: { item: WorkItem; blockers: num
         <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{t.number ? refOf(t) : "…"}</span>
         <span className={`min-w-0 truncate text-[14px] ${isCompleted(t.status) ? "text-ink-2 line-through" : "text-ink"}`}>{t.title}</span>
         <span className="flex shrink-0 items-center gap-1">
+          <ScopeChip item={t} />
           <BlockedChip count={blockers} />
           {t.changes && (t.status === "todo" || t.status === "doing") && <ChangesChip />}
           {t.tags.slice(0, 1).map((tag) => (

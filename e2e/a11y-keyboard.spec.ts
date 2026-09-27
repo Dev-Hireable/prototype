@@ -1,4 +1,4 @@
-import { card, column, expect, filterButton, open, panel, savedItem, test } from "./fixtures";
+import { card, column, expect, filterButton, open, panel, ROLE, savedItem, test } from "./fixtures";
 
 // Keyboard alternatives to every drag, focus that goes where you'd expect, and nothing said in
 // colour alone.
@@ -14,6 +14,21 @@ test.describe("keyboard and accessibility · the keyboard and focus", () => {
     await expect(page).not.toHaveURL(/task=/);
     await expect(kickoff).toBeFocused();
   });
+
+  test("reordering with Alt+Shift+Up and Down", async ({ page }) => {
+    await open(page, "team");
+    const social = card(page, /#9 Social media templates/);
+    await social.focus();
+    const before = (await savedItem(page, "t-social")).order as number;
+    await page.keyboard.press("Alt+Shift+ArrowUp");
+    await expect.poll(async () => (await savedItem(page, "t-social")).order as number).toBeLessThan(before);
+    await expect(column(page, "To do").getByRole("group", { name: /#9/ })).toBeFocused();
+    await expect(page.getByTestId("announcer")).toHaveText("Moved #9 up");
+  });
+});
+
+test.describe("keyboard and accessibility · the Add task dialog, on a role", () => {
+  test.use({ seedOptions: ROLE });
 
   test("a dialog keeps Tab inside it and hands the focus back when it closes", async ({ page }) => {
     await open(page, "team");
@@ -32,17 +47,6 @@ test.describe("keyboard and accessibility · the keyboard and focus", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     await expect(opener).toBeFocused();
-  });
-
-  test("reordering with Alt+Shift+Up and Down", async ({ page }) => {
-    await open(page, "team");
-    const social = card(page, /#9 Social media templates/);
-    await social.focus();
-    const before = (await savedItem(page, "t-social")).order as number;
-    await page.keyboard.press("Alt+Shift+ArrowUp");
-    await expect.poll(async () => (await savedItem(page, "t-social")).order as number).toBeLessThan(before);
-    await expect(column(page, "To do").getByRole("group", { name: /#9/ })).toBeFocused();
-    await expect(page.getByTestId("announcer")).toHaveText("Moved #9 up");
   });
 });
 

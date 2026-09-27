@@ -67,6 +67,9 @@ export default function OffersSent() {
   );
 }
 
+/** Still waiting on an answer: out with the talent, or back with the Team Builder because they asked for changes (IN-092). */
+const waiting = (o: Offer) => o.status.label === "Pending" || o.status.label === "Changes requested";
+
 /** The search and the role and status filters, and the offers they leave. */
 function useOfferFilters(offers: Offer[]) {
   const [q, setQ] = useState("");
@@ -75,7 +78,7 @@ function useOfferFilters(offers: Offer[]) {
   const [roleFilter, setRoleFilter] = useState("All roles");
   const roleOptions = ["All roles", ...new Set(offers.map((o) => o.role))];
   const list = offers.filter(
-    (o) => (status === "All statuses" || o.status.label === status) && (roleFilter === "All roles" || o.role === roleFilter) && `${byName(o.independent).name} ${o.role}`.toLowerCase().includes(q.toLowerCase()),
+    (o) => (status === "All statuses" || o.status.label === status || (status === "Pending" && waiting(o))) && (roleFilter === "All roles" || o.role === roleFilter) && `${byName(o.independent).name} ${o.role}`.toLowerCase().includes(q.toLowerCase()),
   );
   return { q, setQ, status, setStatus, roleFilter, setRoleFilter, roleOptions, list };
 }
@@ -85,7 +88,7 @@ type OfferFilters = ReturnType<typeof useOfferFilters>;
 /** The search and the two filters, with how many offers are out and how many still wait on an answer. */
 function OffersToolbar({ offers, filters }: { offers: Offer[]; filters: OfferFilters }) {
   const { q, setQ, status, setStatus, roleFilter, setRoleFilter, roleOptions } = filters;
-  const pending = offers.filter((o) => o.status.label === "Pending").length;
+  const pending = offers.filter(waiting).length;
   return (
     <Toolbar
       right={
@@ -104,7 +107,7 @@ function OffersToolbar({ offers, filters }: { offers: Offer[]; filters: OfferFil
 /** One offer: the candidate, the role, the terms, where it stands, and — while it's pending — its menu. */
 function OfferRow({ o, onWithdraw }: { o: Offer; onWithdraw: (o: Offer) => void }) {
   const p = byName(o.independent);
-  const open = o.status.label === "Pending";
+  const open = waiting(o);
   return (
     <Row>
       <span className={COLS[0]}>
