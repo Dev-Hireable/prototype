@@ -3,7 +3,7 @@
 import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useEffect, useEffectEvent, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type Ref, type RefObject } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { FORM_CONTROL, ICON_BUTTON } from "@/components/portal/styles";
 import { uiZoom } from "@/lib/portal/zoom";
@@ -69,8 +69,10 @@ function FloatingMenu({
 
 /**
  * An open menu's place beside its anchor, kept there as the page scrolls or resizes, and what closes
- * it: a press outside both, or Escape — claimed, so a dialog under the menu stays open — which also
- * hands the focus back to the anchor. `menuRef` goes on the menu.
+ * it: a press outside both, or Escape — which also hands the focus back to the anchor. The menu hears
+ * Escape first, on its way down, and claims it (preventDefault), so what the menu sits in stays open:
+ * a dialog, and an EditPanel too, whose React onKeyDown used to hear the key before the menu did.
+ * `menuRef` goes on the menu.
  */
 function useAnchoredMenu(anchorRef: RefObject<HTMLElement | null>, { open, onClose, width, itemCount, align }: { open: boolean; onClose: () => void; width?: number; itemCount: number; align: "start" | "end" }) {
   const menuRef = useRef<HTMLDivElement>(null);
@@ -100,12 +102,13 @@ function useAnchoredMenu(anchorRef: RefObject<HTMLElement | null>, { open, onClo
     };
     update();
     document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
+    // The capture phase: React runs every onKeyDown from the root as the key bubbles back up.
+    window.addEventListener("keydown", onKeyDown, true);
     window.addEventListener("resize", update);
     window.addEventListener("scroll", update, true);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
       window.removeEventListener("resize", update);
       window.removeEventListener("scroll", update, true);
     };
@@ -203,7 +206,7 @@ export function Select({ options: all, placeholder = "Select", value, defaultVal
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [selected, commit] = useSelectValue({ value, defaultValue, all, onChange });
-  const { open, setOpen, setHighlighted, optionRef, openMenu, step } = useListbox(options, selected, disabled);
+  const { open, setOpen, highlighted, setHighlighted, openMenu, step } = useListbox(options, selected, disabled);
 
   const choose = (next: string) => {
     commit(next);
@@ -247,7 +250,7 @@ export function Select({ options: all, placeholder = "Select", value, defaultVal
         aria-labelledby={ariaLabelledBy}
       >
         {options.map((option, index) => (
-          <SelectOption key={option} ref={optionRef(index)} option={option} selected={option === selected} onHover={() => setHighlighted(index)} onStep={step} onPick={() => choose(option)} />
+          <SelectOption key={option} option={option} selected={option === selected} highlighted={index === highlighted} onHover={() => setHighlighted(index)} onStep={step} onPick={() => choose(option)} />
         ))}
       </FloatingMenu>
     </span>
@@ -271,18 +274,14 @@ function useSelectValue({ value, defaultValue, all, onChange }: Pick<SelectProps
 }
 
 /**
- * A Select's list: whether it's open and which option is highlighted — the focus follows it — and
- * opening on the picked option (not while disabled or empty). The arrow keys step round from either end.
+ * A Select's list: whether it's open and which option is highlighted — the focus follows it (see
+ * SelectOption) — and opening on the picked option (not while disabled or empty). The arrow keys step
+ * round from either end.
  */
 function useListbox(options: readonly string[], selected: string, disabled: boolean | undefined) {
-  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selectedIndex = Math.max(0, options.indexOf(selected));
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(selectedIndex);
-
-  useEffect(() => {
-    if (open) optionRefs.current[highlighted]?.focus();
-  }, [highlighted, open]);
 
   const openMenu = () => {
     if (disabled || options.length === 0) return;
@@ -290,15 +289,20 @@ function useListbox(options: readonly string[], selected: string, disabled: bool
     setOpen(true);
   };
   const step = (key: "ArrowDown" | "ArrowUp") => setHighlighted((current) => (current + (key === "ArrowDown" ? 1 : options.length - 1)) % options.length);
-  /** Keeps each option's button by its place, for the focus to follow the highlight. */
-  const optionRef = (index: number) => (element: HTMLButtonElement | null) => {
-    optionRefs.current[index] = element;
-  };
-  return { open, setOpen, setHighlighted, optionRef, openMenu, step };
+  return { open, setOpen, highlighted, setHighlighted, openMenu, step };
 }
 
-/** One option in a Select's list: the pointer highlights it, the arrow keys step on, and a click, Enter or Space picks it. */
-function SelectOption({ ref, option, selected, onHover, onStep, onPick }: { ref: Ref<HTMLButtonElement>; option: string; selected: boolean; onHover: () => void; onStep: (key: "ArrowDown" | "ArrowUp") => void; onPick: () => void }) {
+/**
+ * One option in a Select's list: the pointer highlights it, the arrow keys step on, and a click, Enter
+ * or Space picks it. The highlighted one takes the focus, from the moment it's on the page: FloatingMenu
+ * mounts the options only once it has measured the trigger, so on a first open a focus effect in the
+ * Select itself ran before there was an option to focus, and the keys went to the trigger.
+ */
+function SelectOption({ option, selected, highlighted, onHover, onStep, onPick }: { option: string; selected: boolean; highlighted: boolean; onHover: () => void; onStep: (key: "ArrowDown" | "ArrowUp") => void; onPick: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (highlighted) ref.current?.focus();
+  }, [highlighted]);
   return (
     <button
       ref={ref}

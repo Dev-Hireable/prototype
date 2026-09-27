@@ -68,4 +68,69 @@ test.describe("keyboard and accessibility · menus", () => {
     await page.keyboard.press("Escape");
     await expect(page).toHaveURL(/status=todo%2Cdoing|status=todo,doing/);
   });
+
+  test("a Select's list takes the focus the first time it opens from the keyboard", async ({ page }) => {
+    await page.goto("/team/hire/interviews");
+    await page.getByRole("button", { name: "Set availability" }).click();
+    const dialog = page.getByRole("dialog", { name: "Interview availability" });
+    const from = dialog.getByRole("button", { name: "From" });
+    await from.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option", { name: "9:00 AM", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option", { name: "10:00 AM", exact: true })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(from).toHaveText("10:00 AM");
+    await expect(from).toBeFocused();
+    // Escape closes the list, not the dialog under it.
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("option", { name: "10:00 AM", exact: true })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await expect(dialog).toBeVisible();
+    await expect(from).toBeFocused();
+  });
+
+  test("Escape closes the skill suggestions first, then the skills editor", async ({ page }) => {
+    await page.goto("/independent/profile");
+    await page.getByRole("button", { name: "Edit Skills" }).click();
+    const search = page.getByRole("combobox");
+    await search.focus();
+    await expect(page.getByRole("listbox")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await expect(search).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(search).toBeHidden();
+    await expect(page.getByRole("button", { name: "Edit Skills" })).toBeVisible();
+  });
+});
+
+test.describe("keyboard and accessibility · a dialog that gives way to another", () => {
+  const ROLE = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00 /mo", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
+  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600 /month", letter: "Happy to help." } } } });
+
+  test("closing the review after a long round trip hands the focus back to its opener", async ({ page }) => {
+    await page.goto("/team/hire/roles");
+    await page.evaluate((role) => localStorage.setItem("hireable.demo.team.roles", JSON.stringify([role])), ROLE);
+    await page.goto("/team/hire/roles/brand-designer/candidates/deal");
+    const opener = page.getByRole("button", { name: "Review proposal" });
+    await opener.focus();
+    await page.keyboard.press("Enter");
+    const review = page.getByRole("dialog", { name: /proposal for Brand Designer/ });
+    await expect(review).toBeVisible();
+    // Far more focus moves than the trail of recent ones keeps, then Decline and Revision (twice),
+    // each swapped in for the review and back.
+    for (let i = 0; i < 24; i++) await page.keyboard.press("Tab");
+    await review.getByRole("button", { name: "Decline proposal" }).press("Enter");
+    await page.getByRole("dialog", { name: "Decline this proposal?" }).getByRole("button", { name: "Cancel" }).press("Enter");
+    for (let round = 0; round < 2; round++) {
+      await review.getByRole("button", { name: "Request revision" }).press("Enter");
+      await page.getByRole("dialog", { name: "Request a revision" }).getByRole("button", { name: "Cancel" }).press("Enter");
+    }
+    await expect(review).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(review).toBeHidden();
+    await expect(opener).toBeFocused();
+  });
 });

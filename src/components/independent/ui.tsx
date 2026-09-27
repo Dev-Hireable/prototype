@@ -512,9 +512,9 @@ const UNDERLINE_TAB =
 /* ---------------------------------------------------------------- modal --- */
 
 /**
- * The last few elements that had the focus, newest last: where a closing Modal hands it back. The
- * opener itself may be gone by then — a menu item, whose menu closed as it opened the dialog — so
- * the focus goes to the latest one still on the page, the menu's button.
+ * The last few elements that had the focus, newest last: an opening Modal keeps them, as where to hand
+ * the focus back when it closes. The opener itself may be gone by then — a menu item, whose menu closed
+ * as it opened the dialog — so the focus goes to the latest one still on the page, the menu's button.
  */
 const focusTrail: HTMLElement[] = [];
 let trailing = false;
@@ -566,25 +566,54 @@ function useCloseOnEscape(open: boolean, onClose: () => void) {
 }
 
 /**
- * The focus while the dialog is open: it moves in on opening, and on closing goes back to the page —
- * to the latest element on the focus trail that's still there. Returns the ref for the dialog's panel.
+ * The way back of a dialog that has just closed, for one opening in its place in the same update:
+ * Review proposal gives way to Decline, and Decline back to the review. Each takes the first one's way
+ * back rather than the trail's, which by then holds only the dialogs' own controls — a long enough
+ * round trip had pushed the opener off it, and closing the review left the focus on <body>.
+ */
+let handedOver: HTMLElement[] | null = null;
+
+/**
+ * Where the focus can go back to when the dialog in `box` closes, best last. What has the focus as it
+ * opens, if that's outside it, is its opener: last, after the trail. With the focus on <body> (the
+ * dialog this one replaces took it along) or already inside it (autoFocus), it's the way back of a
+ * dialog that has just closed in its place, or else the trail. Opened from inside another dialog, it
+ * goes back there.
+ */
+function wayBack(box: HTMLElement) {
+  const at = document.activeElement;
+  const opener = at instanceof HTMLElement && at !== document.body && !box.contains(at) ? at : null;
+  if (!opener && handedOver) return handedOver;
+  const trail = focusTrail.filter((el) => !box.contains(el) && el !== opener);
+  return opener ? [...trail, opener] : trail;
+}
+
+/**
+ * The focus while the dialog is open: it moves in on opening, and on closing goes back to what opened
+ * it, or else the latest element before that which is still on the page. Returns the ref for the
+ * dialog's panel.
  */
 function useFocusInside(open: boolean, mounted: boolean) {
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const box = panel.current;
     if (!open || !mounted || !box) return;
-    // Where the focus was before opening, kept now: tabbing round the dialog moves the trail on.
-    const before = focusTrail.filter((el) => !box.contains(el));
+    // Kept as it opens: tabbing round the dialog moves the trail on.
+    const back = wayBack(box);
     // Opening takes the focus into the dialog, unless a field inside already has it (autoFocus).
     if (!box.contains(document.activeElement)) box.focus({ preventScroll: true });
-    // Closing drops the focus on <body> with the dialog: hand it back to the page. Checked a tick
-    // later, so Strict Mode's rehearsal unmount (the dialog stays, and keeps the focus) does nothing.
-    return () =>
+    return () => {
+      // For a dialog that opens in this one's place, in this same update.
+      handedOver = back;
+      // Closing drops the focus on <body> with the dialog: hand it back to the page. Checked a tick
+      // later, so Strict Mode's rehearsal unmount (the dialog stays, and keeps the focus) and a dialog
+      // opening in this one's place (it has the focus by then) leave it where it is.
       queueMicrotask(() => {
+        handedOver = null;
         if (document.activeElement && document.activeElement !== document.body) return;
-        before.findLast((el) => el.isConnected && el !== document.body)?.focus({ preventScroll: true });
+        back.findLast((el) => el.isConnected && el !== document.body)?.focus({ preventScroll: true });
       });
+    };
   }, [open, mounted]);
   return panel;
 }
