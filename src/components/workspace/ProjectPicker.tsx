@@ -21,157 +21,18 @@ import { useWorkspace } from "./context";
  * there's no picker — and the repository refuses one.
  */
 export function ProjectPicker({ setQuery }: { setQuery: (p: Partial<WorkQuery>) => void }) {
-  const { projects, actions } = useWorkspace();
+  const { projects } = useWorkspace();
   const { places, scope, canPlan } = projects;
   const [naming, setNaming] = useState<{ project?: WorkProject } | null>(null);
   const [deleting, setDeleting] = useState<ProjectSummary | null>(null);
   const current = places.find((p) => p.key === scope);
-  const open = places.filter((p) => !p.finished && (p.kind !== "none" || p.total > 0));
-  const finished = places.filter((p) => p.finished && !p.archived);
-  const archived = places.filter((p) => p.archived);
-  const openCount = open.reduce((n, p) => n + p.open, 0);
-  const allCount = places.reduce((n, p) => n + p.total, 0);
-  const label = scopeLabel(scope, places);
   const pick = (v: string) => setQuery({ project: v });
   const project = current?.project;
   return (
     <div className="flex items-center gap-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger className={TOOLBAR_BUTTON} aria-label={`Showing ${label}. Change project`}>
-          <ICONS.project size={17} aria-hidden />
-          <span className="max-w-48 truncate">{label}</span>
-          <ICONS.chevron size={16} aria-hidden />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72">
-          <DropdownMenuGroup>
-            <DropdownMenuRadioGroup value={scope} onValueChange={pick}>
-              <DropdownMenuRadioItem value={OPEN} closeOnClick>
-                <Row name="Open work" detail={`${openCount} open`} />
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value={ALL} closeOnClick>
-                <Row name="All work" detail={`${allCount} ${allCount === 1 ? "item" : "items"}, finished work too`} />
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Projects</DropdownMenuLabel>
-            <DropdownMenuRadioGroup value={scope} onValueChange={pick}>
-              {open.map((p) => (
-                <DropdownMenuRadioItem key={p.key} value={p.key} closeOnClick>
-                  <Place p={p} />
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuGroup>
-          {finished.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Finished</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={scope} onValueChange={pick}>
-                  {finished.map((p) => (
-                    <DropdownMenuRadioItem key={p.key} value={p.key} closeOnClick>
-                      <Place p={p} />
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-            </>
-          )}
-          {archived.length > 0 && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Archived</DropdownMenuLabel>
-                <DropdownMenuRadioGroup value={scope} onValueChange={pick}>
-                  {archived.map((p) => (
-                    <DropdownMenuRadioItem key={p.key} value={p.key} closeOnClick>
-                      <Place p={p} />
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuGroup>
-            </>
-          )}
-          {canPlan && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setNaming({})}>
-                <ICONS.add size={17} aria-hidden /> New project…
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {canPlan && project && current && (
-        <KebabMenu label={`Actions for the project ${project.name}`} icon="horizontal" iconSize={20} menuWidth={240}>
-          {current.archived ? (
-            <MenuAction onClick={() => void actions.unarchiveProject(project)} icon={<ICONS.unarchive size={18} aria-hidden />}>
-              Unarchive
-            </MenuAction>
-          ) : (
-            <>
-              <MenuAction onClick={() => setNaming({ project })} icon={<ICONS.edit size={18} aria-hidden />}>
-                Rename…
-              </MenuAction>
-              {current.finished ? (
-                <>
-                  <MenuAction onClick={() => void actions.reopenProject(project)} icon={<ICONS.undo size={18} aria-hidden />}>
-                    Reopen
-                  </MenuAction>
-                  <MenuAction onClick={() => void actions.archiveProject(project)} icon={<ICONS.archive size={18} aria-hidden />}>
-                    Archive
-                  </MenuAction>
-                </>
-              ) : (
-                // Said in the row, not a tooltip: what's left before it can finish.
-                <MenuAction disabled={current.open > 0} onClick={() => void actions.finishProject(project)} icon={<ICONS.check size={18} aria-hidden />}>
-                  {current.open > 0 ? `Finish — ${current.open} still open` : "Mark finished"}
-                </MenuAction>
-              )}
-            </>
-          )}
-          {/* A finished project, or an empty one — work still in an active project is finished or moved first. */}
-          {(current.finished || current.total === 0) && (
-            <MenuAction destructive onClick={() => setDeleting(current)} icon={<ICONS.trash size={18} aria-hidden />}>
-              Delete…
-            </MenuAction>
-          )}
-        </KebabMenu>
-      )}
-      {deleting?.project && (
-        <Modal
-          open
-          tone="danger"
-          onClose={() => setDeleting(null)}
-          title={`Delete “${deleting.name}”?`}
-          description={
-            deleting.total
-              ? `The project is removed for good. Its ${deleting.total === 1 ? "item stays" : `${deleting.total} items stay`} on the contract, outside a project, with ${deleting.total === 1 ? "its" : "their"} history — work is the contract's record, so it isn't deleted with the project.`
-              : "The project is removed for good. There's nothing in it."
-          }
-          footer={
-            <>
-              <Button size="lg" onClick={() => setDeleting(null)}>
-                Cancel
-              </Button>
-              <Button
-                size="lg"
-                variant="danger"
-                onClick={() => {
-                  const p = deleting.project as WorkProject;
-                  const n = deleting.total;
-                  setDeleting(null);
-                  void actions.deleteProject(p, n).then((ok) => ok && setQuery({ project: OPEN }));
-                }}
-              >
-                Delete project
-              </Button>
-            </>
-          }
-        />
-      )}
+      <PlaceMenu places={places} scope={scope} canPlan={canPlan} pick={pick} onNew={() => setNaming({})} />
+      {canPlan && project && current && <ProjectActions place={current} project={project} onRename={() => setNaming({ project })} onDelete={() => setDeleting(current)} />}
+      {deleting?.project && <DeleteProjectDialog place={deleting} project={deleting.project} onClose={() => setDeleting(null)} onDeleted={() => setQuery({ project: OPEN })} />}
       <ProjectNameDialog
         key={naming ? (naming.project?.id ?? "new") : "closed"}
         open={!!naming}
@@ -181,6 +42,155 @@ export function ProjectPicker({ setQuery }: { setQuery: (p: Partial<WorkQuery>) 
       />
     </div>
   );
+}
+
+/** The picker's menu: the open work and all of it, then the projects — active, finished, archived — and a new one. */
+function PlaceMenu({ places, scope, canPlan, pick, onNew }: { places: readonly ProjectSummary[]; scope: string; canPlan: boolean; pick: (v: string) => void; onNew: () => void }) {
+  const open = places.filter((p) => !p.finished && (p.kind !== "none" || p.total > 0));
+  const finished = places.filter((p) => p.finished && !p.archived);
+  const archived = places.filter((p) => p.archived);
+  const openCount = open.reduce((n, p) => n + p.open, 0);
+  const allCount = places.reduce((n, p) => n + p.total, 0);
+  const label = scopeLabel(scope, places);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={TOOLBAR_BUTTON} aria-label={`Showing ${label}. Change project`}>
+        <ICONS.project size={17} aria-hidden />
+        <span className="max-w-48 truncate">{label}</span>
+        <ICONS.chevron size={16} aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72">
+        <DropdownMenuGroup>
+          <DropdownMenuRadioGroup value={scope} onValueChange={pick}>
+            <DropdownMenuRadioItem value={OPEN} closeOnClick>
+              <Row name="Open work" detail={`${openCount} open`} />
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value={ALL} closeOnClick>
+              <Row name="All work" detail={`${allCount} ${allCount === 1 ? "item" : "items"}, finished work too`} />
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <PlaceGroup label="Projects" places={open} scope={scope} pick={pick} />
+        {finished.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <PlaceGroup label="Finished" places={finished} scope={scope} pick={pick} />
+          </>
+        )}
+        {archived.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <PlaceGroup label="Archived" places={archived} scope={scope} pick={pick} />
+          </>
+        )}
+        {canPlan && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onNew}>
+              <ICONS.add size={17} aria-hidden /> New project…
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** One labelled group of places in the menu, each a choice with its progress. */
+function PlaceGroup({ label, places, scope, pick }: { label: string; places: readonly ProjectSummary[]; scope: string; pick: (v: string) => void }) {
+  return (
+    <DropdownMenuGroup>
+      <DropdownMenuLabel>{label}</DropdownMenuLabel>
+      <DropdownMenuRadioGroup value={scope} onValueChange={pick}>
+        {places.map((p) => (
+          <DropdownMenuRadioItem key={p.key} value={p.key} closeOnClick>
+            <Place p={p} />
+          </DropdownMenuRadioItem>
+        ))}
+      </DropdownMenuRadioGroup>
+    </DropdownMenuGroup>
+  );
+}
+
+/** The showing project's menu: rename, finish or reopen, archive or unarchive — and delete, once it's finished or empty. */
+function ProjectActions({ place: current, project, onRename, onDelete }: { place: ProjectSummary; project: WorkProject; onRename: () => void; onDelete: () => void }) {
+  const { actions } = useWorkspace();
+  return (
+    <KebabMenu label={`Actions for the project ${project.name}`} icon="horizontal" iconSize={20} menuWidth={240}>
+      {current.archived ? (
+        <MenuAction onClick={() => void actions.unarchiveProject(project)} icon={<ICONS.unarchive size={18} aria-hidden />}>
+          Unarchive
+        </MenuAction>
+      ) : (
+        <>
+          <MenuAction onClick={onRename} icon={<ICONS.edit size={18} aria-hidden />}>
+            Rename…
+          </MenuAction>
+          {current.finished ? (
+            <>
+              <MenuAction onClick={() => void actions.reopenProject(project)} icon={<ICONS.undo size={18} aria-hidden />}>
+                Reopen
+              </MenuAction>
+              <MenuAction onClick={() => void actions.archiveProject(project)} icon={<ICONS.archive size={18} aria-hidden />}>
+                Archive
+              </MenuAction>
+            </>
+          ) : (
+            // Said in the row, not a tooltip: what's left before it can finish.
+            <MenuAction disabled={current.open > 0} onClick={() => void actions.finishProject(project)} icon={<ICONS.check size={18} aria-hidden />}>
+              {current.open > 0 ? `Finish — ${current.open} still open` : "Mark finished"}
+            </MenuAction>
+          )}
+        </>
+      )}
+      {/* A finished project, or an empty one — work still in an active project is finished or moved first. */}
+      {(current.finished || current.total === 0) && (
+        <MenuAction destructive onClick={onDelete} icon={<ICONS.trash size={18} aria-hidden />}>
+          Delete…
+        </MenuAction>
+      )}
+    </KebabMenu>
+  );
+}
+
+/** Deleting a project, confirmed first; `onDeleted` runs once the repository has removed it. */
+function DeleteProjectDialog({ place, project, onClose, onDeleted }: { place: ProjectSummary; project: WorkProject; onClose: () => void; onDeleted: () => void }) {
+  const { actions } = useWorkspace();
+  return (
+    <Modal
+      open
+      tone="danger"
+      onClose={onClose}
+      title={`Delete “${place.name}”?`}
+      description={deleteNote(place.total)}
+      footer={
+        <>
+          <Button size="lg" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            size="lg"
+            variant="danger"
+            onClick={() => {
+              const n = place.total;
+              onClose();
+              void actions.deleteProject(project, n).then((ok) => ok && onDeleted());
+            }}
+          >
+            Delete project
+          </Button>
+        </>
+      }
+    />
+  );
+}
+
+/** What deleting a project does to the work in it — nothing is lost with it. */
+function deleteNote(total: number) {
+  return total
+    ? `The project is removed for good. Its ${total === 1 ? "item stays" : `${total} items stay`} on the contract, outside a project, with ${total === 1 ? "its" : "their"} history — work is the contract's record, so it isn't deleted with the project.`
+    : "The project is removed for good. There's nothing in it.";
 }
 
 function Row({ name, detail }: { name: string; detail: string }) {

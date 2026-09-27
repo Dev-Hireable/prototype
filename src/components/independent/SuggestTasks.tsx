@@ -6,6 +6,7 @@ import { Button, Input, Select, Textarea } from "@/components/independent/ui";
 import { PriorityPill, StatusCircle } from "@/components/portal/tasks/task-bits";
 import { checkSuggestion, describeSuggestion, SUGGESTION_NOTE_MAX, type TaskSuggestion } from "@/lib/demo/suggestions";
 import { weekLabel, type PlannedTask } from "@/lib/demo/tasks";
+import { keyed } from "@/lib/portal/keys";
 
 /**
  * IN-073 — the trial's tasks in a revision, with a way to push back on them: suggest a change to a
@@ -26,10 +27,10 @@ export function SuggestTasks({ tasks, weeks, company, value, onChange }: { tasks
   return (
     <div className="flex flex-col gap-2">
       <ol className="overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-border">
-        {tasks.map((t, i) => {
+        {keyed(tasks, (t) => t.title).map(({ item: t, key }, i) => {
           const s = forTask(i);
           return (
-            <li key={`${t.title}-${i}`} className="flex flex-col gap-2 border-t border-[#eeeeee] px-3 py-2.5 first:border-t-0">
+            <li key={key} className="flex flex-col gap-2 border-t border-[#eeeeee] px-3 py-2.5 first:border-t-0">
               <div className="flex items-center gap-2.5">
                 <StatusCircle status="todo" />
                 <span className={`min-w-0 flex-1 text-[14px] leading-[1.35] ${s?.kind === "remove" ? "text-ink-2 line-through" : "text-ink"}`}>{t.title}</span>
@@ -93,29 +94,38 @@ function Suggested({ s, onEdit, onRemove }: { s: TaskSuggestion; onEdit?: () => 
   );
 }
 
-/** Writing one suggestion: for a task (change it or remove it), or a new one. */
-function SuggestionForm({ tasks, weeks, task, initial, onSave, onCancel }: { tasks: PlannedTask[]; weeks: number; task?: number; initial?: TaskSuggestion; onSave: (s: TaskSuggestion) => void; onCancel: () => void }) {
-  const t = task !== undefined ? tasks[task] : undefined;
-  const [kind, setKind] = useState<"change" | "remove">(initial?.kind === "remove" ? "remove" : "change");
+/** What a suggestion for one of the tasks asks for. */
+type Kind = "change" | "remove";
+
+/** What the form edits: change or remove (for a task), the new name and week, and the reason. */
+type Fields = { kind: Kind; title: string; week: number | undefined; note: string };
+
+/** The form's fields, starting from the suggestion being edited — a removal brings only its reason — or blank. */
+function useSuggestionFields(initial: TaskSuggestion | undefined) {
+  const [kind, setKind] = useState<Kind>(initial?.kind === "remove" ? "remove" : "change");
   const [title, setTitle] = useState(initial && initial.kind !== "remove" ? (initial.title ?? "") : "");
   const [week, setWeek] = useState<number | undefined>(initial && initial.kind !== "remove" ? initial.week : undefined);
   const [note, setNote] = useState(initial?.note ?? "");
-  const [tried, setTried] = useState(false);
+  return { kind, setKind, title, setTitle, week, setWeek, note, setNote };
+}
+
+/** The suggestion as the form stands: a missing task, or a change to — or the removal of — the one it's for. */
+function suggestionOf(initial: TaskSuggestion | undefined, task: number | undefined, t: PlannedTask | undefined, { kind, title, week, note }: Fields): TaskSuggestion {
   const id = initial?.id ?? `sg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-  const draft: TaskSuggestion =
-    task === undefined || !t
-      ? { id, kind: "add", title, week, note }
-      : kind === "remove"
-        ? { id, kind: "remove", task, was: t.title, note }
-        : { id, kind: "change", task, was: t.title, ...(title.trim() ? { title } : {}), ...(week !== undefined ? { week } : {}), note };
+  return task === undefined || !t
+    ? { id, kind: "add", title, week, note }
+    : kind === "remove"
+      ? { id, kind: "remove", task, was: t.title, note }
+      : { id, kind: "change", task, was: t.title, ...(title.trim() ? { title } : {}), ...(week !== undefined ? { week } : {}), note };
+}
+
+/** Writing one suggestion: for a task (change it or remove it), or a new one. */
+function SuggestionForm({ tasks, weeks, task, initial, onSave, onCancel }: { tasks: PlannedTask[]; weeks: number; task?: number; initial?: TaskSuggestion; onSave: (s: TaskSuggestion) => void; onCancel: () => void }) {
+  const t = task !== undefined ? tasks[task] : undefined;
+  const { kind, setKind, title, setTitle, week, setWeek, note, setNote } = useSuggestionFields(initial);
+  const [tried, setTried] = useState(false);
+  const draft = suggestionOf(initial, task, t, { kind, title, week, note });
   const problem = checkSuggestion(draft, tasks);
-  const weekOptions = ["No change", ...Array.from({ length: weeks }, (_, i) => weekLabel(i + 1))];
-  const addOptions = ["No due week", ...Array.from({ length: weeks }, (_, i) => weekLabel(i + 1))];
-  const label = (w: number | undefined, none: string) => (w ? weekLabel(w) : none);
-  const pickWeek = (v: string) => {
-    const n = Number(v.replace(/\D/g, ""));
-    setWeek(n > 0 ? n : undefined);
-  };
 
   return (
     <form
@@ -127,27 +137,8 @@ function SuggestionForm({ tasks, weeks, task, initial, onSave, onCancel }: { tas
       className={`flex flex-col gap-3 ${t ? "ml-7" : ""} rounded-md border border-border bg-surface-alt p-3`}
       aria-label={t ? `Suggest a change to “${t.title}”` : "Suggest a task"}
     >
-      {t && (
-        <div role="radiogroup" aria-label="What to suggest" className="flex gap-2">
-          {(["change", "remove"] as const).map((k) => (
-            <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => setKind(k)} className={`h-8 rounded-full px-3 text-[13px] font-medium ${kind === k ? "bg-primary text-white" : "bg-white text-ink outline -outline-offset-1 outline-border hover:bg-surface-2"}`}>
-              {k === "change" ? "Change it" : "Remove it"}
-            </button>
-          ))}
-        </div>
-      )}
-      {(!t || kind === "change") && (
-        <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-[12px] font-medium text-ink-2">{t ? "New name (optional)" : "Task"}</span>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t ? t.title : "What's missing?"} maxLength={200} aria-label={t ? "New name" : "Task name"} />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[12px] font-medium text-ink-2">Week</span>
-            <Select aria-label="Week" options={t ? weekOptions : addOptions} value={label(week, t ? "No change" : "No due week")} onChange={(e) => pickWeek(e.target.value)} />
-          </label>
-        </div>
-      )}
+      {t && <KindPicker kind={kind} onKind={setKind} />}
+      {(!t || kind === "change") && <NameAndWeek t={t} weeks={weeks} title={title} onTitle={setTitle} week={week} onWeek={setWeek} />}
       <label className="flex flex-col gap-1">
         <span className="text-[12px] font-medium text-ink-2">Why</span>
         <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} maxLength={SUGGESTION_NOTE_MAX} placeholder={t && kind === "remove" ? "e.g. Your last assistant already did this" : "e.g. I need calendar access before I can start this"} aria-label="Why" />
@@ -166,5 +157,41 @@ function SuggestionForm({ tasks, weeks, task, initial, onSave, onCancel }: { tas
         </Button>
       </div>
     </form>
+  );
+}
+
+/** For a task: whether to suggest changing it or removing it. */
+function KindPicker({ kind, onKind }: { kind: Kind; onKind: (kind: Kind) => void }) {
+  return (
+    <div role="radiogroup" aria-label="What to suggest" className="flex gap-2">
+      {(["change", "remove"] as const).map((k) => (
+        <button key={k} type="button" role="radio" aria-checked={kind === k} onClick={() => onKind(k)} className={`h-8 rounded-full px-3 text-[13px] font-medium ${kind === k ? "bg-primary text-white" : "bg-white text-ink outline -outline-offset-1 outline-border hover:bg-surface-2"}`}>
+          {k === "change" ? "Change it" : "Remove it"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The name and the due week: optional changes to a task, or what a missing one is called and when it's due. */
+function NameAndWeek({ t, weeks, title, onTitle, week, onWeek }: { t: PlannedTask | undefined; weeks: number; title: string; onTitle: (title: string) => void; week: number | undefined; onWeek: (week: number | undefined) => void }) {
+  const weekOptions = ["No change", ...Array.from({ length: weeks }, (_, i) => weekLabel(i + 1))];
+  const addOptions = ["No due week", ...Array.from({ length: weeks }, (_, i) => weekLabel(i + 1))];
+  const label = (w: number | undefined, none: string) => (w ? weekLabel(w) : none);
+  const pickWeek = (v: string) => {
+    const n = Number(v.replace(/\D/g, ""));
+    onWeek(n > 0 ? n : undefined);
+  };
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_140px] gap-2">
+      <label className="flex flex-col gap-1">
+        <span className="text-[12px] font-medium text-ink-2">{t ? "New name (optional)" : "Task"}</span>
+        <Input value={title} onChange={(e) => onTitle(e.target.value)} placeholder={t ? t.title : "What's missing?"} maxLength={200} aria-label={t ? "New name" : "Task name"} />
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-[12px] font-medium text-ink-2">Week</span>
+        <Select aria-label="Week" options={t ? weekOptions : addOptions} value={label(week, t ? "No change" : "No due week")} onChange={(e) => pickWeek(e.target.value)} />
+      </label>
+    </div>
   );
 }

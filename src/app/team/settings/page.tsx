@@ -3,16 +3,16 @@
 import { Page } from "@/components/independent/ui";
 import { AccountSettingsCard } from "@/components/portal/settings";
 import { Avatar } from "@/components/team/ui";
-import { useDemo } from "@/lib/team/store";
+import { useTeamAccount } from "@/lib/team/account";
 
 /** Figma "Settings / Account" (Team Builder) — identical frame to the Independent one. */
 export default function AccountSettings() {
-  const { profile, setProfile } = useDemo();
+  const { profile, setProfile } = useTeamAccount();
   const [first = "", ...rest] = profile.name.split(" ");
 
   return (
     <Page title="Settings">
-      {/* Keyed on the stored values: usePersisted hydrates after mount, and the card copies
+      {/* Keyed on the stored values: the saved profile arrives after hydration, and the card copies
           `initial` into state once, so without this the form keeps showing the seed. */}
       <AccountSettingsCard
         key={`${profile.name}|${profile.email}|${profile.phone}|${profile.timezone}`}

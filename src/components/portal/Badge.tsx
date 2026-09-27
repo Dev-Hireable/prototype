@@ -11,6 +11,8 @@ import type { ReactNode } from "react";
  *   outline  a plain fact: white fill, grey border (a duration, a date)
  */
 export type BadgeTone = "ok" | "warn" | "danger" | "info" | "neutral" | "accent" | "trial" | "full-time" | "part-time";
+/** A status's colour — every tone but the job types'. The one Tone for status data, portals and admin. */
+export type Tone = Exclude<BadgeTone, "full-time" | "part-time">;
 export type BadgeVariant = "tint" | "solid" | "outline";
 
 const TINT: Record<BadgeTone, string> = {

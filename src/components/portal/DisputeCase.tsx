@@ -3,7 +3,7 @@
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/PageParts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast, useToast } from "@/components/independent/ui";
 import { Callout } from "@/components/portal/Callout";
@@ -40,8 +40,10 @@ import {
   withdrawDispute,
 } from "@/lib/demo/disputes";
 import type { Attachment, Dispute, DisputeParty, Entry, Proposal } from "@/lib/demo/disputes";
+import type { PartyTurn } from "@/lib/disputes/case";
 import { CASE_FILE_TYPES, checkCaseFile, keepFile, MAX_CASE_FILE_MB, MAX_CASE_FILES, sizeLabel, useFileUrl } from "@/lib/demo/files";
-import { PAIR, useLive } from "@/lib/demo/live";
+import { PAIR, useLive, type LivePayment } from "@/lib/demo/live";
+import { keyed } from "@/lib/portal/keys";
 import { useNow } from "@/lib/portal/use-now";
 
 /**
@@ -176,47 +178,8 @@ export function DisputeCase({ dispute: d, viewer, onToast }: { dispute: Dispute;
 function TurnBanner({ d, viewer, now, onRespond }: { d: Dispute; viewer: CaseViewer; now: number; onRespond: () => void }) {
   const t = partyTurn(d);
   if (d.status === "Withdrawn") return <Callout>{d.filedBy === viewer ? "You withdrew this dispute" : `${partyName(d, d.filedBy)} withdrew this dispute`}, so the case closed and the hold was lifted. It stays on file.</Callout>;
-  if (!isOpen(d)) {
-    const r = d.resolution;
-    // The same banner as every other state of the case (it had a green box of its own): the
-    // outcome, support's note, and what happens to the money next.
-    return (
-      <div role="status">
-        <Callout>
-          <span className="flex flex-col gap-1">
-            <span className="font-semibold">{outcomeOf(d)}</span>
-            {r?.notes && <span className="whitespace-pre-line">{r.notes}</span>}
-            {r?.payment === "awaiting release" && <span>{viewer === "admin" ? "Release the payment to pay it out." : `Hireable support releases the ${usd(d.amount)} next.`}</span>}
-          </span>
-        </Callout>
-      </div>
-    );
-  }
-  if (t) {
-    const due = `${stampOf(t.due)} (${leftLabel(t.due, now).toLowerCase()})`;
-    const winner = partyName(d, otherParty(t.who));
-    if (viewer === t.who)
-      return (
-        <Callout
-          tone="warn"
-          action={
-            <Button size="sm" variant="primary" onClick={onRespond}>
-              Respond
-            </Button>
-          }
-        >
-          <span className="font-semibold">It&apos;s your turn to respond</span> — by {due}.{" "}
-          {t.why === "asked" && t.note ? <>Hireable support asked: “{t.note}” </> : null}
-          If you don&apos;t respond in time, the dispute closes in {winner}&apos;s favor.
-        </Callout>
-      );
-    return (
-      <Callout>
-        Waiting on {partyName(d, t.who)} to {t.why === "asked" ? "answer Hireable support" : "respond"} — they have until {due}.{" "}
-        {viewer === "admin" ? `If they don't respond, it closes in ${winner}'s favor.` : "If they don't, the dispute closes in your favor."}
-      </Callout>
-    );
-  }
+  if (!isOpen(d)) return <ClosedBanner d={d} viewer={viewer} />;
+  if (t) return <PartyTurnBanner d={d} t={t} viewer={viewer} now={now} onRespond={onRespond} />;
   if (viewer === "admin")
     return (
       <Callout tone="warn">
@@ -224,6 +187,51 @@ function TurnBanner({ d, viewer, now, onRespond }: { d: Dispute; viewer: CaseVie
       </Callout>
     );
   return <Callout>Hireable support is reviewing the case — usually within {SLA_DAYS} working days. You can still add information or propose a settlement meanwhile.</Callout>;
+}
+
+/** How the case ended: the outcome, support's note, and what happens to the money next. */
+function ClosedBanner({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
+  const r = d.resolution;
+  // The same banner as every other state of the case (it had a green box of its own): the
+  // outcome, support's note, and what happens to the money next.
+  return (
+    <div role="status">
+      <Callout>
+        <span className="flex flex-col gap-1">
+          <span className="font-semibold">{outcomeOf(d)}</span>
+          {r?.notes && <span className="whitespace-pre-line">{r.notes}</span>}
+          {r?.payment === "awaiting release" && <span>{viewer === "admin" ? "Release the payment to pay it out." : `Hireable support releases the ${usd(d.amount)} next.`}</span>}
+        </span>
+      </Callout>
+    </div>
+  );
+}
+
+/** A party's turn and its deadline: theirs to respond to, or — to everyone else — who the case is waiting on. */
+function PartyTurnBanner({ d, t, viewer, now, onRespond }: { d: Dispute; t: PartyTurn; viewer: CaseViewer; now: number; onRespond: () => void }) {
+  const due = `${stampOf(t.due)} (${leftLabel(t.due, now).toLowerCase()})`;
+  const winner = partyName(d, otherParty(t.who));
+  if (viewer === t.who)
+    return (
+      <Callout
+        tone="warn"
+        action={
+          <Button size="sm" variant="primary" onClick={onRespond}>
+            Respond
+          </Button>
+        }
+      >
+        <span className="font-semibold">It&apos;s your turn to respond</span> — by {due}.{" "}
+        {t.why === "asked" && t.note ? <>Hireable support asked: “{t.note}” </> : null}
+        If you don&apos;t respond in time, the dispute closes in {winner}&apos;s favor.
+      </Callout>
+    );
+  return (
+    <Callout>
+      Waiting on {partyName(d, t.who)} to {t.why === "asked" ? "answer Hireable support" : "respond"} — they have until {due}.{" "}
+      {viewer === "admin" ? `If they don't respond, it closes in ${winner}'s favor.` : "If they don't, the dispute closes in your favor."}
+    </Callout>
+  );
 }
 
 /* ------------------------------------------------------------ parties -- */
@@ -366,9 +374,44 @@ function Quote({ children }: { children: ReactNode }) {
   return <p className="text-[14px] leading-[1.5] whitespace-pre-line break-words text-ink">{children}</p>;
 }
 
-function EntryBody({ d, e }: { d: Dispute; e: Entry }) {
-  const files = (
+type EntryProps = { d: Dispute; e: Entry };
+
+/** What each kind of entry shows under its headline; a kind that isn't here shows nothing more. */
+const ENTRY_BODY: Partial<Record<Entry["kind"], (props: EntryProps) => ReactNode>> = {
+  filed: FiledBody,
+  response: Statement,
+  info: Statement,
+  asked: AskedBody,
+  extended: ExtendedBody,
+  proposal: SettlementBody,
+  missed: MissedBody,
+  ruling: RulingBody,
+  rejected: RulingBody,
+  released: ReleasedBody,
+};
+
+function EntryBody({ d, e }: EntryProps) {
+  const Body = ENTRY_BODY[e.kind];
+  return Body ? <Body d={d} e={e} /> : null;
+}
+
+/** A filing: what it's about and the amount in question, then what the filer said. */
+function FiledBody({ d, e }: EntryProps) {
+  return (
     <>
+      <p className="text-[12.5px] leading-[1.4] text-ink-2">
+        {d.reason} · {usd(d.amount)} in question
+      </p>
+      <Statement e={e} />
+    </>
+  );
+}
+
+/** What a party said: their words, then the files and the link they added. */
+function Statement({ e }: { e: Entry }) {
+  return (
+    <>
+      {e.text && <Quote>{e.text}</Quote>}
       {e.attachments && e.attachments.length > 0 && <Attachments files={e.attachments} />}
       {e.link && (
         <a href={/^https?:\/\//.test(e.link) ? e.link : `https://${e.link}`} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 self-start text-[13px] font-medium break-all text-primary hover:underline">
@@ -377,58 +420,52 @@ function EntryBody({ d, e }: { d: Dispute; e: Entry }) {
       )}
     </>
   );
-  switch (e.kind) {
-    case "filed":
-      return (
-        <>
-          <p className="text-[12.5px] leading-[1.4] text-ink-2">
-            {d.reason} · {usd(d.amount)} in question
-          </p>
-          {e.text && <Quote>{e.text}</Quote>}
-          {files}
-        </>
-      );
-    case "response":
-    case "info":
-      return (
-        <>
-          {e.text && <Quote>{e.text}</Quote>}
-          {files}
-        </>
-      );
-    case "asked":
-      return (
-        <>
-          {e.text && <Quote>{e.text}</Quote>}
-          {e.due && <p className="text-[12.5px] leading-[1.4] text-ink-2">Respond by {stampOf(e.due)}</p>}
-        </>
-      );
-    case "extended":
-      return e.due ? <p className="text-[13px] leading-[1.4] text-ink-2">New deadline: {stampOf(e.due)}</p> : null;
-    case "proposal": {
-      const p = d.proposals.find((x) => x.id === e.proposal);
-      if (!p) return null;
-      const STATE: Record<Proposal["state"], [string, "warn" | "ok" | "danger" | "neutral"]> = { open: ["Waiting for an answer", "warn"], accepted: ["Accepted", "ok"], declined: ["Declined", "danger"], replaced: ["Replaced by a newer proposal", "neutral"], void: ["Closed without an answer", "neutral"] };
-      return (
-        <>
-          <Split d={d} p={p} />
-          {p.note && <Quote>{p.note}</Quote>}
-          <span className="self-start">
-            <StatusDot tone={STATE[p.state][1]}>{STATE[p.state][0]}</StatusDot>
-          </span>
-        </>
-      );
-    }
-    case "missed":
-      return e.due ? <p className="text-[13px] leading-[1.45] text-ink-2">The deadline was {stampOf(e.due)}, so the case closed in {partyName(d, otherParty(e.to ?? "independent"))}&apos;s favor.</p> : null;
-    case "ruling":
-    case "rejected":
-      return e.text ? <Quote>{e.text}</Quote> : null;
-    case "released":
-      return <p className="text-[13px] leading-[1.45] text-ink-2">{usd(d.resolution?.moved ?? d.amount)} released {d.type === "trial" ? "from escrow" : "from the pay held for it"}.</p>;
-    default:
-      return null;
-  }
+}
+
+/** Support's question, and when the answer is due. */
+function AskedBody({ e }: EntryProps) {
+  return (
+    <>
+      {e.text && <Quote>{e.text}</Quote>}
+      {e.due && <p className="text-[12.5px] leading-[1.4] text-ink-2">Respond by {stampOf(e.due)}</p>}
+    </>
+  );
+}
+
+/** The new deadline support gave. */
+function ExtendedBody({ e }: EntryProps) {
+  return e.due ? <p className="text-[13px] leading-[1.4] text-ink-2">New deadline: {stampOf(e.due)}</p> : null;
+}
+
+/** The settlement proposed: how it splits the amount, its note, and where it stands now. */
+function SettlementBody({ d, e }: EntryProps) {
+  const p = d.proposals.find((x) => x.id === e.proposal);
+  if (!p) return null;
+  const STATE: Record<Proposal["state"], [string, "warn" | "ok" | "danger" | "neutral"]> = { open: ["Waiting for an answer", "warn"], accepted: ["Accepted", "ok"], declined: ["Declined", "danger"], replaced: ["Replaced by a newer proposal", "neutral"], void: ["Closed without an answer", "neutral"] };
+  return (
+    <>
+      <Split d={d} p={p} />
+      {p.note && <Quote>{p.note}</Quote>}
+      <span className="self-start">
+        <StatusDot tone={STATE[p.state][1]}>{STATE[p.state][0]}</StatusDot>
+      </span>
+    </>
+  );
+}
+
+/** The deadline that ran out, and whose favor the case closed in. */
+function MissedBody({ d, e }: EntryProps) {
+  return e.due ? <p className="text-[13px] leading-[1.45] text-ink-2">The deadline was {stampOf(e.due)}, so the case closed in {partyName(d, otherParty(e.to ?? "independent"))}&apos;s favor.</p> : null;
+}
+
+/** Support's reasons for a ruling or a rejection. */
+function RulingBody({ e }: EntryProps) {
+  return e.text ? <Quote>{e.text}</Quote> : null;
+}
+
+/** What was released to the Independent, and where it came from. */
+function ReleasedBody({ d }: EntryProps) {
+  return <p className="text-[13px] leading-[1.45] text-ink-2">{usd(d.resolution?.moved ?? d.amount)} released {d.type === "trial" ? "from escrow" : "from the pay held for it"}.</p>;
 }
 
 /* ---------------------------------------------------------- settlement -- */
@@ -465,10 +502,13 @@ function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; view
   const decide = async (accept: boolean) => {
     if (viewer === "admin") return;
     setBusy(true);
-    const r = await answerSettlement(d.id, viewer, accept);
-    setBusy(false);
-    setConfirming(false);
-    onToast(r.ok ? (accept ? "Settled — the dispute is closed and the money has moved" : `Declined — ${partyName(d, p.by)} has been told`) : r.error);
+    try {
+      const r = await answerSettlement(d.id, viewer, accept);
+      setConfirming(false);
+      onToast(r.ok ? (accept ? "Settled — the dispute is closed and the money has moved" : `Declined — ${partyName(d, p.by)} has been told`) : r.error);
+    } finally {
+      setBusy(false);
+    }
   };
   return (
     <section aria-label="Settlement proposal" className="flex flex-col gap-3 rounded-lg bg-[#f7fbfe] p-4 outline -outline-offset-1 outline-accent-soft">
@@ -579,45 +619,10 @@ function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: Dis
 
 /** How to split the amount in question — the other side accepts it to close the case. */
 function ProposeForm({ d, side, onDone, onToast }: { d: Dispute; side: DisputeParty; onDone: () => void; onToast: (m: string) => void }) {
-  const [refund, setRefund] = useState("");
-  const [release, setRelease] = useState("");
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const num = (s: string) => (s.trim() === "" ? NaN : Number(s.replace(/[$,\s]/g, "")));
-  const cents = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
-  /** Typing one part fills in the other, so the two always add up. */
-  const setPart = (which: "refund" | "release", v: string) => {
-    const n = num(v);
-    const rest = Number.isFinite(n) && n >= 0 && n <= d.amount ? cents(d.amount - n) : "";
-    if (which === "refund") {
-      setRefund(v);
-      setRelease(rest);
-    } else {
-      setRelease(v);
-      setRefund(rest);
-    }
-    setError(null);
-  };
-  const preset = (r: number) => {
-    setRefund(cents(r));
-    setRelease(cents(d.amount - r));
-    setError(null);
-  };
-  const problem = refund.trim() || release.trim() ? checkSplit(d.amount, num(refund), num(release)) : null;
-  const send = async () => {
-    const bad = checkSplit(d.amount, num(refund), num(release));
-    if (bad) return setError(bad);
-    setBusy(true);
-    const r = await proposeSettlement(d.id, side, { refund: num(refund), release: num(release), note });
-    setBusy(false);
-    if (!r.ok) return setError(r.error);
-    setRefund("");
-    setRelease("");
-    setNote("");
+  const { refund, release, note, setNote, busy, error, problem, setPart, preset, send } = useSettlementDraft(d, side, () => {
     onDone();
     onToast(`Proposal sent — ${partyName(d, otherParty(side))} can accept or decline`);
-  };
+  });
   const half = Math.floor((d.amount * 100) / 2) / 100;
   return (
     <div className="flex flex-col gap-3">
@@ -655,6 +660,58 @@ function ProposeForm({ d, side, onDone, onToast }: { d: Dispute; side: DisputePa
   );
 }
 
+/** A typed amount as a number: "$1,600.00" is 1600, and a blank field is NaN. */
+const num = (s: string) => (s.trim() === "" ? NaN : Number(s.replace(/[$,\s]/g, "")));
+/** A sum to the cent, as the split's fields show it: "800.00". */
+const cents = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
+
+/**
+ * A settlement being written: the two parts of the split, the note, what's wrong with the split, and
+ * sending it — the fields empty and `onSent` runs once it's gone.
+ */
+function useSettlementDraft(d: Dispute, side: DisputeParty, onSent: () => void) {
+  const [refund, setRefund] = useState("");
+  const [release, setRelease] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  /** Typing one part fills in the other, so the two always add up. */
+  const setPart = (which: "refund" | "release", v: string) => {
+    const n = num(v);
+    const rest = Number.isFinite(n) && n >= 0 && n <= d.amount ? cents(d.amount - n) : "";
+    if (which === "refund") {
+      setRefund(v);
+      setRelease(rest);
+    } else {
+      setRelease(v);
+      setRefund(rest);
+    }
+    setError(null);
+  };
+  const preset = (r: number) => {
+    setRefund(cents(r));
+    setRelease(cents(d.amount - r));
+    setError(null);
+  };
+  const problem = refund.trim() || release.trim() ? checkSplit(d.amount, num(refund), num(release)) : null;
+  const send = async () => {
+    const bad = checkSplit(d.amount, num(refund), num(release));
+    if (bad) return setError(bad);
+    setBusy(true);
+    try {
+      const r = await proposeSettlement(d.id, side, { refund: num(refund), release: num(release), note });
+      if (!r.ok) return setError(r.error);
+      setRefund("");
+      setRelease("");
+      setNote("");
+      onSent();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return { refund, release, note, setNote, busy, error, problem, setPart, preset, send };
+}
+
 /* --------------------------------------------------------------- files -- */
 
 /** Files chosen for a reply, before they're sent: previews, remove buttons, and room to add more. */
@@ -684,9 +741,9 @@ export function AttachmentPicker({ files, onChange, onError }: { files: File[]; 
       }}
     >
       <ul className="flex flex-wrap gap-2">
-        {files.map((f, i) => (
-          <li key={`${f.name}-${f.size}-${i}`}>
-            <PickedFile file={f} onRemove={() => onChange(files.filter((_, j) => j !== i))} />
+        {keyed(files, (f) => `${f.name}-${f.size}-${f.lastModified}`).map(({ item: f, key }) => (
+          <li key={key}>
+            <PickedFile file={f} onRemove={() => onChange(files.filter((g) => g !== f))} />
           </li>
         ))}
         {files.length < MAX_CASE_FILES && (
@@ -717,15 +774,32 @@ export function AttachmentPicker({ files, onChange, onError }: { files: File[]; 
   );
 }
 
+/**
+ * A picked image as a URL for its preview, made once it's on screen and let go when it leaves. Made
+ * in an effect, not during render: Strict Mode's remount revoked the memoized URL and blanked the
+ * preview.
+ */
+function usePreviewUrl(file: File | null): string | null {
+  const [state, setState] = useState<{ file: File; url: string } | null>(null);
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    // The URL is a browser resource made and let go here — the external system this effect syncs.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setState({ file, url });
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return state && state.file === file ? state.url : null;
+}
+
 function PickedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
-  // A local preview for as long as the file is shown, then let go.
-  const url = useMemo(() => (file.type.startsWith("image/") ? URL.createObjectURL(file) : null), [file]);
-  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
+  const image = file.type.startsWith("image/");
+  const url = usePreviewUrl(image ? file : null);
   return (
     <span className="relative flex size-24 flex-col items-center justify-center overflow-hidden rounded-lg bg-surface-2 outline -outline-offset-1 outline-border">
-      {url ? (
+      {image ? (
         // eslint-disable-next-line @next/next/no-img-element -- a local preview of a file that isn't saved anywhere yet
-        <img src={url} alt={file.name} className="size-full object-cover" />
+        url && <img src={url} alt={file.name} className="size-full object-cover" />
       ) : (
         <span className="flex flex-col items-center gap-1 px-2 text-center">
           <ICONS.pdf size={24} aria-hidden className="text-danger" />
@@ -740,7 +814,7 @@ function PickedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
 }
 
 /** Files on the case: image thumbnails that open full size, PDFs that open in a new tab. */
-export function Attachments({ files }: { files: Attachment[] }) {
+function Attachments({ files }: { files: Attachment[] }) {
   return (
     <ul className="flex flex-wrap gap-2" aria-label="Attachments">
       {files.map((f) => (
@@ -806,27 +880,7 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
   const escrow = onDeal && d.type === "trial" ? escrowOf(deal, all) : null;
   const facts = onDeal ? factsFor({ key: d.contract, links: d.links, title: d.title, type: d.type, rate: d.rate, started: d.facts.started, ends: d.facts.ends }, deal, all) : d.facts;
   const rows = live.payments.filter((p) => p.contract === d.links.independent || p.contract === d.links.team);
-  const paid = rows.filter((p) => p.kind !== "refunded");
-  const refunded = rows.filter((p) => p.kind === "refunded");
-  const sum = (list: typeof rows) => list.reduce((n, p) => n + (Number(p.amount.replace(/[^0-9.]/g, "")) || 0), 0);
-  const r = d.resolution;
-  const where =
-    d.status === "Pending"
-      ? escrow
-        ? "Held in escrow until the case closes."
-        : onDeal
-          ? "Kept back from the pay until the case closes."
-          : "In question until the case closes."
-      : r?.payment === "split" && r.split
-        ? `${usd(r.split.refund)} back to ${d.team.company} · ${usd(r.split.release)} to ${d.independent.name}`
-        : r?.payment === "refunded"
-          ? `Refunded to ${d.team.company}.`
-          : r?.payment === "released"
-            ? `Released to ${d.independent.name}.`
-            : r?.payment === "awaiting release"
-              ? `To be released to ${d.independent.name}.`
-              : "The hold was lifted.";
-  const contractHref = viewer === "team" ? `/team/independents/${d.links.team}?tab=contract` : viewer === "independent" ? `/independent/contracts/${d.links.independent}?tab=contract` : onDeal ? `/admin/contracts/${d.links.independent}` : null;
+  const contractHref = contractHrefFor(d, viewer, onDeal);
   return (
     // The same side column as a contract's tabs: a third of the width, 340–440px.
     <aside className={SIDE_COLUMN}>
@@ -835,31 +889,10 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
           {usd(d.amount)}
         </p>
         <p className="text-[13px] leading-[1.45] text-ink-2">
-          {d.reason} · {where}
+          {d.reason} · {whereItStands(d, !!escrow, onDeal)}
         </p>
       </PanelCard>
-      <PanelCard title="Payments on this contract">
-        <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
-          {escrow && <Line k="Escrow funded" v={usd(escrow.total)} />}
-          <Line k={`Paid to ${d.independent.name.split(" ")[0]}`} v={usd(escrow ? escrow.released : sum(paid))} />
-          <Line k={`Refunded to ${d.team.company}`} v={usd(escrow ? escrow.refunded : sum(refunded))} />
-          {escrow && <Line k="Pending — still in escrow" v={usd(escrow.held)} strong />}
-          {escrow && escrow.onHold > 0 && <Line k="On hold for disputes" v={usd(escrow.onHold)} />}
-        </dl>
-        {rows.length > 0 ? (
-          <ul className="flex flex-col border-t border-border pt-2">
-            {rows.map((p) => (
-              <li key={p.id} className="flex items-center gap-2 py-1.5 text-[12.5px] leading-[1.35]">
-                <span className="w-[76px] shrink-0 text-ink-2">{p.date}</span>
-                <span className="min-w-0 flex-1 truncate text-ink">{p.kind === "refunded" ? `Refunded · ${p.period}` : `Released · ${p.period}`}</span>
-                <span className="shrink-0 font-medium text-ink tabular-nums">{p.amount}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-[12.5px] leading-[1.4] text-ink-2">{escrow ? "Nothing has been paid out of escrow yet." : "No payments recorded on this contract yet."}</p>
-        )}
-      </PanelCard>
+      <PaymentsPanel d={d} escrow={escrow} rows={rows} />
       <PanelCard title="Contract">
         <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
           <Line k="Contract" v={contractName(d)} />
@@ -874,6 +907,58 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
         )}
       </PanelCard>
     </aside>
+  );
+}
+
+/** Where the amount in question stands: held while the case is open, then wherever the ruling sent it. */
+function whereItStands(d: Dispute, inEscrow: boolean, onDeal: boolean): string {
+  if (d.status === "Pending") {
+    if (inEscrow) return "Held in escrow until the case closes.";
+    return onDeal ? "Kept back from the pay until the case closes." : "In question until the case closes.";
+  }
+  const r = d.resolution;
+  if (r?.payment === "split" && r.split) return `${usd(r.split.refund)} back to ${d.team.company} · ${usd(r.split.release)} to ${d.independent.name}`;
+  if (r?.payment === "refunded") return `Refunded to ${d.team.company}.`;
+  if (r?.payment === "released") return `Released to ${d.independent.name}.`;
+  if (r?.payment === "awaiting release") return `To be released to ${d.independent.name}.`;
+  return "The hold was lifted.";
+}
+
+/** Where "Open the contract" goes: the viewer's own contract page, or Admin's for the live one. */
+function contractHrefFor(d: Dispute, viewer: CaseViewer, onDeal: boolean): string | null {
+  if (viewer === "team") return `/team/independents/${d.links.team}?tab=contract`;
+  if (viewer === "independent") return `/independent/contracts/${d.links.independent}?tab=contract`;
+  return onDeal ? `/admin/contracts/${d.links.independent}` : null;
+}
+
+/** The contract's money: what the trial's escrow was funded with and where it went — or, on a role, the payments recorded. */
+function PaymentsPanel({ d, escrow, rows }: { d: Dispute; escrow: ReturnType<typeof escrowOf>; rows: LivePayment[] }) {
+  const sum = (list: LivePayment[]) => list.reduce((n, p) => n + (Number(p.amount.replace(/[^0-9.]/g, "")) || 0), 0);
+  const paid = sum(rows.filter((p) => p.kind !== "refunded"));
+  const refunded = sum(rows.filter((p) => p.kind === "refunded"));
+  return (
+    <PanelCard title="Payments on this contract">
+      <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
+        {escrow && <Line k="Escrow funded" v={usd(escrow.total)} />}
+        <Line k={`Paid to ${d.independent.name.split(" ")[0]}`} v={usd(escrow ? escrow.released : paid)} />
+        <Line k={`Refunded to ${d.team.company}`} v={usd(escrow ? escrow.refunded : refunded)} />
+        {escrow && <Line k="Pending — still in escrow" v={usd(escrow.held)} strong />}
+        {escrow && escrow.onHold > 0 && <Line k="On hold for disputes" v={usd(escrow.onHold)} />}
+      </dl>
+      {rows.length > 0 ? (
+        <ul className="flex flex-col border-t border-border pt-2">
+          {rows.map((p) => (
+            <li key={p.id} className="flex items-center gap-2 py-1.5 text-[12.5px] leading-[1.35]">
+              <span className="w-[76px] shrink-0 text-ink-2">{p.date}</span>
+              <span className="min-w-0 flex-1 truncate text-ink">{p.kind === "refunded" ? `Refunded · ${p.period}` : `Released · ${p.period}`}</span>
+              <span className="shrink-0 font-medium text-ink tabular-nums">{p.amount}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[12.5px] leading-[1.4] text-ink-2">{escrow ? "Nothing has been paid out of escrow yet." : "No payments recorded on this contract yet."}</p>
+      )}
+    </PanelCard>
   );
 }
 

@@ -29,6 +29,115 @@ function getResultsAnimationTargets(
   };
 }
 
+type EntranceStep = {
+  target: keyof ResultsAnimationTargets;
+  from: gsap.TweenVars;
+  to: gsap.TweenVars;
+  /** Where it starts on the timeline: right after the step before when unset. */
+  position?: string;
+};
+
+/**
+ * The results come in top to bottom, each overlapping the one before: the badge, the header, the
+ * tags one after another, the summary, then the button.
+ */
+const RESULTS_ENTRANCE_STEPS: readonly EntranceStep[] = [
+  {
+    target: 'badge',
+    from: { autoAlpha: 0, y: 18, scale: 0.94 },
+    to: {
+      autoAlpha: 1,
+      y: 0,
+      scale: 1,
+      duration: 0.72,
+      ease: 'power3.out',
+      clearProps: 'opacity,visibility,transform',
+    },
+  },
+  {
+    target: 'header',
+    from: { autoAlpha: 0, y: 20 },
+    to: {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.62,
+      ease: 'power3.out',
+      clearProps: 'opacity,visibility,transform',
+    },
+    position: '-=0.28',
+  },
+  {
+    target: 'tags',
+    from: { opacity: 0, scale: 0.85, y: 24 },
+    to: {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      stagger: 0.1,
+      duration: 0.5,
+      ease: 'back.out(1.7)',
+      clearProps: 'opacity,transform',
+    },
+    position: '-=0.4',
+  },
+  {
+    target: 'summary',
+    from: { autoAlpha: 0, y: 20 },
+    to: {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.5,
+      ease: 'power3.out',
+      clearProps: 'opacity,visibility,transform',
+    },
+    position: '-=0.18',
+  },
+  {
+    target: 'button',
+    from: { autoAlpha: 0, y: 20 },
+    to: {
+      autoAlpha: 1,
+      y: 0,
+      duration: 0.52,
+      ease: 'power3.out',
+      clearProps: 'opacity,visibility,transform',
+    },
+    position: '-=0.16',
+  },
+];
+
+/** Whether a step's target is on the page: its element, or at least one tag. */
+function isOnPage(
+  target: ResultsAnimationTargets[keyof ResultsAnimationTargets],
+): target is Element | NodeListOf<Element> {
+  return target instanceof NodeList ? target.length > 0 : target !== null;
+}
+
+/**
+ * The entrance timeline, over whichever of the results are on the page. Each step gets fresh
+ * vars: GSAP writes into the ones it's given.
+ */
+function buildResultsEntrance(
+  gsap: typeof import('gsap').default,
+  targets: ResultsAnimationTargets,
+): TimelineController {
+  const animationTimeline = gsap.timeline();
+
+  for (const step of RESULTS_ENTRANCE_STEPS) {
+    const target = targets[step.target];
+    if (isOnPage(target)) {
+      animationTimeline.fromTo(
+        target,
+        { ...step.from },
+        { ...step.to },
+        step.position,
+      );
+    }
+  }
+
+  return animationTimeline;
+}
+
 function runGsapAnimation(
   run: (
     gsap: typeof import('gsap').default,
@@ -70,85 +179,10 @@ export function useOnboardingResultsEntranceAnimation(
           return null;
         }
 
-        const { badge, header, tags, summary, button } =
-          getResultsAnimationTargets(container);
-
-        const animationTimeline = gsap.timeline();
-
-        if (badge) {
-          animationTimeline.fromTo(
-            badge,
-            { autoAlpha: 0, y: 18, scale: 0.94 },
-            {
-              autoAlpha: 1,
-              y: 0,
-              scale: 1,
-              duration: 0.72,
-              ease: 'power3.out',
-              clearProps: 'opacity,visibility,transform',
-            },
-          );
-        }
-        if (header) {
-          animationTimeline.fromTo(
-            header,
-            { autoAlpha: 0, y: 20 },
-            {
-              autoAlpha: 1,
-              y: 0,
-              duration: 0.62,
-              ease: 'power3.out',
-              clearProps: 'opacity,visibility,transform',
-            },
-            '-=0.28',
-          );
-        }
-        if (tags.length > 0) {
-          animationTimeline.fromTo(
-            tags,
-            { opacity: 0, scale: 0.85, y: 24 },
-            {
-              opacity: 1,
-              scale: 1,
-              y: 0,
-              stagger: 0.1,
-              duration: 0.5,
-              ease: 'back.out(1.7)',
-              clearProps: 'opacity,transform',
-            },
-            '-=0.4',
-          );
-        }
-        if (summary) {
-          animationTimeline.fromTo(
-            summary,
-            { autoAlpha: 0, y: 20 },
-            {
-              autoAlpha: 1,
-              y: 0,
-              duration: 0.5,
-              ease: 'power3.out',
-              clearProps: 'opacity,visibility,transform',
-            },
-            '-=0.18',
-          );
-        }
-        if (button) {
-          animationTimeline.fromTo(
-            button,
-            { autoAlpha: 0, y: 20 },
-            {
-              autoAlpha: 1,
-              y: 0,
-              duration: 0.52,
-              ease: 'power3.out',
-              clearProps: 'opacity,visibility,transform',
-            },
-            '-=0.16',
-          );
-        }
-
-        return animationTimeline;
+        return buildResultsEntrance(
+          gsap,
+          getResultsAnimationTargets(container),
+        );
       });
     },
     { dependencies: [depKey], scope: containerRef },

@@ -77,7 +77,7 @@ export async function keepFile(f: File): Promise<Attachment> {
   return { id, name: f.name, type: blob.type || f.type, size: blob.size };
 }
 
-export const readFile = (id: string) => run<Blob | undefined>("readonly", (s) => s.get(id) as IDBRequest<Blob | undefined>);
+const readFile = (id: string) => run<Blob | undefined>("readonly", (s) => s.get(id) as IDBRequest<Blob | undefined>);
 
 /** "240 KB", "1.4 MB". */
 export const sizeLabel = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1000))} KB`);

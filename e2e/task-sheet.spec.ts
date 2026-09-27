@@ -3,7 +3,7 @@ import { api, closePanel, expect, notes, open, panel, savedItem, test } from "./
 // The item's sheet: its name heads it; subtasks go in one after another from the keyboard; the
 // Independent says what their own work waits on; and comments read as a thread and tell the other
 // side, whose notification opens the item on its comments.
-test.describe("task sheet", () => {
+test.describe("task sheet · the name", () => {
   test("the name heads the sheet, edited in place; Escape leaves the field before the sheet", async ({ page }) => {
     await open(page, "team", "?task=t-kickoff");
     const p = panel(page);
@@ -21,7 +21,9 @@ test.describe("task sheet", () => {
     await page.keyboard.press("Escape");
     await expect(p).toHaveCount(0);
   });
+});
 
+test.describe("task sheet · subtasks", () => {
   test("Add subtask opens a row with the cursor in it; Enter adds one and starts the next", async ({ page }) => {
     await open(page, "independent", "?task=t-type");
     const p = panel(page);
@@ -50,7 +52,9 @@ test.describe("task sheet", () => {
     await expect(p).toBeVisible();
     expect((await savedItem(page, "t-type")).subtasks).toHaveLength(2);
   });
+});
 
+test.describe("task sheet · dependencies", () => {
   test("the Independent says what their own work waits on — and only their own", async ({ page }) => {
     await open(page, "independent", "?task=t-type");
     const p = panel(page);
@@ -69,7 +73,9 @@ test.describe("task sheet", () => {
     expect(await api(page, "addDependency", "t-kickoff", "t-type")).toMatchObject({ ok: false, code: "forbidden", message: "It isn't yours to work on, so Alex says what it waits on." });
     expect((await savedItem(page, "t-kickoff")).dependsOn).toEqual([]);
   });
+});
 
+test.describe("task sheet · comments", () => {
   test("a comment reads as a thread entry, and the other side is told — their notification opens it", async ({ page, secondPage }) => {
     await open(page, "team", "?task=t-type");
     const p = panel(page);

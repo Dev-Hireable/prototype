@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeal, usePostings } from "@/lib/demo/deal";
+import type { Deal, Posting } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import type { JobType } from "@/lib/demo/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
@@ -38,9 +39,11 @@ export type JobView = {
 export function useJobView(app: Application): JobView {
   const posting = usePostings().find((p) => p.slug === app.roleSlug);
   const deal = useDeal();
-  const interview = deal?.roleSlug === app.roleSlug ? deal.interview : undefined;
-  // Booked as "30/09/2026, 09:30 AM (EST)" — the date, then the time.
-  const [date = "—", time = "—"] = interview?.when.split(", ") ?? [];
+  return { ...postingView(posting, app), interview: interviewOf(deal, app.roleSlug) };
+}
+
+/** The job as its live posting describes it; without one, the title and company the application kept. */
+function postingView(posting: Posting | undefined, app: Application): Omit<JobView, "interview"> {
   return {
     title: posting?.title ?? app.title,
     company: posting?.company ?? app.company,
@@ -59,6 +62,13 @@ export function useJobView(app: Application): JobView {
     attachment: posting?.attachment,
     location: posting?.location ?? "",
     industry: posting?.industry ?? "",
-    interview: { date, time, link: interview?.link ?? "" },
   };
+}
+
+/** The interview booked on the shared engagement, when it's for this role; dashes until one is. */
+function interviewOf(deal: Deal | null, roleSlug: string): JobView["interview"] {
+  const interview = deal?.roleSlug === roleSlug ? deal.interview : undefined;
+  // Booked as "30/09/2026, 09:30 AM (EST)" — the date, then the time.
+  const [date = "—", time = "—"] = interview?.when.split(", ") ?? [];
+  return { date, time, link: interview?.link ?? "" };
 }

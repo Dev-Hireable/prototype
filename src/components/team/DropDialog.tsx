@@ -2,7 +2,7 @@
 
 import { Button, Modal } from "@/components/independent/ui";
 import { byName, type Candidate } from "@/lib/team/data";
-import { useDemo } from "@/lib/team/store";
+import { usePipeline } from "@/lib/team/pipeline";
 
 /**
  * TB-044 — dropping a candidate, or bringing them back, is a decision: it's confirmed here first,
@@ -10,7 +10,7 @@ import { useDemo } from "@/lib/team/store";
  * Neither side notifies them; their own application does show where it stands.
  */
 export function DropDialog({ candidate, role, onClose, onDone }: { candidate: Candidate | null; role: string; onClose: () => void; onDone: (message: string) => void }) {
-  const { setDropped } = useDemo();
+  const { setDropped } = usePipeline();
   if (!candidate) return null;
   const name = byName(candidate.independent).name;
   const first = name.split(" ")[0];

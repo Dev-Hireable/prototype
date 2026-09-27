@@ -3,7 +3,7 @@
 import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-import { useEffect, useEffectEvent, useId, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type Ref, type RefObject } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { FORM_CONTROL, ICON_BUTTON } from "@/components/portal/styles";
 import { uiZoom } from "@/lib/portal/zoom";
@@ -48,6 +48,31 @@ function FloatingMenu({
   className?: string;
   children: ReactNode;
 }) {
+  const { menuRef, position } = useAnchoredMenu(anchorRef, { open, onClose, width, itemCount, align });
+  if (!open || !position || typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      ref={menuRef}
+      id={id}
+      role={role}
+      aria-label={ariaLabel}
+      aria-labelledby={ariaLabelledBy}
+      className={`fixed z-[60] max-h-[min(320px,calc(100vh-16px))] overflow-y-auto rounded-lg border border-border bg-white shadow-[0_8px_24px_rgba(0,0,0,.14)] ${className}`}
+      style={position}
+    >
+      {/* Drawn at the app's UI scale, like everything else. */}
+      <div className="ui-zoom py-1 text-[14px]">{children}</div>
+    </div>,
+    document.body,
+  );
+}
+
+/**
+ * An open menu's place beside its anchor, kept there as the page scrolls or resizes, and what closes
+ * it: a press outside both, or Escape — claimed, so a dialog under the menu stays open — which also
+ * hands the focus back to the anchor. `menuRef` goes on the menu.
+ */
+function useAnchoredMenu(anchorRef: RefObject<HTMLElement | null>, { open, onClose, width, itemCount, align }: { open: boolean; onClose: () => void; width?: number; itemCount: number; align: "start" | "end" }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<MenuPosition | null>(null);
   const onCloseEvent = useEffectEvent(onClose);
@@ -86,22 +111,7 @@ function FloatingMenu({
     };
   }, [align, anchorRef, itemCount, open, width]);
 
-  if (!open || !position || typeof document === "undefined") return null;
-  return createPortal(
-    <div
-      ref={menuRef}
-      id={id}
-      role={role}
-      aria-label={ariaLabel}
-      aria-labelledby={ariaLabelledBy}
-      className={`fixed z-[60] max-h-[min(320px,calc(100vh-16px))] overflow-y-auto rounded-lg border border-border bg-white shadow-[0_8px_24px_rgba(0,0,0,.14)] ${className}`}
-      style={position}
-    >
-      {/* Drawn at the app's UI scale, like everything else. */}
-      <div className="ui-zoom py-1 text-[14px]">{children}</div>
-    </div>,
-    document.body,
-  );
+  return { menuRef, position };
 }
 
 /** Row spacing on top of the dropdown item's own look: `regular` for icon rows, `compact` for plain ones. */
@@ -187,45 +197,16 @@ export type SelectProps = {
  * A blank option ("") means nothing picked yet: it shows as the placeholder in the box and never
  * as a row in the list — it used to draw an empty row at the top of the menu.
  */
-export function Select({
-  options: all,
-  placeholder = "Select",
-  value,
-  defaultValue,
-  onChange,
-  disabled,
-  className = "",
-  id,
-  name,
-  required,
-  "aria-label": ariaLabel,
-  "aria-labelledby": ariaLabelledBy,
-}: SelectProps) {
+export function Select({ options: all, placeholder = "Select", value, defaultValue, onChange, disabled, className = "", id, name, required, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy }: SelectProps) {
   const Chevron = ICONS.chevron;
   const options = all.filter((o) => o !== "");
   const menuId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const controlled = value !== undefined;
-  const [internalValue, setInternalValue] = useState(() => String(defaultValue ?? all[0] ?? ""));
-  const selected = controlled ? String(value ?? "") : internalValue;
-  const selectedIndex = Math.max(0, options.indexOf(selected));
-  const [open, setOpen] = useState(false);
-  const [highlighted, setHighlighted] = useState(selectedIndex);
-
-  useEffect(() => {
-    if (open) optionRefs.current[highlighted]?.focus();
-  }, [highlighted, open]);
-
-  const openMenu = () => {
-    if (disabled || options.length === 0) return;
-    setHighlighted(selectedIndex);
-    setOpen(true);
-  };
+  const [selected, commit] = useSelectValue({ value, defaultValue, all, onChange });
+  const { open, setOpen, setHighlighted, optionRef, openMenu, step } = useListbox(options, selected, disabled);
 
   const choose = (next: string) => {
-    if (!controlled) setInternalValue(next);
-    onChange?.({ target: { value: next }, currentTarget: { value: next } } as unknown as ChangeEvent<HTMLSelectElement>);
+    commit(next);
     setOpen(false);
     requestAnimationFrame(() => triggerRef.current?.focus());
   };
@@ -266,32 +247,79 @@ export function Select({
         aria-labelledby={ariaLabelledBy}
       >
         {options.map((option, index) => (
-          <button
-            key={option}
-            ref={(element) => {
-              optionRefs.current[index] = element;
-            }}
-            type="button"
-            role="option"
-            aria-selected={option === selected}
-            onMouseEnter={() => setHighlighted(index)}
-            onClick={() => choose(option)}
-            onKeyDown={(event) => {
-              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                event.preventDefault();
-                setHighlighted((current) => (current + (event.key === "ArrowDown" ? 1 : options.length - 1)) % options.length);
-              } else if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                choose(option);
-              }
-            }}
-            className={`flex w-full items-center px-3 py-2 text-left focus-visible:bg-surface-alt focus-visible:outline-none ${option === selected ? "bg-accent-bg font-semibold text-accent-ink" : "text-ink hover:bg-surface-alt"}`}
-          >
-            {option}
-          </button>
+          <SelectOption key={option} ref={optionRef(index)} option={option} selected={option === selected} onHover={() => setHighlighted(index)} onStep={step} onPick={() => choose(option)} />
         ))}
       </FloatingMenu>
     </span>
+  );
+}
+
+/**
+ * A Select's value: `value` when the page controls it, otherwise kept here from `defaultValue` (or
+ * the first option). Picking one keeps it here when it's ours and tells `onChange` either way, in the
+ * shape of a native select's change event.
+ */
+function useSelectValue({ value, defaultValue, all, onChange }: Pick<SelectProps, "value" | "defaultValue" | "onChange"> & { all: readonly string[] }) {
+  const controlled = value !== undefined;
+  const [internalValue, setInternalValue] = useState(() => String(defaultValue ?? all[0] ?? ""));
+  const selected = controlled ? String(value ?? "") : internalValue;
+  const commit = (next: string) => {
+    if (!controlled) setInternalValue(next);
+    onChange?.({ target: { value: next }, currentTarget: { value: next } } as unknown as ChangeEvent<HTMLSelectElement>);
+  };
+  return [selected, commit] as const;
+}
+
+/**
+ * A Select's list: whether it's open and which option is highlighted — the focus follows it — and
+ * opening on the picked option (not while disabled or empty). The arrow keys step round from either end.
+ */
+function useListbox(options: readonly string[], selected: string, disabled: boolean | undefined) {
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const selectedIndex = Math.max(0, options.indexOf(selected));
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(selectedIndex);
+
+  useEffect(() => {
+    if (open) optionRefs.current[highlighted]?.focus();
+  }, [highlighted, open]);
+
+  const openMenu = () => {
+    if (disabled || options.length === 0) return;
+    setHighlighted(selectedIndex);
+    setOpen(true);
+  };
+  const step = (key: "ArrowDown" | "ArrowUp") => setHighlighted((current) => (current + (key === "ArrowDown" ? 1 : options.length - 1)) % options.length);
+  /** Keeps each option's button by its place, for the focus to follow the highlight. */
+  const optionRef = (index: number) => (element: HTMLButtonElement | null) => {
+    optionRefs.current[index] = element;
+  };
+  return { open, setOpen, setHighlighted, optionRef, openMenu, step };
+}
+
+/** One option in a Select's list: the pointer highlights it, the arrow keys step on, and a click, Enter or Space picks it. */
+function SelectOption({ ref, option, selected, onHover, onStep, onPick }: { ref: Ref<HTMLButtonElement>; option: string; selected: boolean; onHover: () => void; onStep: (key: "ArrowDown" | "ArrowUp") => void; onPick: () => void }) {
+  return (
+    <button
+      ref={ref}
+      type="button"
+      role="option"
+      aria-selected={selected}
+      onMouseEnter={onHover}
+      onClick={onPick}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          onStep(event.key);
+        } else if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onPick();
+        }
+      }}
+      className={`flex w-full items-center px-3 py-2 text-left focus-visible:bg-surface-alt focus-visible:outline-none ${selected ? "bg-accent-bg font-semibold text-accent-ink" : "text-ink hover:bg-surface-alt"}`}
+    >
+      {option}
+    </button>
   );
 }
 
@@ -361,24 +389,7 @@ export function SkillPicker({
   const Chevron = ICONS.chevron;
   const inputRef = useRef<HTMLInputElement>(null);
   const menuId = useId();
-  const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
-  const [highlighted, setHighlighted] = useState(0);
-
-  const q = query.trim();
-  const taken = new Set(value.map((s) => s.toLowerCase()));
-  const matches = options.filter((s) => !taken.has(s.toLowerCase()) && s.toLowerCase().includes(q.toLowerCase()));
-  const exact = options.some((s) => s.toLowerCase() === q.toLowerCase());
-  const items = q && !exact && !taken.has(q.toLowerCase()) ? [...matches, q] : matches;
-  const full = value.length >= max;
-
-  const add = (skill: string) => {
-    if (full || taken.has(skill.toLowerCase())) return;
-    onChange([...value, skill]);
-    setQuery("");
-    setHighlighted(0);
-    setOpen(false);
-  };
+  const { query, open, setOpen, highlighted, setHighlighted, matches, items, full, add, search, onKeyDown } = useSkillSearch(options, value, onChange, max);
 
   return (
     <span className="relative block">
@@ -394,53 +405,94 @@ export function SkillPicker({
         placeholder={full ? `${max} skills selected` : placeholder}
         onFocus={() => setOpen(true)}
         onClick={() => setOpen(true)}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setHighlighted(0);
-          setOpen(true);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-            e.preventDefault();
-            setOpen(true);
-            if (items.length) setHighlighted((h) => (h + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length);
-          } else if (e.key === "Enter") {
-            e.preventDefault();
-            if (open && items[highlighted]) add(items[highlighted]);
-          } else if (e.key === "Backspace" && !query && value.length) {
-            onChange(value.slice(0, -1));
-          } else if (e.key === "Tab") {
-            setOpen(false);
-          }
-        }}
+        onChange={(e) => search(e.target.value)}
+        onKeyDown={onKeyDown}
         className={`${FORM_CONTROL} pr-11`}
       />
       <Chevron size={24} aria-hidden className="pointer-events-none absolute top-2.5 right-4 text-ink" />
       <FloatingMenu open={open && !full && items.length > 0} anchorRef={inputRef} onClose={() => setOpen(false)} role="listbox" itemCount={items.length} id={menuId}>
         {items.map((skill, index) => {
           const custom = index === matches.length;
-          return (
-            <div
-              key={custom ? `custom:${skill}` : skill}
-              id={`${menuId}-${index}`}
-              role="option"
-              aria-selected={index === highlighted}
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setHighlighted(index)}
-              onClick={() => add(skill)}
-              className={`flex w-full cursor-pointer items-center px-3 py-2 ${index === highlighted ? "bg-surface-alt" : ""} text-ink`}
-            >
-              {custom ? (
-                <span>
-                  Add &ldquo;<span className="font-semibold">{skill}</span>&rdquo;
-                </span>
-              ) : (
-                skill
-              )}
-            </div>
-          );
+          return <SkillOption key={custom ? `custom:${skill}` : skill} id={`${menuId}-${index}`} skill={skill} custom={custom} highlighted={index === highlighted} onHover={() => setHighlighted(index)} onPick={() => add(skill)} />;
         })}
       </FloatingMenu>
     </span>
+  );
+}
+
+/**
+ * What a SkillPicker suggests for the search `q`: the options not picked yet that contain it, then,
+ * when it's neither an option nor picked, what was typed, to add as it is. `taken` is what's picked.
+ */
+function suggestionsFor(options: readonly string[], value: string[], q: string) {
+  const taken = new Set(value.map((s) => s.toLowerCase()));
+  const matches = options.filter((s) => !taken.has(s.toLowerCase()) && s.toLowerCase().includes(q.toLowerCase()));
+  const exact = options.some((s) => s.toLowerCase() === q.toLowerCase());
+  const items = q && !exact && !taken.has(q.toLowerCase()) ? [...matches, q] : matches;
+  return { taken, matches, items };
+}
+
+/**
+ * A SkillPicker's search: what's typed, whether its suggestions are open and which is highlighted,
+ * adding one (which clears the search and closes the list), and the keys — the arrows walk the list
+ * round from either end, Enter adds, Backspace in an empty box takes the last skill off, Tab closes.
+ */
+function useSkillSearch(options: readonly string[], value: string[], onChange: (next: string[]) => void, max: number) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [highlighted, setHighlighted] = useState(0);
+  const { taken, matches, items } = suggestionsFor(options, value, query.trim());
+  const full = value.length >= max;
+
+  const add = (skill: string) => {
+    if (full || taken.has(skill.toLowerCase())) return;
+    onChange([...value, skill]);
+    setQuery("");
+    setHighlighted(0);
+    setOpen(false);
+  };
+  /** Typing searches afresh: the list opens again on its first suggestion. */
+  const search = (text: string) => {
+    setQuery(text);
+    setHighlighted(0);
+    setOpen(true);
+  };
+  const onKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      setOpen(true);
+      if (items.length) setHighlighted((h) => (h + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (open && items[highlighted]) add(items[highlighted]);
+    } else if (e.key === "Backspace" && !query && value.length) {
+      onChange(value.slice(0, -1));
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+  };
+  return { query, open, setOpen, highlighted, setHighlighted, matches, items, full, add, search, onKeyDown };
+}
+
+/** A suggestion in a SkillPicker's list, or the offer to add what was typed. Pressing it leaves the focus in the input. */
+function SkillOption({ id, skill, custom, highlighted, onHover, onPick }: { id: string; skill: string; custom: boolean; highlighted: boolean; onHover: () => void; onPick: () => void }) {
+  return (
+    <div
+      id={id}
+      role="option"
+      aria-selected={highlighted}
+      onMouseDown={(e) => e.preventDefault()}
+      onMouseEnter={onHover}
+      onClick={onPick}
+      className={`flex w-full cursor-pointer items-center px-3 py-2 ${highlighted ? "bg-surface-alt" : ""} text-ink`}
+    >
+      {custom ? (
+        <span>
+          Add &ldquo;<span className="font-semibold">{skill}</span>&rdquo;
+        </span>
+      ) : (
+        skill
+      )}
+    </div>
   );
 }

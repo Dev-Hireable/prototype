@@ -81,6 +81,44 @@ function ComposerSendIcon({
   );
 }
 
+/**
+ * The send button: its arrow lights up once there's something to send, and turns to a spinner
+ * while the answer goes. Its label says "See Results" on the last question.
+ */
+function ComposerSendButton({
+  state,
+  composerSendRef,
+  onSend,
+  onControlBlur,
+  onSendKeyDown,
+}: {
+  state: QuizAnswerComposerState;
+  composerSendRef: RefObject<HTMLButtonElement | null>;
+} & Pick<ComposerInputHandlers, 'onSend' | 'onControlBlur' | 'onSendKeyDown'>) {
+  const isSubmitting = state.submission === 'submitting';
+  const canSend = state.send === 'enabled';
+
+  return (
+    <button
+      ref={composerSendRef}
+      type="button"
+      onClick={onSend}
+      onBlur={onControlBlur}
+      onKeyDown={onSendKeyDown}
+      disabled={!canSend || isSubmitting}
+      aria-label={state.question === 'last' ? 'See Results' : 'Send response'}
+      className={cn(
+        COMPOSER_SEND_BUTTON_BASE_CLASS,
+        canSend
+          ? 'bg-client hover:bg-client-hover'
+          : 'bg-muted hover:bg-surface-hover',
+      )}
+    >
+      <ComposerSendIcon status={isSubmitting ? 'submitting' : state.send} />
+    </button>
+  );
+}
+
 function ComposerInner({
   state,
   composerInputRef,
@@ -92,15 +130,9 @@ function ComposerInner({
   onInputKeyDown,
   onSendKeyDown,
   onSend,
-}: {
-  state: QuizAnswerComposerState;
-  composerInputRef: RefObject<HTMLInputElement | null>;
-  composerSendRef: RefObject<HTMLButtonElement | null>;
-  customReply: string;
-} & ComposerInputHandlers) {
+}: Omit<QuizAnswerComposerProps, 'composerShellRef'>) {
   const focused = state.focus === 'focused';
   const isSubmitting = state.submission === 'submitting';
-  const canSend = state.send === 'enabled';
   const updateCustomReply = (event: ChangeEvent<HTMLInputElement>) =>
     onInputChange(event.target.value);
 
@@ -132,23 +164,13 @@ function ComposerInner({
             : 'placeholder:text-text-tertiary',
         )}
       />
-      <button
-        ref={composerSendRef}
-        type="button"
-        onClick={onSend}
-        onBlur={onControlBlur}
-        onKeyDown={onSendKeyDown}
-        disabled={!canSend || isSubmitting}
-        aria-label={state.question === 'last' ? 'See Results' : 'Send response'}
-        className={cn(
-          COMPOSER_SEND_BUTTON_BASE_CLASS,
-          canSend
-            ? 'bg-client hover:bg-client-hover'
-            : 'bg-muted hover:bg-surface-hover',
-        )}
-      >
-        <ComposerSendIcon status={isSubmitting ? 'submitting' : state.send} />
-      </button>
+      <ComposerSendButton
+        state={state}
+        composerSendRef={composerSendRef}
+        onSend={onSend}
+        onControlBlur={onControlBlur}
+        onSendKeyDown={onSendKeyDown}
+      />
     </div>
   );
 }

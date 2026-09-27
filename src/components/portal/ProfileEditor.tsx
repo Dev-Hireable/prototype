@@ -120,7 +120,7 @@ export function EditableRow({
   label: string;
   value: string;
   /** "timezone" edits with the searchable TimeZonePicker — every zone there is, not a typed string. */
-  kind?: "text" | "long" | "select" | "timezone";
+  kind?: RowKind;
   options?: readonly string[];
   placeholder?: string;
   validate?: (draft: string) => string | null;
@@ -128,58 +128,9 @@ export function EditableRow({
   onSave: (value: string) => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const editing = draft !== null;
-  const problem = editing ? (!draft.trim() ? "" : (validate?.(draft) ?? null)) : null;
-  const canSave = editing && !!draft.trim() && problem === null && draft.trim() !== value.trim();
-  const save = () => {
-    if (!canSave || draft === null) return;
-    onSave(draft.trim());
-    setDraft(null);
-  };
-  const keys = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      setDraft(null);
-    } else if (e.key === "Enter" && (kind !== "long" || e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      save();
-    }
-  };
 
-  if (editing)
-    return (
-      <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-1">
-        <span className="pt-2.5 text-[13px] leading-[1.4] font-medium text-ink-2">{label}</span>
-        <div className="flex min-w-0 flex-col gap-2">
-          {kind === "timezone" ? (
-            <TimeZonePicker value={draft} onChange={setDraft} autoFocus />
-          ) : kind === "select" && options ? (
-            <Select options={options} value={draft} onChange={(e) => setDraft(e.target.value)} />
-          ) : kind === "long" ? (
-            <Textarea autoFocus rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={keys} aria-label={label} />
-          ) : (
-            <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={keys} aria-label={label} placeholder={placeholder} />
-          )}
-          {(hint || problem) && (
-            <div className="flex items-center justify-between gap-3 text-[12px] leading-[1.4]">
-              <span className="text-danger" role={problem ? "alert" : undefined}>
-                {problem}
-              </span>
-              {hint && <span className="text-ink-2">{hint(draft)}</span>}
-            </div>
-          )}
-          <div className="flex items-center justify-end gap-2">
-            <span className="mr-auto text-[12px] text-ink-2">{kind === "long" ? "Ctrl+Enter to save · Esc to cancel" : "Enter to save · Esc to cancel"}</span>
-            <Button size="sm" onClick={() => setDraft(null)}>
-              Cancel
-            </Button>
-            <Button size="sm" variant="primary" disabled={!canSave} onClick={save}>
-              Save
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
+  if (draft !== null)
+    return <RowEditor label={label} value={value} kind={kind} options={options} placeholder={placeholder} validate={validate} hint={hint} onSave={onSave} draft={draft} setDraft={setDraft} />;
 
   return (
     <button
@@ -198,6 +149,116 @@ export function EditableRow({
       </span>
     </button>
   );
+}
+
+/** What a row edits with: a one-line input, a textarea, a select, or the time zone picker. */
+type RowKind = "text" | "long" | "select" | "timezone";
+
+/**
+ * A row open in its editor: the field for its kind, what's wrong with the draft (and the hint), and
+ * Cancel / Save. Enter saves (Ctrl+Enter in a textarea) and Escape drops the draft.
+ */
+function RowEditor({
+  label,
+  value,
+  kind,
+  options,
+  placeholder,
+  validate,
+  hint,
+  onSave,
+  draft,
+  setDraft,
+}: {
+  label: string;
+  value: string;
+  kind: RowKind;
+  options?: readonly string[];
+  placeholder?: string;
+  validate?: (draft: string) => string | null;
+  hint?: (draft: string) => ReactNode;
+  onSave: (value: string) => void;
+  draft: string;
+  setDraft: (draft: string | null) => void;
+}) {
+  const problem = !draft.trim() ? "" : (validate?.(draft) ?? null);
+  const canSave = !!draft.trim() && problem === null && draft.trim() !== value.trim();
+  const save = () => {
+    if (!canSave) return;
+    onSave(draft.trim());
+    setDraft(null);
+  };
+  const keys = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setDraft(null);
+    } else if (e.key === "Enter" && (kind !== "long" || e.metaKey || e.ctrlKey) && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      save();
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-1">
+      <span className="pt-2.5 text-[13px] leading-[1.4] font-medium text-ink-2">{label}</span>
+      <div className="flex min-w-0 flex-col gap-2">
+        <DraftField kind={kind} options={options} label={label} placeholder={placeholder} draft={draft} setDraft={setDraft} onKeyDown={keys} />
+        {(hint || problem) && <DraftNote problem={problem} hint={hint} draft={draft} />}
+        <EditorActions long={kind === "long"} canSave={canSave} onCancel={() => setDraft(null)} onSave={save} />
+      </div>
+    </div>
+  );
+}
+
+/** Under the draft's field: what's wrong with it, announced, and the row's hint (a character count). */
+function DraftNote({ problem, hint, draft }: { problem: string | null; hint?: (draft: string) => ReactNode; draft: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-[12px] leading-[1.4]">
+      <span className="text-danger" role={problem ? "alert" : undefined}>
+        {problem}
+      </span>
+      {hint && <span className="text-ink-2">{hint(draft)}</span>}
+    </div>
+  );
+}
+
+/** The editor's foot: the keys that save and cancel (Ctrl+Enter in a textarea), then Cancel and Save. */
+function EditorActions({ long, canSave, onCancel, onSave }: { long: boolean; canSave: boolean; onCancel: () => void; onSave: () => void }) {
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <span className="mr-auto text-[12px] text-ink-2">{long ? "Ctrl+Enter to save · Esc to cancel" : "Enter to save · Esc to cancel"}</span>
+      <Button size="sm" onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button size="sm" variant="primary" disabled={!canSave} onClick={onSave}>
+        Save
+      </Button>
+    </div>
+  );
+}
+
+/** The draft's field for the row's kind: the time zone picker, a select, a textarea, or a one-line input. */
+function DraftField({
+  kind,
+  options,
+  label,
+  placeholder,
+  draft,
+  setDraft,
+  onKeyDown,
+}: {
+  kind: RowKind;
+  options?: readonly string[];
+  label: string;
+  placeholder?: string;
+  draft: string;
+  setDraft: (draft: string) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+}) {
+  if (kind === "timezone") return <TimeZonePicker value={draft} onChange={setDraft} autoFocus />;
+  if (kind === "select" && options) return <Select options={options} value={draft} onChange={(e) => setDraft(e.target.value)} />;
+  if (kind === "long") return <Textarea autoFocus rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKeyDown} aria-label={label} />;
+  return <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKeyDown} aria-label={label} placeholder={placeholder} />;
 }
 
 /** How much of a profile is filled in, as a bar and a line on what it unlocks. */

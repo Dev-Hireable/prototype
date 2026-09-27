@@ -26,7 +26,7 @@ const TRAITS: { icon: IconType; bg: string }[] = [
  * quotes the answer they gave instead. The child is the badge itself, a focusable native element
  * so the tooltip can attach to it.
  */
-export function TagMeaning({ tag, view = "self", children }: { tag: WorkStyleTag; view?: "self" | "other"; children: ReactElement }) {
+function TagMeaning({ tag, view = "self", children }: { tag: WorkStyleTag; view?: "self" | "other"; children: ReactElement }) {
   return (
     <Tip
       label={
@@ -53,6 +53,7 @@ export function TraitTag({ tag, view }: { tag: WorkStyleTag; view?: "self" | "ot
   const { icon: Icon, bg } = TRAITS[tag.trait % TRAITS.length];
   return (
     <TagMeaning tag={tag} view={view}>
+      {/* react-doctor-disable-next-line react-doctor/no-noninteractive-tabindex -- focusable so a keyboard can open the tip (see FOCUS) */}
       <span tabIndex={0} className={`inline-flex items-end justify-center gap-1 rounded-full px-3 py-2 text-ink ${FOCUS}`} style={{ backgroundColor: bg }}>
         <Icon size={16} aria-hidden className="shrink-0" />
         <span className={`${nunitoSans.className} text-[14px] leading-[1.2] font-medium tracking-[0.2px] uppercase`}>{tag.label}</span>

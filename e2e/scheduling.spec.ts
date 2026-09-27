@@ -3,7 +3,7 @@ import { card, closePanel, drag, expect, open, panel as detail, savedItem, test 
 // Scenarios F and M — dates: in the panel, on the calendar, on the timeline; and dependencies.
 // This spec also runs in America/Los_Angeles, where a date-only value built through UTC would
 // land a day early.
-test.describe("scheduling", () => {
+test.describe("scheduling · dates in the panel", () => {
   test("setting start and due in the panel, within the rules", async ({ page }) => {
     await open(page, "team", "?task=t-share");
     const panel = detail(page);
@@ -30,7 +30,9 @@ test.describe("scheduling", () => {
     await page.getByRole("button", { name: "Go to the Next Month" }).click();
     await expect(page.getByRole("button", { name: /November 2nd, 2026/ })).toBeDisabled();
   });
+});
 
+test.describe("scheduling · the calendar", () => {
   test("the calendar shows spans and moves them, keeping their length", async ({ page }) => {
     await open(page, "team", "?view=calendar");
     const calendar = page.getByTestId("calendar");
@@ -64,7 +66,9 @@ test.describe("scheduling", () => {
     await drag(page, calendar.getByRole("button", { name: /#10 Fix the icon grid/ }), calendar.getByRole("gridcell", { name: /^Tue 22 Sep 2026/ }), { targetY: 12 });
     expect((await savedItem(page, "t-icons")).due).toBe("2026-09-23");
   });
+});
 
+test.describe("scheduling · the timeline", () => {
   test("the timeline: drag to move, drag an end to resize, arrow keys to nudge", async ({ page }) => {
     await open(page, "team", "?view=timeline&scale=day");
     const timeline = page.getByTestId("timeline");
@@ -111,6 +115,16 @@ test.describe("scheduling", () => {
     expect((await savedItem(page, "t-kickoff")).due).toBe("2026-09-29");
   });
 
+  test("a start date alone, a due date alone and a milestone each draw their own way", async ({ page }) => {
+    await open(page, "team", "?view=timeline&scale=day");
+    const timeline = page.getByTestId("timeline");
+    await expect(timeline.getByRole("button", { name: /^#5 Brand guidelines PDF, To do, Due 16 Oct/ })).toBeVisible();
+    await expect(timeline.getByRole("button", { name: /^#8 Midpoint check-in, To do, Due 9 Oct/ })).toBeVisible();
+    await expect(timeline.getByRole("button", { name: "Schedule" }).first()).toBeVisible();
+  });
+});
+
+test.describe("scheduling · dependencies", () => {
   test("dependencies: add one, refuse a loop, show what's blocked", async ({ page }) => {
     await open(page, "team", "?task=t-type");
     const panel = detail(page);
@@ -130,14 +144,6 @@ test.describe("scheduling", () => {
     await page.getByRole("option", { name: /#4 Pick a typography pairing/ }).click();
     await expect(page.getByRole("alert").filter({ hasText: "loop" })).toContainText("#10 → #4 → #10");
     expect((await savedItem(page, "t-icons")).dependsOn).toEqual([]);
-  });
-
-  test("a start date alone, a due date alone and a milestone each draw their own way", async ({ page }) => {
-    await open(page, "team", "?view=timeline&scale=day");
-    const timeline = page.getByTestId("timeline");
-    await expect(timeline.getByRole("button", { name: /^#5 Brand guidelines PDF, To do, Due 16 Oct/ })).toBeVisible();
-    await expect(timeline.getByRole("button", { name: /^#8 Midpoint check-in, To do, Due 9 Oct/ })).toBeVisible();
-    await expect(timeline.getByRole("button", { name: "Schedule" }).first()).toBeVisible();
   });
 });
 

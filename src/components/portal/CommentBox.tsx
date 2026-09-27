@@ -63,17 +63,24 @@ export function CommentBox({
       )}
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1">{tools}</div>
-        <button
-          type="button"
-          aria-label={sendLabel}
-          disabled={!ready}
-          onClick={send}
-          className="flex size-8 shrink-0 items-center justify-center rounded-[6.4px] bg-primary text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]"
-        >
-          {/* The Figma send glyph (node 5323:69394), masked so it takes the button's text colour. */}
-          <span aria-hidden className="size-5 bg-current" style={{ mask: "url(/icons/proposal/send.svg) center / contain no-repeat", WebkitMask: "url(/icons/proposal/send.svg) center / contain no-repeat" }} />
-        </button>
+        <SendButton label={sendLabel} disabled={!ready} onClick={send} />
       </div>
     </div>
+  );
+}
+
+/** The box's send button: the Figma send glyph in the button's colour, grey until there's something to send. */
+function SendButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="flex size-8 shrink-0 items-center justify-center rounded-[6.4px] bg-primary text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]"
+    >
+      {/* The Figma send glyph (node 5323:69394), masked so it takes the button's text colour. */}
+      <span aria-hidden className="size-5 bg-current" style={{ mask: "url(/icons/proposal/send.svg) center / contain no-repeat", WebkitMask: "url(/icons/proposal/send.svg) center / contain no-repeat" }} />
+    </button>
   );
 }

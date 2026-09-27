@@ -47,85 +47,99 @@ export function ItemMenuTrigger({ handle, item, className = "" }: { handle: Item
 }
 
 export function ItemMenu({ handle, model }: { handle: ItemMenuHandle; model: (id: string) => MenuModel | null }) {
-  const { actor, access, actions, openTask } = useWorkspace();
   return (
     <DropdownMenu handle={handle}>
       {({ payload }) => {
         const m = typeof payload === "string" ? model(payload) : null;
-        if (!m) return null;
-        const t = m.item;
-        const caps = capsFor(t, actor, access);
-        const changes = transitionFor(t, actor, access, "doing");
-        const o = m.order;
-        const hasOrder = !!(o && (o.up || o.down || o.top || o.bottom));
-        return (
-          <DropdownMenuContent align="end" className="w-60" onClick={(e) => e.stopPropagation()}>
-            <DropdownMenuItem onClick={() => openTask(t.id)}>
-              <ICONS.northEast size={16} aria-hidden /> Open {refOf(t)}
-            </DropdownMenuItem>
-            {changes.ok && changes.kind === "requestChanges" && (
-              <DropdownMenuItem onClick={() => openTask(t.id, "changes")}>
-                <ICONS.undo size={16} aria-hidden /> Request changes…
-              </DropdownMenuItem>
-            )}
-            {!!m.moves?.length && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Move to</DropdownMenuLabel>
-                  {m.moves.map((mv) => (
-                    <DropdownMenuItem key={mv.key} onClick={mv.run}>
-                      {mv.icon ?? <ICONS.moveTo size={16} aria-hidden />} {mv.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </>
-            )}
-            {hasOrder && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Order</DropdownMenuLabel>
-                  {o?.up && (
-                    <DropdownMenuItem onClick={o.up}>
-                      <ICONS.arrowUp size={16} aria-hidden /> Move up
-                    </DropdownMenuItem>
-                  )}
-                  {o?.down && (
-                    <DropdownMenuItem onClick={o.down}>
-                      <ICONS.arrowDown size={16} aria-hidden /> Move down
-                    </DropdownMenuItem>
-                  )}
-                  {o?.top && (
-                    <DropdownMenuItem onClick={o.top}>
-                      <ICONS.toTop size={16} aria-hidden /> Move to top
-                    </DropdownMenuItem>
-                  )}
-                  {o?.bottom && (
-                    <DropdownMenuItem onClick={o.bottom}>
-                      <ICONS.toBottom size={16} aria-hidden /> Move to bottom
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuGroup>
-              </>
-            )}
-            {(caps.archive || caps.restore) && (
-              <>
-                <DropdownMenuSeparator />
-                {isArchived(t) ? (
-                  <DropdownMenuItem onClick={() => void actions.restore(t)}>
-                    <ICONS.unarchive size={16} aria-hidden /> Restore
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem variant="destructive" className="text-danger" onClick={() => void actions.archive(t)}>
-                    <ICONS.trash size={16} aria-hidden /> Delete task
-                  </DropdownMenuItem>
-                )}
-              </>
-            )}
-          </DropdownMenuContent>
-        );
+        return m && <ItemMenuContent model={m} />;
       }}
     </DropdownMenu>
+  );
+}
+
+/** The menu for one item: open it, ask for changes, move it to another column or group or within its own, delete or restore it. */
+function ItemMenuContent({ model: m }: { model: MenuModel }) {
+  const { actor, access, actions, openTask } = useWorkspace();
+  const t = m.item;
+  const caps = capsFor(t, actor, access);
+  const changes = transitionFor(t, actor, access, "doing");
+  return (
+    <DropdownMenuContent align="end" className="w-60" onClick={(e) => e.stopPropagation()}>
+      <DropdownMenuItem onClick={() => openTask(t.id)}>
+        <ICONS.northEast size={16} aria-hidden /> Open {refOf(t)}
+      </DropdownMenuItem>
+      {changes.ok && changes.kind === "requestChanges" && (
+        <DropdownMenuItem onClick={() => openTask(t.id, "changes")}>
+          <ICONS.undo size={16} aria-hidden /> Request changes…
+        </DropdownMenuItem>
+      )}
+      <MoveToGroup moves={m.moves} />
+      <OrderGroup order={m.order} />
+      {(caps.archive || caps.restore) && (
+        <>
+          <DropdownMenuSeparator />
+          {isArchived(t) ? (
+            <DropdownMenuItem onClick={() => void actions.restore(t)}>
+              <ICONS.unarchive size={16} aria-hidden /> Restore
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem variant="destructive" className="text-danger" onClick={() => void actions.archive(t)}>
+              <ICONS.trash size={16} aria-hidden /> Delete task
+            </DropdownMenuItem>
+          )}
+        </>
+      )}
+    </DropdownMenuContent>
+  );
+}
+
+/** Move to: the other columns or groups the item can go to — nothing when there are none. */
+function MoveToGroup({ moves }: { moves: MenuModel["moves"] }) {
+  if (!moves?.length) return null;
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>Move to</DropdownMenuLabel>
+        {moves.map((mv) => (
+          <DropdownMenuItem key={mv.key} onClick={mv.run}>
+            {mv.icon ?? <ICONS.moveTo size={16} aria-hidden />} {mv.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuGroup>
+    </>
+  );
+}
+
+/** Order: up, down, to the top, to the bottom — those there's room for, when manual order applies. */
+function OrderGroup({ order: o }: { order: MenuModel["order"] }) {
+  if (!(o && (o.up || o.down || o.top || o.bottom))) return null;
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuGroup>
+        <DropdownMenuLabel>Order</DropdownMenuLabel>
+        {o.up && (
+          <DropdownMenuItem onClick={o.up}>
+            <ICONS.arrowUp size={16} aria-hidden /> Move up
+          </DropdownMenuItem>
+        )}
+        {o.down && (
+          <DropdownMenuItem onClick={o.down}>
+            <ICONS.arrowDown size={16} aria-hidden /> Move down
+          </DropdownMenuItem>
+        )}
+        {o.top && (
+          <DropdownMenuItem onClick={o.top}>
+            <ICONS.toTop size={16} aria-hidden /> Move to top
+          </DropdownMenuItem>
+        )}
+        {o.bottom && (
+          <DropdownMenuItem onClick={o.bottom}>
+            <ICONS.toBottom size={16} aria-hidden /> Move to bottom
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuGroup>
+    </>
   );
 }

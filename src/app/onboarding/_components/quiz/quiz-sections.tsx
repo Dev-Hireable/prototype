@@ -1,8 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
-import gsap from 'gsap';
 
 import { InlineSpinner } from '@/web-app/components/ui/inline-spinner';
 import { ProgressBar } from '@/web-app/components/ui/progress-bar';
@@ -10,6 +8,7 @@ import type { QuizCopy } from '../../_data/onboarding-copy';
 import type { QuizPersona } from '../../_lib/quiz-types';
 import { QuizAnswerSection } from './answer-section';
 import { QuizChatThread } from './chat-thread';
+import { useSpotlightFlight } from './use-spotlight-flight';
 
 function QuizHeader({
   title,
@@ -68,11 +67,6 @@ function QuizHeader({
   );
 }
 
-/** How far the closing line zooms in the middle of the screen, where there's room for it. */
-const SPOTLIGHT_SCALE = 1.4;
-/** Seconds the line takes to travel from the chat to the middle. */
-const SPOTLIGHT_TRAVEL_S = 0.8;
-
 /**
  * The quiz's wrap-up: the assistant's closing line lifts out of the chat and settles, zoomed, in
  * the middle of the screen while the rest of the quiz fades away, and a spinner turns after its
@@ -94,78 +88,9 @@ function QuizFinalSpotlight({
   assistantAvatarSrc: string;
   message: string;
 }) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const lineRef = useRef<HTMLDivElement>(null);
-  const spinnerRef = useRef<HTMLSpanElement>(null);
+  const { cardRef, lineRef, spinnerRef } = useSpotlightFlight(contentRef);
   // The spinner sits after the last word, and wraps with it rather than onto a line of its own.
   const lastSpace = message.lastIndexOf(' ');
-
-  useLayoutEffect(() => {
-    const card = cardRef.current;
-    const line = lineRef.current;
-    const spinner = spinnerRef.current;
-    const content = contentRef.current;
-    if (!card || !line || !spinner || !content) return;
-
-    const lines = content.querySelectorAll('[data-quiz-assistant-message]');
-    const row =
-      lines[lines.length - 1]?.closest<HTMLElement>(
-        '[data-quiz-assistant-row]',
-      ) ?? null;
-    const from = row?.getBoundingClientRect();
-    // As wide as the row, so the line wraps exactly as it did in the chat.
-    if (from) line.style.width = `${from.width}px`;
-    const to = line.getBoundingClientRect();
-    // Lift off from where the line can be seen: the chat may still be scrolling it into view.
-    const chat = row
-      ?.closest<HTMLElement>('[data-onboarding-quiz-chat]')
-      ?.getBoundingClientRect();
-    const fromTop =
-      from && chat
-        ? Math.min(Math.max(from.top, chat.top), chat.bottom - from.height)
-        : (from?.top ?? 0);
-    const scale = Math.max(
-      1,
-      Math.min(SPOTLIGHT_SCALE, (content.clientWidth - 48) / to.width),
-    );
-
-    const ctx = gsap.context(() => {
-      const timeline = gsap.timeline();
-      if (row && from) {
-        row.style.visibility = 'hidden';
-        timeline.fromTo(
-          card,
-          { x: from.left - to.left, y: fromTop - to.top, scale: 1 },
-          {
-            x: 0,
-            y: 0,
-            scale,
-            duration: SPOTLIGHT_TRAVEL_S,
-            ease: 'power3.inOut',
-          },
-        );
-      } else {
-        timeline.fromTo(
-          card,
-          { autoAlpha: 0, scale: scale * 0.94 },
-          { autoAlpha: 1, scale, duration: 0.5, ease: 'power3.out' },
-        );
-      }
-      // The spinner comes in as the line settles, and turns until the curtain.
-      timeline.fromTo(
-        spinner,
-        { autoAlpha: 0, scale: 0.6 },
-        { autoAlpha: 1, scale: 1, duration: 0.25, ease: 'back.out(2)' },
-        '-=0.25',
-      );
-    });
-
-    return () => {
-      ctx.revert();
-      line.style.width = '';
-      if (row) row.style.visibility = '';
-    };
-  }, [contentRef]);
 
   return (
     <div
@@ -237,36 +162,65 @@ type OnboardingQuizContentProps = {
   totalQuestions: number;
 };
 
-export function OnboardingQuizContent(props: OnboardingQuizContentProps) {
-  const {
-    contentRef,
-    assistantAvatarSrc,
-    chatMessages,
-    currentQuestionIndex,
-    customReply,
-    handleAnswerSectionExitComplete,
-    handleComposerBlur,
-    handleComposerFocus,
-    handleComposerSend,
-    handleCustomReplyChange,
-    handleSelectOption,
-    hasAssistantPromptCompleted,
-    hasCurrentUserResponse,
-    internalSubmitting,
-    isAssistantTyping,
-    isComposerFocused,
-    isFinalSpotlightVisible,
-    isLastQuestion,
-    isSubmitting,
-    options,
-    persona,
-    progressCurrent,
-    questionHeadingId,
-    quizCopy,
-    selectedOption,
-    shouldSuppressFinalIndicators,
-    totalQuestions,
-  } = props;
+/** What the quiz screen shows and does: everything OnboardingQuizContent takes but its ref. */
+type QuizContentView = Omit<OnboardingQuizContentProps, 'contentRef'>;
+
+/** The conversation, its typing and pending indicators held back once the wrap-up starts. */
+function QuizChat({ quiz }: { quiz: QuizContentView }) {
+  const { shouldSuppressFinalIndicators } = quiz;
+
+  return (
+    <QuizChatThread
+      messages={quiz.chatMessages}
+      isAssistantTyping={
+        shouldSuppressFinalIndicators ? false : quiz.isAssistantTyping
+      }
+      currentQuestionIndex={quiz.currentQuestionIndex}
+      hasAssistantPromptCompleted={quiz.hasAssistantPromptCompleted}
+      hasCurrentUserResponse={
+        shouldSuppressFinalIndicators ? true : quiz.hasCurrentUserResponse
+      }
+      assistantName={quiz.persona.assistantName}
+      assistantAvatarSrc={quiz.assistantAvatarSrc}
+      questionHeadingId={quiz.questionHeadingId}
+      suppressIndicators={shouldSuppressFinalIndicators}
+    />
+  );
+}
+
+/** The answer panel: the options, the Other reply, and where the question and its answer stand. */
+function QuizAnswers({ quiz }: { quiz: QuizContentView }) {
+  return (
+    <QuizAnswerSection
+      options={quiz.options}
+      selectedOption={quiz.selectedOption}
+      onSelectOption={quiz.handleSelectOption}
+      customReply={quiz.customReply}
+      onCustomReplyChange={quiz.handleCustomReplyChange}
+      onComposerFocus={quiz.handleComposerFocus}
+      onComposerBlur={quiz.handleComposerBlur}
+      onComposerSend={quiz.handleComposerSend}
+      state={{
+        composer: quiz.isComposerFocused ? 'focused' : 'idle',
+        submission:
+          quiz.isSubmitting || quiz.internalSubmitting ? 'submitting' : 'idle',
+        question: quiz.isLastQuestion ? 'last' : 'next',
+        assistantPrompt: quiz.hasAssistantPromptCompleted
+          ? 'complete'
+          : 'pending',
+      }}
+      questionHeadingId={quiz.questionHeadingId}
+      currentQuestionIndex={quiz.currentQuestionIndex}
+      onExitComplete={quiz.handleAnswerSectionExitComplete}
+    />
+  );
+}
+
+export function OnboardingQuizContent({
+  contentRef,
+  ...quiz
+}: OnboardingQuizContentProps) {
+  const { quizCopy, persona, assistantAvatarSrc } = quiz;
 
   // The quiz fills the window, but never shrinks below 600px: under that the page scrolls instead,
   // and the chat keeps at least 120px or so. It used to shrink with the window, so the chat went to nothing
@@ -280,48 +234,13 @@ export function OnboardingQuizContent(props: OnboardingQuizContentProps) {
         <QuizHeader
           title={quizCopy.title}
           description={quizCopy.description}
-          progressCurrent={progressCurrent}
-          totalQuestions={totalQuestions}
-          currentQuestionIndex={currentQuestionIndex}
+          progressCurrent={quiz.progressCurrent}
+          totalQuestions={quiz.totalQuestions}
+          currentQuestionIndex={quiz.currentQuestionIndex}
         />
-        <QuizChatThread
-          messages={chatMessages}
-          isAssistantTyping={
-            shouldSuppressFinalIndicators ? false : isAssistantTyping
-          }
-          currentQuestionIndex={currentQuestionIndex}
-          hasAssistantPromptCompleted={hasAssistantPromptCompleted}
-          hasCurrentUserResponse={
-            shouldSuppressFinalIndicators ? true : hasCurrentUserResponse
-          }
-          assistantName={persona.assistantName}
-          assistantAvatarSrc={assistantAvatarSrc}
-          questionHeadingId={questionHeadingId}
-          suppressIndicators={shouldSuppressFinalIndicators}
-        />
-        <QuizAnswerSection
-          options={options}
-          selectedOption={selectedOption}
-          onSelectOption={handleSelectOption}
-          customReply={customReply}
-          onCustomReplyChange={handleCustomReplyChange}
-          onComposerFocus={handleComposerFocus}
-          onComposerBlur={handleComposerBlur}
-          onComposerSend={handleComposerSend}
-          state={{
-            composer: isComposerFocused ? 'focused' : 'idle',
-            submission:
-              isSubmitting || internalSubmitting ? 'submitting' : 'idle',
-            question: isLastQuestion ? 'last' : 'next',
-            assistantPrompt: hasAssistantPromptCompleted
-              ? 'complete'
-              : 'pending',
-          }}
-          questionHeadingId={questionHeadingId}
-          currentQuestionIndex={currentQuestionIndex}
-          onExitComplete={handleAnswerSectionExitComplete}
-        />
-        {isFinalSpotlightVisible ? (
+        <QuizChat quiz={quiz} />
+        <QuizAnswers quiz={quiz} />
+        {quiz.isFinalSpotlightVisible ? (
           <QuizFinalSpotlight
             contentRef={contentRef}
             assistantName={persona.assistantName}

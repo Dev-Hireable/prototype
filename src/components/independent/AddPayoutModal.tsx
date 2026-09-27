@@ -3,13 +3,30 @@
 import { useState } from "react";
 import { Button, Checkbox, Field, InfoBanner, Input, Modal, Select } from "./ui";
 import type { PayoutMethod } from "@/lib/independent/data";
-import { useDemo } from "@/lib/independent/store";
+import { useWallet } from "@/lib/independent/wallet";
 
 const TYPES = ["Bank transfer (InstaPay / PESONet)", "GCash", "Maya"];
 
+/**
+ * The method the form describes, new and pending verification: a bank account paid through
+ * InstaPay / PESONet, or a GCash or Maya number.
+ */
+function payoutFrom({ type, bank, name, number, isDefault }: { type: string; bank: string; name: string; number: string; isDefault: boolean }): PayoutMethod {
+  const isBank = type === TYPES[0];
+  return {
+    id: `pm-${Date.now()}`,
+    brand: isBank ? "Bank" : (type as "GCash" | "Maya"),
+    last4: number.replace(/\s/g, "").slice(-4),
+    holder: name.trim(),
+    verified: "Verification pending",
+    detail: isBank ? `${bank} · InstaPay / PESONet` : `${type} · ${number}`,
+    isDefault,
+  };
+}
+
 /** Figma "Settings / Add payout method · independent · draft" — shared by Wallet and Settings. */
 export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: (m: PayoutMethod) => void }) {
-  const { addPayout } = useDemo();
+  const { addPayout } = useWallet();
   const [type, setType] = useState(TYPES[0]);
   const [bank, setBank] = useState("BPI");
   const [name, setName] = useState("Juan Dela Cruz");
@@ -19,15 +36,7 @@ export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onCl
   const valid = name.trim().length > 1 && number.replace(/\s/g, "").length >= 4;
 
   const submit = () => {
-    const m: PayoutMethod = {
-      id: `pm-${Date.now()}`,
-      brand: isBank ? "Bank" : (type as "GCash" | "Maya"),
-      last4: number.replace(/\s/g, "").slice(-4),
-      holder: name.trim(),
-      verified: "Verification pending",
-      detail: isBank ? `${bank} · InstaPay / PESONet` : `${type} · ${number}`,
-      isDefault,
-    };
+    const m = payoutFrom({ type, bank, name, number, isDefault });
     addPayout(m);
     onAdded(m);
     onClose();

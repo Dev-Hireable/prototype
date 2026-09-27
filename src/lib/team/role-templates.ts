@@ -1,10 +1,11 @@
+import { EXPERIENCE_LEVELS } from "@/lib/demo/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
 import type { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { independents } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 
 /** The wizard's experience levels; the first entry is the empty prompt. */
-export const LEVELS = ["Select experience level", "Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
+export const LEVELS = ["Select experience level", ...EXPERIENCE_LEVELS];
 const [, BEGINNER, INTERMEDIATE, ADVANCED, EXPERT] = LEVELS;
 
 export const TEMPLATE_CATEGORIES = ["Admin & Support", "Sales", "Marketing", "Design & Creative", "Engineering", "Finance & Operations"] as const;
@@ -425,7 +426,8 @@ export function suggestRange(role: { title: string; skills: string[]; level: str
     const s = score(t, role.title);
     if (s > best) [byTitle, best] = [t, s];
   }
-  const bySkills = ROLE_TEMPLATES.map((t) => ({ t, n: t.skills.filter((s) => role.skills.includes(s)).length })).sort((a, b) => b.n - a.n)[0];
+  const wanted = new Set(role.skills);
+  const bySkills = ROLE_TEMPLATES.map((t) => ({ t, n: t.skills.filter((s) => wanted.has(s)).length })).sort((a, b) => b.n - a.n)[0];
   const guide = role.template ?? byTitle ?? (bySkills && bySkills.n >= 2 ? bySkills.t : null);
   if (!guide) return null;
 
@@ -434,7 +436,7 @@ export function suggestRange(role: { title: string; skills: string[]; level: str
   const titleWords = wordsOf(role.title);
   const sameRole = (r: string) => titleWords.length > 0 && titleWords.every((w) => wordsOf(r).some((x) => x.startsWith(w)));
   const peers = pool
-    .map((p) => ({ name: p.name, role: p.role, level: p.level, rate: Number(p.rate.replace(/[^0-9.]/g, "")) || 0, shared: p.skills.filter((s) => role.skills.includes(s)) }))
+    .map((p) => ({ name: p.name, role: p.role, level: p.level, rate: Number(p.rate.replace(/[^0-9.]/g, "")) || 0, shared: p.skills.filter((s) => wanted.has(s)) }))
     .filter((p) => p.rate > 0 && (p.shared.length > 0 || sameRole(p.role)));
 
   return {

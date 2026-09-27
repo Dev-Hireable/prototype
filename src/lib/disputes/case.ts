@@ -145,11 +145,6 @@ export const partyTurn = (d: Pick<Dispute, "status" | "turn">): PartyTurn | null
 /** Who the case is waiting on: a party, Hireable support, or nobody once it's closed. */
 export const waitingOn = (d: Pick<Dispute, "status" | "turn">): DisputeParty | "support" | null => (isOpen(d) ? (d.turn?.who ?? "support") : null);
 export const openProposal = (d: Pick<Dispute, "proposals">) => d.proposals.find((p) => p.state === "open") ?? null;
-/** A party's turn that has run out and hasn't been acted on yet. */
-export const lapsed = (d: Pick<Dispute, "status" | "turn">, now: number) => {
-  const t = partyTurn(d);
-  return !!t && now >= t.due;
-};
 
 /** "5 days left", "1 day left", "7 hours left", "less than an hour left", "Overdue". */
 export function leftLabel(due: number, now: number): string {
@@ -207,9 +202,9 @@ export function outcomeOf(d: Dispute): string | null {
 /* --------------------------------------------------------------- steps */
 
 /** A notification for one party; `from` is who it reads as coming from. */
-export type Notice = { to: DisputeParty; from: DisputeParty | "support" | "system"; title: string; body: string };
+export type DisputeNotice = { to: DisputeParty; from: DisputeParty | "support" | "system"; title: string; body: string };
 export type Money = { refund: number; release: number };
-export type Step = { ok: true; next: Dispute; notices: Notice[]; money?: Money };
+export type Step = { ok: true; next: Dispute; notices: DisputeNotice[]; money?: Money };
 export type Refusal = { ok: false; error: string };
 
 export type Ctx = {

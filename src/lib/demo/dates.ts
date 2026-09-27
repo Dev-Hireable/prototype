@@ -49,6 +49,47 @@ export const today = () => dayLabel(new Date());
 /** yyyy-mm-dd in local time (`toISOString()` is UTC, so near midnight it lands on the wrong day). */
 export const isoDay = (d: Date = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
+/** The reverse, also local: `new Date("2026-01-06")` means UTC midnight, the day before west of UTC. */
+export function fromISODate(s: string): Date | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : undefined;
+}
+
+export function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/**
+ * "Tue 6 Jan 2026" — how a picked date reads (DatePicker), and an interview's day. Without a comma:
+ * an interview's `when` is split on ", " into its date and time.
+ */
+export const formatDate = (d: Date) => `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+
+/** An interview's `when` ("Tue 29 Sep 2026, 10:00 AM (PHT)") as its start, read in local time. */
+function interviewStart(when: string): Date | undefined {
+  const m = /(\d{1,2}) (\w{3}) (\d{4}), (\d{1,2}):(\d{2}) (AM|PM)/.exec(when);
+  const month = m ? MONTHS.indexOf(m[2]) : -1;
+  if (!m || month < 0) return undefined;
+  const hour = (Number(m[4]) % 12) + (m[6] === "PM" ? 12 : 0);
+  return new Date(Number(m[3]), month, Number(m[1]), hour, Number(m[5]));
+}
+
+/** An interview whose start hasn't come yet. */
+export function isUpcoming(when: string, now = Date.now()) {
+  const start = interviewStart(when)?.getTime();
+  return start !== undefined && start > now;
+}
+
+/** Join call opens 15 minutes before the start and stays open for the hour after it. */
+export function canJoin(when: string, now = Date.now()) {
+  const start = interviewStart(when)?.getTime();
+  return start !== undefined && now >= start - 15 * 60_000 && now <= start + 60 * 60_000;
+}
+
 /** yyyymmdd — what the ledgers sort and filter on. */
 export const dayStamp = (d: Date = new Date()) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 
@@ -78,7 +119,7 @@ export function addWorkingDays(from: Date, days: number) {
 }
 
 /** Weekdays after `from`, up to and including `to` — the inverse of `addWorkingDays`. */
-export function workingDaysBetween(from: Date, to: Date) {
+function workingDaysBetween(from: Date, to: Date) {
   const d = startOfDay(from);
   const end = startOfDay(to);
   let n = 0;
@@ -130,7 +171,7 @@ export function isPast(day: string, now = new Date()) {
 }
 
 /** "Q3 2026 (Jul to Sep)" — the review period a full-time contract is in. */
-export function quarterLabel(d: Date = new Date()) {
+function quarterLabel(d: Date = new Date()) {
   const q = Math.floor(d.getMonth() / 3);
   return `Q${q + 1} ${d.getFullYear()} (${MONTHS[q * 3]} to ${MONTHS[q * 3 + 2]})`;
 }

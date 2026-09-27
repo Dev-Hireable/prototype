@@ -4,7 +4,6 @@ import {
   assigneeKey,
   isArchived,
   isBlocked,
-  isCompleted,
   isOverdue,
   PRIORITIES,
   PRIORITY_META,
@@ -48,7 +47,7 @@ export type PriorityFilter = WorkPriority | "none";
 export const SCALES = ["day", "week", "month"] as const;
 export type Scale = (typeof SCALES)[number];
 
-export const METRICS = ["effort", "count"] as const;
+const METRICS = ["effort", "count"] as const;
 export type Metric = (typeof METRICS)[number];
 
 export type Filters = {
@@ -101,12 +100,13 @@ const pick = <T extends string>(raw: string | null, allowed: readonly T[], fallb
 /** "todo,doing,nope" → ["todo", "doing"]: unknown values are dropped, duplicates removed. */
 function list<T extends string>(raw: string | null, allowed?: readonly T[]): T[] {
   if (!raw) return [];
-  const out: T[] = [];
+  const known = allowed && new Set<string>(allowed);
+  const out = new Set<T>();
   for (const part of raw.split(",")) {
     const v = safeDecode(part).trim() as T;
-    if (v && (!allowed || allowed.includes(v)) && !out.includes(v)) out.push(v);
+    if (v && (!known || known.has(v))) out.add(v);
   }
-  return out;
+  return [...out];
 }
 
 /** A hand-edited URL can hold a malformed escape ("%E0%A4"); read it as typed rather than throw. */
@@ -185,7 +185,7 @@ export function activeFilterCount(q: Filters & { q?: string }): number {
 /* ---------------------------------------------------------------- search */
 
 /** Lower case, accents off: "Café" and "cafe" match. */
-export const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 const haystacks = new WeakMap<WorkItem, string>();
 function haystackOf(t: WorkItem): string {
@@ -205,6 +205,7 @@ export function matchesSearch(t: WorkItem, q: string): boolean {
   return words.every((w) => {
     const ref = /^#(\d+)$/.exec(w);
     if (ref) return t.number === Number(ref[1]);
+    // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- `hay` is a string: a substring search, not a list lookup
     return hay.includes(w);
   });
 }
@@ -235,13 +236,18 @@ function dueMatches(t: WorkItem, lenses: DueFilter[], today: Day): boolean {
 
 /** AND across fields, OR within one: status In progress or In review, and assigned to Juan. */
 export function applyFilters(items: readonly WorkItem[], q: Filters & { q: string }, ctx: { today: Day; byId: ById }): WorkItem[] {
+  const status = new Set(q.status);
+  const assignee = new Set(q.assignee);
+  const type = new Set(q.type);
+  const priority = new Set(q.priority);
+  const tags = new Set(q.tag);
   return items.filter((t) => {
     if (isArchived(t) !== q.archived) return false;
-    if (q.status.length && !q.status.includes(t.status)) return false;
-    if (q.assignee.length && !q.assignee.includes(assigneeKey(t.assignee))) return false;
-    if (q.type.length && !q.type.includes(t.type)) return false;
-    if (q.priority.length && !q.priority.includes(t.priority ?? "none")) return false;
-    if (q.tag.length && !q.tag.some((tag) => t.tags.includes(tag))) return false;
+    if (status.size && !status.has(t.status)) return false;
+    if (assignee.size && !assignee.has(assigneeKey(t.assignee))) return false;
+    if (type.size && !type.has(t.type)) return false;
+    if (priority.size && !priority.has(t.priority ?? "none")) return false;
+    if (tags.size && !t.tags.some((tag) => tags.has(tag))) return false;
     if (q.due.length && !dueMatches(t, q.due, ctx.today)) return false;
     if (q.blocked && !isBlocked(t, ctx.byId)) return false;
     return matchesSearch(t, q.q);
@@ -332,5 +338,3 @@ export function groupItems(items: readonly WorkItem[], group: GroupKey, labels: 
   }
 }
 
-/** Completed items, for the summary's "N of M done". */
-export const doneCount = (items: readonly WorkItem[]) => items.filter((t) => isCompleted(t.status)).length;

@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  type ReactNode,
   type RefObject,
 } from 'react';
 
@@ -33,6 +34,64 @@ type QuizChatThreadProps = {
   suppressIndicators?: boolean;
 };
 
+/**
+ * A bubble's entrance: it grows up into place from its speaker's side. The typing dots come in
+ * quicker; a message's will-change is cleared once it's in.
+ */
+function playBubbleEntrance(
+  gsap: typeof import('gsap').default,
+  element: HTMLElement,
+  style: BubbleAnimationStyle,
+) {
+  const isUser = style === 'user';
+  const isTyping = style === 'typing';
+  gsap.set(element, {
+    transformOrigin: isUser ? 'right bottom' : 'left bottom',
+    willChange: 'opacity, transform',
+  });
+
+  if (isTyping) {
+    gsap.fromTo(
+      element,
+      {
+        autoAlpha: 0,
+        y: 4,
+        scale: 0.96,
+      },
+      {
+        autoAlpha: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.2,
+        ease: 'power2.out',
+        clearProps: 'willChange, transform',
+      },
+    );
+    return;
+  }
+
+  const timeline = gsap.timeline({
+    onComplete: () => {
+      gsap.set(element, { clearProps: 'willChange, transform' });
+    },
+  });
+  timeline.fromTo(
+    element,
+    {
+      autoAlpha: 0,
+      y: 8,
+      scale: 0.96,
+    },
+    {
+      autoAlpha: 1,
+      y: 0,
+      scale: 1,
+      duration: 0.3,
+      ease: 'power2.out',
+    },
+  );
+}
+
 function useChatBubbleEntranceAnimation(): AnimateBubbleIn {
   return useCallback(
     (element: HTMLElement | null, style: BubbleAnimationStyle) => {
@@ -50,53 +109,7 @@ function useChatBubbleEntranceAnimation(): AnimateBubbleIn {
         .then(({ default: gsap }) => {
           if (!element) return;
 
-          const isUser = style === 'user';
-          const isTyping = style === 'typing';
-          gsap.set(element, {
-            transformOrigin: isUser ? 'right bottom' : 'left bottom',
-            willChange: 'opacity, transform',
-          });
-
-          if (isTyping) {
-            gsap.fromTo(
-              element,
-              {
-                autoAlpha: 0,
-                y: 4,
-                scale: 0.96,
-              },
-              {
-                autoAlpha: 1,
-                y: 0,
-                scale: 1,
-                duration: 0.2,
-                ease: 'power2.out',
-                clearProps: 'willChange, transform',
-              },
-            );
-            return;
-          }
-
-          const timeline = gsap.timeline({
-            onComplete: () => {
-              gsap.set(element, { clearProps: 'willChange, transform' });
-            },
-          });
-          timeline.fromTo(
-            element,
-            {
-              autoAlpha: 0,
-              y: 8,
-              scale: 0.96,
-            },
-            {
-              autoAlpha: 1,
-              y: 0,
-              scale: 1,
-              duration: 0.3,
-              ease: 'power2.out',
-            },
-          );
+          playBubbleEntrance(gsap, element, style);
         })
         .catch((error: unknown) => {
           reportGsapLoadError(error);
@@ -106,6 +119,47 @@ function useChatBubbleEntranceAnimation(): AnimateBubbleIn {
     },
     [],
   );
+}
+
+/** Sets the dots of each typing indicator in the chat bobbing in turn, collecting their tweens. */
+function bobChatDots(
+  gsap: typeof import('gsap').default,
+  chat: HTMLDivElement,
+  tweens: unknown[],
+) {
+  const dotGroups = chat.querySelectorAll<HTMLElement>(
+    '[data-chat-dot-group]',
+  );
+
+  dotGroups.forEach((group) => {
+    const dots = group.querySelectorAll<HTMLElement>('[data-chat-dot]');
+    if (dots.length === 0) return;
+
+    gsap.set(dots, { y: 0, opacity: 0.38 });
+    tweens.push(
+      gsap.to(dots, {
+        y: -3,
+        opacity: 1,
+        duration: 0.36,
+        ease: 'sine.inOut',
+        repeat: -1,
+        yoyo: true,
+        stagger: 0.14,
+      }),
+    );
+  });
+}
+
+/** Stops the tweens bobChatDots started. */
+function killTweens(tweens: unknown[]) {
+  tweens.forEach((tween) => {
+    if (
+      tween &&
+      typeof (tween as { kill?: () => void }).kill === 'function'
+    ) {
+      (tween as { kill: () => void }).kill();
+    }
+  });
 }
 
 type UseChatIndicatorsAnimationParams = {
@@ -138,40 +192,13 @@ function useChatIndicatorsAnimation({
       .then(({ default: gsap }) => {
         if (cancelled) return;
 
-        const dotGroups = chat.querySelectorAll<HTMLElement>(
-          '[data-chat-dot-group]',
-        );
-
-        dotGroups.forEach((group) => {
-          const dots = group.querySelectorAll<HTMLElement>('[data-chat-dot]');
-          if (dots.length === 0) return;
-
-          gsap.set(dots, { y: 0, opacity: 0.38 });
-          tweens.push(
-            gsap.to(dots, {
-              y: -3,
-              opacity: 1,
-              duration: 0.36,
-              ease: 'sine.inOut',
-              repeat: -1,
-              yoyo: true,
-              stagger: 0.14,
-            }),
-          );
-        });
+        bobChatDots(gsap, chat, tweens);
       })
       .catch(reportGsapLoadError);
 
     return () => {
       cancelled = true;
-      tweens.forEach((tween) => {
-        if (
-          tween &&
-          typeof (tween as { kill?: () => void }).kill === 'function'
-        ) {
-          (tween as { kill: () => void }).kill();
-        }
-      });
+      killTweens(tweens);
     };
   }, [
     messagesLength,
@@ -187,6 +214,51 @@ function useChatIndicatorsAnimation({
 const FOLLOW_SLACK_PX = 48;
 /** Room left above the assistant's latest line when it has to be shown from its top, in px. */
 const LATEST_LINE_MARGIN_PX = 12;
+
+/**
+ * Scrolls the chat down to its bottom, but no further than the top of the assistant's latest
+ * line, and never up.
+ */
+function scrollToLatest(
+  chat: HTMLDivElement,
+  list: HTMLDivElement,
+  behavior: ScrollBehavior,
+) {
+  const bottom = chat.scrollHeight - chat.clientHeight;
+  const lines = list.querySelectorAll('[data-quiz-assistant-message]');
+  const latestRow = lines[lines.length - 1]?.closest(
+    '[data-quiz-assistant-row]',
+  );
+  const latestTop = latestRow
+    ? latestRow.getBoundingClientRect().top -
+      chat.getBoundingClientRect().top +
+      chat.scrollTop -
+      LATEST_LINE_MARGIN_PX
+    : bottom;
+  const top = Math.max(chat.scrollTop, Math.min(bottom, latestTop));
+  if (top - chat.scrollTop < 1) return;
+  chat.scrollTo({ top, behavior });
+}
+
+/**
+ * The chat's scroll listener: back at the bottom, the reader is following again; any scroll up
+ * is them rereading, so the chat stops following them.
+ */
+function trackFollowing(
+  chat: HTMLDivElement,
+  followingRef: RefObject<boolean>,
+) {
+  let lastTop = chat.scrollTop;
+  return () => {
+    const top = chat.scrollTop;
+    if (chat.scrollHeight - chat.clientHeight - top <= FOLLOW_SLACK_PX) {
+      followingRef.current = true;
+    } else if (top < lastTop) {
+      followingRef.current = false;
+    }
+    lastTop = top;
+  };
+}
 
 type UseChatAutoScrollParams = {
   chatScrollRef: RefObject<HTMLDivElement | null>;
@@ -227,32 +299,10 @@ function useChatAutoScroll({
 
     const follow = (behavior: ScrollBehavior) => {
       if (!followingRef.current) return;
-      const bottom = chat.scrollHeight - chat.clientHeight;
-      const lines = list.querySelectorAll('[data-quiz-assistant-message]');
-      const latestRow = lines[lines.length - 1]?.closest(
-        '[data-quiz-assistant-row]',
-      );
-      const latestTop = latestRow
-        ? latestRow.getBoundingClientRect().top -
-          chat.getBoundingClientRect().top +
-          chat.scrollTop -
-          LATEST_LINE_MARGIN_PX
-        : bottom;
-      const top = Math.max(chat.scrollTop, Math.min(bottom, latestTop));
-      if (top - chat.scrollTop < 1) return;
-      chat.scrollTo({ top, behavior });
+      scrollToLatest(chat, list, behavior);
     };
 
-    let lastTop = chat.scrollTop;
-    const handleScroll = () => {
-      const top = chat.scrollTop;
-      if (chat.scrollHeight - chat.clientHeight - top <= FOLLOW_SLACK_PX) {
-        followingRef.current = true;
-      } else if (top < lastTop) {
-        followingRef.current = false;
-      }
-      lastTop = top;
-    };
+    const handleScroll = trackFollowing(chat, followingRef);
 
     // Every change in size, not a list of state changes: a line or the typing dots arriving, a
     // bubble swapping in, the window resizing.
@@ -282,6 +332,123 @@ function getLatestAssistantMessageId(
     }
   }
   return null;
+}
+
+/** The chat's scrolling band and the centred column the conversation sits in. */
+function ChatScroller({
+  chatScrollRef,
+  listRef,
+  children,
+}: {
+  chatScrollRef: RefObject<HTMLDivElement | null>;
+  listRef: RefObject<HTMLDivElement | null>;
+  children: ReactNode;
+}) {
+  return (
+    // The scroller runs the full width of the window with the conversation centred inside it, so
+    // the wheel scrolls it from anywhere across the band, the way a page scrolls. It used to be the
+    // conversation's own 720px column, and the wheel did nothing an inch either side of it. It
+    // draws no scrollbar, so the chat reads as the page rather than a box inside it. The inline
+    // style hides the bar in Chromium and Firefox (inline, because globals.css gives Firefox a thin
+    // bar on every element, and that rule would outrank a class); the class covers older Safari.
+    <div
+      data-onboarding-quiz-chat
+      ref={chatScrollRef}
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions text"
+      aria-atomic={false}
+      className="bg-background order-1 flex w-full min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain py-5 sm:py-6 short:py-3 [&::-webkit-scrollbar]:hidden"
+      style={{ scrollbarWidth: 'none' }}
+    >
+      <div
+        ref={listRef}
+        className="mx-auto flex w-full max-w-180 flex-col gap-4 px-3 sm:px-4"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** The conversation so far: the assistant's lines and the reader's answers, in order. */
+function ChatMessages({
+  messages,
+  assistantName,
+  assistantAvatarSrc,
+  questionHeadingId,
+  animateBubbleIn,
+}: Pick<
+  QuizChatThreadProps,
+  'messages' | 'assistantName' | 'assistantAvatarSrc' | 'questionHeadingId'
+> & { animateBubbleIn: AnimateBubbleIn }) {
+  const latestAssistantMessageId = useMemo(
+    () => getLatestAssistantMessageId(messages),
+    [messages],
+  );
+
+  return (
+    <>
+      {messages.map((message) =>
+        message.sender === 'assistant' ? (
+          <AssistantChatRow
+            key={message.id}
+            message={message}
+            assistantName={assistantName}
+            assistantAvatarSrc={assistantAvatarSrc}
+            questionHeadingId={questionHeadingId}
+            isLatestAssistantMessage={message.id === latestAssistantMessageId}
+            animateBubbleIn={animateBubbleIn}
+          />
+        ) : (
+          <UserChatRow
+            key={message.id}
+            message={message}
+            animateBubbleIn={animateBubbleIn}
+          />
+        ),
+      )}
+    </>
+  );
+}
+
+/**
+ * What's still to come in the conversation: the assistant's typing dots, or the reader's pending
+ * bubble once the question is out and unanswered. Neither shows through the wrap-up.
+ */
+function ChatIndicators({
+  isAssistantTyping,
+  currentQuestionIndex,
+  hasAssistantPromptCompleted,
+  hasCurrentUserResponse,
+  assistantName,
+  assistantAvatarSrc,
+  suppressIndicators,
+  animateBubbleIn,
+}: Omit<QuizChatThreadProps, 'messages' | 'questionHeadingId'> & {
+  animateBubbleIn: AnimateBubbleIn;
+}) {
+  return (
+    <>
+      {!suppressIndicators && isAssistantTyping ? (
+        <AssistantTypingRow
+          key={`typing-${currentQuestionIndex}`}
+          assistantName={assistantName}
+          assistantAvatarSrc={assistantAvatarSrc}
+          animateBubbleIn={animateBubbleIn}
+        />
+      ) : null}
+
+      {!suppressIndicators &&
+      hasAssistantPromptCompleted &&
+      !hasCurrentUserResponse ? (
+        <UserPendingRow
+          key={`pending-${currentQuestionIndex}`}
+          animateBubbleIn={animateBubbleIn}
+        />
+      ) : null}
+    </>
+  );
 }
 
 export function QuizChatThread({
@@ -314,70 +481,26 @@ export function QuizChatThread({
     latestMessage: messages[messages.length - 1],
   });
 
-  const latestAssistantMessageId = useMemo(
-    () => getLatestAssistantMessageId(messages),
-    [messages],
-  );
-
   return (
-    // The scroller runs the full width of the window with the conversation centred inside it, so
-    // the wheel scrolls it from anywhere across the band, the way a page scrolls. It used to be the
-    // conversation's own 720px column, and the wheel did nothing an inch either side of it. It
-    // draws no scrollbar, so the chat reads as the page rather than a box inside it. The inline
-    // style hides the bar in Chromium and Firefox (inline, because globals.css gives Firefox a thin
-    // bar on every element, and that rule would outrank a class); the class covers older Safari.
-    <div
-      data-onboarding-quiz-chat
-      ref={chatScrollRef}
-      role="log"
-      aria-live="polite"
-      aria-relevant="additions text"
-      aria-atomic={false}
-      className="bg-background order-1 flex w-full min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain py-5 sm:py-6 short:py-3 [&::-webkit-scrollbar]:hidden"
-      style={{ scrollbarWidth: 'none' }}
-    >
-      <div
-        ref={listRef}
-        className="mx-auto flex w-full max-w-180 flex-col gap-4 px-3 sm:px-4"
-      >
-        {messages.map((message) =>
-          message.sender === 'assistant' ? (
-            <AssistantChatRow
-              key={message.id}
-              message={message}
-              assistantName={assistantName}
-              assistantAvatarSrc={assistantAvatarSrc}
-              questionHeadingId={questionHeadingId}
-              isLatestAssistantMessage={message.id === latestAssistantMessageId}
-              animateBubbleIn={animateBubbleIn}
-            />
-          ) : (
-            <UserChatRow
-              key={message.id}
-              message={message}
-              animateBubbleIn={animateBubbleIn}
-            />
-          ),
-        )}
+    <ChatScroller chatScrollRef={chatScrollRef} listRef={listRef}>
+      <ChatMessages
+        messages={messages}
+        assistantName={assistantName}
+        assistantAvatarSrc={assistantAvatarSrc}
+        questionHeadingId={questionHeadingId}
+        animateBubbleIn={animateBubbleIn}
+      />
 
-        {!suppressIndicators && isAssistantTyping ? (
-          <AssistantTypingRow
-            key={`typing-${currentQuestionIndex}`}
-            assistantName={assistantName}
-            assistantAvatarSrc={assistantAvatarSrc}
-            animateBubbleIn={animateBubbleIn}
-          />
-        ) : null}
-
-        {!suppressIndicators &&
-        hasAssistantPromptCompleted &&
-        !hasCurrentUserResponse ? (
-          <UserPendingRow
-            key={`pending-${currentQuestionIndex}`}
-            animateBubbleIn={animateBubbleIn}
-          />
-        ) : null}
-      </div>
-    </div>
+      <ChatIndicators
+        isAssistantTyping={isAssistantTyping}
+        currentQuestionIndex={currentQuestionIndex}
+        hasAssistantPromptCompleted={hasAssistantPromptCompleted}
+        hasCurrentUserResponse={hasCurrentUserResponse}
+        assistantName={assistantName}
+        assistantAvatarSrc={assistantAvatarSrc}
+        suppressIndicators={suppressIndicators}
+        animateBubbleIn={animateBubbleIn}
+      />
+    </ChatScroller>
   );
 }

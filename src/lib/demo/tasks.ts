@@ -1,7 +1,7 @@
 import { addWorkingDays, isoDay, MONTHS, parseDay } from "@/lib/demo/dates";
 import { todayDay } from "@/lib/work/dates";
-import { countsOf, isArchived, isCompleted, isOverdue as overdue, PRIORITIES as WORK_PRIORITIES, PRIORITY_META, scoredItems, STATUS_META, STATUSES } from "@/lib/work/model";
-import type { Side, Subtask as WorkSubtask, WorkComment, WorkEvent, WorkItem, WorkPriority, WorkStatus } from "@/lib/work/model";
+import { countsOf, isArchived, isCompleted, PRIORITIES as WORK_PRIORITIES, PRIORITY_META, scoredItems, STATUS_META, STATUSES } from "@/lib/work/model";
+import type { Side, WorkComment, WorkItem, WorkPriority, WorkStatus } from "@/lib/work/model";
 import { ORDER_STEP } from "@/lib/work/order";
 
 /**
@@ -19,14 +19,10 @@ export type TaskSide = Side;
 export type TaskStatus = WorkStatus;
 export type TaskPriority = WorkPriority;
 export type Task = WorkItem;
-export type Subtask = WorkSubtask;
-export type TaskEvent = WorkEvent;
 export type TaskComment = WorkComment;
 
-export const TASK_STATUSES: TaskStatus[] = STATUSES;
 export const TASK_STATUS_LABEL = Object.fromEntries(STATUSES.map((s) => [s, STATUS_META[s].label])) as Record<TaskStatus, string>;
 
-export const PRIORITIES: TaskPriority[] = WORK_PRIORITIES;
 export const PRIORITY_LABEL = Object.fromEntries(WORK_PRIORITIES.map((p) => [p, PRIORITY_META[p].label])) as Record<TaskPriority, string>;
 
 /**
@@ -64,9 +60,6 @@ export function dueFromWeek(start: string, week: number | undefined, lastDay?: s
 export const planWeeks = (trialDays: number | null) => (trialDays ? Math.max(1, Math.ceil(trialDays / 5)) : 12);
 
 export const weekLabel = (week: number | undefined) => (week ? `Week ${week}` : "No due week");
-
-/** Due and not completed, with the date gone by. A task due today isn't late yet. */
-export const isOverdue = (t: Pick<Task, "due" | "status" | "archivedAt">, now = new Date()) => overdue(t, todayDay(now));
 
 /** "Today", "Tomorrow", "Yesterday" or "25 Sep" — "25 Sep 2027" once it isn't this year. */
 export function dueLabel(due: string, now = new Date()) {
@@ -106,7 +99,17 @@ export function trackerClosed(tasks: Task[], { ended, trialOver }: { ended: bool
 }
 
 /** A new id, unique enough for one browser's demo data. */
-export const taskId = (prefix = "t") => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+const taskId = (prefix = "t") => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/** A row being written in a task plan (TaskPlanEditor): a planned task with a key the list tracks it by. */
+export type DraftTask = PlannedTask & { key: string };
+
+export const blankDraft = (): DraftTask => ({ key: taskId("d"), title: "" });
+export const toDrafts = (tasks: PlannedTask[]): DraftTask[] => tasks.map((t) => ({ ...t, key: taskId("d") }));
+
+/** What the plan keeps: rows with a real title (two characters or more), trimmed. */
+export const fromDrafts = (rows: DraftTask[]): PlannedTask[] =>
+  rows.filter((r) => r.title.trim().length > 1).map((r) => ({ title: r.title.trim(), description: r.description?.trim() || undefined, priority: r.priority, week: r.week }));
 
 /**
  * An agreed task as the contract starts it: from the offer the Team Builder wrote it into, with its
@@ -143,18 +146,6 @@ export function taskFromOffer(t: OfferTask, index: number, start: string, opts: 
 }
 
 /* ------------------------------------------------------------ activity */
-
-/**
- * The day log behind the activity heatmap: the tasks the talent worked on that day, keyed yyyy-mm-dd.
- * A `done:` token marks a task sent for review, which is what turns a tile full green.
- */
-export const logToken = (id: string, submitted = false) => (submitted ? `done:${id}` : id);
-
-export function withLog(logs: Record<string, string[]> | undefined, token: string, now = new Date()) {
-  const key = isoDay(now);
-  const day = logs?.[key] ?? [];
-  return { ...logs, [key]: day.includes(token) ? day : [...day, token] };
-}
 
 /** A day's tile: 2 when a task was sent for review, 1 when tasks were worked on, 0 for nothing. */
 export const dayLevel = (tokens: string[] | undefined) => (!tokens?.length ? 0 : tokens.some((t) => t.startsWith("done:")) ? 2 : 1);

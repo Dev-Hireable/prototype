@@ -19,6 +19,20 @@ type QuizAnswerOptionsListProps = {
   ) => void;
 };
 
+/**
+ * The radiogroup's single tab stop: the picked option, or the first one while none is picked.
+ * Arrows move between the rest (QuizAnswerSection's option keys).
+ */
+function optionTabIndex(selectedOption: number | null, choiceIndex: number) {
+  return selectedOption === null
+    ? choiceIndex === 0
+      ? 0
+      : -1
+    : selectedOption === choiceIndex
+      ? 0
+      : -1;
+}
+
 export function QuizAnswerOptionsList({
   options,
   selectedOption,
@@ -65,15 +79,7 @@ export function QuizAnswerOptionsList({
           onClick={handleOptionClick}
           disabled={isSubmitting}
           optionIndex={choiceIndex}
-          tabIndex={
-            selectedOption === null
-              ? choiceIndex === 0
-                ? 0
-                : -1
-              : selectedOption === choiceIndex
-                ? 0
-                : -1
-          }
+          tabIndex={optionTabIndex(selectedOption, choiceIndex)}
           data-quiz-option-index={choiceIndex}
           onKeyDown={handleOptionKeyDown}
         />

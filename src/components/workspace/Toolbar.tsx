@@ -16,10 +16,10 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ASSIGNEE_KEYS, PRIORITY_META, STATUS_META, STATUSES, TYPE_META, WORK_TYPES, type AssigneeKey } from "@/lib/work/model";
+import { ASSIGNEE_KEYS, PRIORITY_META, STATUS_META, STATUSES, TYPE_META, WORK_TYPES, type AssigneeKey, type WorkType } from "@/lib/work/model";
 import { activeFilterCount, DUE_FILTERS, DUE_LABEL, EMPTY_FILTERS, GROUP_LABEL, GROUPS, PRIORITY_FILTERS, SORT_LABEL, SORTS, type Filters, type WorkQuery } from "@/lib/work/query";
 import { TOOLBAR_BUTTON } from "@/components/portal/toolbar";
-import { TYPE_ICON } from "./meta";
+import { TYPE_ICON } from "./labels";
 
 /**
  * The toolbar every view shares: search, filters, sort and grouping. It all lives in the URL, so
@@ -44,139 +44,148 @@ type Props = {
 };
 
 export function Toolbar({ query, setQuery, assigneeLabel, tags, shown, total, groupable, projects = false, sortable }: Props) {
-  const active = activeFilterCount({ ...query, q: "" });
-  /** On a trial there are no projects: a link grouped by project groups by status, and says so. */
-  const shownGroup = !projects && query.group === "project" ? "status" : query.group;
-  const toggle = <K extends keyof Filters>(key: K, value: Filters[K] extends (infer V)[] ? V : never) => {
-    const list = query[key] as unknown as string[];
-    setQuery({ [key]: list.includes(value as string) ? list.filter((v) => v !== value) : [...list, value] } as Partial<WorkQuery>);
-  };
   return (
     <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Search, filter, sort and group">
       <Search value={query.q} onChange={(q) => setQuery({ q })} />
-      <DropdownMenu>
-        <DropdownMenuTrigger className={BUTTON} aria-label={active ? `Filter, ${active} active` : "Filter"}>
-          <ICONS.filter size={17} aria-hidden /> Filter
-          {/* A round 20px count, its number centred — it was a text-height pill that sat off the button's middle. */}
-          {active > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] leading-none font-semibold text-white"><span className="badge-count">{active}</span></span>}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
-          <FilterSub label="Status" count={query.status.length}>
-            {STATUSES.map((s) => (
-              <DropdownMenuCheckboxItem key={s} checked={query.status.includes(s)} onCheckedChange={() => toggle("status", s)} closeOnClick={false}>
-                {STATUS_META[s].label}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </FilterSub>
-          <FilterSub label="Assignee" count={query.assignee.length}>
-            {ASSIGNEE_KEYS.map((k) => (
-              <DropdownMenuCheckboxItem key={k} checked={query.assignee.includes(k)} onCheckedChange={() => toggle("assignee", k)} closeOnClick={false}>
-                {assigneeLabel(k)}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </FilterSub>
-          <FilterSub label="Work type" count={query.type.length}>
-            {WORK_TYPES.map((k) => {
-              const Icon = ICONS[TYPE_ICON[k]];
-              return (
-                <DropdownMenuCheckboxItem key={k} checked={query.type.includes(k)} onCheckedChange={() => toggle("type", k)} closeOnClick={false}>
-                  <Icon size={15} aria-hidden className="text-ink-2" /> {TYPE_META[k].label}
-                </DropdownMenuCheckboxItem>
-              );
-            })}
-          </FilterSub>
-          <FilterSub label="Priority" count={query.priority.length}>
-            {PRIORITY_FILTERS.map((p) => (
-              <DropdownMenuCheckboxItem key={p} checked={query.priority.includes(p)} onCheckedChange={() => toggle("priority", p)} closeOnClick={false}>
-                {p === "none" ? "No priority" : PRIORITY_META[p].label}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </FilterSub>
-          <FilterSub label="Due date" count={query.due.length}>
-            {DUE_FILTERS.map((d) => (
-              <DropdownMenuCheckboxItem key={d} checked={query.due.includes(d)} onCheckedChange={() => toggle("due", d)} closeOnClick={false}>
-                {DUE_LABEL[d]}
-              </DropdownMenuCheckboxItem>
-            ))}
-          </FilterSub>
-          {tags.length > 0 && (
-            <FilterSub label="Tags" count={query.tag.length}>
-              {tags.map((t) => (
-                <DropdownMenuCheckboxItem key={t} checked={query.tag.includes(t)} onCheckedChange={() => toggle("tag", t)} closeOnClick={false}>
-                  <ICONS.tag size={14} aria-hidden className="text-ink-2" /> {t}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </FilterSub>
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuCheckboxItem checked={query.blocked} onCheckedChange={(v) => setQuery({ blocked: v })} closeOnClick={false}>
-            <ICONS.blocked size={15} aria-hidden className="text-ink-2" /> Blocked only
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem checked={query.archived} onCheckedChange={(v) => setQuery({ archived: v })} closeOnClick={false}>
-            <ICONS.trash size={15} aria-hidden className="text-ink-2" /> Show deleted instead
-          </DropdownMenuCheckboxItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {sortable && (
-        <DropdownMenu>
-          <DropdownMenuTrigger className={BUTTON} aria-label={`Sort: ${SORT_LABEL[query.sort]}${query.sort === "manual" ? "" : `, ${query.dir === "asc" ? "ascending" : "descending"}`}`}>
-            <ICONS.sort size={17} aria-hidden /> <span className="hidden sm:inline">Sort:</span> {SORT_LABEL[query.sort]}
-            {query.sort !== "manual" && <ICONS.arrowUp size={14} aria-hidden className={query.dir === "desc" ? "rotate-180" : ""} />}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={query.sort} onValueChange={(v) => setQuery({ sort: v as WorkQuery["sort"] })}>
-                {SORTS.map((s) => (
-                  <DropdownMenuRadioItem key={s} value={s} closeOnClick>
-                    {SORT_LABEL[s]}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
-            {query.sort !== "manual" && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Direction</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup value={query.dir} onValueChange={(v) => setQuery({ dir: v as WorkQuery["dir"] })}>
-                    <DropdownMenuRadioItem value="asc" closeOnClick>
-                      Ascending
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="desc" closeOnClick>
-                      Descending
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuGroup>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
-      {groupable && (
-        <DropdownMenu>
-          <DropdownMenuTrigger className={BUTTON} aria-label={`Group by: ${GROUP_LABEL[shownGroup]}`}>
-            <ICONS.group size={17} aria-hidden /> <span className="hidden sm:inline">Group:</span> {GROUP_LABEL[shownGroup]}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-52">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>Group by</DropdownMenuLabel>
-              <DropdownMenuRadioGroup value={shownGroup} onValueChange={(v) => setQuery({ group: v as WorkQuery["group"] })}>
-                {GROUPS.filter((g) => projects || g !== "project").map((g) => (
-                  <DropdownMenuRadioItem key={g} value={g} closeOnClick>
-                    {GROUP_LABEL[g]}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+      <FilterMenu query={query} setQuery={setQuery} assigneeLabel={assigneeLabel} tags={tags} />
+      {sortable && <SortMenu query={query} setQuery={setQuery} />}
+      {groupable && <GroupMenu query={query} setQuery={setQuery} projects={projects} />}
       <span className="ml-auto text-[13px] leading-[1.4] whitespace-nowrap text-ink-2 tabular-nums" aria-live="polite">
         {shown === total ? `${total} ${total === 1 ? "item" : "items"}` : `${shown} of ${total} items`}
         {query.archived && " · deleted"}
       </span>
     </div>
+  );
+}
+
+/** The Filter menu: a submenu for each field, then Blocked only and Show deleted. The button counts what's on. */
+function FilterMenu({ query, setQuery, assigneeLabel, tags }: Pick<Props, "query" | "setQuery" | "assigneeLabel" | "tags">) {
+  const active = activeFilterCount({ ...query, q: "" });
+  const toggle = <K extends keyof Filters>(key: K, value: Filters[K] extends (infer V)[] ? V : never) => {
+    const list = query[key] as unknown as string[];
+    setQuery({ [key]: list.includes(value as string) ? list.filter((v) => v !== value) : [...list, value] } as Partial<WorkQuery>);
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={BUTTON} aria-label={active ? `Filter, ${active} active` : "Filter"}>
+        <ICONS.filter size={17} aria-hidden /> Filter
+        {/* A round 20px count, its number centred — it was a text-height pill that sat off the button's middle. */}
+        {active > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] leading-none font-semibold text-white"><span className="badge-count">{active}</span></span>}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <FilterChecks label="Status" picked={query.status} onToggle={(s) => toggle("status", s)} options={STATUSES.map((s) => ({ value: s, text: STATUS_META[s].label }))} />
+        <FilterChecks label="Assignee" picked={query.assignee} onToggle={(k) => toggle("assignee", k)} options={ASSIGNEE_KEYS.map((k) => ({ value: k, text: assigneeLabel(k) }))} />
+        <FilterChecks label="Work type" picked={query.type} onToggle={(k) => toggle("type", k)} options={WORK_TYPES.map((k) => ({ value: k, text: <TypeName type={k} /> }))} />
+        <FilterChecks label="Priority" picked={query.priority} onToggle={(p) => toggle("priority", p)} options={PRIORITY_FILTERS.map((p) => ({ value: p, text: p === "none" ? "No priority" : PRIORITY_META[p].label }))} />
+        <FilterChecks label="Due date" picked={query.due} onToggle={(d) => toggle("due", d)} options={DUE_FILTERS.map((d) => ({ value: d, text: DUE_LABEL[d] }))} />
+        {tags.length > 0 && <FilterChecks label="Tags" picked={query.tag} onToggle={(t) => toggle("tag", t)} options={tags.map((t) => ({ value: t, text: <TagName tag={t} /> }))} />}
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem checked={query.blocked} onCheckedChange={(v) => setQuery({ blocked: v })} closeOnClick={false}>
+          <ICONS.blocked size={15} aria-hidden className="text-ink-2" /> Blocked only
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem checked={query.archived} onCheckedChange={(v) => setQuery({ archived: v })} closeOnClick={false}>
+          <ICONS.trash size={15} aria-hidden className="text-ink-2" /> Show deleted instead
+        </DropdownMenuCheckboxItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** One filter's submenu: a checkbox per value, ticked when it's picked, that turns it on or off — the menu stays open. */
+function FilterChecks<V extends string>({ label, picked, onToggle, options }: { label: string; picked: readonly V[]; onToggle: (v: V) => void; options: readonly { value: V; text: ReactNode }[] }) {
+  const on = new Set<string>(picked);
+  return (
+    <FilterSub label={label} count={picked.length}>
+      {options.map(({ value, text }) => (
+        <DropdownMenuCheckboxItem key={value} checked={on.has(value)} onCheckedChange={() => onToggle(value)} closeOnClick={false}>
+          {text}
+        </DropdownMenuCheckboxItem>
+      ))}
+    </FilterSub>
+  );
+}
+
+/** A work type in the filter: its icon, then its name. */
+function TypeName({ type }: { type: WorkType }) {
+  const Icon = ICONS[TYPE_ICON[type]];
+  return (
+    <>
+      <Icon size={15} aria-hidden className="text-ink-2" /> {TYPE_META[type].label}
+    </>
+  );
+}
+
+/** A tag in the filter: the tag mark, then its name. */
+function TagName({ tag }: { tag: string }) {
+  return (
+    <>
+      <ICONS.tag size={14} aria-hidden className="text-ink-2" /> {tag}
+    </>
+  );
+}
+
+/** The Sort menu: what to sort by, and which way for anything but Manual. */
+function SortMenu({ query, setQuery }: Pick<Props, "query" | "setQuery">) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={BUTTON} aria-label={`Sort: ${SORT_LABEL[query.sort]}${query.sort === "manual" ? "" : `, ${query.dir === "asc" ? "ascending" : "descending"}`}`}>
+        <ICONS.sort size={17} aria-hidden /> <span className="hidden sm:inline">Sort:</span> {SORT_LABEL[query.sort]}
+        {query.sort !== "manual" && <ICONS.arrowUp size={14} aria-hidden className={query.dir === "desc" ? "rotate-180" : ""} />}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-52">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={query.sort} onValueChange={(v) => setQuery({ sort: v as WorkQuery["sort"] })}>
+            {SORTS.map((s) => (
+              <DropdownMenuRadioItem key={s} value={s} closeOnClick>
+                {SORT_LABEL[s]}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+        {query.sort !== "manual" && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Direction</DropdownMenuLabel>
+              <DropdownMenuRadioGroup value={query.dir} onValueChange={(v) => setQuery({ dir: v as WorkQuery["dir"] })}>
+                <DropdownMenuRadioItem value="asc" closeOnClick>
+                  Ascending
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="desc" closeOnClick>
+                  Descending
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The Group menu. Grouping by project is offered only where there are projects. */
+function GroupMenu({ query, setQuery, projects }: Pick<Props, "query" | "setQuery"> & { projects: boolean }) {
+  /** On a trial there are no projects: a link grouped by project groups by status, and says so. */
+  const shownGroup = !projects && query.group === "project" ? "status" : query.group;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className={BUTTON} aria-label={`Group by: ${GROUP_LABEL[shownGroup]}`}>
+        <ICONS.group size={17} aria-hidden /> <span className="hidden sm:inline">Group:</span> {GROUP_LABEL[shownGroup]}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-52">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Group by</DropdownMenuLabel>
+          <DropdownMenuRadioGroup value={shownGroup} onValueChange={(v) => setQuery({ group: v as WorkQuery["group"] })}>
+            {GROUPS.filter((g) => projects || g !== "project").map((g) => (
+              <DropdownMenuRadioItem key={g} value={g} closeOnClick>
+                {GROUP_LABEL[g]}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

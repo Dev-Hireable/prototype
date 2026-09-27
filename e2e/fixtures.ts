@@ -151,6 +151,12 @@ export const column = (page: Page, label: string) => page.getByRole("region", { 
 
 export const view = (page: Page, name: string) => page.getByRole("tab", { name, exact: true });
 
+/** The project picker's button, by what it's showing: Open work, All work or a project's name. */
+export const projectPicker = (page: Page, showing: string) => page.getByRole("button", { name: `Showing ${showing}. Change project` });
+
+/** The toolbar's Filter button, matched by its start: while filters are on it's "Filter, 2 active". */
+export const filterButton = (page: Page) => page.getByRole("button", { name: /^Filter/ });
+
 /** A toast (status or alert) with this text — not the screen-reader announcer that repeats it. */
 export const toast = (page: Page, text: string | RegExp) => page.getByRole("status").or(page.getByRole("alert")).filter({ hasText: text });
 
@@ -171,6 +177,18 @@ export async function closePanel(page: Page) {
   }
   await expect(panel(page)).toHaveCount(0);
   await expect(page).not.toHaveURL(/[?&]task=/);
+}
+
+/**
+ * Ticks one option in the toolbar's Filter menu and closes the menu again: a top-level option
+ * ("Blocked only", "Show deleted instead"), or a group and the option in its submenu ("Status", "In progress").
+ */
+export async function tickFilter(page: Page, ...path: [option: string] | [group: string, option: string]) {
+  await filterButton(page).click();
+  if (path.length === 2) await page.getByRole("menuitem", { name: path[0] }).click();
+  await page.getByRole("menuitemcheckbox", { name: path[path.length - 1] }).click();
+  // One Escape per open menu: the group's submenu first, then the Filter menu.
+  for (let i = 0; i < path.length; i++) await page.keyboard.press("Escape");
 }
 
 /** The E2E seam: call this portal's repository directly, as a client with no UI would. */

@@ -1,21 +1,23 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Matcher } from "react-day-picker";
 import { ICONS, type IconName } from "@/components/admin/icons";
-import { DatePicker, fromISODate, toISODate } from "@/components/portal/DatePicker";
+import { DatePicker } from "@/components/portal/DatePicker";
 import { PriorityMenu, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/Tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { dayOf, isoOf, longLabel, relativeLabel } from "@/lib/work/dates";
+import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import { ASSIGNEE_KEYS, assigneeKey, assigneeOf, EFFORT_HELP, EFFORT_MAX, EFFORT_PRESETS, isArchived, isCompleted, refOf, STATUS_META, TAG_COLOR_KEYS, TAG_COLORS, tagColorOf, TYPE_META, WORK_TYPES, type TagColor, type WorkItem, type WorkStatus } from "@/lib/work/model";
 import { matchesSearch } from "@/lib/work/query";
 import { capsFor, targetsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
 import { checkDependency, checkEffort, checkTag, normalizeTag } from "@/lib/work/validate";
 import { movedTo, NO_PROJECT, NO_PROJECT_NAME, projectKeyOf } from "@/lib/work/projects";
 import { useWorkspace } from "./context";
-import { AssigneeChip, TagChip, TYPE_ICON, TypeChip } from "./meta";
+import { AssigneeChip, TagChip, TypeChip } from "./meta";
+import { fromISODate, isoDay } from "@/lib/demo/dates";
+import { TYPE_ICON } from "./labels";
 
 /**
  * The editors an item's fields are changed with — in the list's cells and in the item's panel.
@@ -23,7 +25,7 @@ import { AssigneeChip, TagChip, TYPE_ICON, TypeChip } from "./meta";
  * the value as plain text rather than a control that would only fail.
  */
 
-export const FIELD_TRIGGER =
+const FIELD_TRIGGER =
   "inline-flex h-7 max-w-full min-w-0 items-center gap-1 rounded-md px-1.5 text-[13px] leading-[1.2] text-ink-2 transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-surface-2";
 
 /**
@@ -220,33 +222,20 @@ export function DateField({ item, which, compact = false }: { item: WorkItem; wh
   const caps = capsFor(item, actor, access);
   const can = which === "start" ? caps.start && item.type !== "milestone" : caps.plan;
   const value = dayOf(item[which]);
-  const other = dayOf(item[which === "start" ? "due" : "start"]);
-  const last = dayOf(access.lastDay);
   const label = which === "start" ? "Start" : "Due";
   const late = which === "due" && value !== null && value < today && item.status !== "done";
-  const text = value !== null ? relativeLabel(value, today) : can ? (compact ? "—" : `Set ${label.toLowerCase()} date`) : "—";
-  const face = (
-    <>
-      <ICONS.calendar size={14} aria-hidden className={late ? "text-danger" : "text-ink-2"} />
-      <span className={`truncate ${late ? "font-medium text-danger" : value !== null ? "text-ink" : ""}`}>{late ? `${text} · overdue` : text}</span>
-    </>
-  );
+  const face = <DateFace text={dateText(value, today, can, compact, label)} late={late} dated={value !== null} />;
   if (!can) return <span className={READ_ONLY}>{face}</span>;
-  const disabled: Matcher[] = [];
-  if (which === "due") disabled.push({ before: fromISODate(isoOf(Math.max(today, other ?? today))) as Date });
-  if (which === "start") disabled.push({ before: fromISODate(isoOf(today)) as Date });
-  if (which === "start" && other !== null) disabled.push({ after: fromISODate(isoOf(other)) as Date });
-  if (last !== null) disabled.push({ after: fromISODate(isoOf(last)) as Date });
   return (
     <span onClick={(e) => e.stopPropagation()} className="inline-flex min-w-0">
       <DatePicker
         value={value !== null ? fromISODate(isoOf(value)) : undefined}
         onChange={(d) => {
-          const iso = d ? toISODate(d) : null;
+          const iso = d ? isoDay(d) : null;
           // Days that break a rule can't be picked; anything else the repository checks again and explains.
           void actions.patch(item, { [which]: iso }, { announce: `${label} date of ${refOf(item)} ${iso ? `set to ${longLabel(dayOf(iso) as number)}` : "cleared"}` });
         }}
-        disabled={disabled}
+        disabled={blockedDays(item, which, today, access.lastDay)}
         aria-label={value !== null ? `${label} date: ${longLabel(value)}. Change ${label.toLowerCase()} date` : `Set ${label.toLowerCase()} date`}
         triggerClassName={FIELD_TRIGGER}
         clearLabel={`Clear ${label.toLowerCase()} date`}
@@ -257,21 +246,41 @@ export function DateField({ item, which, compact = false }: { item: WorkItem; wh
   );
 }
 
+/** A date field's face: the calendar icon, then the words — in red, and saying so, once a due date has passed. */
+function DateFace({ text, late, dated }: { text: string; late: boolean; dated: boolean }) {
+  return (
+    <>
+      <ICONS.calendar size={14} aria-hidden className={late ? "text-danger" : "text-ink-2"} />
+      <span className={`truncate ${late ? "font-medium text-danger" : dated ? "text-ink" : ""}`}>{late ? `${text} · overdue` : text}</span>
+    </>
+  );
+}
+
+/** What a date field says: how far off the day is; with no day, how to set one — or a dash in a compact cell, or for someone who can't. */
+function dateText(value: Day | null, today: Day, can: boolean, compact: boolean, label: string): string {
+  return value !== null ? relativeLabel(value, today) : can ? (compact ? "—" : `Set ${label.toLowerCase()} date`) : "—";
+}
+
+/** The days a date field won't offer: before today, a due date before the start, a start after the due date, anything after a trial's last day. */
+function blockedDays(item: WorkItem, which: "start" | "due", today: Day, lastDay: string | undefined): Matcher[] {
+  const other = dayOf(item[which === "start" ? "due" : "start"]);
+  const last = dayOf(lastDay);
+  const disabled: Matcher[] = [];
+  if (which === "due") disabled.push({ before: fromISODate(isoOf(Math.max(today, other ?? today))) as Date });
+  if (which === "start") disabled.push({ before: fromISODate(isoOf(today)) as Date });
+  if (which === "start" && other !== null) disabled.push({ after: fromISODate(isoOf(other)) as Date });
+  if (last !== null) disabled.push({ after: fromISODate(isoOf(last)) as Date });
+  return disabled;
+}
+
 /** Effort: the presets, any whole number up to 999, or none. Relative — not hours. */
 export function EffortField({ item, compact = false }: { item: WorkItem; compact?: boolean }) {
   const { actor, access, actions } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const can = capsFor(item, actor, access).plan && item.type !== "milestone";
-  const face = (
-    <>
-      <ICONS.effort size={14} aria-hidden className="text-ink-2" />
-      <span className={item.effort !== undefined ? "text-ink tabular-nums" : ""}>{item.effort !== undefined ? item.effort : can ? (compact ? "—" : "Set effort") : "—"}</span>
-    </>
-  );
+  const face = <EffortFace effort={item.effort} can={can} compact={compact} />;
   if (!can) return <span className={READ_ONLY}>{item.type === "milestone" ? <span className="text-ink-2">—</span> : face}</span>;
-  const n = Number(text);
-  const error = text.trim() ? checkEffort(n, item.type)?.message : undefined;
   const save = (effort: number | null) => {
     setOpen(false);
     if (effort === (item.effort ?? null)) return;
@@ -290,49 +299,70 @@ export function EffortField({ item, compact = false }: { item: WorkItem; compact
           {face}
         </PopoverTrigger>
         <PopoverContent align="start" className="flex w-64 flex-col gap-3 p-3">
-          <p className="text-[13px] leading-[1.4] font-semibold text-ink">Effort</p>
-          <p className="text-[12.5px] leading-[1.4] text-ink-2">{EFFORT_HELP}</p>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Effort presets">
-            {EFFORT_PRESETS.map((p) => (
-              <button key={p} type="button" aria-pressed={item.effort === p} onClick={() => save(p)} className={`h-8 min-w-9 rounded-md px-2 text-[13px] font-medium tabular-nums outline -outline-offset-1 ${item.effort === p ? "bg-primary text-white outline-primary" : "bg-white text-ink outline-border hover:bg-surface-2"}`}>
-                {p}
-              </button>
-            ))}
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!text.trim()) return save(null);
-              if (!error) save(n);
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
-              inputMode="numeric"
-              aria-label="Effort, a whole number"
-              aria-invalid={!!error}
-              placeholder={`0–${EFFORT_MAX}`}
-              className="h-9 w-20 rounded-md border border-border px-2 text-[14px] tabular-nums outline-none focus:border-primary"
-            />
-            <button type="submit" className="h-9 rounded-md bg-primary px-3 text-[13px] font-medium text-white disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]" disabled={!!error}>
-              Set
-            </button>
-            {item.effort !== undefined && (
-              <button type="button" onClick={() => save(null)} className="h-9 rounded-md px-2 text-[13px] text-ink-2 hover:bg-surface-2">
-                Clear
-              </button>
-            )}
-          </form>
-          {error && (
-            <p role="alert" className="text-[12.5px] text-danger">
-              {error}
-            </p>
-          )}
+          <EffortPicker item={item} text={text} setText={setText} save={save} />
         </PopoverContent>
       </Popover>
     </span>
+  );
+}
+
+/** Effort's face: the effort icon, then the number — or, with none, how to set it (a dash in a compact cell, or for someone who can't). */
+function EffortFace({ effort, can, compact }: { effort?: number; can: boolean; compact: boolean }) {
+  return (
+    <>
+      <ICONS.effort size={14} aria-hidden className="text-ink-2" />
+      <span className={effort !== undefined ? "text-ink tabular-nums" : ""}>{effort !== undefined ? effort : can ? (compact ? "—" : "Set effort") : "—"}</span>
+    </>
+  );
+}
+
+/** The effort popover: what effort means, the presets, and any whole number — or Clear. What's typed is checked as it's typed. */
+function EffortPicker({ item, text, setText, save }: { item: WorkItem; text: string; setText: (v: string) => void; save: (effort: number | null) => void }) {
+  const n = Number(text);
+  const error = text.trim() ? checkEffort(n, item.type)?.message : undefined;
+  return (
+    <>
+      <p className="text-[13px] leading-[1.4] font-semibold text-ink">Effort</p>
+      <p className="text-[12.5px] leading-[1.4] text-ink-2">{EFFORT_HELP}</p>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Effort presets">
+        {EFFORT_PRESETS.map((p) => (
+          <button key={p} type="button" aria-pressed={item.effort === p} onClick={() => save(p)} className={`h-8 min-w-9 rounded-md px-2 text-[13px] font-medium tabular-nums outline -outline-offset-1 ${item.effort === p ? "bg-primary text-white outline-primary" : "bg-white text-ink outline-border hover:bg-surface-2"}`}>
+            {p}
+          </button>
+        ))}
+      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!text.trim()) return save(null);
+          if (!error) save(n);
+        }}
+        className="flex items-center gap-2"
+      >
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value.replace(/[^0-9]/g, "").slice(0, 3))}
+          inputMode="numeric"
+          aria-label="Effort, a whole number"
+          aria-invalid={!!error}
+          placeholder={`0–${EFFORT_MAX}`}
+          className="h-9 w-20 rounded-md border border-border px-2 text-[14px] tabular-nums outline-none focus:border-primary"
+        />
+        <button type="submit" className="h-9 rounded-md bg-primary px-3 text-[13px] font-medium text-white disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]" disabled={!!error}>
+          Set
+        </button>
+        {item.effort !== undefined && (
+          <button type="button" onClick={() => save(null)} className="h-9 rounded-md px-2 text-[13px] text-ink-2 hover:bg-surface-2">
+            Clear
+          </button>
+        )}
+      </form>
+      {error && (
+        <p role="alert" className="text-[12.5px] text-danger">
+          {error}
+        </p>
+      )}
+    </>
   );
 }
 
@@ -393,27 +423,21 @@ export function TagsField({ item, known = [] }: { item: WorkItem; /** Every tag 
  * Escape closes the list. A combobox: the box keeps focus and names the highlighted option.
  */
 function TagInput({ item, known, text, setText, tag, error }: { item: WorkItem; known: readonly string[]; text: string; setText: (v: string) => void; tag: string; error?: string }) {
-  const { actions, tagColors } = useWorkspace();
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
+  const { actions } = useWorkspace();
+  const { matches, options } = tagOptions(item, known, tag, error);
+  const list = useOptionList(options.length);
   const listId = `tag-options-${item.id}`;
-  const matches = known.filter((k) => !item.tags.includes(k) && (!tag || k.includes(tag))).slice(0, 6);
-  /** A typed name that isn't a tag yet is offered too, after the suggestions. */
-  const createNew = !!tag && !error && !known.includes(tag) && !item.tags.includes(tag);
-  const options = [...matches.map((k) => ({ tag: k, isNew: false })), ...(createNew ? [{ tag, isNew: true }] : [])];
-  const shown = open && options.length > 0;
-  const current = Math.min(active, options.length - 1);
   const add = (value: string) => {
     if (item.tags.includes(value)) return;
     void actions.addTag(item, value);
     setText("");
-    setActive(0);
+    list.setActive(0);
   };
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (shown) return add(options[current].tag);
+        if (list.shown) return add(options[list.current].tag);
         if (!tag || error) return;
         add(text);
       }}
@@ -423,67 +447,24 @@ function TagInput({ item, known, text, setText, tag, error }: { item: WorkItem; 
         value={text}
         onChange={(e) => {
           setText(e.target.value);
-          setActive(0);
-          setOpen(true);
+          list.setActive(0);
+          list.setOpen(true);
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => list.setOpen(true)}
         // After a pick: the click on an option lands before this, so the list stays until then.
-        onBlur={() => setOpen(false)}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown" && options.length) {
-            e.preventDefault();
-            setOpen(true);
-            setActive((a) => (Math.min(a, options.length - 1) + 1) % options.length);
-          } else if (e.key === "ArrowUp" && options.length) {
-            e.preventDefault();
-            setOpen(true);
-            setActive((a) => (Math.min(a, options.length - 1) - 1 + options.length) % options.length);
-          } else if (e.key === "Escape" && shown) {
-            // Close the list, not the sheet.
-            e.preventDefault();
-            e.stopPropagation();
-            setOpen(false);
-          }
-        }}
+        onBlur={() => list.setOpen(false)}
+        onKeyDown={list.onKeyDown}
         role="combobox"
-        aria-expanded={shown}
+        aria-expanded={list.shown}
         aria-controls={listId}
         aria-autocomplete="list"
-        aria-activedescendant={shown ? `${listId}-${current}` : undefined}
+        aria-activedescendant={list.shown ? `${listId}-${list.current}` : undefined}
         aria-label="Add a tag"
         aria-invalid={!!error}
         placeholder={item.tags.length ? "Add tag" : known.length ? "Add a tag — pick or type one" : "Add a tag — press Enter"}
         className="h-7 min-w-0 bg-transparent px-1.5 text-[13px] text-ink outline-none placeholder:text-ink-2"
       />
-      {shown && (
-        <ul id={listId} role="listbox" aria-label="Tags" className="absolute top-full left-0 z-20 mt-1 flex w-60 flex-col rounded-lg bg-white p-1 shadow-lg outline -outline-offset-1 outline-border">
-          {matches.length > 0 && <li role="presentation" className="px-2 pt-1 pb-1.5 text-[11.5px] font-medium text-ink-2">Used on this contract</li>}
-          {options.map((o, i) => (
-            <li
-              key={`${o.isNew ? "new" : "tag"}-${o.tag}`}
-              id={`${listId}-${i}`}
-              role="option"
-              aria-selected={i === current}
-              // Keep the box's focus, so the pick doesn't blur it and close the list first.
-              onMouseDown={(e) => e.preventDefault()}
-              onMouseEnter={() => setActive(i)}
-              onClick={() => add(o.tag)}
-              className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] ${i === current ? "bg-surface-2" : ""}`}
-            >
-              {o.isNew ? (
-                <>
-                  <ICONS.add size={15} aria-hidden className="shrink-0 text-ink-2" />
-                  <span className="min-w-0 truncate text-ink">
-                    Create <TagChip tag={o.tag} colors={tagColors} />
-                  </span>
-                </>
-              ) : (
-                <TagChip tag={o.tag} colors={tagColors} />
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      {list.shown && <TagOptions id={listId} options={options} heading={matches.length > 0} current={list.current} onHover={list.setActive} onPick={add} />}
       {error && (
         <span role="alert" className="px-1 text-[12px] text-danger">
           {error}
@@ -494,22 +475,178 @@ function TagInput({ item, known, text, setText, tag, error }: { item: WorkItem; 
 }
 
 /**
+ * What the tag box offers: the contract's tags this item hasn't got, narrowed by what's typed (six
+ * at most) — and what's typed, as a new tag, when it's a good name that isn't a tag yet.
+ */
+function tagOptions(item: WorkItem, known: readonly string[], tag: string, error?: string) {
+  const has = new Set(item.tags);
+  const matches = known.filter((k) => !has.has(k) && (!tag || k.includes(tag))).slice(0, 6);
+  /** A typed name that isn't a tag yet is offered too, after the suggestions. */
+  const createNew = !!tag && !error && !known.includes(tag) && !has.has(tag);
+  const options = [...matches.map((k) => ({ tag: k, isNew: false })), ...(createNew ? [{ tag, isNew: true }] : [])];
+  return { matches, options };
+}
+
+/** A suggestion list's state: open or not, and the highlighted option — moved by the arrow keys, round from either end. Escape closes it. */
+function useOptionList(count: number) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const shown = open && count > 0;
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown" && count) {
+      e.preventDefault();
+      setOpen(true);
+      setActive((a) => (Math.min(a, count - 1) + 1) % count);
+    } else if (e.key === "ArrowUp" && count) {
+      e.preventDefault();
+      setOpen(true);
+      setActive((a) => (Math.min(a, count - 1) - 1 + count) % count);
+    } else if (e.key === "Escape" && shown) {
+      // Close the list, not the sheet.
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    }
+  };
+  return { shown, current: Math.min(active, count - 1), setOpen, setActive, onKeyDown };
+}
+
+/** The suggestions under the tag box: the tags used on this contract, under their heading, then a new one to create. */
+function TagOptions({ id, options, heading, current, onHover, onPick }: { id: string; options: { tag: string; isNew: boolean }[]; heading: boolean; current: number; onHover: (i: number) => void; onPick: (tag: string) => void }) {
+  const { tagColors } = useWorkspace();
+  return (
+    <ul id={id} role="listbox" aria-label="Tags" className="absolute top-full left-0 z-20 mt-1 flex w-60 flex-col rounded-lg bg-white p-1 shadow-lg outline -outline-offset-1 outline-border">
+      {heading && <li role="presentation" className="px-2 pt-1 pb-1.5 text-[11.5px] font-medium text-ink-2">Used on this contract</li>}
+      {options.map((o, i) => (
+        <li
+          key={`${o.isNew ? "new" : "tag"}-${o.tag}`}
+          id={`${id}-${i}`}
+          role="option"
+          aria-selected={i === current}
+          // Keep the box's focus, so the pick doesn't blur it and close the list first.
+          onMouseDown={(e) => e.preventDefault()}
+          onMouseEnter={() => onHover(i)}
+          onClick={() => onPick(o.tag)}
+          className={`flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-[13px] ${i === current ? "bg-surface-2" : ""}`}
+        >
+          {o.isNew ? (
+            <>
+              <ICONS.add size={15} aria-hidden className="shrink-0 text-ink-2" />
+              <span className="min-w-0 truncate text-ink">
+                Create <TagChip tag={o.tag} colors={tagColors} />
+              </span>
+            </>
+          ) : (
+            <TagChip tag={o.tag} colors={tagColors} />
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
  * What this item waits on, and a picker to add one — the Team Builder's on any item, the
  * Independent's on their own work. A choice that would make a loop, or wait on itself, is refused
  * here with the reason — and again by the repository.
  */
 export function DependenciesField({ item, items, byId }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem> }) {
-  const { actor, access, actions, openTask } = useWorkspace();
+  const dependents = items.filter((t) => !isArchived(t) && t.dependsOn.includes(item.id));
+  return (
+    <div className="flex flex-col gap-2">
+      <WaitsOn item={item} items={items} byId={byId} />
+      {dependents.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <p className="text-[12px] font-medium tracking-[0.2px] text-ink-2">Blocking</p>
+          <ul className="flex flex-col">
+            {dependents.map((t) => (
+              <DependencyRow key={t.id} item={t} />
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What the item waits on, each with Stop waiting for whoever may change that — and, for them, "Add a dependency". */
+function WaitsOn({ item, items, byId }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem> }) {
+  const { actor, access, actions } = useWorkspace();
   const can = capsFor(item, actor, access).depend;
+  const picker = useDependencyPicker(item, items, byId);
+  const blockers = item.dependsOn.map((id) => byId.get(id)).filter((t): t is WorkItem => !!t);
+  return (
+    <div className="flex flex-col gap-1">
+      {/* Only what's there is labelled — an empty list isn't a line of its own. */}
+      {blockers.length > 0 && (
+        <>
+          <p className="text-[12px] font-medium tracking-[0.2px] text-ink-2">Waits on</p>
+          <ul className="flex flex-col">
+            {blockers.map((t) => (
+              <DependencyRow key={t.id} item={t} onRemove={can ? () => void actions.removeDependency(item, t.id) : undefined} />
+            ))}
+          </ul>
+        </>
+      )}
+      {can && (
+        <Popover open={picker.open} onOpenChange={picker.onOpenChange}>
+          <PopoverTrigger className="flex h-8 items-center gap-1.5 self-start rounded-md px-1.5 text-[13px] text-ink-2 hover:bg-surface-2 hover:text-ink">
+            <ICONS.link size={15} aria-hidden /> Add a dependency
+          </PopoverTrigger>
+          <PopoverContent align="start" className="flex w-80 flex-col gap-2 p-2">
+            <input autoFocus value={picker.q} onChange={(e) => picker.search(e.target.value)} aria-label="Find an item it waits on" placeholder="Search by name or #number" className="h-9 rounded-md border border-border px-2 text-[14px] outline-none focus:border-primary" />
+            {picker.error && (
+              <p role="alert" className="px-1 text-[12.5px] leading-[1.4] text-danger">
+                {picker.error}
+              </p>
+            )}
+            <ul role="listbox" aria-label="Items" className="flex max-h-64 flex-col overflow-y-auto">
+              {picker.candidates.length === 0 && <li className="px-2 py-2 text-[13px] text-ink-2">No matching items.</li>}
+              {picker.candidates.map((t) => (
+                <Candidate key={t.id} item={t} onPick={() => picker.pick(t)} />
+              ))}
+            </ul>
+          </PopoverContent>
+        </Popover>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Add a dependency": open or not, what's searched, why the last pick was refused, and what's
+ * offered. Picking one makes this item wait on it — unless that would make a loop.
+ */
+function useDependencyPicker(item: WorkItem, items: readonly WorkItem[], byId: ReadonlyMap<string, WorkItem>) {
+  const { actions } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const blockers = item.dependsOn.map((id) => byId.get(id)).filter((t): t is WorkItem => !!t);
-  const dependents = items.filter((t) => !isArchived(t) && t.dependsOn.includes(item.id));
   // Only open work can hold anything up: done work (a finished project's, the trial's) isn't offered.
-  const candidates = useMemo(() => items.filter((t) => !isArchived(t) && !isCompleted(t.status) && t.id !== item.id && !item.dependsOn.includes(t.id) && matchesSearch(t, q)).slice(0, 8), [items, item, q]);
-  const row = (t: WorkItem, onRemove?: () => void) => (
-    <li key={t.id} className="flex min-h-8 items-center gap-2 text-[13px]">
+  const candidates = useMemo(() => {
+    const waitsOn = new Set(item.dependsOn);
+    return items.filter((t) => !isArchived(t) && !isCompleted(t.status) && t.id !== item.id && !waitsOn.has(t.id) && matchesSearch(t, q)).slice(0, 8);
+  }, [items, item, q]);
+  const onOpenChange = (o: boolean) => {
+    setOpen(o);
+    setQ("");
+    setError(null);
+  };
+  const search = (value: string) => (setQ(value), setError(null));
+  const pick = (t: WorkItem) => {
+    const bad = checkDependency(item.id, t.id, byId);
+    if (bad) return setError(bad.message);
+    setOpen(false);
+    void actions.addDependency(item, t);
+  };
+  return { open, q, error, candidates, onOpenChange, search, pick };
+}
+
+/** An item this one waits on, or one waiting on it: it opens the item, and — for whoever may — stops the waiting. */
+function DependencyRow({ item: t, onRemove }: { item: WorkItem; onRemove?: () => void }) {
+  const { openTask } = useWorkspace();
+  return (
+    <li className="flex min-h-8 items-center gap-2 text-[13px]">
       <StatusCircle status={t.status} size={14} label={STATUS_META[t.status].label} />
       <button type="button" onClick={() => openTask(t.id)} className="min-w-0 flex-1 truncate text-left text-ink hover:underline">
         <span className="text-ink-2 tabular-nums">{refOf(t)}</span> {t.title}
@@ -522,67 +659,27 @@ export function DependenciesField({ item, items, byId }: { item: WorkItem; items
       )}
     </li>
   );
+}
+
+/** One search result. The option is what's picked — a button inside it would lose its own semantics. */
+function Candidate({ item: t, onPick }: { item: WorkItem; onPick: () => void }) {
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col gap-1">
-        {/* Only what's there is labelled — an empty list isn't a line of its own. */}
-        {blockers.length > 0 && (
-          <>
-            <p className="text-[12px] font-medium tracking-[0.2px] text-ink-2">Waits on</p>
-            <ul className="flex flex-col">{blockers.map((t) => row(t, can ? () => void actions.removeDependency(item, t.id) : undefined))}</ul>
-          </>
-        )}
-        {can && (
-          <Popover
-            open={open}
-            onOpenChange={(o) => {
-              setOpen(o);
-              setQ("");
-              setError(null);
-            }}
-          >
-            <PopoverTrigger className="flex h-8 items-center gap-1.5 self-start rounded-md px-1.5 text-[13px] text-ink-2 hover:bg-surface-2 hover:text-ink">
-              <ICONS.link size={15} aria-hidden /> Add a dependency
-            </PopoverTrigger>
-            <PopoverContent align="start" className="flex w-80 flex-col gap-2 p-2">
-              <input autoFocus value={q} onChange={(e) => (setQ(e.target.value), setError(null))} aria-label="Find an item it waits on" placeholder="Search by name or #number" className="h-9 rounded-md border border-border px-2 text-[14px] outline-none focus:border-primary" />
-              {error && (
-                <p role="alert" className="px-1 text-[12.5px] leading-[1.4] text-danger">
-                  {error}
-                </p>
-              )}
-              <ul role="listbox" aria-label="Items" className="flex max-h-64 flex-col overflow-y-auto">
-                {candidates.length === 0 && <li className="px-2 py-2 text-[13px] text-ink-2">No matching items.</li>}
-                {candidates.map((t) => (
-                  <li key={t.id} role="option" aria-selected={false}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const bad = checkDependency(item.id, t.id, byId);
-                        if (bad) return setError(bad.message);
-                        setOpen(false);
-                        void actions.addDependency(item, t);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
-                    >
-                      <StatusCircle status={t.status} size={14} />
-                      <span className="text-ink-2 tabular-nums">{refOf(t)}</span>
-                      <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </PopoverContent>
-          </Popover>
-        )}
-      </div>
-      {dependents.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <p className="text-[12px] font-medium tracking-[0.2px] text-ink-2">Blocking</p>
-          <ul className="flex flex-col">{dependents.map((t) => row(t))}</ul>
-        </div>
-      )}
-    </div>
+    <li
+      role="option"
+      aria-selected={false}
+      tabIndex={0}
+      onClick={onPick}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        onPick();
+      }}
+      className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
+    >
+      <StatusCircle status={t.status} size={14} />
+      <span className="text-ink-2 tabular-nums">{refOf(t)}</span>
+      <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
+    </li>
   );
 }
 

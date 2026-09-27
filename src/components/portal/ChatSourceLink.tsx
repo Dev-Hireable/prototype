@@ -5,10 +5,12 @@ import { ICONS } from "@/components/admin/icons";
 import { ApplicationProposalDialog } from "@/components/independent/ApplicationProposalDialog";
 import { Toast, useToast } from "@/components/independent/ui";
 import { ProposalReviewDialog } from "@/components/team/ProposalReviewDialog";
-import type { ChatSource, Side } from "@/lib/demo/live";
-import { useDemo as useIndependentDemo } from "@/lib/independent/store";
+import type { ChatSource } from "@/lib/demo/live";
+import { useApplications } from "@/lib/independent/applications";
 import { DEAL_ID } from "@/lib/team/deal-view";
-import { useDemo as useTeamDemo } from "@/lib/team/store";
+import type { Side } from "@/lib/work/model";
+import { useRoles } from "@/lib/team/roles";
+import { usePipeline } from "@/lib/team/pipeline";
 
 const Doc = ICONS.notes;
 
@@ -43,7 +45,8 @@ export function ChatSourceLink({ source, side, mine }: { source: ChatSource; sid
 /* Each side reads its own store, so each gets its own component — neither hook runs in the other portal. */
 
 function TeamProposal({ source, onClose, onToast }: { source: ChatSource; onClose: () => void; onToast: (message: string) => void }) {
-  const { roles, candidates } = useTeamDemo();
+  const { candidates } = usePipeline();
+  const { roles } = useRoles();
   const role = roles.find((r) => r.slug === source.roleSlug);
   const candidate = candidates.find((c) => c.id === DEAL_ID);
   if (!role || !candidate) return null;
@@ -51,7 +54,7 @@ function TeamProposal({ source, onClose, onToast }: { source: ChatSource; onClos
 }
 
 function IndependentProposal({ source, onClose, onToast }: { source: ChatSource; onClose: () => void; onToast: (message: string) => void }) {
-  const { applications } = useIndependentDemo();
+  const { applications } = useApplications();
   const app = applications.find((a) => a.roleSlug === source.roleSlug);
   if (!app) return null;
   return <ApplicationProposalDialog app={app} open onClose={onClose} onToast={onToast} />;

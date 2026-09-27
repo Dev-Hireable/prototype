@@ -1,4 +1,6 @@
-import { AdminPage, Badge, Button, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { Badge } from "@/components/portal/Badge";
+import { Button } from "@/components/independent/ui";
 import { banners } from "@/lib/admin/data/content";
 import type { Banner } from "@/lib/admin/data/content";
 
@@ -9,7 +11,7 @@ export default function MarketingBanners() {
         <SearchInput placeholder="Search banners" />
         <Select label="Audience" options={["All audiences", "Team Builder", "Independent", "Both"]} />
         <Select label="Status" options={["All statuses", "Live", "Scheduled", "Ended", "Draft"]} />
-        <Button variant="primary">New banner</Button>
+        <Button size="sm" variant="primary">New banner</Button>
       </Toolbar>
 
       <DataTable<Banner>

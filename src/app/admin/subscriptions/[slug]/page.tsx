@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { AdminPage, Button, Card, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Button, Card } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { subscriptions } from "@/lib/admin/data/subscriptions";
 import type { PlanChange } from "@/lib/admin/data/subscriptions";
@@ -19,8 +20,8 @@ export default async function SubscriptionDetail({ params }: PageProps<"/admin/s
       title={sub.company}
       actions={
         <>
-          <Button>Change plan</Button>
-          <Button variant="danger">Cancel</Button>
+          <Button size="sm">Change plan</Button>
+          <Button size="sm" variant="danger">Cancel</Button>
         </>
       }
     >

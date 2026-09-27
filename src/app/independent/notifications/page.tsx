@@ -2,7 +2,7 @@
 
 import { Page } from "@/components/independent/ui";
 import { NotificationFeed } from "@/components/portal/NotificationFeed";
-import { useDemo } from "@/lib/independent/store";
+import { useNotifications } from "@/lib/demo/live";
 import { useQueryState } from "@/lib/portal/query-state";
 
 type Filter = "all" | "unread" | "interviews" | "contracts" | "offers" | "payments";
@@ -19,7 +19,7 @@ const VALUES = FILTERS.map((f) => f.value);
 
 /** Figma "Notifications / Independent" — the feed both portals share (@/components/portal/NotificationFeed). */
 export default function Notifications() {
-  const { notifications, markRead } = useDemo();
+  const { notifications, markRead } = useNotifications("independent");
   const [filter, setFilter] = useQueryState<Filter>("filter", "all", VALUES);
   const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : n.kind === filter));
 

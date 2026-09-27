@@ -1,4 +1,5 @@
-import { AdminPage, Button, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { Button } from "@/components/independent/ui";
 import { auditLog } from "@/lib/admin/data/settings";
 import type { AuditEntry } from "@/lib/admin/data/settings";
 
@@ -9,7 +10,7 @@ export default function AuditLogs() {
         <SearchInput placeholder="Search events" />
         <Select label="Admin" options={["All admins", "Admin Lead", "Product Lead", "Ops Manager"]} />
         <Select label="Action" options={["All actions", "Escrow", "Accounts", "Verification", "Roles"]} />
-        <Button variant="primary">Export</Button>
+        <Button size="sm" variant="primary">Export</Button>
       </Toolbar>
 
       <DataTable<AuditEntry>

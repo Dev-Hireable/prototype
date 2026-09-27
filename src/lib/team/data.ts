@@ -1,11 +1,12 @@
 import type { Stage } from "@/components/independent/ui";
+import type { Tone } from "@/components/portal/Badge";
 import type { JobType } from "@/lib/demo/job-types";
 import type { PlannedTask, Task } from "@/lib/demo/tasks";
 import { storedWorkStyle } from "@/lib/demo/work-style";
 
 /** Seed data for the Team Builder portal — every string is lifted from the Figma "Team Builder" canvas. */
 
-export const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", company: "Nairobi Solutions Inc.", avatar: "/team/alex.jpg" };
+const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", company: "Nairobi Solutions Inc.", avatar: "/team/alex.jpg" };
 
 
 /**
@@ -41,8 +42,6 @@ export const MARKETING_BANNER = {
   body: "Test a hire on real work before you commit. Payment is held securely and released once the tasks you agreed are done.",
   cta: { label: "Create a Role", href: "/team/hire" },
 };
-
-export type Tone = "ok" | "warn" | "danger" | "info" | "neutral" | "trial";
 
 export type Independent = {
   slug: string;
@@ -197,6 +196,13 @@ export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
 export type Interview = { id: string; independent: string; role: string; roleSlug?: string; candidate?: string; when: string; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean };
 
 /** A candidate whose interview fell through — declined by them or cancelled — and can be offered a new slot. */
+/**
+ * The slots an interview can be booked or moved to, in the Team Builder's time zone — (GMT+8)
+ * Manila, as the availability settings say. They were EST in booking and PHT in Reschedule, so one
+ * interview could read in two zones.
+ */
+export const INTERVIEW_TIMES = ["09:00 AM (PHT)", "10:00 AM (PHT)", "02:00 PM (PHT)", "04:00 PM (PHT)"];
+
 export const INTERVIEW_DECLINED = "Interview declined";
 export const INTERVIEW_CANCELLED = "Interview cancelled";
 export const needsNewSlot = (c: { stage: string; status?: { label: string } }) => c.stage === "invited" && (c.status?.label === INTERVIEW_DECLINED || c.status?.label === INTERVIEW_CANCELLED);
@@ -413,7 +419,7 @@ export const COMPANY_FIELDS = ["name", "description", "url", "industry", "locati
 export const COMPANY_DESC_MAX = 600;
 
 /** TB-120 / TB-123 — what an upload has to be before it is allowed to replace a photo or logo. */
-export const IMAGE_TYPES = ["image/jpeg", "image/png"];
+const IMAGE_TYPES = ["image/jpeg", "image/png"];
 export const IMAGE_MAX_MB = 5;
 /**
  * Reads the file as a data URL rather than an object URL: the profile is persisted to
@@ -462,26 +468,7 @@ export const COMPANY_PROFILE: CompanyProfile = {
   logo: null,
 };
 
-export const profile = {
-  fields: [
-    ["Full name", "Alex Rivera"],
-    ["Job title", "Head of Sales"],
-    ["Work email", "alex@nairobisolutions.com"],
-    ["Phone", "+63 917 555 0142"],
-    ["Time zone", "(GMT+8) Manila"],
-    ["About you", "I hire and coach outbound sales teams for US fintechs. I run 30-day trials on a shared task list with weekly check-ins."],
-  ] as [string, string][],
-  company: [
-    ["Company name", "Nairobi Solutions Inc."],
-    ["About", "B2B SaaS agency based in New York. We build outbound teams for early-stage fintechs and keep them accountable with weekly metrics."],
-    ["Website", "www.nairobisolutions.com"],
-    ["Industry", "Sales and marketing services"],
-    ["Location", "New York, USA · remote team"],
-    ["Company size", "10 to 49 employees"],
-  ] as [string, string][],
-};
-
-/** What the talent keeps on their own profile (@/lib/independent/store), as far as a Team Builder sees it. */
+/** What the talent keeps on their own profile (@/lib/independent/account), as far as a Team Builder sees it. */
 type TalentProfile = { name?: string; headline?: string; bio?: string; rate?: string; level?: string; location?: string; skills?: string[]; photo?: string; links?: Independent["links"] };
 const TALENT_PROFILE_KEY = "hireable.demo.ind.profile";
 const TALENT_SEED_PHOTO = "/independent/avatar.jpg";

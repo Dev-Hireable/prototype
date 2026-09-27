@@ -11,6 +11,8 @@ const PORTALS = [
   { id: "admin", title: "Admin", accent: "var(--color-brand-blue)", href: "/admin" },
 ] as const;
 
+type Portal = (typeof PORTALS)[number];
+
 export default function PortalSelection() {
   const [selected, setSelected] = useState<string | null>(null);
   const router = useRouter();
@@ -36,36 +38,9 @@ export default function PortalSelection() {
         <fieldset className="mt-12 w-full">
           <legend className="sr-only">Choose a portal</legend>
           <div className="grid gap-6 sm:grid-cols-3">
-            {PORTALS.map((portal) => {
-              const isSelected = selected === portal.id;
-              return (
-                <label
-                  key={portal.id}
-                  style={{ ["--accent" as string]: portal.accent }}
-                  className={`relative flex cursor-pointer items-center justify-center rounded-2xl border-2 bg-white px-6 py-10 text-lg font-semibold transition
-                    focus-within:ring-4 focus-within:ring-[var(--accent)]/20
-                    hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/5
-                    ${isSelected ? "border-[var(--accent)] text-[var(--accent)] shadow-lg shadow-black/5" : "border-black/10 text-ink"}`}
-                >
-                  <input
-                    type="radio"
-                    name="portal"
-                    value={portal.id}
-                    checked={isSelected}
-                    onChange={() => setSelected(portal.id)}
-                    className="sr-only"
-                  />
-                  {portal.title}
-                  <span
-                    aria-hidden
-                    className={`absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border-2 transition
-                      ${isSelected ? "border-[var(--accent)] bg-[var(--accent)]" : "border-black/15"}`}
-                  >
-                    {isSelected && <span className="text-xs font-bold leading-none text-white">✓</span>}
-                  </span>
-                </label>
-              );
-            })}
+            {PORTALS.map((portal) => (
+              <PortalOption key={portal.id} portal={portal} isSelected={selected === portal.id} onSelect={() => setSelected(portal.id)} />
+            ))}
           </div>
         </fieldset>
 
@@ -89,5 +64,28 @@ export default function PortalSelection() {
         </p>
       </div>
     </main>
+  );
+}
+
+/** One portal as a card-sized radio: its name, in its accent colour with a tick once it's picked. */
+function PortalOption({ portal, isSelected, onSelect }: { portal: Portal; isSelected: boolean; onSelect: () => void }) {
+  return (
+    <label
+      style={{ ["--accent" as string]: portal.accent }}
+      className={`relative flex cursor-pointer items-center justify-center rounded-2xl border-2 bg-white px-6 py-10 text-lg font-semibold transition
+        focus-within:ring-4 focus-within:ring-[var(--accent)]/20
+        hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/5
+        ${isSelected ? "border-[var(--accent)] text-[var(--accent)] shadow-lg shadow-black/5" : "border-black/10 text-ink"}`}
+    >
+      <input type="radio" name="portal" value={portal.id} checked={isSelected} onChange={onSelect} className="sr-only" />
+      {portal.title}
+      <span
+        aria-hidden
+        className={`absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full border-2 transition
+          ${isSelected ? "border-[var(--accent)] bg-[var(--accent)]" : "border-black/15"}`}
+      >
+        {isSelected && <span className="text-xs font-bold leading-none text-white">✓</span>}
+      </span>
+    </label>
   );
 }

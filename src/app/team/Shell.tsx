@@ -3,14 +3,14 @@
 import type { ReactNode } from "react";
 import { PortalShell } from "@/components/portal/PortalShell";
 import { SECTIONS } from "@/lib/team/nav";
-import { useDemo } from "@/lib/team/store";
+import { useTeamAccount } from "@/lib/team/account";
 
 /**
- * The shell has to sit inside DemoProvider to read the profile, and the layout around it is a
- * server component — so the rail avatar follows a TB-120 photo change from here.
+ * The layout around it is a server component, so the shell is where the profile is read — the rail
+ * avatar follows a TB-120 photo change from here.
  */
 export function TeamShell({ children }: { children: ReactNode }) {
-  const { profile } = useDemo();
+  const { profile } = useTeamAccount();
   return (
     <PortalShell sections={SECTIONS} profileHref="/team/profile" avatar={profile.photo}>
       {children}

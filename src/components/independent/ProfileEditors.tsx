@@ -5,8 +5,9 @@ import { useState, type ChangeEvent } from "react";
 import { Chip, Field, Input, Select, Textarea } from "@/components/independent/ui";
 import { SkillPicker } from "@/components/portal/controls";
 import { EditPanel } from "@/components/portal/InlineEdit";
+import { EXPERIENCE_LEVELS } from "@/lib/demo/job-types";
 import { BIO_MAX, SKILL_SUGGESTIONS } from "@/lib/independent/data";
-import type { Profile } from "@/lib/independent/store";
+import type { Profile } from "@/lib/independent/account";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { checkImage, IMAGE_MAX_MB, isUrl, readImage } from "@/lib/team/data";
 import { ImagePicker } from "@/components/portal/ProfileEditor";
@@ -17,8 +18,6 @@ import { ImagePicker } from "@/components/portal/ProfileEditor";
  * page and the bio modal (IN-061, IN-062, IN-065).
  */
 
-/** IN-061 — the experience levels a talent picks from. */
-const LEVELS = ["Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
 
 /**
  * What the skill picker suggests: the sales skills the talent side has always offered (IN-065), then
@@ -41,12 +40,9 @@ function Helper({ left, right }: { left: string; right: string }) {
   );
 }
 
-/**
- * IN-061 — the header: photo, name and headline, where you are and your links, then rate and
- * experience. The required fields are the ones a Team Builder-facing profile can't go without.
- */
-export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: Profile; onSave: (patch: Partial<Profile>) => void; onCancel: () => void; onMessage: (message: string) => void }) {
-  const [form, setForm] = useState({
+/** The header's fields as the form holds them: the profile's own, with its website and LinkedIn beside them. */
+function heroForm(profile: Profile) {
+  return {
     name: profile.name,
     headline: profile.headline,
     location: profile.location,
@@ -54,10 +50,14 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
     level: profile.level,
     website: profile.links.website,
     linkedin: profile.links.linkedin,
-  });
-  const [photo, setPhoto] = useState(profile.photo);
-  const set = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
-  const errors = {
+  };
+}
+
+type HeroForm = ReturnType<typeof heroForm>;
+
+/** Each header field's problem, or "" when it's fine: the required ones, the rate as a number, and the two links. */
+function heroErrors(form: HeroForm) {
+  return {
     name: form.name.trim() ? "" : "Your name is what Team Builders search for.",
     headline: form.headline.trim() ? "" : "Add the role you are hiring out for.",
     // The rate is written "1,600" on the profile, so thousands separators count as numbers here.
@@ -66,6 +66,17 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
     website: linkError(form.website),
     linkedin: linkError(form.linkedin),
   };
+}
+
+/**
+ * IN-061 — the header: photo, name and headline, where you are and your links, then rate and
+ * experience. The required fields are the ones a Team Builder-facing profile can't go without.
+ */
+export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: Profile; onSave: (patch: Partial<Profile>) => void; onCancel: () => void; onMessage: (message: string) => void }) {
+  const [form, setForm] = useState(() => heroForm(profile));
+  const [photo, setPhoto] = useState(profile.photo);
+  const set = (k: keyof HeroForm) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const errors = heroErrors(form);
   const valid = Object.values(errors).every((e) => !e);
 
   return (
@@ -87,21 +98,7 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
       }
     >
       <div className="@container/edit flex flex-col gap-5">
-        {/* The same photo control as the Team Builder's profile (ImagePicker). A real file, read into a
-            data URL so it survives the reload the demo runs on; it's saved with the rest on Save. */}
-        <div className="flex items-center gap-4">
-          <ImagePicker
-            image={<Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />}
-            label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
-            onPick={async (f) => {
-              if (!f) return;
-              const problem = checkImage(f);
-              if (problem) return onMessage(problem);
-              setPhoto(await readImage(f));
-            }}
-          />
-          <p className="text-[12.5px] leading-[1.4] text-ink-2">{photo !== profile.photo ? "New photo — saved with the rest when you press Save." : `Your photo · JPG or PNG, up to ${IMAGE_MAX_MB}MB`}</p>
-        </div>
+        <PhotoField photo={photo} saved={profile.photo} onPhoto={setPhoto} onMessage={onMessage} />
         <div className="grid gap-4 @md/edit:grid-cols-2">
           <Field label="Full name" error={errors.name}>
             <Input autoFocus value={form.name} onChange={set("name")} />
@@ -113,7 +110,7 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
             <Input value={form.rate} onChange={set("rate")} inputMode="decimal" />
           </Field>
           <Field label="Experience level">
-            <Select options={LEVELS} value={form.level} onChange={set("level")} />
+            <Select options={EXPERIENCE_LEVELS} value={form.level} onChange={set("level")} />
           </Field>
           <Field label="Location" error={errors.location} className="@md/edit:col-span-2">
             <Input value={form.location} onChange={set("location")} />
@@ -127,6 +124,29 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
         </div>
       </div>
     </EditPanel>
+  );
+}
+
+/**
+ * The header's photo: the same photo control as the Team Builder's profile (ImagePicker). A real
+ * file, read into a data URL so it survives the reload the demo runs on; it's saved with the rest on
+ * Save. `saved` is the photo on the profile now, so a new pick can say it isn't saved yet.
+ */
+function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved: string; onPhoto: (photo: string) => void; onMessage: (message: string) => void }) {
+  return (
+    <div className="flex items-center gap-4">
+      <ImagePicker
+        image={<Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />}
+        label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
+        onPick={async (f) => {
+          if (!f) return;
+          const problem = checkImage(f);
+          if (problem) return onMessage(problem);
+          onPhoto(await readImage(f));
+        }}
+      />
+      <p className="text-[12.5px] leading-[1.4] text-ink-2">{photo !== saved ? "New photo — saved with the rest when you press Save." : `Your photo · JPG or PNG, up to ${IMAGE_MAX_MB}MB`}</p>
+    </div>
   );
 }
 

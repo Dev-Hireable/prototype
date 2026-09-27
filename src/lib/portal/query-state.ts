@@ -15,14 +15,6 @@ export function useQueryState<T extends string>(key: string, fallback: T, allowe
   return [value, set];
 }
 
-/**
- * The same for an open-ended value, like the task whose panel is open (`?task=…`): a notification
- * can link straight to it, and a refresh keeps it open. Null means the key is absent.
- */
-export function useQueryParam(key: string): [string | null, (next: string | null) => void] {
-  return [useSearchParams().get(key), (next) => writeParam(key, next)];
-}
-
 function writeParam(key: string, value: string | null) {
   writeParams({ [key]: value });
 }

@@ -5,6 +5,9 @@ import { nextPay, noticeLastDay, type Notice, type PayPeriod, payPeriods } from 
 import type { Dispute } from "@/lib/disputes/case";
 import { dayLabel, isoDay, parseDay, today } from "@/lib/demo/dates";
 import { contractTypeOf, type Deal, type DealEvaluation, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, type RoleHold, settleEscrow, startedAsTrial, trialEvaluationOf, updateDeal } from "@/lib/demo/deal";
+// disputes.ts reaches back only through a lazy import() of sweepContract, so neither module needs the
+// other while it loads: a cycle on paper, not at runtime.
+// fallow-ignore-next-line circular-dependency
 import { dealContract, escrowOf, getDisputes, holds, rateAmount, usd } from "@/lib/demo/disputes";
 import { JOB_TYPE_LABEL, type OngoingType } from "@/lib/demo/job-types";
 import { move, notify, PAIR, recordLedger, recordPayment } from "@/lib/demo/live";
@@ -243,7 +246,7 @@ function tell(d: Deal, to: EndSide, title: string, body: string, tab?: string) {
 /* ----------------------------------------------------------------- pay */
 
 /** What a full-time or part-time role pays a month ("$4,000 /month" → 4000). */
-export const monthlyOf = (d: Deal | null) => rateAmount(d?.conversion?.status === "accepted" ? d.conversion.salary : (d?.contract?.rate ?? ""));
+const monthlyOf = (d: Deal | null) => rateAmount(d?.conversion?.status === "accepted" ? d.conversion.salary : (d?.contract?.rate ?? ""));
 
 /**
  * The pay schedule on a full-time or part-time contract: what it pays a month, what's been paid
@@ -371,7 +374,11 @@ const fire = (key: string) => updateDeal((x) => (x.contract ? { ...x, contract: 
  *   a post-trial offer running past its start date unanswered: it expires
  *   each month's pay on a full-time or part-time role, and the role disputes' holds on it
  *   notice running out: the role ends, paid through the notice's last day
+ *
+ * Exported for lib/demo/disputes.ts, which loads this module lazily to run it
+ * (`import(…).then((m) => m.sweepContract())`); fallow can't see that use.
  */
+// fallow-ignore-next-line unused-export
 export function sweepContract(now = new Date()) {
   return exclusive(() => {
     const d = readDeal();

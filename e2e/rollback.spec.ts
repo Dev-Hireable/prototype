@@ -1,7 +1,7 @@
 import { card, column, drag, expect, fault, open, saved, savedItem, test } from "./fixtures";
 
 // Scenario J — a save that fails: the change shows at once, then goes back, and says why.
-test.describe("when a save fails", () => {
+test.describe("when a save fails · rollback and Retry", () => {
   test("a move shows at once, then snaps back with the reason and a Retry", async ({ page }) => {
     await open(page, "team");
     await fault(page, { op: "move", mode: "fail", latencyMs: 800, times: 1 });
@@ -20,6 +20,24 @@ test.describe("when a save fails", () => {
     await expect.poll(async () => (await savedItem(page, "t-kickoff")).status).toBe("doing");
   });
 
+  test("an add that fails goes away, and Retry adds it once", async ({ page }) => {
+    await open(page, "team");
+    await fault(page, { op: "create", mode: "fail", latencyMs: 300, times: 1 });
+    const todo = column(page, "To do");
+    await todo.getByRole("button", { name: "Add task" }).click();
+    await todo.getByRole("textbox", { name: "New task name" }).fill("Will need a retry");
+    await todo.getByRole("textbox", { name: "New task name" }).press("Enter");
+    await expect(card(page, /Will need a retry/)).toBeVisible();
+    const alert = page.getByRole("alert").filter({ hasText: "couldn't save" });
+    await expect(alert).toBeVisible();
+    await expect(card(page, /Will need a retry/)).toHaveCount(0);
+    await alert.getByRole("button", { name: "Retry" }).click();
+    await expect(card(page, /Will need a retry/)).toBeVisible();
+    await expect.poll(async () => Object.values(await saved(page)).filter((t) => t.title === "Will need a retry").length).toBe(1);
+  });
+});
+
+test.describe("when a save fails · saved data stays consistent", () => {
   test("storage that refuses to save leaves nothing half-done", async ({ page }) => {
     await open(page, "team", "?view=list");
     const before = await saved(page);
@@ -35,22 +53,6 @@ test.describe("when a save fails", () => {
     await expect(page.getByRole("alert").filter({ hasText: "storage is full or blocked" })).toBeVisible();
     await expect(page.getByTestId("list").getByRole("row", { name: /#7 Share the style tiles/ })).toBeVisible();
     expect(await saved(page)).toEqual(before);
-  });
-
-  test("an add that fails goes away, and Retry adds it once", async ({ page }) => {
-    await open(page, "team");
-    await fault(page, { op: "create", mode: "fail", latencyMs: 300, times: 1 });
-    const todo = column(page, "To do");
-    await todo.getByRole("button", { name: "Add task" }).click();
-    await todo.getByRole("textbox", { name: "New task name" }).fill("Will need a retry");
-    await todo.getByRole("textbox", { name: "New task name" }).press("Enter");
-    await expect(card(page, /Will need a retry/)).toBeVisible();
-    const alert = page.getByRole("alert").filter({ hasText: "couldn't save" });
-    await expect(alert).toBeVisible();
-    await expect(card(page, /Will need a retry/)).toHaveCount(0);
-    await alert.getByRole("button", { name: "Retry" }).click();
-    await expect(card(page, /Will need a retry/)).toBeVisible();
-    await expect.poll(async () => Object.values(await saved(page)).filter((t) => t.title === "Will need a retry").length).toBe(1);
   });
 
   test("changes queued behind a failed one are dropped, not applied out of order", async ({ page }) => {

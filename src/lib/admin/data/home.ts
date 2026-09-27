@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/admin/ui";
+import type { Tone } from "@/components/portal/Badge";
 
 /** Content transcribed from "Home / Dashboard · platform stats" in Figma. */
 

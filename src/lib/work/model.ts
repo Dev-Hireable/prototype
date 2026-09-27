@@ -269,9 +269,6 @@ export function openBlockers(t: Pick<WorkItem, "dependsOn">, byId: ById): WorkIt
 
 export const isBlocked = (t: Pick<WorkItem, "dependsOn">, byId: ById) => openBlockers(t, byId).length > 0;
 
-/** Items that wait on `id`. */
-export const dependentsOf = (id: string, items: readonly WorkItem[]) => items.filter((t) => !isArchived(t) && t.dependsOn.includes(id));
-
 /**
  * What the trial is scored and closed on: the Independent's own items that aren't archived and were
  * set during the trial. The Team Builder's items and unassigned ones never count. Lists saved

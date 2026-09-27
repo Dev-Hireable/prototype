@@ -8,22 +8,15 @@ import { QUIZ_CURTAIN_COLORS } from '@/web-app/lib/brand-colors';
 export type CurtainPhase = 'covering' | 'lifting';
 
 /**
- * The brand curtain between the quiz and the results: three columns sweep up over the quiz's
- * wrap-up, the results mount behind them, and they carry on up to reveal the results already
- * coming in. It lives above both steps (the wizard owns it) so it can outlast the switch.
- *
- * It used to belong to the quiz and rise and leave again before the results existed, so it opened
- * onto a blank page; it also showed fully drawn for a frame before it started rising.
+ * The curtain's motion: its columns sweep up from below the screen to cover it, then carry on up
+ * off the top to lift. Returns the refs its columns attach to; the callbacks are read when each
+ * sweep ends, so the latest ones run.
  */
-export function OnboardingCurtain({
-  phase,
-  onCovered,
-  onLifted,
-}: {
-  phase: CurtainPhase;
-  onCovered: () => void;
-  onLifted: () => void;
-}) {
+function useCurtainSweep(
+  phase: CurtainPhase,
+  onCovered: () => void,
+  onLifted: () => void,
+) {
   const columnRefs = useRef<Array<HTMLDivElement | null>>([]);
   const onCoveredRef = useRef(onCovered);
   const onLiftedRef = useRef(onLifted);
@@ -67,6 +60,28 @@ export function OnboardingCurtain({
       tween.kill();
     };
   }, [phase]);
+
+  return columnRefs;
+}
+
+/**
+ * The brand curtain between the quiz and the results: three columns sweep up over the quiz's
+ * wrap-up, the results mount behind them, and they carry on up to reveal the results already
+ * coming in. It lives above both steps (the wizard owns it) so it can outlast the switch.
+ *
+ * It used to belong to the quiz and rise and leave again before the results existed, so it opened
+ * onto a blank page; it also showed fully drawn for a frame before it started rising.
+ */
+export function OnboardingCurtain({
+  phase,
+  onCovered,
+  onLifted,
+}: {
+  phase: CurtainPhase;
+  onCovered: () => void;
+  onLifted: () => void;
+}) {
+  const columnRefs = useCurtainSweep(phase, onCovered, onLifted);
 
   return (
     <div

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminPage, Button, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Button } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { transactions } from "@/lib/admin/data/billing";
 import type { BreakdownLine, LinkedRecord } from "@/lib/admin/data/billing";
@@ -20,8 +21,8 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
       title={txn.reference}
       actions={
         <>
-          <Button>Download receipt</Button>
-          <Button variant="primary">Release escrow</Button>
+          <Button size="sm">Download receipt</Button>
+          <Button size="sm" variant="primary">Release escrow</Button>
         </>
       }
     >

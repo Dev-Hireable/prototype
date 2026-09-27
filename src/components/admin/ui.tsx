@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Badge as SharedBadge } from "@/components/portal/Badge";
 import type { ReactNode } from "react";
+import { Card } from "@/components/independent/ui";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
 import { CLEAR_DEMO_RESET } from "@/components/portal/styles";
+import { keyed } from "@/lib/portal/keys";
 import { ICONS } from "./icons";
 
 /* ---------------------------------------------------------------- page ---- */
@@ -70,10 +71,9 @@ export function AdminPage({
    (@/components/portal/nav), shared with the portals. */
 
 /* -------------------------------------------------------------- surfaces -- */
-
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-lg bg-white outline -outline-offset-1 outline-line ${className}`}>{children}</section>;
-}
+/* Card, Badge (and its Tone) and Button are the portals' own — one kit: @/components/independent/ui
+   and @/components/portal/Badge. Admin had copies of its own, with a lighter card edge and 13px
+   semibold buttons in another blue. */
 
 /** Figma stat card: p 18, gap 4, label 12.5 / value 24 SemiBold −0.48 / sub 11.5, lh 1.45. */
 export function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -88,15 +88,6 @@ export function StatCard({ label, value, sub }: { label: string; value: string; 
 
 export function StatGrid({ children }: { children: ReactNode }) {
   return <div className="flex w-full gap-4">{children}</div>;
-}
-
-/* ---------------------------------------------------------------- badge --- */
-
-export type Tone = "warn" | "ok" | "danger" | "accent" | "neutral" | "trial";
-
-/** Figma "Badge" — the portals' shared Badge, tinted by status. */
-export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
-  return <SharedBadge tone={tone}>{children}</SharedBadge>;
 }
 
 /* -------------------------------------------------------------- controls -- */
@@ -140,35 +131,6 @@ export function Select({ label, options, value, onChange }: { label: string; opt
   );
 }
 
-export function Button({
-  children,
-  variant = "secondary",
-  onClick,
-  disabled,
-}: {
-  children: ReactNode;
-  variant?: "primary" | "secondary" | "danger";
-  onClick?: () => void;
-  disabled?: boolean;
-}) {
-  const styles = {
-    primary: "bg-accent text-white",
-    secondary: "border border-border text-ink",
-    // The standard solid red, as on the portals' Button.
-    danger: "bg-danger text-white hover:bg-danger-hover",
-  }[variant];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`inline-flex h-9 items-center gap-2 rounded-lg px-4 text-[13px] leading-none font-semibold tracking-[0.2px] whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 ${styles}`}
-    >
-      {children}
-    </button>
-  );
-}
-
 /* ---------------------------------------------------------------- table --- */
 
 export type Column<T> = {
@@ -193,6 +155,9 @@ export type Column<T> = {
 const GRID = "px-4 shadow-[inset_0_1px_0_#e3e8ed] [&:not(:first-child)]:shadow-[inset_1px_1px_0_#e3e8ed]";
 /** The narrowest the flexible (width-less) column may get before the table scrolls instead. */
 const FLEX_MIN = 180;
+
+/** A row's key when it has no link to key by: its text and numbers (the records carry no id). */
+const rowText = (row: unknown) => (row && typeof row === "object" ? Object.values(row).filter((v) => typeof v === "string" || typeof v === "number").join("|") : String(row));
 
 export function DataTable<T>({
   caption,
@@ -228,46 +193,63 @@ export function DataTable<T>({
               <col key={c.header} style={{ width: c.width }} />
             ))}
           </colgroup>
-          <thead>
-            <tr className="bg-surface-alt text-left">
-              {columns.map((c) => (
-                <th
-                  key={c.header}
-                  scope="col"
-                  className={`${GRID} py-[10px] text-[11.5px] leading-[1.45] font-semibold whitespace-nowrap text-muted ${
-                    c.align === "right" ? "text-right" : ""
-                  }`}
-                >
-                  {c.header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center shadow-[inset_0_1px_0_#e3e8ed] text-[13px] text-muted">
-                  {empty}
-                </td>
-              </tr>
-            )}
-            {rows.map((row, i) => (
-              <tr key={i} className="bg-white even:bg-row-alt hover:bg-surface-alt">
-                {columns.map((c, j) => (
-                  <td
-                    key={c.header}
-                    className={`${GRID} py-[13px] align-middle text-[13px] leading-[1.45] break-words ${
-                      c.align === "right" ? "text-right" : ""
-                    } ${j === 0 ? "text-ink-deep" : "text-muted"}`}
-                  >
-                    {j === 0 && rowHref ? <Link href={rowHref(row)}>{c.cell(row)}</Link> : c.cell(row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
+          <DataTableHead columns={columns} />
+          <DataTableBody columns={columns} rows={rows} rowHref={rowHref} empty={empty} />
         </table>
       </div>
     </Card>
+  );
+}
+
+/** The header row: each column's name, right-aligned over a right-aligned column. */
+function DataTableHead<T>({ columns }: { columns: Column<T>[] }) {
+  return (
+    <thead>
+      <tr className="bg-surface-alt text-left">
+        {columns.map((c) => (
+          <th
+            key={c.header}
+            scope="col"
+            className={`${GRID} py-[10px] text-[11.5px] leading-[1.45] font-semibold whitespace-nowrap text-muted ${
+              c.align === "right" ? "text-right" : ""
+            }`}
+          >
+            {c.header}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+}
+
+/**
+ * The rows, the first cell of each a link to the row's page when rows have one (`rowHref`) — or,
+ * with no rows, one full-width cell saying so (`empty`).
+ */
+function DataTableBody<T>({ columns, rows, rowHref, empty }: { columns: Column<T>[]; rows: T[]; rowHref?: (row: T) => string; empty: string }) {
+  return (
+    <tbody>
+      {rows.length === 0 && (
+        <tr>
+          <td colSpan={columns.length} className="px-4 py-10 text-center shadow-[inset_0_1px_0_#e3e8ed] text-[13px] text-muted">
+            {empty}
+          </td>
+        </tr>
+      )}
+      {keyed(rows, (row) => rowHref?.(row) ?? rowText(row)).map(({ item: row, key }) => (
+        <tr key={key} className="bg-white even:bg-row-alt hover:bg-surface-alt">
+          {columns.map((c, j) => (
+            <td
+              key={c.header}
+              className={`${GRID} py-[13px] align-middle text-[13px] leading-[1.45] break-words ${
+                c.align === "right" ? "text-right" : ""
+              } ${j === 0 ? "text-ink-deep" : "text-muted"}`}
+            >
+              {j === 0 && rowHref ? <Link href={rowHref(row)}>{c.cell(row)}</Link> : c.cell(row)}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
   );
 }

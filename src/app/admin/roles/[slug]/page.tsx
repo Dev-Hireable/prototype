@@ -1,12 +1,7 @@
 import { notFound } from "next/navigation";
-import {
-  AdminPage,
-  Badge,
-  Button,
-  DataTable,
-  StatCard,
-  StatGrid,
-} from "@/components/admin/ui";
+import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Badge } from "@/components/portal/Badge";
+import { Button } from "@/components/independent/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { roles } from "@/lib/admin/data/roles";
 import type { Check } from "@/lib/admin/data/roles";
@@ -26,8 +21,8 @@ export default async function RoleDetail({ params }: PageProps<"/admin/roles/[sl
       title={role.role}
       actions={
         <>
-          <Button>Unpublish</Button>
-          <Button variant="primary">Approve</Button>
+          <Button size="sm">Unpublish</Button>
+          <Button size="sm" variant="primary">Approve</Button>
         </>
       }
     >

@@ -17,15 +17,8 @@ function SettingsHeading({ children }: { children: ReactNode }) {
 
 export type AccountSettingsValues = { first: string; last: string; email: string; phone: string; tz: string; lang: string };
 
-export function AccountSettingsCard({
-  initial,
-  avatar,
-  emailLabel,
-  languageOptions,
-  accountType,
-  onSave,
-  onPhoto,
-}: {
+/** What each portal's settings page gives its account card. */
+export type AccountSettingsCardProps = {
   initial: AccountSettingsValues;
   avatar: ReactNode;
   emailLabel: string;
@@ -36,11 +29,12 @@ export function AccountSettingsCard({
   onSave?: (values: AccountSettingsValues) => void;
   /** TB-099 / IN-067 — given a handler, Change photo picks a real file instead of toasting. */
   onPhoto?: (dataUrl: string) => void;
-}) {
+};
+
+export function AccountSettingsCard({ initial, avatar, emailLabel, languageOptions, accountType, onSave, onPhoto }: AccountSettingsCardProps) {
   const [form, setForm] = useState(initial);
   /** TB-099 — the new address only takes effect once the code that went to it is entered. */
   const [pending, setPending] = useState<string | null>(null);
-  const [code, setCode] = useState("");
   const [toast, setToast] = useToast();
   const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
   return (
@@ -48,24 +42,7 @@ export function AccountSettingsCard({
       <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <SettingsHeading>Account</SettingsHeading>
         {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
-        <div className="flex items-center gap-4">
-          <ImagePicker
-            image={avatar}
-            label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
-            onPick={async (picked) => {
-              if (!picked) return;
-              if (!onPhoto) return setToast("File picker opens here");
-              const problem = checkImage(picked);
-              if (problem) return setToast(problem);
-              onPhoto(await readImage(picked));
-              setToast("Photo updated");
-            }}
-          />
-          <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.4]">
-            <p className="text-[13px] font-medium text-ink">Profile photo</p>
-            <p className="text-[12px] text-ink-2">JPG or PNG, up to {IMAGE_MAX_MB}MB. Use the camera on the photo to change it.</p>
-          </div>
-        </div>
+        <PhotoField avatar={avatar} onPhoto={onPhoto} onToast={setToast} />
         <div className="flex gap-4">
           <Field label="First name" className="flex-1">
             <Input value={form.first} onChange={set("first")} />
@@ -79,51 +56,7 @@ export function AccountSettingsCard({
             <p className="flex h-11 items-center rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">{accountType}</p>
           </Field>
         )}
-        <div className="flex items-center gap-3">
-          <Field label={emailLabel} hint="A 6-digit code goes to the new address first." className="flex-1">
-            <Input value={form.email} onChange={set("email")} type="email" />
-          </Field>
-          <Button
-            size="lg"
-            className="shrink-0"
-            disabled={form.email === initial.email || !form.email.includes("@")}
-            onClick={() => {
-              setPending(form.email);
-              setCode("");
-              setToast(`Verification code sent to ${form.email}`);
-            }}
-          >
-            Change email
-          </Button>
-        </div>
-        {/* TB-099 — until this is confirmed, the address on the account is still the old one. */}
-        {pending && (
-          <div className="flex items-end gap-3 rounded-lg bg-surface-2 p-4">
-            <Field label={`Enter the code sent to ${pending}`} hint="Any 6 digits work in this demo." className="flex-1">
-              <Input value={code} inputMode="numeric" onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} placeholder="123456" />
-            </Field>
-            <Button
-              size="lg"
-              variant="primary"
-              disabled={code.length !== 6}
-              onClick={() => {
-                setPending(null);
-                setToast("Email verified and updated");
-              }}
-            >
-              Verify
-            </Button>
-            <Button
-              size="lg"
-              onClick={() => {
-                setForm((current) => ({ ...current, email: initial.email }));
-                setPending(null);
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        )}
+        <EmailChange label={emailLabel} value={form.email} saved={initial.email} onChange={(email) => setForm((current) => ({ ...current, email }))} pending={pending} onPending={setPending} onToast={setToast} />
         <Field label="Phone">
           <Input value={form.phone} onChange={set("phone")} />
         </Field>
@@ -135,25 +68,128 @@ export function AccountSettingsCard({
             <Select options={languageOptions} value={form.lang} onChange={set("lang")} />
           </Field>
         </div>
-        <div className="flex justify-end gap-3">
-          <Button size="lg" onClick={() => setForm(initial)}>
-            Cancel
-          </Button>
-          <Button
-            size="lg"
-            variant="primary"
-            disabled={!!pending}
-            onClick={() => {
-              onSave?.(form);
-              setToast(pending ? "Verify the new email first" : "Changes saved");
-            }}
-          >
-            Save changes
-          </Button>
-        </div>
+        <CardActions
+          submit="Save changes"
+          disabled={!!pending}
+          onCancel={() => setForm(initial)}
+          onSubmit={() => {
+            onSave?.(form);
+            setToast(pending ? "Verify the new email first" : "Changes saved");
+          }}
+        />
       </Card>
       <Toast message={toast} onClose={() => setToast(null)} />
     </>
+  );
+}
+
+/** The account's photo: the shared ImagePicker, with what it takes beside it. A picked file is checked and read here. */
+function PhotoField({ avatar, onPhoto, onToast }: { avatar: ReactNode; onPhoto?: (dataUrl: string) => void; onToast: (message: string) => void }) {
+  return (
+    <div className="flex items-center gap-4">
+      <ImagePicker
+        image={avatar}
+        label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
+        onPick={async (picked) => {
+          if (!picked) return;
+          if (!onPhoto) return onToast("File picker opens here");
+          const problem = checkImage(picked);
+          if (problem) return onToast(problem);
+          onPhoto(await readImage(picked));
+          onToast("Photo updated");
+        }}
+      />
+      <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.4]">
+        <p className="text-[13px] font-medium text-ink">Profile photo</p>
+        <p className="text-[12px] text-ink-2">JPG or PNG, up to {IMAGE_MAX_MB}MB. Use the camera on the photo to change it.</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * TB-099 — the account's email. Change email sends a 6-digit code to the address in the field; it
+ * becomes the account's (`pending` clears) once that code is entered, and Cancel puts the saved one back.
+ */
+function EmailChange({ label, value, saved, onChange, pending, onPending, onToast }: {
+  label: string;
+  /** The address in the field, and the one on the account. */
+  value: string;
+  saved: string;
+  onChange: (email: string) => void;
+  /** The new address waiting on its code. */
+  pending: string | null;
+  onPending: (email: string | null) => void;
+  onToast: (message: string) => void;
+}) {
+  const [code, setCode] = useState("");
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <Field label={label} hint="A 6-digit code goes to the new address first." className="flex-1">
+          <Input value={value} onChange={(event) => onChange(event.target.value)} type="email" />
+        </Field>
+        <Button
+          size="lg"
+          className="shrink-0"
+          disabled={value === saved || !value.includes("@")}
+          onClick={() => {
+            onPending(value);
+            setCode("");
+            onToast(`Verification code sent to ${value}`);
+          }}
+        >
+          Change email
+        </Button>
+      </div>
+      {/* TB-099 — until this is confirmed, the address on the account is still the old one. */}
+      {pending && (
+        <VerifyEmail
+          address={pending}
+          code={code}
+          onCode={setCode}
+          onVerify={() => {
+            onPending(null);
+            onToast("Email verified and updated");
+          }}
+          onCancel={() => {
+            onChange(saved);
+            onPending(null);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/** Under the email while a new address waits: the code sent to it, Verify, and Cancel. */
+function VerifyEmail({ address, code, onCode, onVerify, onCancel }: { address: string; code: string; onCode: (code: string) => void; onVerify: () => void; onCancel: () => void }) {
+  return (
+    <div className="flex items-end gap-3 rounded-lg bg-surface-2 p-4">
+      <Field label={`Enter the code sent to ${address}`} hint="Any 6 digits work in this demo." className="flex-1">
+        <Input value={code} inputMode="numeric" onChange={(event) => onCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} placeholder="123456" />
+      </Field>
+      <Button size="lg" variant="primary" disabled={code.length !== 6} onClick={onVerify}>
+        Verify
+      </Button>
+      <Button size="lg" onClick={onCancel}>
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
+/** A settings card's foot: Cancel, then the card's own action. */
+function CardActions({ submit, disabled, onCancel, onSubmit }: { submit: string; disabled: boolean; onCancel: () => void; onSubmit: () => void }) {
+  return (
+    <div className="flex justify-end gap-3">
+      <Button size="lg" onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button size="lg" variant="primary" disabled={disabled} onClick={onSubmit}>
+        {submit}
+      </Button>
+    </div>
   );
 }
 
@@ -198,25 +234,21 @@ export function PasswordSettingsCard() {
           <Input type="password" value={confirm} onChange={(event) => setConfirm(event.target.value)} placeholder="Repeat the new password" />
         </Field>
         <p className="max-w-[660px] text-[12px] leading-[1.4] text-ink-2">Forgot your current password? Sign out and use Forgot password on the sign-in screen.</p>
-        <div className="flex justify-end gap-3">
-          <Button size="lg" onClick={() => { setNext(""); setConfirm(""); }}>
-            Cancel
-          </Button>
-          <Button
-            size="lg"
-            variant="primary"
-            disabled={!valid}
-            onClick={() => {
-              if (current !== DEMO_PASSWORD) return setWrong(true);
-              setToast("Password updated");
-              setCurrent("");
-              setNext("");
-              setConfirm("");
-            }}
-          >
-            Update password
-          </Button>
-        </div>
+        <CardActions
+          submit="Update password"
+          disabled={!valid}
+          onCancel={() => {
+            setNext("");
+            setConfirm("");
+          }}
+          onSubmit={() => {
+            if (current !== DEMO_PASSWORD) return setWrong(true);
+            setToast("Password updated");
+            setCurrent("");
+            setNext("");
+            setConfirm("");
+          }}
+        />
       </Card>
       <Toast message={toast} onClose={() => setToast(null)} />
     </>

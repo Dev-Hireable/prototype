@@ -1,7 +1,7 @@
 "use client";
 
-import { Badge, DataTable } from "@/components/admin/ui";
-import type { Tone } from "@/components/admin/ui";
+import { DataTable } from "@/components/admin/ui";
+import { Badge, type Tone } from "@/components/portal/Badge";
 import type { AttentionItem } from "@/lib/admin/data/home";
 import { ageOf, holds, partyName, useDisputes, waitingOn } from "@/lib/demo/disputes";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";

@@ -1,4 +1,5 @@
-import { AdminPage, Badge, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { Badge } from "@/components/portal/Badge";
 import { roles } from "@/lib/admin/data/roles";
 import type { Role } from "@/lib/admin/data/roles";
 

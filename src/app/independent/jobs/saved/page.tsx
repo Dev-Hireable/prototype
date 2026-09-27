@@ -6,16 +6,17 @@ import { EmptyState, LinkButton, Page, SearchBox, Select } from "@/components/in
 import { roleFromPosting } from "@/lib/independent/data";
 import { usePostings } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import { useDemo } from "@/lib/independent/store";
+import { useSavedRoles } from "@/lib/independent/saved";
 
 /** Figma "Job Board / Saved roles · list / · empty": toolbar 522 wide (search + 150 type), list gap 12. */
 export default function SavedRoles() {
-  const { saved } = useDemo();
+  const { saved } = useSavedRoles();
   const [q, setQ] = useState("");
   const [type, setType] = useState("Type: All");
   const roles = usePostings().map(roleFromPosting);
+  const savedSlugs = new Set(saved);
   const list = roles
-    .filter((r) => saved.includes(r.slug))
+    .filter((r) => savedSlugs.has(r.slug))
     .filter((r) => type === "Type: All" || type === `Type: ${JOB_TYPE_LABEL[r.type]}`)
     .filter((r) => `${r.title} ${r.company}`.toLowerCase().includes(q.toLowerCase()));
 

@@ -24,12 +24,6 @@ function offsetMinutes(off: string): number {
 /** "America/Argentina/Buenos_Aires" → "Buenos Aires". */
 const cityOf = (zone: string) => zone.split("/").pop()?.replace(/_/g, " ") ?? zone;
 
-/** The label a zone is saved and shown with. */
-export function timeZoneLabel(zone: string, at = new Date()): string {
-  const off = shortOffset(zone, at);
-  return `(${off === "GMT" ? "GMT+0" : off}) ${cityOf(zone)}`;
-}
-
 let cache: TimeZoneOption[] | null = null;
 
 /** Every zone as an option, west to east, then by city. Built once. */
@@ -49,5 +43,3 @@ export function timeZoneOptions(at = new Date()): TimeZoneOption[] {
   return cache;
 }
 
-/** This browser's own zone, labelled — what a new profile starts on. */
-export const localTimeZoneLabel = () => timeZoneLabel(Intl.DateTimeFormat().resolvedOptions().timeZone);

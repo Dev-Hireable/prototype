@@ -6,15 +6,20 @@ import { AddPayoutModal } from "@/components/independent/AddPayoutModal";
 import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast, useToast } from "@/components/independent/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
-import { useDemo } from "@/lib/independent/store";
+import { useWallet } from "@/lib/independent/wallet";
 
 /** Figma "Settings / Payout methods" (+ add modal): 720 card, p 24, gap 16; method rows p 16, gap 16. */
 export default function PayoutSettings() {
-  const { payouts, setDefaultPayout, removePayout } = useDemo();
+  const { payouts, setDefaultPayout, removePayout } = useWallet();
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<PayoutMethod | null>(null);
   const [toast, setToast] = useToast();
   const only = payouts.length === 1;
+  /** Makes a verified method the default, and says so. */
+  const makeDefault = (m: PayoutMethod) => {
+    setDefaultPayout(m.id);
+    setToast(`${m.brand} is now your default`);
+  };
 
   return (
     <Page title="Settings">
@@ -29,29 +34,7 @@ export default function PayoutSettings() {
         </div>
         <p className="text-[13px] leading-[1.4] text-ink-2">Trial payouts and salaries go to your default method.</p>
         {payouts.map((m) => (
-          <PaymentMethodRow
-            key={m.id}
-            brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
-            title={
-              <>
-                {m.brand === "Bank" ? `BPI · account ending ${m.last4}` : `${m.brand} · ${m.brand === "GCash" ? "0917 555 0142" : `····${m.last4}`}`}
-                {m.isDefault && <StatusDot tone="ok">Default</StatusDot>}
-              </>
-            }
-            subtitle={m.brand === "Bank" ? "InstaPay / PESONet" : "E-wallet"}
-            actions={
-              <>
-                {!m.isDefault && (
-                  <Button size="sm" disabled={!m.verified.startsWith("Verified")} onClick={() => { setDefaultPayout(m.id); setToast(`${m.brand} is now your default`); }}>
-                    Set as default
-                  </Button>
-                )}
-                <Button size="sm" variant="danger" disabled={only || m.isDefault} onClick={() => setRemoving(m)}>
-                  Remove
-                </Button>
-              </>
-            }
-          />
+          <MethodRow key={m.id} method={m} only={only} onSetDefault={() => makeDefault(m)} onRemove={() => setRemoving(m)} />
         ))}
         {only && (
           <div className="w-full max-w-[530px]">
@@ -80,5 +63,36 @@ export default function PayoutSettings() {
       />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
+  );
+}
+
+/**
+ * One payout method: its brand, the account, what kind it is, and its buttons — Set as default once
+ * it's verified, and Remove unless it's the default or the `only` one.
+ */
+function MethodRow({ method: m, only, onSetDefault, onRemove }: { method: PayoutMethod; only: boolean; onSetDefault: () => void; onRemove: () => void }) {
+  return (
+    <PaymentMethodRow
+      brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
+      title={
+        <>
+          {m.brand === "Bank" ? `BPI · account ending ${m.last4}` : `${m.brand} · ${m.brand === "GCash" ? "0917 555 0142" : `····${m.last4}`}`}
+          {m.isDefault && <StatusDot tone="ok">Default</StatusDot>}
+        </>
+      }
+      subtitle={m.brand === "Bank" ? "InstaPay / PESONet" : "E-wallet"}
+      actions={
+        <>
+          {!m.isDefault && (
+            <Button size="sm" disabled={!m.verified.startsWith("Verified")} onClick={onSetDefault}>
+              Set as default
+            </Button>
+          )}
+          <Button size="sm" variant="danger" disabled={only || m.isDefault} onClick={onRemove}>
+            Remove
+          </Button>
+        </>
+      }
+    />
   );
 }

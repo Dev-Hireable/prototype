@@ -2,7 +2,7 @@
 
 import { Page } from "@/components/independent/ui";
 import { NotificationFeed } from "@/components/portal/NotificationFeed";
-import { useDemo } from "@/lib/team/store";
+import { useNotifications } from "@/lib/demo/live";
 import { useQueryState } from "@/lib/portal/query-state";
 
 type Filter = "all" | "unread" | "hiring" | "independents" | "payments";
@@ -20,7 +20,7 @@ const VALUES = FILTERS.map((f) => f.value);
  * design for the same events: separate cards, a breadcrumb and a button per row.
  */
 export default function Notifications() {
-  const { notifications, markRead } = useDemo();
+  const { notifications, markRead } = useNotifications("team");
   const [filter, setFilter] = useQueryState<Filter>("filter", "all", VALUES);
   const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : n.kind === filter));
 

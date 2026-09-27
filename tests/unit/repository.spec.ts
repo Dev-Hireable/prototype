@@ -59,7 +59,7 @@ test.describe("create", () => {
   });
 });
 
-test.describe("patch", () => {
+test.describe("patch · what gets saved", () => {
   test("stamps the change and bumps the version", async () => {
     const { store, alex } = setup();
     const t = await alex.patch("a", { due: iso(3), priority: "high", effort: 5 }, { due: undefined, priority: undefined, effort: undefined });
@@ -76,6 +76,33 @@ test.describe("patch", () => {
     expect(store.get("a").effort).toBeUndefined();
   });
 
+  test("a change to the same value writes nothing", async () => {
+    const { store, alex } = setup([item({ id: "a", priority: "low" })]);
+    await alex.patch("a", { priority: "low" });
+    expect(store.writes()).toBe(0);
+  });
+
+  test("two people editing: different fields merge, the same field conflicts", async () => {
+    const { store, repo } = setup();
+    const tabA = repo("manager", "Alex Rivera");
+    const tabB = repo("manager", "Alex (laptop)");
+    const seen = store.get("a"); // both tabs loaded the same version
+    await tabA.patch("a", { due: iso(3) }, { due: seen.due });
+    // B changes the priority it saw — nobody else touched it, so it merges.
+    await tabB.patch("a", { priority: "high" }, { priority: seen.priority });
+    expect(store.get("a")).toMatchObject({ due: iso(3), priority: "high", version: 3 });
+    // B changes the due date from a stale screen — A changed it, so it's refused, nothing written.
+    const e = await rejection(tabB.patch("a", { due: iso(7) }, { due: seen.due }));
+    expect(e.code).toBe("conflict");
+    expect(e.conflict).toMatchObject({ field: "due", yours: iso(7), theirs: iso(3), by: "Alex (laptop)" });
+    expect(store.get("a").due).toBe(iso(3));
+    // "Use mine": resend against what's saved now.
+    await tabB.patch("a", { due: iso(7) }, { due: store.get("a").due });
+    expect(store.get("a").due).toBe(iso(7));
+  });
+});
+
+test.describe("patch · who may change what", () => {
   test("the Independent can't change the plan, even calling the API directly", async () => {
     const { store, juan } = setup();
     const before = JSON.stringify(store.read());
@@ -104,31 +131,13 @@ test.describe("patch", () => {
     expect((await rejection(admin.patch("a", { priority: "high" }))).message).toMatch(/Admins/);
   });
 
-  test("a change to the same value writes nothing", async () => {
-    const { store, alex } = setup([item({ id: "a", priority: "low" })]);
-    await alex.patch("a", { priority: "low" });
-    expect(store.writes()).toBe(0);
+  test("agreed items keep their wording", async () => {
+    const { alex } = setup([item({ id: "a", agreed: true })]);
+    expect((await rejection(alex.patch("a", { title: "Renamed" }))).message).toMatch(/agreed/);
   });
+});
 
-  test("two people editing: different fields merge, the same field conflicts", async () => {
-    const { store, repo } = setup();
-    const tabA = repo("manager", "Alex Rivera");
-    const tabB = repo("manager", "Alex (laptop)");
-    const seen = store.get("a"); // both tabs loaded the same version
-    await tabA.patch("a", { due: iso(3) }, { due: seen.due });
-    // B changes the priority it saw — nobody else touched it, so it merges.
-    await tabB.patch("a", { priority: "high" }, { priority: seen.priority });
-    expect(store.get("a")).toMatchObject({ due: iso(3), priority: "high", version: 3 });
-    // B changes the due date from a stale screen — A changed it, so it's refused, nothing written.
-    const e = await rejection(tabB.patch("a", { due: iso(7) }, { due: seen.due }));
-    expect(e.code).toBe("conflict");
-    expect(e.conflict).toMatchObject({ field: "due", yours: iso(7), theirs: iso(3), by: "Alex (laptop)" });
-    expect(store.get("a").due).toBe(iso(3));
-    // "Use mine": resend against what's saved now.
-    await tabB.patch("a", { due: iso(7) }, { due: store.get("a").due });
-    expect(store.get("a").due).toBe(iso(7));
-  });
-
+test.describe("patch · type and assignee", () => {
   test("milestones need their start and effort cleared in the same change", async () => {
     const { store, alex } = setup([item({ id: "a", start: iso(1), due: iso(4), effort: 3 })]);
     expect((await rejection(alex.patch("a", { type: "milestone" }))).code).toBe("validation");
@@ -148,14 +157,9 @@ test.describe("patch", () => {
     await alex.patch("b", { assignee: "independent" });
     expect(notices.map((x) => x.n.kind)).toEqual(["task_added"]);
   });
-
-  test("agreed items keep their wording", async () => {
-    const { alex } = setup([item({ id: "a", agreed: true })]);
-    expect((await rejection(alex.patch("a", { title: "Renamed" }))).message).toMatch(/agreed/);
-  });
 });
 
-test.describe("status", () => {
+test.describe("status · the review loop", () => {
   test("the Independent submits; the Team Builder approves; each hears about it", async () => {
     const { store, notices, alex, juan } = setup([item({ id: "a", status: "doing" })]);
     const sent = await juan.transition("a", { to: "review", from: "doing", note: "Two options inside" });
@@ -176,7 +180,9 @@ test.describe("status", () => {
     expect(store.get("a")).toMatchObject({ status: "doing", changes: { note: "Use the brand blue", by: "Alex Rivera" } });
     expect(store.get("a").submitted).toBeUndefined();
   });
+});
 
+test.describe("status · stale and repeated moves", () => {
   test("a move made on a stale screen is refused", async () => {
     const { store, alex, juan } = setup([item({ id: "a", status: "review" })]);
     await juan.transition("a", { to: "doing", from: "review" }); // Juan takes it back
@@ -191,7 +197,9 @@ test.describe("status", () => {
     await juan.transition("a", { to: "doing", from: "todo" });
     expect(store.writes()).toBe(0);
   });
+});
 
+test.describe("status · who moves what", () => {
   test("the Team Builder's own items go straight to Done, and reopen", async () => {
     const { store, alex } = setup();
     await alex.transition("b", { to: "done", from: "todo" });
@@ -201,6 +209,15 @@ test.describe("status", () => {
     expect((await rejection(alex.transition("b", { to: "review" }))).code).toBe("forbidden");
   });
 
+  test("nobody else moves the Independent's work, and they can't approve it", async () => {
+    const { alex, juan, admin } = setup([item({ id: "a", status: "todo" }), item({ id: "r", status: "review" })]);
+    expect((await rejection(alex.transition("a", { to: "doing" }))).message).toMatch(/Juan moves their own work/);
+    expect((await rejection(juan.transition("r", { to: "done" }))).message).toMatch(/Only Alex/);
+    expect((await rejection(admin.transition("a", { to: "doing" }))).code).toBe("forbidden");
+  });
+});
+
+test.describe("status · start and finish dates", () => {
   test("starting the work starts it today, unless it already started earlier", async () => {
     const { store, juan } = setup([item({ id: "a", start: iso(4), due: iso(9) }), item({ id: "b", start: iso(-3), due: iso(9) }), item({ id: "c" }), item({ id: "late", due: iso(-2) }), item({ id: "m", type: "milestone", due: iso(5) })]);
     await juan.transition("a", { to: "doing", from: "todo" });
@@ -227,13 +244,6 @@ test.describe("status", () => {
     expect(store.get("b")).toMatchObject({ start: iso(0), due: iso(0) });
     await alex.transition("m", { to: "done", from: "review" });
     expect(store.get("m").due).toBe(iso(4));
-  });
-
-  test("nobody else moves the Independent's work, and they can't approve it", async () => {
-    const { alex, juan, admin } = setup([item({ id: "a", status: "todo" }), item({ id: "r", status: "review" })]);
-    expect((await rejection(alex.transition("a", { to: "doing" }))).message).toMatch(/Juan moves their own work/);
-    expect((await rejection(juan.transition("r", { to: "done" }))).message).toMatch(/Only Alex/);
-    expect((await rejection(admin.transition("a", { to: "doing" }))).code).toBe("forbidden");
   });
 });
 
@@ -275,7 +285,7 @@ test.describe("archive", () => {
   });
 });
 
-test.describe("dependencies and tags", () => {
+test.describe("dependencies and tags · dependencies", () => {
   test("dependencies add, refuse loops, and remove", async () => {
     const { store, alex } = setup([item({ id: "a" }), item({ id: "b" }), item({ id: "c" })]);
     await alex.addDependency("b", "a");
@@ -305,7 +315,9 @@ test.describe("dependencies and tags", () => {
     await juan.addDependency("a", "b");
     expect((await rejection(juan.addDependency("b", "a"))).message).toMatch(/loop/);
   });
+});
 
+test.describe("dependencies and tags · tags", () => {
   test("tags are normalised and limited", async () => {
     const { store, alex } = setup();
     await alex.addTag("a", " Q3 Launch ");

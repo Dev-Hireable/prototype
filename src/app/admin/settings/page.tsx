@@ -1,4 +1,6 @@
-import { AdminPage, Badge, Button, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { Badge } from "@/components/portal/Badge";
+import { Button } from "@/components/independent/ui";
 import { adminAccounts } from "@/lib/admin/data/settings";
 import type { AdminAccount } from "@/lib/admin/data/settings";
 
@@ -8,7 +10,7 @@ export default function AdminAccounts() {
       <Toolbar>
         <SearchInput placeholder="Search admins" />
         <Select label="Role" options={["All roles", "Owner", "Operations", "Product", "Support"]} />
-        <Button variant="primary">Invite admin</Button>
+        <Button size="sm" variant="primary">Invite admin</Button>
       </Toolbar>
 
       <DataTable<AdminAccount>

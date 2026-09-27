@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import * as Case from "@/lib/disputes/case";
-import type { Attachment, Ctx, Dispute, DisputeFacts, DisputeParty, DisputeStatus, Money, Notice, Refusal, Say, Step } from "@/lib/disputes/case";
+import type { Attachment, Ctx, Dispute, DisputeFacts, DisputeNotice, DisputeParty, DisputeStatus, Money, Refusal, Say, Step } from "@/lib/disputes/case";
 import { dayLabel, momentLabel, parseDay } from "@/lib/demo/dates";
 import { contractTypeOf, converted, evaluationsOf, getDeal, lifecycleOfDeal, settleEscrow, startedAsTrial } from "@/lib/demo/deal";
 import type { Phase } from "@/lib/contract/lifecycle";
@@ -25,7 +25,7 @@ import { isArchived, isCompleted } from "@/lib/work/model";
  * Every step goes on the case's one timeline and tells the other side.
  */
 
-export type { Attachment, Dispute, DisputeFacts, DisputeParty, DisputeStatus, Entry, PartyTurn, Proposal, Resolution, Turn } from "@/lib/disputes/case";
+export type { Attachment, Dispute, DisputeFacts, DisputeParty, DisputeStatus, Entry, Proposal } from "@/lib/disputes/case";
 export { checkSplit, isOpen, leftLabel, openProposal, otherParty, outcomeOf, partyCan, partyName, partyTurn, SLA_DAYS, TURN_DAYS, usd, waitingOn } from "@/lib/disputes/case";
 
 export const DISPUTE_STATUSES: DisputeStatus[] = ["Pending", "Resolved", "Rejected", "Withdrawn"];
@@ -263,7 +263,7 @@ export type FileBlock = "open" | "filed" | "withdrawn" | "starts" | "trial" | "e
 
 /** The part of a contract a dispute is about: its trial, or the full-time / part-time role after it. */
 export type Chapter = "trial" | "role";
-export const chapterOf = (d: Pick<Dispute, "type">): Chapter => (d.type === "trial" ? "trial" : "role");
+const chapterOf = (d: Pick<Dispute, "type">): Chapter => (d.type === "trial" ? "trial" : "role");
 
 /**
  * Why `party` can't file on this contract right now, if they can't:
@@ -385,7 +385,7 @@ export const caseHref = (side: DisputeParty, id: string) => (side === "team" ? `
 
 export type Done = { ok: true; dispute: Dispute } | Refusal;
 
-function tell(d: Dispute, n: Notice) {
+function tell(d: Dispute, n: DisputeNotice) {
   const avatar = n.from === "support" || n.from === "system" ? "/admin/avatar.jpg" : n.from === "team" ? PAIR.team.avatar : d.independent.avatar;
   notify(n.to, { title: n.title, body: n.body, href: caseHref(n.to, d.id), avatar });
 }
@@ -484,13 +484,15 @@ export const releasePayment = (id: string) => act(id, (d, c) => Case.release(d, 
  * run it on a schedule, so every open portal does (useDisputeDeadlines) — the lock and the
  * re-read in `act` make sure each case closes once, whichever tab gets there first.
  */
-export async function sweepDeadlines() {
+async function sweepDeadlines() {
   refresh();
   const now = Date.now();
   const due = snapshot.filter((d) => {
     const t = Case.partyTurn(d);
     return !!t && (now >= t.due || (!t.reminded && t.due - now <= Case.REMIND_BEFORE));
   });
+  // One at a time on purpose: each takes the lock and re-reads what the one before it saved.
+  // react-doctor-disable-next-line react-doctor/async-await-in-loop
   for (const d of due) await act(d.id, (x, c) => Case.expire(x, c) ?? Case.remind(x, c));
 }
 

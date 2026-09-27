@@ -18,7 +18,7 @@ export type TaskSuggestion =
 export type SuggestionDecision = "accepted" | "ignored";
 
 export const SUGGESTION_NOTE_MAX = 300;
-export const SUGGESTION_TITLE_MAX = 200;
+const SUGGESTION_TITLE_MAX = 200;
 
 /** Why a suggestion can't be sent yet, or null. The form and the save read the same rule. */
 export function checkSuggestion(s: TaskSuggestion, tasks: readonly PlannedTask[]): string | null {

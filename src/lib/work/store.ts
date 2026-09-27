@@ -35,7 +35,7 @@ import { normalizeTag } from "./validate";
 
 /* ----------------------------------------------------------------- port */
 
-export const dealPort: WorkPort = {
+const dealPort: WorkPort = {
   transact(fn) {
     return transactDeal((deal) => {
       const c = deal?.contract;
@@ -48,7 +48,7 @@ export const dealPort: WorkPort = {
   },
 };
 
-export const clock: Clock = () => {
+const clock: Clock = () => {
   const d = new Date();
   return { ms: d.getTime(), today: todayDay(d), moment: momentLabel(d), stamp: dayLabel(d) };
 };
@@ -76,7 +76,7 @@ const hook: Hook = (op, id) => testHook?.(op, id);
 const repos = new Map<string, WorkRepository>();
 
 /** One repository per person, shared by every component in this tab. */
-export function repositoryFor(actor: Actor, names: Names): WorkRepository {
+function repositoryFor(actor: Actor, names: Names): WorkRepository {
   const key = JSON.stringify([actor.role, actor.name, names.team, names.independent]);
   let r = repos.get(key);
   if (!r) {
@@ -262,47 +262,52 @@ function shown(changes: WorkPatch): Partial<WorkItem> {
 
 const pick = (t: WorkItem, keys: PatchField[]) => Object.fromEntries(keys.map((k) => [k, t[k]]));
 
-export type MoveRequest = { status?: WorkStatus; set?: WorkPatch; after?: string; before?: string; note?: string };
+type MoveRequest = { status?: WorkStatus; set?: WorkPatch; after?: string; before?: string; note?: string };
 
-export function makeActions(repo: WorkRepository) {
-  const side = sideOf(repo.actor);
+/** The rank `id` takes under `after` and above `before`, so it shows in its new place before the save lands. */
+function orderAt(items: readonly WorkItem[], id: string, after: string | undefined, before: string | undefined, fallback: number): number {
+  const place = placeBetween(items, id, after, before);
+  return "order" in place ? place.order : (place.renumber.get(id) ?? fallback);
+}
 
+/** A new item as it shows while it saves: the save gives it its number, its stamps and its first version. */
+function draftOf(input: Omit<CreateInput, "id">, id: string, items: readonly WorkItem[]): WorkItem {
+  const now = Date.now();
+  const draft: WorkItem = {
+    id,
+    number: 0,
+    title: input.title.trim(),
+    ...(input.description ? { description: input.description } : {}),
+    status: "todo",
+    ...(input.priority ? { priority: input.priority } : {}),
+    type: input.type ?? "task",
+    assignee: input.assignee === undefined ? "independent" : input.assignee,
+    ...(input.start ? { start: input.start } : {}),
+    ...(input.due ? { due: input.due } : {}),
+    ...(input.effort !== undefined ? { effort: input.effort } : {}),
+    ...(input.project ? { project: input.project } : {}),
+    dependsOn: [],
+    tags: (input.tags ?? []).map(normalizeTag).filter(Boolean),
+    order: orderLast(items),
+    addedBy: "team",
+    created: "",
+    createdAt: now,
+    updatedAt: now,
+    version: 0,
+    subtasks: [],
+    activity: [],
+    comments: [],
+  };
+  if (input.after || input.before) draft.order = orderAt([...items.filter((t) => !isArchived(t)), draft], id, input.after, input.before, draft.order);
+  return draft;
+}
+
+/** Adding an item, changing its fields or its status, and dropping it on a board. */
+function itemActions(repo: WorkRepository) {
   const actions = {
-    repo,
-
     /** Adds an item; resolves to its id once saved, or null. A retry reuses the id, so it can't duplicate. */
     create(input: Omit<CreateInput, "id">, msgs: Messages = {}, id = newId("t")): Promise<string | null> {
-      const items = currentItems();
-      const now = Date.now();
-      const draft: WorkItem = {
-        id,
-        number: 0,
-        title: input.title.trim(),
-        ...(input.description ? { description: input.description } : {}),
-        status: "todo",
-        ...(input.priority ? { priority: input.priority } : {}),
-        type: input.type ?? "task",
-        assignee: input.assignee === undefined ? "independent" : input.assignee,
-        ...(input.start ? { start: input.start } : {}),
-        ...(input.due ? { due: input.due } : {}),
-        ...(input.effort !== undefined ? { effort: input.effort } : {}),
-        ...(input.project ? { project: input.project } : {}),
-        dependsOn: [],
-        tags: (input.tags ?? []).map(normalizeTag).filter(Boolean),
-        order: orderLast(items),
-        addedBy: "team",
-        created: "",
-        createdAt: now,
-        updatedAt: now,
-        version: 0,
-        subtasks: [],
-        activity: [],
-        comments: [],
-      };
-      if (input.after || input.before) {
-        const place = placeBetween([...items.filter((t) => !isArchived(t)), draft], id, input.after, input.before);
-        draft.order = "order" in place ? place.order : (place.renumber.get(id) ?? draft.order);
-      }
+      const draft = draftOf(input, id, currentItems());
       return run({
         ...msgs,
         itemId: id,
@@ -338,15 +343,7 @@ export function makeActions(repo: WorkRepository) {
     /** A drop: a new status or group value and a place in the manual order, in one save. */
     move(t: WorkItem, m: MoveRequest, msgs: Messages = {}) {
       const set: Partial<WorkItem> = { ...(m.status ? { status: m.status } : {}), ...(m.set ? shown(m.set) : {}) };
-      if (m.after !== undefined || m.before !== undefined) {
-        const place = placeBetween(
-          currentItems().filter((x) => !isArchived(x)),
-          t.id,
-          m.after,
-          m.before,
-        );
-        set.order = "order" in place ? place.order : (place.renumber.get(t.id) ?? t.order);
-      }
+      if (m.after !== undefined || m.before !== undefined) set.order = orderAt(currentItems().filter((x) => !isArchived(x)), t.id, m.after, m.before, t.order);
       return run({
         ...msgs,
         itemId: t.id,
@@ -355,7 +352,13 @@ export function makeActions(repo: WorkRepository) {
         retry: () => void actions.move(t, m, msgs),
       });
     },
+  };
+  return actions;
+}
 
+/** Deleting an item — archived, with an Undo — and restoring it. */
+function archiveActions(repo: WorkRepository) {
+  const actions = {
     archive(t: WorkItem, msgs: Messages = {}) {
       return run({
         success: `Deleted ${refOf(t)} “${t.title}”`,
@@ -371,7 +374,15 @@ export function makeActions(repo: WorkRepository) {
     restore(t: WorkItem, msgs: Messages = {}) {
       return run({ success: `Restored ${refOf(t)} “${t.title}”`, ...msgs, itemId: t.id, set: { archivedAt: undefined, archivedBy: undefined }, call: () => repo.restore(t.id), retry: () => void actions.restore(t, msgs) });
     },
+  };
+  return actions;
+}
 
+/** An item's parts: what it waits on, its tags, its subtasks and its comments. */
+function partActions(repo: WorkRepository) {
+  const side = sideOf(repo.actor);
+
+  const actions = {
     addDependency(t: WorkItem, on: WorkItem, msgs: Messages = {}) {
       return run({ announce: `${refOf(t)} now waits on ${refOf(on)}`, ...msgs, itemId: t.id, set: { dependsOn: [...t.dependsOn, on.id] }, call: () => repo.addDependency(t.id, on.id) });
     },
@@ -406,10 +417,20 @@ export function makeActions(repo: WorkRepository) {
       return run({ ...msgs, itemId: t.id, set: { subtasks: t.subtasks.filter((s) => s.id !== subId) }, call: () => repo.removeSubtask(t.id, subId) });
     },
 
-    /*
-     * TB-148 — projects. They change no item, so nothing is shown before it's saved; they queue on
-     * their own key, one after another, like an item's changes.
-     */
+    comment(t: WorkItem, text: string, msgs: Messages = {}) {
+      const c = { id: newId("c"), ts: Date.now(), at: momentLabel(), side: side ?? "team", name: repo.actor.name, text: text.trim() };
+      return run({ ...msgs, itemId: t.id, set: { comments: [...t.comments, c] }, call: () => repo.comment(t.id, { id: c.id, text }), retry: () => void actions.comment(t, text, msgs) });
+    },
+  };
+  return actions;
+}
+
+/**
+ * TB-148 — projects. They change no item, so nothing is shown before it's saved; they queue on
+ * their own key, one after another, like an item's changes.
+ */
+function projectActions(repo: WorkRepository) {
+  const actions = {
     createProject(name: string, msgs: Messages = {}, id = newId("p")): Promise<string | null> {
       return run({ success: `Added the project “${name.trim()}”`, ...msgs, itemId: `project:${id}`, call: () => repo.createProject({ id, name }), retry: () => void actions.createProject(name, msgs, id) }).then((ok) => (ok ? id : null));
     },
@@ -432,13 +453,13 @@ export function makeActions(repo: WorkRepository) {
     reopenProject(p: WorkProject, msgs: Messages = {}) {
       return run({ success: `Reopened “${p.name}”`, ...msgs, itemId: `project:${p.id}`, call: () => repo.reopenProject(p.id) });
     },
-
-    comment(t: WorkItem, text: string, msgs: Messages = {}) {
-      const c = { id: newId("c"), ts: Date.now(), at: momentLabel(), side: side ?? "team", name: repo.actor.name, text: text.trim() };
-      return run({ ...msgs, itemId: t.id, set: { comments: [...t.comments, c] }, call: () => repo.comment(t.id, { id: c.id, text }), retry: () => void actions.comment(t, text, msgs) });
-    },
   };
   return actions;
+}
+
+/** Every change the UI can make, run as the repository's person. */
+function makeActions(repo: WorkRepository) {
+  return { repo, ...itemActions(repo), ...archiveActions(repo), ...partActions(repo), ...projectActions(repo) };
 }
 
 export type WorkActions = ReturnType<typeof makeActions>;

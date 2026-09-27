@@ -8,7 +8,7 @@ import { PanelCard } from "@/components/portal/PanelCard";
 import { StatusCircle, type TaskPeople } from "@/components/portal/tasks/task-bits";
 import { AssigneeChip } from "@/components/workspace/meta";
 import { ago } from "@/components/workspace/util";
-import type { JobType } from "@/lib/demo/job-types";
+import { keyed } from "@/lib/portal/keys";
 import { writeParams } from "@/lib/portal/query-state";
 import { dayOf, relativeLabel, shortLabel, todayDay, type Day } from "@/lib/work/dates";
 import { countsOf, isArchived, isCompleted, isOverdue, refOf, scoredItems, STATUS_META, STATUSES, type WorkItem } from "@/lib/work/model";
@@ -89,10 +89,6 @@ export function ContractOverview({
   );
 }
 
-/** What the pay is called on each kind of contract. */
-export const payLabel = (type: JobType) => (type === "full-time" ? "Salary" : type === "trial" ? "Budget" : "Rate");
-
-
 function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; trial: boolean }) {
   const counts = countsOf(items, today);
   const done = items.filter((t) => isCompleted(t.status));
@@ -155,19 +151,7 @@ function Metric({ value, label, big = false, danger = false }: { value: string; 
  * Independent — and anything overdue that's theirs to move.
  */
 function Attention({ items, today, viewer, names, work }: { items: WorkItem[]; today: Day; viewer: Viewer; names: Record<Viewer, string>; work: { open: boolean; reviewOpen: boolean } }) {
-  const rows: { t: WorkItem; why: string }[] = [];
-  const seen = new Set<string>();
-  const add = (t: WorkItem, why: string) => {
-    if (seen.has(t.id)) return;
-    seen.add(t.id);
-    rows.push({ t, why });
-  };
-  if (viewer === "team" && work.reviewOpen) for (const t of items) if (t.status === "review" && t.assignee === "independent") add(t, "Waiting on your review");
-  if (viewer === "independent" && work.open) for (const t of items) if (t.assignee === "independent" && t.changes && (t.status === "todo" || t.status === "doing")) add(t, `${names.team} asked for changes`);
-  for (const t of work.open ? items : []) {
-    const due = dayOf(t.due);
-    if (due !== null && isOverdue(t, today) && (viewer === "team" || t.assignee === "independent")) add(t, `Overdue · was due ${due === today - 1 ? "yesterday" : shortLabel(due, today)}`);
-  }
+  const rows = attentionRows(items, today, viewer, names, work);
   return (
     <PanelCard title="Needs attention" aside={rows.length > 0 ? <Count n={rows.length} /> : undefined}>
       {rows.length === 0 ? (
@@ -185,6 +169,24 @@ function Attention({ items, today, viewer, names, work }: { items: WorkItem[]; t
       <More total={rows.length} />
     </PanelCard>
   );
+}
+
+/** Needs attention's rows, each item once with the first reason found: a review or changes asked for, then overdue. */
+function attentionRows(items: WorkItem[], today: Day, viewer: Viewer, names: Record<Viewer, string>, work: { open: boolean; reviewOpen: boolean }) {
+  const rows: { t: WorkItem; why: string }[] = [];
+  const seen = new Set<string>();
+  const add = (t: WorkItem, why: string) => {
+    if (seen.has(t.id)) return;
+    seen.add(t.id);
+    rows.push({ t, why });
+  };
+  if (viewer === "team" && work.reviewOpen) for (const t of items) if (t.status === "review" && t.assignee === "independent") add(t, "Waiting on your review");
+  if (viewer === "independent" && work.open) for (const t of items) if (t.assignee === "independent" && t.changes && (t.status === "todo" || t.status === "doing")) add(t, `${names.team} asked for changes`);
+  for (const t of work.open ? items : []) {
+    const due = dayOf(t.due);
+    if (due !== null && isOverdue(t, today) && (viewer === "team" || t.assignee === "independent")) add(t, `Overdue · was due ${due === today - 1 ? "yesterday" : shortLabel(due, today)}`);
+  }
+  return rows;
 }
 
 /** Everything still open that's due in the next two weeks, by day. */
@@ -230,8 +232,8 @@ function RecentChanges({ items }: { items: WorkItem[] }) {
         <p className="text-[13px] leading-[1.4] text-ink-2">Nothing has happened on the work yet.</p>
       ) : (
         <ol className="-mx-2 flex flex-col">
-          {feed.map((f, i) => (
-            <li key={`${f.t.id}-${f.ts}-${i}`}>
+          {keyed(feed, (f) => `${f.t.id}-${f.ts}`).map(({ item: f, key }) => (
+            <li key={key}>
               <button type="button" onClick={() => openWork(f.t.id)} className="flex w-full items-start gap-3 rounded-md px-2 py-2 text-left hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary">
                 <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[#c3c3c3]" />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">

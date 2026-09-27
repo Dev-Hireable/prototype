@@ -20,6 +20,9 @@ export function QuizGate({ side, children }: { side: WorkStyleSide; children: Re
   const due = hydrated && !quizTaken(side);
 
   useEffect(() => {
+    // Only this browser knows whether the quiz was taken, so no server redirect can; nothing of the
+    // portal shows meanwhile (null below).
+    // react-doctor-disable-next-line react-doctor/nextjs-no-client-side-redirect
     if (due) router.replace(quizPath(side));
   }, [due, router, side]);
 

@@ -4,6 +4,8 @@ import { Button, Card, Chip, Page, StatusDot, Toast, useToast } from "@/componen
 import { CardHeading } from "@/components/team/ui";
 import { PLAN, PLANS } from "@/lib/team/data";
 
+type Plan = (typeof PLANS)[number];
+
 /** TB-101 "View Subscription Plan" — read-only, with the upgrade path as the only action. */
 export default function Subscription() {
   const [toast, setToast] = useToast();
@@ -20,22 +22,7 @@ export default function Subscription() {
           <StatusDot tone="ok">Active</StatusDot>
         </div>
 
-        <dl className="flex flex-col gap-3 rounded-lg bg-surface-2 p-4 text-[14px] leading-[1.4]">
-          {(
-            [
-              ["Plan", current.name],
-              ["Billing cycle", PLAN.cycle],
-              ["Price", `${current.price} ${PLAN.cycle === "Monthly" ? "per month" : "per year"}`],
-              ["Renews on", PLAN.renews],
-              ["Billed to", PLAN.billedTo],
-            ] as const
-          ).map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-4">
-              <dt className="text-ink-2">{k}</dt>
-              <dd className="font-medium text-ink">{v}</dd>
-            </div>
-          ))}
-        </dl>
+        <PlanTerms current={current} />
 
         <div className="flex flex-col gap-2">
           <p className="text-[14px] leading-[1.4] font-medium text-ink">What’s included</p>
@@ -61,23 +48,52 @@ export default function Subscription() {
         </div>
       </Card>
 
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-6">
-        <CardHeading>Other plans</CardHeading>
-        {PLANS.filter((p) => p.name !== current.name).map((p) => (
-          <div key={p.name} className="flex items-center gap-3 border-t border-border py-3 first:border-t-0">
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.4]">
-              <p className="flex items-center gap-2 text-[14px] font-semibold text-ink">
-                {p.name} <Chip size="sm">{p.price}</Chip>
-              </p>
-              <p className="truncate text-[12.5px] text-ink-2">{p.features[0]}</p>
-            </div>
-            <Button size="sm" onClick={() => setToast(`Switch to ${p.name} opens here`)}>
-              Switch
-            </Button>
-          </div>
-        ))}
-      </Card>
+      <OtherPlans current={current} onToast={setToast} />
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
+  );
+}
+
+/** The plan's terms: its name, the billing cycle, the price, when it renews and what it's billed to. */
+function PlanTerms({ current }: { current: Plan }) {
+  return (
+    <dl className="flex flex-col gap-3 rounded-lg bg-surface-2 p-4 text-[14px] leading-[1.4]">
+      {(
+        [
+          ["Plan", current.name],
+          ["Billing cycle", PLAN.cycle],
+          ["Price", `${current.price} ${PLAN.cycle === "Monthly" ? "per month" : "per year"}`],
+          ["Renews on", PLAN.renews],
+          ["Billed to", PLAN.billedTo],
+        ] as const
+      ).map(([k, v]) => (
+        <div key={k} className="flex justify-between gap-4">
+          <dt className="text-ink-2">{k}</dt>
+          <dd className="font-medium text-ink">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Every plan this account isn't on: its price and headline feature, and Switch. */
+function OtherPlans({ current, onToast }: { current: Plan; onToast: (message: string) => void }) {
+  return (
+    <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-6">
+      <CardHeading>Other plans</CardHeading>
+      {PLANS.filter((p) => p.name !== current.name).map((p) => (
+        <div key={p.name} className="flex items-center gap-3 border-t border-border py-3 first:border-t-0">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.4]">
+            <p className="flex items-center gap-2 text-[14px] font-semibold text-ink">
+              {p.name} <Chip size="sm">{p.price}</Chip>
+            </p>
+            <p className="truncate text-[12.5px] text-ink-2">{p.features[0]}</p>
+          </div>
+          <Button size="sm" onClick={() => onToast(`Switch to ${p.name} opens here`)}>
+            Switch
+          </Button>
+        </div>
+      ))}
+    </Card>
   );
 }

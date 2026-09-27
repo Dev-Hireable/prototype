@@ -15,7 +15,6 @@ import { migrateItems } from "@/lib/work/migrate";
 import type { WorkProject } from "@/lib/work/model";
 import { isCompleted } from "@/lib/work/model";
 
-export { today } from "@/lib/demo/dates";
 
 /**
  * The one engagement the demo is about, held where both portals can see it.
@@ -277,7 +276,7 @@ export type Posting = {
  * TB-018 — at or above this, an application is a match: the Team Builder's tracker files it
  * under Matched rather than Candidates, on both sides and for records made before the rule.
  */
-export const MATCH_THRESHOLD = 80;
+const MATCH_THRESHOLD = 80;
 
 /** The stage to show for a deal — a strong enough application reads as a match. */
 export const stageOf = (deal: Deal): Stage => (deal.stage === "applied" && deal.match >= MATCH_THRESHOLD ? "matched" : deal.stage);
@@ -308,9 +307,6 @@ export function contractTypeOf(deal: Deal | null): JobType {
   if (deal?.conversion?.status === "accepted") return deal.conversion.type;
   return deal?.offer?.type ?? "trial";
 }
-
-/** An open offer the talent can still answer. */
-export const offerOpen = (deal: Deal | null) => deal?.offer?.status === "sent";
 
 /**
  * `invites`: the roles the Team Builder has invited the talent to apply to (TB-017), by role slug,
@@ -604,7 +600,7 @@ export function resetUnreadableDeal() {
 }
 
 /** A posting still taking applications. */
-export const isOpen = (p: Posting) => !p.filled && !p.closed;
+export const isPostingOpen = (p: Posting) => !p.filled && !p.closed;
 
 /** TB-026 — publishing (or reopening) puts the role in front of the talent. */
 export function publishPosting(posting: Posting) {
@@ -685,16 +681,14 @@ export function consumeInvite(roleSlug: string) {
 }
 
 const NO_INVITES: Record<string, number> = {};
-/** The roles the talent has an open invite to apply to. */
+/** The roles the talent has an open invite to apply to — now, for an action; `useInvites` in render. */
+export function getInvites(): Record<string, number> {
+  ensureLoaded();
+  return snapshot.invites ?? NO_INVITES;
+}
+
 export function useInvites(): Record<string, number> {
-  return useSyncExternalStore(
-    subscribe,
-    () => {
-      ensureLoaded();
-      return snapshot.invites ?? NO_INVITES;
-    },
-    () => NO_INVITES,
-  );
+  return useSyncExternalStore(subscribe, getInvites, () => NO_INVITES);
 }
 
 export function clearDeal() {
@@ -743,18 +737,6 @@ export function activityOf(contract: NonNullable<Deal["contract"]>, now = new Da
   return { activity: days, streak };
 }
 
-/**
- * A contract signed ahead of its first day — a role posted to start in two weeks, say. Until then
- * it reads "Starts 09 Oct 2026" rather than Active, and the tracker waits instead of calling the
- * talent Unresponsive for days they weren't due to work.
- */
-export function startsLater(contract: NonNullable<Deal["contract"]>, now = new Date()) {
-  const from = parseDay(contract.started);
-  const day = new Date(now);
-  day.setHours(0, 0, 0, 0);
-  return !!from && from > day;
-}
-
 /** Every evaluation on the contract, newest first, including one saved before the list existed. */
 export const evaluationsOf = (contract: Deal["contract"]): DealEvaluation[] => contract?.evaluations ?? (contract?.evaluation ? [contract.evaluation] : []);
 
@@ -765,7 +747,7 @@ export const evaluationsOf = (contract: Deal["contract"]): DealEvaluation[] => c
 export const trialEvaluationOf = (deal: Deal | null): DealEvaluation | undefined => (startedAsTrial(deal) ? evaluationsOf(deal?.contract).at(-1) : undefined);
 
 /** The deal's facts, as the lifecycle reads them (@/lib/contract/lifecycle). */
-export function factsOf(deal: Deal): ContractFacts | null {
+function factsOf(deal: Deal): ContractFacts | null {
   const c = deal.contract;
   if (!c) return null;
   const trial = trialTasks(c.tasks);

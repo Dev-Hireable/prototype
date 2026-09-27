@@ -1,22 +1,22 @@
 "use client";
 
-import { layoutClasses, Tip } from "@/components/portal/Tip";
+import { Tip } from "@/components/portal/Tip";
 import Link from "next/link";
-import { useEffect, useId, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ICONS, type IconName } from "@/components/admin/icons";
-import { Badge } from "@/components/portal/Badge";
+import { ICONS } from "@/components/admin/icons";
+import { Badge, type Tone } from "@/components/portal/Badge";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/ScrollFade";
-import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON } from "@/components/portal/styles";
+import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses } from "@/components/portal/styles";
 import { Checkbox as CheckboxControl } from "@/components/ui/checkbox";
 import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { JobType } from "@/lib/demo/job-types";
+import { keyed } from "@/lib/portal/keys";
 
-export { KebabMenu, MenuAction, MenuLink, Select } from "@/components/portal/controls";
-export type { SelectProps } from "@/components/portal/controls";
+export { KebabMenu, Select } from "@/components/portal/controls";
 
 /* ---------------------------------------------------------------- page ---- */
 
@@ -51,7 +51,6 @@ export function Page({
   /** One header strip for every page: 24 DM Sans by default; "modal" is the 20 Inter close-button variant (offer / edit screens). */
   heading?: "modal" | "display";
 }) {
-  const Close = ICONS.close;
   /**
    * The page's one side gutter: the title, the tabs, the back link and the content all start on
    * the same line — the 40px the content has always used. A filled page (a workspace) tightens it
@@ -60,66 +59,92 @@ export function Page({
   const inset = fill ? "pl-10 max-sm:pl-4" : "pl-10";
   return (
     <>
-      <header className="shrink-0 shadow-[inset_0_-1px_0_#c3c3c3]">
-        {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it.
-            It ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
-        <div className={`flex h-14 items-center justify-between gap-3 ${inset} ${CLEAR_DEMO_RESET}`}>
-          <h1
-            className={`flex items-center gap-2 text-ink ${
-              heading === "display"
-                ? "font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px]"
-                : "text-[20px] leading-[1.5] font-semibold tracking-[0.4px]"
-            }`}
-            style={heading === "display" ? { fontVariationSettings: '"opsz" 14' } : undefined}
-          >
-            {title}
-            {badge}
-          </h1>
-          {onClose && (
-            <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -mr-1.5 size-10`}>
-              <Close size={24} aria-hidden />
-            </button>
-          )}
-        </div>
-        {/* No bottom padding: the active tab's 2px underline has to sit on the header's own rule, not float above it. */}
-        {tabs && <div className={`${inset} pr-10`}>{tabs}</div>}
-      </header>
-      {/* One place for every back link and breadcrumb: pinned under the header, in the 40px page
-          gutter, outside the centred content column — so it sits at the same spot on every page,
-          padded or full-bleed, at any window width, and never scrolls away. It used to live inside
-          each layout's own column, so it moved between pages (and the wizard drew its own). Pages
-          whose back link only sometimes appears still pass `nav`, so the row is always reserved. */}
-      {nav && (
-        <div className={`shrink-0 px-10 pt-4 ${fill ? "max-sm:px-4" : ""}`}>
-          <PageNav actions={navActions}>{nav}</PageNav>
-        </div>
-      )}
-      {/* Only the top gutter is on this wrapper. The side and bottom gutters are padding inside the
-          scroller, so the scroller — and its scrollbar — runs to the panel's edges on every page:
-          the bar sits 8px from the edge here just as on the full-bleed pages, and content fades out
-          at the edge instead of stopping short. With the gutters out here the vertical bar floated
-          40px in from the right, and content cut off 40px above the bottom over an empty strip.
-          The content itself doesn't move: the padding keeps it exactly where the wrapper did.
-          The width cap goes on the inner column, matching AdminPage. 40px matches DashboardFrame's own
-          gutter, so every portal page sits the same distance from the shell. `padded={false}` pages
-          set their own (wizards, the kanban, the dashboards). Under a nav row the top gutter
-          shrinks: the row already spaces it. */}
+      <PageHeader title={title} badge={badge} onClose={onClose} tabs={tabs} inset={inset} heading={heading} />
+      {nav && <PageNavRow nav={nav} actions={navActions} fill={fill} />}
       {/* A filled page's content lines up with the nav row: --ws-gutter is the side gutter a
           workspace pads its toolbar and views with — the same 40px, or 16px on a phone. */}
       {fill ? (
         <div className={`flex min-h-0 min-w-0 flex-1 flex-col [--ws-gutter:2.5rem] max-sm:[--ws-gutter:1rem] ${nav ? "pt-3" : ""}`}>{children}</div>
       ) : (
-        <div className={`flex min-h-0 flex-1 ${padded ? (nav ? "pt-4" : "pt-10") : ""}`}>
-          <ScrollFade className="flex w-full min-w-0">
-            {/* Full-bleed pages get a flex column, so a full-height child (the kanban boards) grows into
-                the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
-                gutter plus the column's own 8px, as before; `min-h-full` counts it (border-box), so a
-                page that fits doesn't gain any scroll. */}
-            <div className={`edge-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
-          </ScrollFade>
-        </div>
+        <PageScroller padded={padded} underNav={!!nav}>
+          {children}
+        </PageScroller>
       )}
     </>
+  );
+}
+
+/** The header strip: the title and its badge on the one 56px row, the close button, and the tabs hanging below. */
+function PageHeader({ title, badge, onClose, tabs, inset, heading }: { title: ReactNode; badge?: ReactNode; onClose?: () => void; tabs?: ReactNode; inset: string; heading: "modal" | "display" }) {
+  const Close = ICONS.close;
+  return (
+    <header className="shrink-0 shadow-[inset_0_-1px_0_#c3c3c3]">
+      {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it.
+          It ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
+      <div className={`flex h-14 items-center justify-between gap-3 ${inset} ${CLEAR_DEMO_RESET}`}>
+        <h1
+          className={`flex items-center gap-2 text-ink ${
+            heading === "display"
+              ? "font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px]"
+              : "text-[20px] leading-[1.5] font-semibold tracking-[0.4px]"
+          }`}
+          style={heading === "display" ? { fontVariationSettings: '"opsz" 14' } : undefined}
+        >
+          {title}
+          {badge}
+        </h1>
+        {onClose && (
+          <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -mr-1.5 size-10`}>
+            <Close size={24} aria-hidden />
+          </button>
+        )}
+      </div>
+      {/* No bottom padding: the active tab's 2px underline has to sit on the header's own rule, not float above it. */}
+      {tabs && <div className={`${inset} pr-10`}>{tabs}</div>}
+    </header>
+  );
+}
+
+/**
+ * One place for every back link and breadcrumb: pinned under the header, in the 40px page gutter,
+ * outside the centred content column — so it sits at the same spot on every page, padded or
+ * full-bleed, at any window width, and never scrolls away. It used to live inside each layout's own
+ * column, so it moved between pages (and the wizard drew its own). Pages whose back link only
+ * sometimes appears still pass `nav`, so the row is always reserved.
+ */
+function PageNavRow({ nav, actions, fill }: { nav: ReactNode; actions?: ReactNode; fill: boolean }) {
+  return (
+    <div className={`shrink-0 px-10 pt-4 ${fill ? "max-sm:px-4" : ""}`}>
+      <PageNav actions={actions}>{nav}</PageNav>
+    </div>
+  );
+}
+
+/**
+ * A page that isn't `fill`: its content in the page scroller, which runs to the panel's edges — a
+ * padded page's gutters are padding inside it, around the centred column.
+ */
+function PageScroller({ padded, underNav, children }: { padded: boolean; underNav: boolean; children: ReactNode }) {
+  return (
+    // Only the top gutter is on this wrapper. The side and bottom gutters are padding inside the
+    // scroller, so the scroller — and its scrollbar — runs to the panel's edges on every page: the
+    // bar sits 8px from the edge here just as on the full-bleed pages, and content fades out at the
+    // edge instead of stopping short. With the gutters out here the vertical bar floated 40px in
+    // from the right, and content cut off 40px above the bottom over an empty strip. The content
+    // itself doesn't move: the padding keeps it exactly where the wrapper did. The width cap goes on
+    // the inner column, matching AdminPage. 40px matches DashboardFrame's own gutter, so every
+    // portal page sits the same distance from the shell. `padded={false}` pages set their own
+    // (wizards, the kanban, the dashboards). Under a nav row the top gutter shrinks: the row already
+    // spaces it.
+    <div className={`flex min-h-0 flex-1 ${padded ? (underNav ? "pt-4" : "pt-10") : ""}`}>
+      <ScrollFade className="flex w-full min-w-0">
+        {/* Full-bleed pages get a flex column, so a full-height child (the kanban boards) grows into
+            the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
+            gutter plus the column's own 8px, as before; `min-h-full` counts it (border-box), so a
+            page that fits doesn't gain any scroll. */}
+        <div className={`edge-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
+      </ScrollFade>
+    </div>
   );
 }
 
@@ -231,21 +256,6 @@ export function MessageButton({ href, children = "Message", size = "md", classNa
   );
 }
 
-export function IconButton({ icon, label, onClick, active, size = 16, className = "" }: { icon: IconName; label: string; onClick?: () => void; active?: boolean; size?: number; className?: string }) {
-  const I = ICONS[icon];
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      aria-pressed={active}
-      onClick={onClick}
-      className={`inline-flex size-8 items-center justify-center rounded-lg border border-border bg-white text-ink-2 hover:bg-surface-alt ${active ? "border-primary text-primary" : ""} ${className}`}
-    >
-      <I size={size} aria-hidden />
-    </button>
-  );
-}
-
 /* -------------------------------------------------------------- surfaces -- */
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -254,18 +264,6 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 
 export function CardTitle({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <h2 className={`text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink ${className}`}>{children}</h2>;
-}
-
-export function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <Card className="flex min-w-0 flex-1 flex-col gap-1 p-4 whitespace-nowrap">
-      <p className="text-[13px] leading-[1.4] font-medium text-ink-2">{label}</p>
-      <p className="font-display text-[24px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-        {value}
-      </p>
-      {sub && <p className="text-[13px] leading-[1.4] text-ink-2">{sub}</p>}
-    </Card>
-  );
 }
 
 export function KeyValue({ label, value }: { label: string; value: ReactNode }) {
@@ -344,8 +342,6 @@ export function MatchPill({ pct, coded = false, title, size = "md" }: { pct: num
   );
 }
 
-export type Tone = "ok" | "warn" | "danger" | "info" | "neutral" | "trial";
-
 /** A tinted status pill — the shared Badge. It used to lead with a 6px dot, which said nothing the
  *  pill didn't already; the name stays so the call sites don't change. */
 export function StatusDot({ tone, children }: { tone: Tone; children: ReactNode }) {
@@ -417,9 +413,9 @@ export function Highlight({ text, query }: { text: string; query: string }) {
   const parts = text.split(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "ig"));
   return (
     <span>
-      {parts.map((part, i) =>
+      {keyed(parts, (p) => p).map(({ item: part, key }) =>
         part.toLowerCase() === q.toLowerCase() ? (
-          <mark key={i} className="rounded-[3px] bg-[#fff2c2] text-inherit">
+          <mark key={key} className="rounded-[3px] bg-[#fff2c2] text-inherit">
             {part}
           </mark>
         ) : (
@@ -509,41 +505,91 @@ export function Tabs<T extends string>({ value, onChange, options, className = "
 }
 
 /** The look of an underlined tab on shadcn's TabsTrigger: 2px #00a7f8 rule under the open one. */
-export const UNDERLINE_TAB =
+const UNDERLINE_TAB =
   "h-9 flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-2 text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink-2 shadow-none after:hidden hover:text-ink focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-active:border-[#00a7f8] data-active:text-ink";
-
-export function Progress({ value, tone = "primary", label, className = "w-[220px]" }: { value: number; tone?: "primary" | "ok" | "warn" | "danger" | "muted"; label?: boolean; className?: string }) {
-  const c = {
-    primary: "bg-primary",
-    ok: "bg-ok",
-    warn: "bg-brand-orange",
-    danger: "bg-danger",
-    muted: "bg-border",
-  }[tone];
-  return (
-    <span className={`inline-flex h-[18px] items-center gap-1 ${className}`}>
-      <span className="block h-2.5 min-w-0 flex-1 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
-        <span className={`block h-full rounded-full ${c}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
-      </span>
-      {label && <span className="w-10 text-center text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{value}%</span>}
-    </span>
-  );
-}
 
 /* ---------------------------------------------------------------- modal --- */
 
-export function Modal({
-  open,
-  onClose,
-  title,
-  description,
-  children,
-  footer,
-  tone = "default",
-  width = 512,
-  bare = false,
-  closeButton = false,
-}: {
+/**
+ * The last few elements that had the focus, newest last: where a closing Modal hands it back. The
+ * opener itself may be gone by then — a menu item, whose menu closed as it opened the dialog — so
+ * the focus goes to the latest one still on the page, the menu's button.
+ */
+const focusTrail: HTMLElement[] = [];
+let trailing = false;
+function trackFocus() {
+  if (trailing) return;
+  trailing = true;
+  document.addEventListener("focusin", (e) => {
+    if (!(e.target instanceof HTMLElement)) return;
+    focusTrail.push(e.target);
+    if (focusTrail.length > 8) focusTrail.shift();
+  });
+}
+
+const FOCUSABLE = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, iframe, audio[controls], video[controls], [tabindex], [contenteditable="true"]';
+
+/**
+ * What Tab stops on inside `box`, in order: enabled and on screen, and not an item a roving group
+ * (tabs, a toggle group) holds at tabindex -1. A video's controls count though its tabIndex may not say.
+ */
+const tabStops = (box: HTMLElement) =>
+  [...box.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => !el.matches(":disabled") && (el.tabIndex >= 0 || (el.matches("audio, video") && !el.hasAttribute("tabindex"))) && el.getClientRects().length > 0);
+
+/** Tab and Shift+Tab go round the dialog's own controls instead of out to the page behind it. */
+function keepTabInside(e: KeyboardEvent<HTMLDivElement>) {
+  if (e.key !== "Tab" || e.defaultPrevented) return;
+  const box = e.currentTarget;
+  const stops = tabStops(box);
+  const first = stops[0];
+  const last = stops.at(-1);
+  if (!first || !last) return e.preventDefault();
+  const at = document.activeElement;
+  if (e.shiftKey ? at === first || at === box : at === last) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  }
+}
+
+/** Escape closes the dialog while it's open — unless a popup inside it claimed the key first. */
+function useCloseOnEscape(open: boolean, onClose: () => void) {
+  const close = useEffectEvent(onClose);
+  useEffect(() => {
+    if (!open) return;
+    // A popup inside the dialog (a Select menu, the date picker) claims Escape with preventDefault;
+    // it closes that popup, not the whole dialog.
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === "Escape" && !e.defaultPrevented && close();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+}
+
+/**
+ * The focus while the dialog is open: it moves in on opening, and on closing goes back to the page —
+ * to the latest element on the focus trail that's still there. Returns the ref for the dialog's panel.
+ */
+function useFocusInside(open: boolean, mounted: boolean) {
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = panel.current;
+    if (!open || !mounted || !box) return;
+    // Where the focus was before opening, kept now: tabbing round the dialog moves the trail on.
+    const before = focusTrail.filter((el) => !box.contains(el));
+    // Opening takes the focus into the dialog, unless a field inside already has it (autoFocus).
+    if (!box.contains(document.activeElement)) box.focus({ preventScroll: true });
+    // Closing drops the focus on <body> with the dialog: hand it back to the page. Checked a tick
+    // later, so Strict Mode's rehearsal unmount (the dialog stays, and keeps the focus) does nothing.
+    return () =>
+      queueMicrotask(() => {
+        if (document.activeElement && document.activeElement !== document.body) return;
+        before.findLast((el) => el.isConnected && el !== document.body)?.focus({ preventScroll: true });
+      });
+  }, [open, mounted]);
+  return panel;
+}
+
+/** A dialog: its title (always its accessible name) and description, its content and footer, and its look. */
+type ModalProps = {
   open: boolean;
   onClose: () => void;
   title: string;
@@ -557,30 +603,32 @@ export function Modal({
   /** Hand the whole panel to `children`: no padding, no title row, no footer row. For designs
    * that own their chrome — a header bar, panes that reach the edges, a footer of their own. */
   bare?: boolean;
-}) {
+};
+
+export function Modal({ open, onClose, title, description, children, footer, tone = "default", width = 512, bare = false, closeButton = false }: ModalProps) {
   const id = useId();
   const X = ICONS.close;
-  const W = ICONS.warning;
   const mounted = useSyncExternalStore(NOOP_SUBSCRIBE, CLIENT_MOUNTED, SERVER_MOUNTED);
-  useEffect(() => {
-    if (!open) return;
-    // A popup inside the dialog (a Select menu, the date picker) claims Escape with preventDefault;
-    // it closes that popup, not the whole dialog.
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !e.defaultPrevented && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  useEffect(trackFocus, []);
+  useCloseOnEscape(open, onClose);
+  const panel = useFocusInside(open, mounted);
   if (!open || !mounted || typeof document === "undefined") return null;
   // Portalled to <body>: page content sits inside ScrollFade's `isolate`, which would otherwise
   // trap this overlay in a stacking context that the shell's sidebar paints over.
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4" onClick={onClose}>
+      {/* Not a native <dialog>: showModal() makes everything outside it inert, and the Select menus
+          and date pickers inside portal to <body>. The focus is kept inside by hand instead. */}
+      {/* react-doctor-disable-next-line react-doctor/prefer-html-dialog */}
       <div
+        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className={`ui-zoom relative flex max-h-[calc(90vh/var(--ui-scale))] w-full flex-col rounded-xl bg-white ${bare ? "overflow-hidden" : "gap-5 overflow-y-auto p-6"}`}
+        onKeyDown={keepTabInside}
+        className={`ui-zoom relative flex max-h-[calc(90vh/var(--ui-scale))] w-full flex-col rounded-xl bg-white outline-none ${bare ? "overflow-hidden" : "gap-5 overflow-y-auto p-6"}`}
         style={{ maxWidth: width }}
       >
         {bare ? (
@@ -592,31 +640,41 @@ export function Modal({
           </>
         ) : (
           <>
-        <div className="flex items-start gap-3">
-          {tone === "danger" && (
-            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[#fcf2f2] text-danger">
-              <W size={14} aria-hidden />
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 id={id} className="text-[20px] leading-[1.4] font-semibold text-ink">
-              {title}
-            </h2>
-            {description && <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">{description}</p>}
-          </div>
-          {(tone === "danger" || closeButton) && (
-            <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
-              <X size={16} aria-hidden />
-            </button>
-          )}
-        </div>
-        {children}
-        {footer && <div className="flex justify-end gap-3">{footer}</div>}
+            <div className="flex items-start gap-3">
+              <ModalHeading id={id} title={title} description={description} danger={tone === "danger"} />
+              {(tone === "danger" || closeButton) && (
+                <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
+                  <X size={16} aria-hidden />
+                </button>
+              )}
+            </div>
+            {children}
+            {footer && <div className="flex justify-end gap-3">{footer}</div>}
           </>
         )}
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** The title row's words: a warning mark on a danger dialog, then the title — the dialog's name, `id` — and its description. */
+function ModalHeading({ id, title, description, danger }: { id: string; title: string; description?: ReactNode; danger: boolean }) {
+  const W = ICONS.warning;
+  return (
+    <>
+      {danger && (
+        <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[#fcf2f2] text-danger">
+          <W size={14} aria-hidden />
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <h2 id={id} className="text-[20px] leading-[1.4] font-semibold text-ink">
+          {title}
+        </h2>
+        {description && <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">{description}</p>}
+      </div>
+    </>
   );
 }
 
@@ -650,12 +708,13 @@ export function Toast({
   const lasts = action || tone === "danger" ? 8000 : 3500;
   /** Held while it's hovered or focused; the countdown starts again from the top once it's let go. */
   const [held, setHeld] = useState(false);
+  const mounted = useSyncExternalStore(NOOP_SUBSCRIBE, CLIENT_MOUNTED, SERVER_MOUNTED);
   useEffect(() => {
     if (!message || held) return;
     const timer = setTimeout(onClose, lasts);
     return () => clearTimeout(timer);
   }, [message, onClose, lasts, held]);
-  if (!message) return null;
+  if (!message || !mounted) return null;
   return createPortal(
     // aria-live spelled out, not just implied by the role: a modal (an item's sheet, say) hides
     // the rest of the page from screen readers, except live regions it can find by that attribute.
@@ -693,14 +752,14 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
   return (
     <ol className="relative flex h-14 w-full items-start">
       {steps.map((s, i) => {
-        // Figma "Header" stepper variants: done = blue ring + dot, current = grey ring + dot, upcoming = empty ring.
+        // Figma "Header" stepper colours — done blue, current grey, upcoming an empty ring — as solid
+        // discs. A ring with a dot inside read as half-filled, and its inner gap never looked even.
         const done = i < current;
         return (
-          <li key={s} className="relative flex h-14 min-w-0 flex-1 flex-col items-center gap-2">
-            {i < steps.length - 1 && <span aria-hidden className="pointer-events-none absolute top-[15px] left-1/2 h-1 w-full bg-border" />}
-            <span className={`relative z-10 flex size-8 items-center justify-center rounded-full border-2 bg-white ${done ? "border-primary" : "border-border"}`}>
-              <span className={`size-5 rounded-full ${done ? "bg-primary" : i === current ? "bg-border" : "bg-transparent"}`} />
-            </span>
+          <li key={s} aria-current={i === current ? "step" : undefined} className="relative flex h-14 min-w-0 flex-1 flex-col items-center gap-2">
+            {/* 4px tall at top 14px: centred on the 32px disc. */}
+            {i < steps.length - 1 && <span aria-hidden className="pointer-events-none absolute top-[14px] left-1/2 h-1 w-full bg-border" />}
+            <span className={`relative z-10 size-8 rounded-full ${done ? "bg-primary" : i === current ? "bg-border" : "border-2 border-border bg-white"}`} />
             <span className={`relative z-10 h-4 text-center text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${done ? "text-ink" : "text-ink-2"}`}>{s}</span>
           </li>
         );
@@ -711,7 +770,7 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
 
 /* ------------------------------------------------------ pipeline tracker --- */
 
-export const PIPELINE = [
+const PIPELINE = [
   { key: "applied", label: "Applied", major: true },
   { key: "matched", label: "Matched", major: true },
   { key: "invited", label: "Interview invitation received", major: false },
@@ -740,15 +799,11 @@ function milestoneColor(key: string) {
 }
 
 /**
- * Figma "Pipeline Tracker": a 16px rail (8px circles, 4px connectors) beside a label column —
- * majors 12px semibold / 16 tall, sub-statuses 10px indented 12, gap 16 (12 inside a sub group).
- * Rail colours: past majors #616161, current #007acc, connector below current #007acc, reached
- * sub-statuses above the current major #ff8112, everything else #f2f2f2. Milestone mode uses
- * the Figma palette: green, yellow, purple, orange, blue, then gray.
+ * The tracker's rows as they sit on the rail, top-down: each stage with `i`, its place in PIPELINE,
+ * and its top, centre (`cy`) and height; the rail's full height; and the majors among the rows. It's
+ * the same whatever the stage, so it's laid out once.
  */
-export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { stage: Stage; labels?: Partial<Record<Stage, string>>; mode?: "progress" | "milestone" }) {
-  const idx = PIPELINE.findIndex((p) => p.key === stage);
-  const milestoneMode = mode === "milestone";
+function layRail() {
   // Lay the reversed list out top-down and remember each row's centre y on the rail.
   const rows = [...PIPELINE].reverse();
   let y = 0;
@@ -760,46 +815,40 @@ export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { sta
     y += h;
     return row;
   });
-  const H = y;
-  const majors = laid.filter((p) => p.major);
+  return { laid, height: y, majors: laid.filter((p) => p.major) };
+}
+
+const RAIL = layRail();
+
+/** How far along the rail `stage` is: its index, the latest major reached, and the top reached sub-status above it. */
+function railProgress(stage: Stage) {
+  const idx = PIPELINE.findIndex((p) => p.key === stage);
   const currentMajor = [...PIPELINE]
     .slice(0, idx + 1)
     .reverse()
     .find((p) => p.major)?.key;
-  const topReachedSub = laid.find((p) => !p.major && p.i <= idx && p.i > (PIPELINE.findIndex((q) => q.key === currentMajor) ?? -1));
-  const cur = majors.find((m) => m.key === currentMajor);
+  const topReachedSub = RAIL.laid.find((p) => !p.major && p.i <= idx && p.i > (PIPELINE.findIndex((q) => q.key === currentMajor) ?? -1));
+  const cur = RAIL.majors.find((m) => m.key === currentMajor);
+  return { idx, currentMajor, topReachedSub, cur };
+}
 
+/**
+ * Figma "Pipeline Tracker": a 16px rail (8px circles, 4px connectors) beside a label column —
+ * majors 12px semibold / 16 tall, sub-statuses 10px indented 12, gap 16 (12 inside a sub group).
+ * Rail colours: past majors #616161, current #007acc, connector below current #007acc, reached
+ * sub-statuses above the current major #ff8112, everything else #f2f2f2. Milestone mode uses
+ * the Figma palette: green, yellow, purple, orange, blue, then gray.
+ */
+export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { stage: Stage; labels?: Partial<Record<Stage, string>>; mode?: "progress" | "milestone" }) {
+  const progress = railProgress(stage);
+  const { idx } = progress;
   return (
     <Card className="flex flex-col gap-6 p-4">
       <CardTitle className="text-ink-deep">Pipeline tracker</CardTitle>
       <div className="flex items-center gap-6 px-2 pb-2">
-        <span aria-hidden className="relative w-4 shrink-0" style={{ height: H }}>
-          {majors.map((m, k) => {
-            const next = majors[k + 1];
-            if (!next) return null;
-            const reached = m.i <= idx; // upper major reached → the whole connector is done
-            const color = milestoneMode ? (reached ? milestoneColor(m.key) : "bg-surface-2") : reached ? "bg-primary" : "bg-surface-2";
-            return <span key={m.key} className={`absolute left-1.5 w-1 ${color}`} style={{ top: m.cy, height: next.cy - m.cy }} />;
-          })}
-          {!milestoneMode && cur && topReachedSub && (
-            <span
-              className="absolute left-1.5 w-1 bg-brand-orange"
-              style={{
-                top: topReachedSub.cy,
-                height: cur.cy - topReachedSub.cy,
-              }}
-            />
-          )}
-          {majors.map((m) => (
-            <span
-              key={m.key}
-              className={`absolute left-0 size-4 rounded-full ${milestoneMode ? (m.i <= idx ? milestoneColor(m.key) : "bg-surface-2") : m.key === currentMajor ? "bg-primary" : m.i <= idx ? "bg-ink-2" : "bg-surface-2"}`}
-              style={{ top: m.cy - 8 }}
-            />
-          ))}
-        </span>
-        <ol className="relative shrink-0" style={{ height: H }}>
-          {laid.map((p) => (
+        <PipelineRail progress={progress} milestoneMode={mode === "milestone"} />
+        <ol className="relative shrink-0" style={{ height: RAIL.height }}>
+          {RAIL.laid.map((p) => (
             <li
               key={p.key}
               className={`absolute flex items-center leading-[1.2] tracking-[0.2px] whitespace-nowrap ${p.major ? "text-[12px] font-semibold" : "pl-3 text-[10px]"} ${
@@ -813,6 +862,39 @@ export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { sta
         </ol>
       </div>
     </Card>
+  );
+}
+
+/** The rail beside the labels: the connectors between majors, the orange run of reached sub-statuses, and a dot on each major. */
+function PipelineRail({ progress, milestoneMode }: { progress: ReturnType<typeof railProgress>; milestoneMode: boolean }) {
+  const { idx, currentMajor, topReachedSub, cur } = progress;
+  const { majors } = RAIL;
+  return (
+    <span aria-hidden className="relative w-4 shrink-0" style={{ height: RAIL.height }}>
+      {majors.map((m, k) => {
+        const next = majors[k + 1];
+        if (!next) return null;
+        const reached = m.i <= idx; // upper major reached → the whole connector is done
+        const color = milestoneMode ? (reached ? milestoneColor(m.key) : "bg-surface-2") : reached ? "bg-primary" : "bg-surface-2";
+        return <span key={m.key} className={`absolute left-1.5 w-1 ${color}`} style={{ top: m.cy, height: next.cy - m.cy }} />;
+      })}
+      {!milestoneMode && cur && topReachedSub && (
+        <span
+          className="absolute left-1.5 w-1 bg-brand-orange"
+          style={{
+            top: topReachedSub.cy,
+            height: cur.cy - topReachedSub.cy,
+          }}
+        />
+      )}
+      {majors.map((m) => (
+        <span
+          key={m.key}
+          className={`absolute left-0 size-4 rounded-full ${milestoneMode ? (m.i <= idx ? milestoneColor(m.key) : "bg-surface-2") : m.key === currentMajor ? "bg-primary" : m.i <= idx ? "bg-ink-2" : "bg-surface-2"}`}
+          style={{ top: m.cy - 8 }}
+        />
+      ))}
+    </span>
   );
 }
 

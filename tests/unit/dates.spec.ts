@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { addMonths, dayOf, daysInMonth, isoOf, longLabel, mondayOf, monthEnd, monthStart, parseMonth, partsOf, rangeLabel, relativeLabel, shortLabel, todayDay, weekdayOf, workingDays } from "../../src/lib/work/dates";
 
-test.describe("date-only values", () => {
+test.describe("date-only values · days, weeks and months", () => {
   test("round-trips real days and rejects anything else", () => {
     for (const s of ["2026-09-25", "2024-02-29", "1999-12-31", "2027-01-01"]) expect(isoOf(dayOf(s) as number)).toBe(s);
     for (const s of ["2026-02-29", "2026-13-01", "2026-00-10", "2026-09-31", "25 Sep 2026", "", "2026-9-5", null, undefined]) expect(dayOf(s)).toBeNull();
@@ -39,7 +39,9 @@ test.describe("date-only values", () => {
     const sat = dayOf("2026-09-26") as number;
     expect(workingDays(sat, sat + 1)).toEqual([]);
   });
+});
 
+test.describe("date-only values · local time", () => {
   test("today is the device's calendar date whatever the time of day", () => {
     // 23:30 and 00:30 local are different days; neither shifts through UTC.
     expect(isoOf(todayDay(new Date(2026, 8, 25, 23, 30)))).toBe("2026-09-25");
@@ -54,7 +56,9 @@ test.describe("date-only values", () => {
     expect(workingDays(dayOf("2026-10-30") as number, dayOf("2026-11-02") as number).map(isoOf)).toEqual(["2026-10-30", "2026-11-02"]);
     expect(partsOf(dayOf("2026-11-01") as number)).toEqual({ y: 2026, m: 11, d: 1 });
   });
+});
 
+test.describe("date-only values · labels", () => {
   test("labels read like the rest of the app", () => {
     const today = dayOf("2026-09-25") as number;
     expect(relativeLabel(today, today)).toBe("Today");

@@ -2,7 +2,8 @@ import { DisputeHistory } from "./DisputeHistory";
 import { LiveContractCard } from "./LiveContract";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ICONS } from "./icons";
-import { AdminPage, Button, Card, DataTable, StatCard, StatGrid } from "./ui";
+import { Button, Card } from "@/components/independent/ui";
+import { AdminPage, DataTable, StatCard, StatGrid } from "./ui";
 import type { ActivityEvent, Stat } from "@/lib/admin/data/users";
 
 /** Shared layout for the two account profile screens (stats row, activity log, dispute history). */
@@ -28,11 +29,13 @@ export function AccountDetail({
       title={title}
       actions={
         <>
-          <Button>
+          <Button size="sm">
             <ICONS.messages size={16} aria-hidden />
             Message
           </Button>
-          <Button variant="danger">Suspend</Button>
+          <Button size="sm" variant="danger">
+            Suspend
+          </Button>
         </>
       }
     >
@@ -46,22 +49,27 @@ export function AccountDetail({
 
         <LiveContractCard party={disputes.party} slug={disputes.slug} />
 
-        {activity.length > 0 ? (
-          <DataTable<ActivityEvent>
-            caption="Activity"
-            rows={activity}
-            columns={[
-              { header: "Event", cell: (r) => r.event },
-              { header: "Actor", cell: (r) => r.actor, width: "22%" },
-              { header: "When", cell: (r) => r.when, width: "20%" },
-            ]}
-          />
-        ) : (
-          <Card className="px-5 py-10 text-center text-sm text-muted">No activity recorded yet.</Card>
-        )}
+        <ActivityLog activity={activity} />
 
         <DisputeHistory party={disputes.party} slug={disputes.slug} />
       </div>
     </AdminPage>
+  );
+}
+
+/** The account's activity log: what happened, who did it and when — or a line saying nothing has yet. */
+function ActivityLog({ activity }: { activity: ActivityEvent[] }) {
+  return activity.length > 0 ? (
+    <DataTable<ActivityEvent>
+      caption="Activity"
+      rows={activity}
+      columns={[
+        { header: "Event", cell: (r) => r.event },
+        { header: "Actor", cell: (r) => r.actor, width: "22%" },
+        { header: "When", cell: (r) => r.when, width: "20%" },
+      ]}
+    />
+  ) : (
+    <Card className="px-5 py-10 text-center text-sm text-muted">No activity recorded yet.</Card>
   );
 }

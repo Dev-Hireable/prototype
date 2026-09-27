@@ -1,7 +1,7 @@
 "use client";
 
 import { StatusDot } from "@/components/independent/ui";
-import type { Tone } from "@/components/independent/ui";
+import type { Tone } from "@/components/portal/Badge";
 import { TraitTag } from "@/components/portal/TraitTag";
 import { traitFit, traitTagsFor, WORK_STYLE_TRAITS } from "@/lib/demo/work-style";
 import type { TraitFit } from "@/lib/demo/work-style";

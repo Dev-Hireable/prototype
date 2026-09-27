@@ -5,14 +5,16 @@ import { ProposalReview } from "@/components/portal/ProposalReview";
 import { proposalHistory, useDeal } from "@/lib/demo/deal";
 import type { Application } from "@/lib/independent/data";
 import { useJobView } from "@/lib/independent/job-view";
-import { useDemo } from "@/lib/independent/store";
+import { useIndependentAccount } from "@/lib/independent/account";
+import { useApplications } from "@/lib/independent/applications";
 
 /**
  * TB-106 — the talent's own proposal as the Team Builder reads it, with its history: the same
  * Review proposal dialog, opened from the application or in place from a proposal note in Messages.
  */
 export function ApplicationProposalDialog({ app, open, onClose, onToast }: { app: Application; open: boolean; onClose: () => void; onToast: (message: string) => void }) {
-  const { profile, commentOnProposal } = useDemo();
+  const { commentOnProposal } = useApplications();
+  const { profile } = useIndependentAccount();
   const job = useJobView(app);
   const deal = useDeal();
   const live = deal?.roleSlug === app.roleSlug ? deal : null;

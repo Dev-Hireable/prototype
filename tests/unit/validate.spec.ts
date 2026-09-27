@@ -6,7 +6,7 @@ import { item, iso, TODAY } from "./fixtures";
 
 const rules = { today: TODAY };
 
-test.describe("validation", () => {
+test.describe("validation · text", () => {
   test("titles are required, trimmed and bounded", () => {
     expect(checkTitle("  ")?.message).toMatch(/name/i);
     expect(checkTitle("Ship it")).toBeNull();
@@ -15,6 +15,16 @@ test.describe("validation", () => {
     expect(checkTitle("Überprüfung · 検証 🚀")).toBeNull();
   });
 
+  test("notes and comments", () => {
+    expect(checkNote("", true)?.message).toMatch(/what should change/);
+    expect(checkNote("", false)).toBeNull();
+    expect(checkNote("x".repeat(1001), false)?.field).toBe("note");
+    expect(checkComment("  ")?.field).toBe("comment");
+    expect(checkComment("Looks good")).toBeNull();
+  });
+});
+
+test.describe("validation · dates", () => {
   test("every start/due combination", () => {
     const t = { type: "task" as const };
     expect(checkDates({ ...t }, null, rules)).toBeNull();
@@ -54,7 +64,9 @@ test.describe("validation", () => {
     expect(checkDates({ type: "milestone", due: iso(2) }, null, rules)).toBeNull();
     expect(checkEffort(3, "milestone")?.field).toBe("effort");
   });
+});
 
+test.describe("validation · effort and tags", () => {
   test("effort is a whole number from 0 to 999", () => {
     for (const ok of [undefined, 0, 1, 13, 999]) expect(checkEffort(ok, "task")).toBeNull();
     for (const bad of [-1, 1.5, 1000, Number.NaN]) expect(checkEffort(bad, "task")?.field).toBe("effort");
@@ -68,7 +80,9 @@ test.describe("validation", () => {
     expect(checkTag("x".repeat(25), [])?.field).toBe("tags");
     expect(checkTag("nine", ["a", "b", "c", "d", "e", "f", "g", "h"])?.message).toMatch(/up to 8/);
   });
+});
 
+test.describe("validation · dependencies", () => {
   test("dependencies refuse self, duplicates, archived items and loops", () => {
     const a = item();
     const b = item({ dependsOn: [a.id] });
@@ -91,13 +105,5 @@ test.describe("validation", () => {
     const byId = indexById([done, open]);
     expect(checkDependency(open.id, done.id, byId)?.message).toBe(`#${done.number} is already done, so there's nothing to wait on.`);
     expect(checkDependency(done.id, open.id, byId)).toBeNull();
-  });
-
-  test("notes and comments", () => {
-    expect(checkNote("", true)?.message).toMatch(/what should change/);
-    expect(checkNote("", false)).toBeNull();
-    expect(checkNote("x".repeat(1001), false)?.field).toBe("note");
-    expect(checkComment("  ")?.field).toBe("comment");
-    expect(checkComment("Looks good")).toBeNull();
   });
 });

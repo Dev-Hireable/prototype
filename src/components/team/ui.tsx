@@ -7,16 +7,17 @@ import { ICONS } from "@/components/admin/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { Button, Chip, LinkButton, MatchPill, Toast, useToast } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
-import { TalentProfile } from "@/components/portal/TalentProfile";
+import { TalentProfile, type TalentProfileData } from "@/components/portal/TalentProfile";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { contractTypeOf, evaluationsOf, useDeal } from "@/lib/demo/deal";
+import { contractTypeOf, evaluationsOf, useDeal, type Deal } from "@/lib/demo/deal";
 import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
 import { traitTagsFor } from "@/lib/demo/work-style";
 import { pastEvaluations, type PastEvaluation } from "@/lib/independent/data";
 import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
-import { useDemo } from "@/lib/team/store";
+import { useSavedTalent } from "@/lib/team/saved";
+import { usePipeline } from "@/lib/team/pipeline";
 
 /** Figma "Avatars": round photo, grey #d2d8db ground. */
 export function Avatar({ src, size = 40, className = "" }: { src: string; size?: number; className?: string }) {
@@ -114,11 +115,6 @@ export function IndependentCard({
   /** Saved list only — TB-022 routes this through a confirmation prompt. */
   onRemove?: () => void;
 }) {
-  const { saved, toggleSaved, pipelineOf } = useDemo();
-  const withReturn = useWithReturn();
-  const inPipeline = pipelineOf(person.slug);
-  const isSaved = saved.includes(person.slug);
-  const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
     <article className="flex flex-col gap-3 rounded-lg bg-white p-5 outline -outline-offset-1 outline-border">
       <div className="flex items-center gap-3">
@@ -138,33 +134,7 @@ export function IndependentCard({
             <MatchPill pct={person.match} coded title={MATCH_TOOLTIP} />
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {variant === "saved" ? (
-            <Button size="sm" variant="danger" onClick={() => (onRemove ? onRemove() : toggleSaved(person.slug))}>
-              Remove
-            </Button>
-          ) : (
-            <button
-              type="button"
-              aria-label={isSaved ? "Unsave independent" : "Save independent"}
-              aria-pressed={isSaved}
-              onClick={() => toggleSaved(person.slug)}
-              className="flex size-7 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary"
-            >
-              <Mark size={16} aria-hidden />
-            </button>
-          )}
-          {/* Already a candidate: open their column on the role's board rather than a dead button. */}
-          {inPipeline ? (
-            <LinkButton size="sm" href={withReturn(pipelineHref(inPipeline))}>
-              View in pipeline
-            </LinkButton>
-          ) : (
-            <Button size="sm" variant="primary" onClick={onInvite}>
-              Invite to apply
-            </Button>
-          )}
-        </div>
+        <IndependentCardActions person={person} variant={variant} onInvite={onInvite} onRemove={onRemove} />
       </div>
       <p className="text-[14px] leading-[1.4] text-ink-2">
         {person.rate} · {person.level} · {person.location}
@@ -175,6 +145,48 @@ export function IndependentCard({
         ))}
       </div>
     </article>
+  );
+}
+
+/**
+ * The card's actions: Remove on the saved list, or the save toggle on Discover — then Invite to
+ * apply, or their column on the role's board once they're a candidate.
+ */
+function IndependentCardActions({ person, variant, onInvite, onRemove }: { person: Independent; variant: "discover" | "saved"; onInvite: () => void; onRemove?: () => void }) {
+  const { pipelineOf } = usePipeline();
+  const { saved, toggleSaved } = useSavedTalent();
+  const withReturn = useWithReturn();
+  const inPipeline = pipelineOf(person.slug);
+  const isSaved = saved.includes(person.slug);
+  const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      {variant === "saved" ? (
+        <Button size="sm" variant="danger" onClick={() => (onRemove ? onRemove() : toggleSaved(person.slug))}>
+          Remove
+        </Button>
+      ) : (
+        <button
+          type="button"
+          aria-label={isSaved ? "Unsave independent" : "Save independent"}
+          aria-pressed={isSaved}
+          onClick={() => toggleSaved(person.slug)}
+          className="flex size-7 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary"
+        >
+          <Mark size={16} aria-hidden />
+        </button>
+      )}
+      {/* Already a candidate: open their column on the role's board rather than a dead button. */}
+      {inPipeline ? (
+        <LinkButton size="sm" href={withReturn(pipelineHref(inPipeline))}>
+          View in pipeline
+        </LinkButton>
+      ) : (
+        <Button size="sm" variant="primary" onClick={onInvite}>
+          Invite to apply
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -338,6 +350,33 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
   );
 }
 
+/** The live pair's evaluations: the live engagement's first, then the ones from before it. */
+function pairHistory(deal: Deal | null): PastEvaluation[] {
+  return [
+    ...(deal ? evaluationsOf(deal.contract).map((e) => ({ company: deal.company, role: deal.title, type: contractTypeOf(deal), date: e.date, stars: e.stars, feedback: e.feedback })) : []),
+    ...pastEvaluations,
+  ];
+}
+
+/** The Team Builder's record of a talent, as TalentProfile draws it — with the intro video and history only the live pair has. */
+function profileData(person: Independent, introVideo: string | undefined, history: PastEvaluation[]): TalentProfileData {
+  return {
+    name: person.name,
+    headline: person.role,
+    photo: person.avatar,
+    intro: person.intro,
+    introVideo,
+    rate: person.rate,
+    level: person.level,
+    location: person.location,
+    bio: person.bio,
+    skills: person.skills,
+    tags: traitTagsFor(person.workStyle.independent, "independent"),
+    links: person.links ?? { linkedin: "", portfolio: "", website: "" },
+    history,
+  };
+}
+
 /**
  * A talent's profile as a Team Builder reads it (IN-060): the talent's own TalentProfile, with the
  * match beside the name and Invite to apply / Save as the actions. Their work style is the Workplace
@@ -373,31 +412,11 @@ export function TeamProfile({
   /** The intro video the live pair added to their own profile, which plays here too. */
   const introVideo = useIntroVideo();
   /** The live pair's evaluations are the ones the talent's own profile lists; nobody else has any on Hireable yet. */
-  const history: PastEvaluation[] =
-    pair
-      ? [
-          ...(deal ? evaluationsOf(deal.contract).map((e) => ({ company: deal.company, role: deal.title, type: contractTypeOf(deal), date: e.date, stars: e.stars, feedback: e.feedback })) : []),
-          ...pastEvaluations,
-        ]
-      : [];
+  const history = pair ? pairHistory(deal) : [];
   return (
     <TalentProfile
       viewer="team"
-      person={{
-        name: person.name,
-        headline: person.role,
-        photo: person.avatar,
-        intro: person.intro,
-        introVideo: pair ? (introVideo ?? undefined) : undefined,
-        rate: person.rate,
-        level: person.level,
-        location: person.location,
-        bio: person.bio,
-        skills: person.skills,
-        tags: traitTagsFor(person.workStyle.independent, "independent"),
-        links: person.links ?? { linkedin: "", portfolio: "", website: "" },
-        history,
-      }}
+      person={profileData(person, pair ? (introVideo ?? undefined) : undefined, history)}
       // The same gradient match pill as the Discover cards, at the header's size.
       badge={<MatchPill pct={person.match} title={MATCH_TOOLTIP} size="lg" />}
       actions={actions ?? <TeamProfileActions person={person} onInvite={onInvite} />}
@@ -412,7 +431,7 @@ export function TeamProfile({
 
 /** Invite to apply — or their column on the role's board once they're a candidate — and Save. */
 function TeamProfileActions({ person, onInvite }: { person: Independent; onInvite?: () => void }) {
-  const { pipelineOf } = useDemo();
+  const { pipelineOf } = usePipeline();
   const withReturn = useWithReturn();
   const inPipeline = pipelineOf(person.slug);
   return (
@@ -433,7 +452,7 @@ function TeamProfileActions({ person, onInvite }: { person: Independent; onInvit
 
 /** Save / Saved beside a profile's other actions. */
 export function SaveButton({ person }: { person: Independent }) {
-  const { saved, toggleSaved } = useDemo();
+  const { saved, toggleSaved } = useSavedTalent();
   const isSaved = saved.includes(person.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (

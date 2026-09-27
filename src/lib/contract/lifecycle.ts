@@ -26,7 +26,7 @@ import type { JobType, OngoingType } from "../demo/job-types";
 export type Phase = "starts" | "trial" | "evaluation" | "decision" | "offer" | "ongoing" | "ended";
 
 /** Days the Team Builder has after the trial's last day to send the evaluation. */
-export const EVALUATION_DAYS = 5;
+const EVALUATION_DAYS = 5;
 
 /**
  * The notice either side gives to end a full-time or part-time role — what the services agreements
@@ -117,7 +117,7 @@ export function noticeLastDay(type: OngoingType, given: Date): Date {
 }
 
 /** A post-trial offer still out on `now`: sent, and its start date hasn't gone by. */
-export const offerLive = (c: ContractFacts["conversion"], now = new Date()) => c?.status === "sent" && !past(c.start, now);
+const offerLive = (c: ContractFacts["conversion"], now = new Date()) => c?.status === "sent" && !past(c.start, now);
 
 function trialChapter(f: ContractFacts, now: Date): TrialChapter {
   const ends = f.ends ?? f.started;

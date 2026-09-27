@@ -9,7 +9,9 @@ import { EditButton } from "@/components/portal/InlineEdit";
 import { FlatBadge, TalentProfile } from "@/components/portal/TalentProfile";
 import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
 import { ME, pastEvaluations } from "@/lib/independent/data";
-import { useDemo } from "@/lib/independent/store";
+import type { Contract } from "@/lib/independent/data";
+import { useIndependentAccount, type Profile as ProfileData } from "@/lib/independent/account";
+import { useIndependentContracts } from "@/lib/independent/contracts";
 import { useQueryState } from "@/lib/portal/query-state";
 
 const Eye = ICONS.visibility;
@@ -26,38 +28,26 @@ type Edit = (typeof EDITS)[number];
  * modal, no separate page (IN-061, IN-062, IN-065). Your intro video is added from its own card.
  */
 export default function Profile() {
-  const { profile, setProfile, tags, contracts } = useDemo();
+  const { contracts } = useIndependentContracts();
+  const { profile, setProfile, tags } = useIndependentAccount();
   const router = useRouter();
-  /**
-   * IN-066 — every evaluation received, from live contracts first and closed engagements after.
-   * Read-only: nothing here can be edited or removed from this side.
-   */
-  const history = [
-    // Off the contracts themselves — this read an empty seed, so a submitted evaluation never showed.
-    ...contracts.flatMap((c) => c.evaluations.map((e) => ({ company: c.company, role: c.title, type: c.type, date: e.date, stars: e.stars, feedback: e.feedback }))),
-    ...pastEvaluations,
-  ];
   const [editing, setEditing] = useQueryState<Edit>("edit", "none", EDITS);
   const done = () => setEditing("none");
   const [retake, setRetake] = useState(false);
   const [toast, setToast] = useToast();
   const introVideo = useIntroVideo();
-  const introFile = useRef<HTMLInputElement>(null);
-  /**
-   * An editor starts from the saved profile, which loads from storage just after mount; keying on it
-   * re-seeds an editor opened straight from the URL, instead of leaving it on the seed.
-   */
-  const seed = [profile.name, profile.headline, profile.rate, profile.level, profile.location, profile.bio, profile.skills.join(","), profile.photo.length, Object.values(profile.links).join(",")].join("|");
-  /** Another part is open: Save or Cancel it first, as on Create Role's Review. */
-  const locked = editing !== "none";
-  /** The pencil next to a part (its own editor replaces the part, pencil and all). */
-  const pencil = (label: string, part: Edit) => editing !== part && <EditButton label={label} onClick={() => setEditing(part)} disabled={locked} />;
+  /** Saves one part of the profile, closes its editor and says what was saved. */
+  const save = (patch: Partial<ProfileData>, message: string) => {
+    setProfile(patch);
+    done();
+    setToast(message);
+  };
 
   return (
     <Page title="Profile">
       <TalentProfile
         viewer="self"
-        person={{ ...profile, intro: ME.intro, introVideo: introVideo ?? undefined, tags, history }}
+        person={{ ...profile, intro: ME.intro, introVideo: introVideo ?? undefined, tags, history: historyOf(contracts) }}
         badge={<FlatBadge>Pro</FlatBadge>}
         note={
           // IN-060 — this page is the Team Builder's view of you, not a separate internal one.
@@ -67,104 +57,9 @@ export default function Profile() {
           </p>
         }
         onPlayIntro={() => setToast("Intro video plays here")}
-        introAction={
-          <>
-            <input
-              ref={introFile}
-              type="file"
-              accept={INTRO_TYPES.join(",")}
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                const problem = checkIntro(file);
-                if (problem) return setToast(problem);
-                try {
-                  await saveIntro(file);
-                  setToast(introVideo ? "Intro video changed" : "Intro video added");
-                } catch {
-                  setToast("That video couldn't be saved. Try a shorter one.");
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => introFile.current?.click()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white pr-3 pl-2 text-[13px] leading-none font-medium text-ink shadow-[0_2px_8px_rgba(0,0,0,.15)] transition hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              <AddVideo size={18} aria-hidden className="text-primary" />
-              {introVideo ? "Change intro" : "Add intro"}
-            </button>
-          </>
-        }
-        edit={{
-          // IN-061 — photo, name, headline, where you are and your links, rate and experience.
-          profile: pencil("profile details", "profile"),
-          // IN-062 — the bio, 500 characters at most.
-          bio: pencil("bio", "bio"),
-          // IN-063 / IN-064 — the tags are display-only: the only way to change them is to retake the quiz, which is the
-          // real app's onboarding (/onboarding/talent), after a confirmation.
-          tags: tags.length ? (
-            <EditButton label="workplace tags" tip="Retake the quiz to change your tags" onClick={() => setRetake(true)} disabled={locked} />
-          ) : (
-            <EditButton label="workplace tags" tip="Take the work-style quiz" href="/onboarding/talent" disabled={locked} />
-          ),
-          // IN-065 — Create Role's skill picker.
-          skills: pencil("skills", "skills"),
-          portfolio: pencil("portfolio links", "links"),
-        }}
-        editor={{
-          profile: editing === "profile" && (
-            <HeroEditor
-              key={seed}
-              profile={profile}
-              onCancel={done}
-              onMessage={setToast}
-              onSave={(patch) => {
-                setProfile(patch);
-                done();
-                setToast("Profile saved");
-              }}
-            />
-          ),
-          bio: editing === "bio" && (
-            <BioEditor
-              key={seed}
-              value={profile.bio}
-              onCancel={done}
-              onSave={(bio) => {
-                setProfile({ bio });
-                done();
-                setToast("Bio saved");
-              }}
-            />
-          ),
-          skills: editing === "skills" && (
-            <SkillsEditor
-              key={seed}
-              skills={profile.skills}
-              onCancel={done}
-              onSave={(skills) => {
-                setProfile({ skills });
-                done();
-                setToast("Skills saved");
-              }}
-            />
-          ),
-          portfolio: editing === "links" && (
-            <LinksEditor
-              key={seed}
-              links={profile.links}
-              onCancel={done}
-              onSave={(links) => {
-                setProfile({ links });
-                done();
-                setToast("Links saved");
-              }}
-            />
-          ),
-        }}
+        introAction={<IntroAction hasVideo={!!introVideo} onMessage={setToast} />}
+        edit={pencilsFor(editing, tags.length > 0, setEditing, () => setRetake(true))}
+        editor={editorsFor(editing, profile, { onCancel: done, onSave: save, onMessage: setToast })}
       />
 
       {/* IN-064 — confirm before restarting; the current tags stand until the new answers are in. */}
@@ -187,4 +82,94 @@ export default function Profile() {
       <Toast message={toast} onClose={() => setToast(null)} />
     </Page>
   );
+}
+
+/**
+ * IN-066 — every evaluation received, from live contracts first and closed engagements after.
+ * Read-only: nothing here can be edited or removed from this side.
+ */
+function historyOf(contracts: Contract[]) {
+  return [
+    // Off the contracts themselves — this read an empty seed, so a submitted evaluation never showed.
+    ...contracts.flatMap((c) => c.evaluations.map((e) => ({ company: c.company, role: c.title, type: c.type, date: e.date, stars: e.stars, feedback: e.feedback }))),
+    ...pastEvaluations,
+  ];
+}
+
+/** The talent's own Add / Change intro over the intro card: it picks a video, checks it and saves it. */
+function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: (message: string) => void }) {
+  const introFile = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <input
+        ref={introFile}
+        type="file"
+        accept={INTRO_TYPES.join(",")}
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          const problem = checkIntro(file);
+          if (problem) return onMessage(problem);
+          try {
+            await saveIntro(file);
+            onMessage(hasVideo ? "Intro video changed" : "Intro video added");
+          } catch {
+            onMessage("That video couldn't be saved. Try a shorter one.");
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => introFile.current?.click()}
+        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white pr-3 pl-2 text-[13px] leading-none font-medium text-ink shadow-[0_2px_8px_rgba(0,0,0,.15)] transition hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <AddVideo size={18} aria-hidden className="text-primary" />
+        {hasVideo ? "Change intro" : "Add intro"}
+      </button>
+    </>
+  );
+}
+
+/**
+ * The pencil beside each part — none beside the part being edited, since its editor replaces it —
+ * and the tags' own, which retakes the quiz. While any part is open the others wait.
+ */
+function pencilsFor(editing: Edit, hasTags: boolean, onEdit: (part: Edit) => void, onRetake: () => void) {
+  /** Another part is open: Save or Cancel it first, as on Create Role's Review. */
+  const locked = editing !== "none";
+  /** The pencil next to a part (its own editor replaces the part, pencil and all). */
+  const pencil = (label: string, part: Edit) => editing !== part && <EditButton label={label} onClick={() => onEdit(part)} disabled={locked} />;
+  return {
+    // IN-061 — photo, name, headline, where you are and your links, rate and experience.
+    profile: pencil("profile details", "profile"),
+    // IN-062 — the bio, 500 characters at most.
+    bio: pencil("bio", "bio"),
+    // IN-063 / IN-064 — the tags are display-only: the only way to change them is to retake the quiz, which is the
+    // real app's onboarding (/onboarding/talent), after a confirmation.
+    tags: hasTags ? (
+      <EditButton label="workplace tags" tip="Retake the quiz to change your tags" onClick={onRetake} disabled={locked} />
+    ) : (
+      <EditButton label="workplace tags" tip="Take the work-style quiz" href="/onboarding/talent" disabled={locked} />
+    ),
+    // IN-065 — Create Role's skill picker.
+    skills: pencil("skills", "skills"),
+    portfolio: pencil("portfolio links", "links"),
+  };
+}
+
+/** The open part's editor, in place of the part: Cancel closes it, and Save saves that part and says so. */
+function editorsFor(editing: Edit, profile: ProfileData, { onCancel, onSave, onMessage }: { onCancel: () => void; onSave: (patch: Partial<ProfileData>, message: string) => void; onMessage: (message: string) => void }) {
+  /**
+   * An editor starts from the saved profile, which loads from storage just after mount; keying on it
+   * re-seeds an editor opened straight from the URL, instead of leaving it on the seed.
+   */
+  const seed = [profile.name, profile.headline, profile.rate, profile.level, profile.location, profile.bio, profile.skills.join(","), profile.photo.length, Object.values(profile.links).join(",")].join("|");
+  return {
+    profile: editing === "profile" && <HeroEditor key={seed} profile={profile} onCancel={onCancel} onMessage={onMessage} onSave={(patch) => onSave(patch, "Profile saved")} />,
+    bio: editing === "bio" && <BioEditor key={seed} value={profile.bio} onCancel={onCancel} onSave={(bio) => onSave({ bio }, "Bio saved")} />,
+    skills: editing === "skills" && <SkillsEditor key={seed} skills={profile.skills} onCancel={onCancel} onSave={(skills) => onSave({ skills }, "Skills saved")} />,
+    portfolio: editing === "links" && <LinksEditor key={seed} links={profile.links} onCancel={onCancel} onSave={(links) => onSave({ links }, "Links saved")} />,
+  };
 }

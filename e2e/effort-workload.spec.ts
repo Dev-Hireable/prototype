@@ -1,12 +1,7 @@
 import { card, closePanel, expect, open, panel, savedItem, test } from "./fixtures";
 
 // Scenario G — effort, and how it adds up per person per day.
-//
-// Juan's open work in the window, from the seed: the logo draft (5 over the seven working days
-// 22–30 Sep, 0.71 a day), the icon grid (1, due Wed 23), the palette (3 over the six working days
-// 25 Sep – 2 Oct, 0.5 a day) and the typography pairing (2 over the six working days 28 Sep –
-// 5 Oct, 0.33 a day). Alex has the kickoff call (1, due Tue 29).
-test.describe("effort and workload", () => {
+test.describe("effort and workload · an item's effort", () => {
   test("effort: a preset, any whole number, or none — relative, not hours", async ({ page }) => {
     await open(page, "team", "?task=t-share");
     const p = panel(page);
@@ -26,7 +21,13 @@ test.describe("effort and workload", () => {
     await page.getByRole("button", { name: "Clear", exact: true }).click();
     await expect.poll(async () => (await savedItem(page, "t-share")).effort).toBeUndefined();
   });
+});
 
+// Juan's open work in the window, from the seed: the logo draft (5 over the seven working days
+// 22–30 Sep, 0.71 a day), the icon grid (1, due Wed 23), the palette (3 over the six working days
+// 25 Sep – 2 Oct, 0.5 a day) and the typography pairing (2 over the six working days 28 Sep –
+// 5 Oct, 0.33 a day). Alex has the kickoff call (1, due Tue 29).
+test.describe("effort and workload · the workload view", () => {
   test("workload spreads effort across the working days between start and due", async ({ page }) => {
     await open(page, "team", "?view=workload");
     const grid = page.getByTestId("workload");

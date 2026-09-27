@@ -1,7 +1,7 @@
 import { card, column, drag, expect, notes, open, savedItem, test, toast, view } from "./fixtures";
 
 // Scenario D — status changes on the board, by drag, menu and keyboard, within the rules.
-test.describe("moving work through statuses", () => {
+test.describe("moving work through statuses · by drag", () => {
   test("the Team Builder works their own item straight to Done", async ({ page }) => {
     await open(page, "team");
     const kickoff = card(page, /#6 Kickoff call with marketing/);
@@ -48,7 +48,9 @@ test.describe("moving work through statuses", () => {
     expect(await savedItem(page, "t-logos")).toMatchObject({ status: "doing", changes: { note: "Try a heavier weight on the wordmark" } });
     expect((await notes(page, "independent"))[0].title).toBe("Changes requested on a task");
   });
+});
 
+test.describe("moving work through statuses · within the rules", () => {
   test("columns a card can't go to don't take it", async ({ page }) => {
     await open(page, "independent");
     await drag(page, card(page, /#4 Pick a typography pairing/), column(page, "Done"));
@@ -61,7 +63,9 @@ test.describe("moving work through statuses", () => {
     await drag(page, card(page, /#4 Pick a typography pairing/), column(page, "In progress"));
     expect((await savedItem(page, "t-type")).status).toBe("todo");
   });
+});
 
+test.describe("moving work through statuses · by keyboard and menu", () => {
   test("the keyboard moves a card: Alt+Shift+arrows and the Move to menu", async ({ page }) => {
     await open(page, "team");
     const kickoff = card(page, /#6 Kickoff/);
@@ -75,7 +79,9 @@ test.describe("moving work through statuses", () => {
     await expect(column(page, "Done").getByRole("group", { name: /#6 Kickoff/ })).toBeVisible();
     expect((await savedItem(page, "t-kickoff")).status).toBe("done");
   });
+});
 
+test.describe("moving work through statuses · order within a column", () => {
   test("reordering within a column is saved", async ({ page }) => {
     await open(page, "team");
     const todo = column(page, "To do");

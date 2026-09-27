@@ -1,0 +1,15 @@
+{
+  // React Doctor settings: only what it can't see from one file. Run `npx react-doctor@latest --no-telemetry`.
+  "ignore": {
+    // shadcn components are upstream code, added and updated by the CLI (`add --overwrite` wipes local edits).
+    "files": ["src/components/ui/**"],
+    "overrides": [
+      {
+        // Every portal page renders inside PortalShell, whose one <Suspense> covers them all (see its
+        // comment), so no page reads the URL outside a boundary.
+        "files": ["src/app/team/**", "src/app/independent/**", "src/app/admin/**"],
+        "rules": ["react-doctor/nextjs-no-use-search-params-without-suspense"]
+      }
+    ]
+  }
+}

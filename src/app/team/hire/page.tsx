@@ -73,10 +73,12 @@ export default function CreateRole() {
                 </span>
                 {/* Own layer for good: scaled, never redrawn, so it can't jump. Sized in whole pixels
                     (17px lines, an 80px block) so centring puts it on one — see useWholePixels. */}
+                {/* react-doctor-disable-next-line react-doctor/no-permanent-will-change -- a layer for good is the fix: see the note above CreateRole */}
                 <span className="relative flex h-20 w-full flex-col gap-1 text-center tracking-[0.2px] will-change-transform">
                   <span className="text-[16px] leading-[1.5] font-semibold text-ink">{c.title}</span>
                   <span className="text-[14px] leading-[17px] text-ink-2">{c.body}</span>
                 </span>
+                {/* react-doctor-disable-next-line react-doctor/no-permanent-will-change -- a layer for good is the fix: see the note above CreateRole */}
                 <span className="relative flex h-10 w-[108px] items-center justify-center rounded-lg border border-border bg-white text-[14px] font-medium text-ink opacity-0 transition-opacity duration-300 ease-out will-change-transform group-hover:opacity-100 group-focus-visible:opacity-100">
                   Post a Job
                 </span>

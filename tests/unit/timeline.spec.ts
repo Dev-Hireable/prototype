@@ -4,7 +4,7 @@ import { indexById } from "../../src/lib/work/model";
 import { barOf, dependencyLinks, dragDates, PX_PER_DAY, ticksOf, timelineRange } from "../../src/lib/work/timeline";
 import { item, iso, TODAY } from "./fixtures";
 
-test.describe("timeline", () => {
+test.describe("timeline · range and ticks", () => {
   test("the range covers the work and today, snapped to weeks or months", () => {
     const r = timelineRange([item({ start: iso(-20), due: iso(40) })], TODAY, "week");
     expect(r.from).toBeLessThanOrEqual(TODAY - 20);
@@ -25,7 +25,9 @@ test.describe("timeline", () => {
     const months = ticksOf(dayOf("2026-09-01") as number, dayOf("2026-11-30") as number, "month");
     expect(months.map((t) => t.days)).toEqual([30, 31, 30]);
   });
+});
 
+test.describe("timeline · bars and dragging", () => {
   test("bars for each date kind", () => {
     const px = PX_PER_DAY.day;
     expect(barOf(item({ start: iso(2), due: iso(4) }), TODAY, px)).toEqual({ kind: "range", x: 2 * px, w: 3 * px });
@@ -49,7 +51,9 @@ test.describe("timeline", () => {
     expect(dragDates(item({ start: "2026-09-21" }), "end", 4)).toEqual({ start: "2026-09-21", due: "2026-09-25" });
     expect(dragDates(item({ type: "milestone", due: "2026-09-24" }), "end", 2)).toEqual({ start: undefined, due: "2026-09-26" });
   });
+});
 
+test.describe("timeline · dependency lines", () => {
   test("dependency lines, flagged when work starts before what it waits on is due", () => {
     const a = item({ start: "2026-09-21", due: "2026-09-25" });
     const early = item({ start: "2026-09-23", due: "2026-09-30", dependsOn: [a.id] });

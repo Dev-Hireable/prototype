@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button, Field, InfoBanner, Modal, Textarea } from "@/components/independent/ui";
-import { isUpcoming } from "@/components/portal/DatePicker";
+import { isUpcoming } from "@/lib/demo/dates";
 
 const Calendar = ICONS.calendar;
 

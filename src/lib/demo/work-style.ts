@@ -17,8 +17,8 @@ import { workstyleResultsContent } from "@/web-app/lib/workstyle/results-content
 
 export type WorkStyleSide = "team" | "independent";
 
-export type WorkStyleAnswer = { label: string; tag: string; meaning: string; value: number };
-export type WorkStyleQuestion = { trait: string; question: string; answers: WorkStyleAnswer[] };
+type WorkStyleAnswer = { label: string; tag: string; meaning: string; value: number };
+type WorkStyleQuestion = { trait: string; question: string; answers: WorkStyleAnswer[] };
 
 /** A tag someone earned: the trait it came from, what it means and the answer that earned it. */
 export type WorkStyleTag = { label: string; trait: number; meaning: string; answer: string };
@@ -47,7 +47,7 @@ function questionsFor(side: WorkStyleSide): WorkStyleQuestion[] {
   }));
 }
 
-export const WORK_STYLE_QUIZ: Record<WorkStyleSide, WorkStyleQuestion[]> = { team: questionsFor("team"), independent: questionsFor("independent") };
+const WORK_STYLE_QUIZ: Record<WorkStyleSide, WorkStyleQuestion[]> = { team: questionsFor("team"), independent: questionsFor("independent") };
 
 /** The value an answer at this position of the real quiz is kept as. */
 export const valueForPosition = (position: number) => VALUES[position - 1] ?? OTHER_VALUE;

@@ -9,8 +9,9 @@ import { CommentBox } from "@/components/portal/CommentBox";
 import { Tip } from "@/components/portal/Tip";
 import { Avatar, Drawer } from "@/components/team/ui";
 import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, type WorkItem } from "@/lib/work/model";
-import { capsFor, sideOf, transitionFor } from "@/lib/work/permissions";
+import { capsFor, sideOf, transitionFor, type Caps } from "@/lib/work/permissions";
 import { checkComment, checkSubtaskTitle, checkTitle } from "@/lib/work/validate";
+import { keyed } from "@/lib/portal/keys";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
 import { AssigneeField, DateField, DependenciesField, EffortField, PriorityField, ProjectField, Prop, StatusField, TagsField, TypeField } from "./fields";
 import { QuickAdd } from "./QuickAdd";
@@ -158,238 +159,314 @@ type FeedFilter = "all" | "comments" | "updates";
 const CREATED = /^(Added by |Agreed in the signed offer)/;
 
 function DetailBody({ item: t, items, byId, focus }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus }) {
-  /** Every tag in use on the contract, the most used first, to suggest when adding one. */
-  const knownTags = tagsInUse(items);
-  const { actor, access, actions, people, names, projects } = useWorkspace();
+  const { actor, access } = useWorkspace();
   const caps = capsFor(t, actor, access);
-  const talent = actor.role === "contributor";
   /** A comment's notification opens the item on its comments: the history comes into view. */
   const activity = useRef<HTMLElement>(null);
   useEffect(() => {
     if (focus === "comments") activity.current?.scrollIntoView({ block: "start" });
   }, [focus]);
-  /** Which part of the history is showing; back to all of it when another item opens. */
-  const [shown, setShown] = useState<{ id: string; kind: FeedFilter }>({ id: t.id, kind: "all" });
-  if (shown.id !== t.id) setShown({ id: t.id, kind: "all" });
-  /** Which side the reader is on: their own comments say so. */
-  const me = sideOf(actor);
-  const subs = t.subtasks;
-  const done = subs.filter((s) => s.done).length;
-  /** What's needed now, if anything — said once, in a callout, and left out of the history below. */
-  const changes = t.changes && (t.status === "todo" || t.status === "doing") ? t.changes : null;
-  const review = t.status === "review" ? t.submitted : undefined;
-  const hasDeps = t.dependsOn.length > 0 || items.some((x) => !isArchived(x) && x.dependsOn.includes(t.id));
-
-  /**
-   * Everything that happened, oldest first, with the comments in between. Where it came from is
-   * its first line — from the log, or from the item itself when the log doesn't say. The event a
-   * callout above already shows (this review, these changes) isn't said twice.
-   */
-  const events = [...t.activity].reverse();
-  const origin = events.some((e) => CREATED.test(e.text)) ? [] : [{ ts: t.createdAt, at: t.created, text: t.agreed ? "Agreed in the signed offer" : `Added by ${t.createdBy ?? people[t.addedBy].name}` }];
-  const inCallout = (e: { at: string; text: string }) => (!!changes && e.at === changes.at && e.text.startsWith("Changes requested")) || (!!review && e.at === review.at && e.text.startsWith("Sent for review"));
-  const feed = [
-    ...[...origin, ...events].filter((e) => !inCallout(e)).map((e) => ({ kind: "event" as const, ...e })),
-    ...t.comments.map((c) => ({ kind: "comment" as const, ...c })),
-  ].sort((a, b) => a.ts - b.ts);
-  const comments = feed.filter((f) => f.kind === "comment").length;
-  const filter = shown.id === t.id ? shown.kind : "all";
-  const visible = filter === "all" ? feed : feed.filter((f) => (filter === "comments" ? f.kind === "comment" : f.kind === "event"));
+  const { changes, review } = neededNow(t);
 
   return (
     <>
       {/* What's needed now. */}
-      {isArchived(t) && (
-        <InfoBanner>
-          Deleted{t.archivedBy ? ` by ${t.archivedBy}` : ""}. It&apos;s out of every view and count until it&apos;s restored.
-          {caps.restore && (
-            <span className="mt-2 block">
-              <Button size="sm" onClick={() => void actions.restore(t)}>
-                <ICONS.unarchive size={16} aria-hidden /> Restore
-              </Button>
-            </span>
-          )}
-        </InfoBanner>
-      )}
-      {changes && (
-        <InfoBanner tone="warn">
-          <span className="font-semibold">{changes.by || names.team} asked for changes</span> · {changes.at}
-          {changes.note && <span className="mt-1 block">“{changes.note}”</span>}
-          {talent && <span className="mt-1 block">Make the changes, then send it for review again.</span>}
-        </InfoBanner>
-      )}
-      {review && (
-        <InfoBanner>
-          <span className="font-semibold">{talent ? `With ${names.team} for review` : `${names.independent} sent this for review`}</span> · {review.at}
-          {review.note && <span className="mt-1 block">“{review.note}”</span>}
-        </InfoBanner>
-      )}
+      {isArchived(t) && <DeletedBanner item={t} restorable={caps.restore} />}
+      {changes && <ChangesBanner changes={changes} />}
+      {review && <ReviewBanner review={review} />}
 
       {/* The plan: who, when, how much. A property list, a row each, on a white card with a hairline and a whisper of shadow. */}
-      <dl className="flex flex-col rounded-xl border border-[#ebebeb] bg-white py-2 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-        <Prop label="Assignee" icon="person">
-          <AssigneeField item={t} />
-        </Prop>
-        {/* A role's work sits in a project or none; a trial has no projects. */}
-        {projects.ctx.split && (
-          <Prop label="Project" icon="project">
-            <ProjectField item={t} />
-          </Prop>
-        )}
-        <Prop label="Priority" icon="flag">
-          <PriorityField item={t} />
-        </Prop>
-        {t.type !== "milestone" && (
-          <Prop label="Start" icon="calendar">
-            <DateField item={t} which="start" />
-          </Prop>
-        )}
-        <Prop label={t.type === "milestone" ? "Date" : "Due"} icon="schedule">
-          <DateField item={t} which="due" />
-        </Prop>
-        {t.type !== "milestone" && (
-          <Prop label="Effort" icon="effort" hint={EFFORT_HELP}>
-            <EffortField item={t} />
-          </Prop>
-        )}
-        <Prop label="Work type" icon="work">
-          <TypeField item={t} />
-        </Prop>
-        <Prop label="Tags" icon="tag" flush>
-          <TagsField item={t} known={knownTags} />
-        </Prop>
-      </dl>
+      <PlanCard item={t} items={items} />
 
       {/* Nothing to read and nothing to write: no empty section. */}
-      {(t.description || caps.editText) && (
-        <Section title="Description">
-          <DraftText
-            key={`desc-${t.id}`}
-            label="Description"
-            multiline
-            value={t.description ?? ""}
-            editable={caps.editText}
-            updatedBy={t.updatedBy}
-            placeholder="What done looks like, links, anything to check"
-            onSave={(next, base) => void actions.patch({ ...t, description: base || undefined }, { description: next || null })}
-            className="text-[14px] leading-[1.5] text-ink"
-          />
-        </Section>
-      )}
+      {(t.description || caps.editText) && <DescriptionSection item={t} editable={caps.editText} />}
 
-      {(subs.length > 0 || caps.subtasks) && (
-        <Section
-          title="Subtasks"
-          aside={
-            subs.length > 0 && (
-              <>
-                <span className="h-1.5 max-w-40 flex-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-                  <span className="block h-full rounded-full bg-ok transition-[width]" style={{ width: `${(done / subs.length) * 100}%` }} />
-                </span>
-                <span className="text-[12.5px] font-normal text-ink-2 tabular-nums">
-                  {done} of {subs.length} done
-                </span>
-              </>
-            )
-          }
-        >
-          {subs.length > 0 && (
-            <ul className="flex flex-col">
-              {subs.map((s) => (
-                <li key={s.id} className="group flex min-h-9 items-center gap-2 border-t border-[#eeeeee] first:border-t-0">
-                  <Checkbox checked={s.done} disabled={!caps.tick} onChange={(v) => void actions.toggleSubtask(t, s.id, v)} className="min-w-0 flex-1">
-                    <span className={`min-w-0 flex-1 ${s.done ? "text-ink-2 line-through" : ""}`}>{s.title}</span>
-                  </Checkbox>
-                  {caps.subtasks && (
-                    <button type="button" aria-label={`Remove subtask ${s.title}`} onClick={() => void actions.removeSubtask(t, s.id)} className="flex size-7 items-center justify-center rounded-md text-ink-2 opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger focus-visible:opacity-100">
-                      <ICONS.close size={14} aria-hidden />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-          {/* "+ Add subtask" opens a row drawn as the subtask it becomes, with the cursor in it. */}
-          {caps.subtasks && (
-            <QuickAdd
-              key={t.id}
-              variant="inline"
-              label="Add subtask"
-              fieldLabel="New subtask"
-              placeholder="Name the step — Enter to add another"
-              check={checkSubtaskTitle}
-              marker={<span aria-hidden className="size-4 shrink-0 rounded-[4px] border border-input bg-white" />}
-              onAdd={(title) => actions.addSubtask(t, title)}
-            />
-          )}
-        </Section>
-      )}
+      {(t.subtasks.length > 0 || caps.subtasks) && <SubtasksSection item={t} caps={caps} />}
 
-      {(hasDeps || caps.depend) && (
+      {(hasDependencies(t, items) || caps.depend) && (
         <Section title="Dependencies">
           <DependenciesField item={t} items={items} byId={byId} />
         </Section>
       )}
 
-      <Section title="Activity" ref={activity}>
-        {/* Only worth filtering when there's both talk and history to tell apart. */}
-        {comments > 0 && comments < feed.length && (
-          <Pills<FeedFilter>
-            aria-label="Show in activity"
-            value={filter}
-            onChange={(kind) => setShown({ id: t.id, kind })}
-            options={[
-              { value: "all", label: `All (${feed.length})` },
-              { value: "comments", label: `Comments (${comments})` },
-              { value: "updates", label: `Updates (${feed.length - comments})` },
-            ]}
-          />
-        )}
-        {feed.length === 0 && <p className="text-[13px] leading-[1.4] text-ink-2">Nothing yet.</p>}
-        <ActivityFeed
-          key={`${t.id}:${filter}`}
-          items={visible.map((f, i) =>
-            f.kind === "event" ? (
-              // What happened: a quiet line, its dot on the avatars' centre line so the thread reads as one column.
-              <li key={`e${i}-${f.ts}`} className="flex gap-3 text-[12.5px] leading-[1.45] text-ink-2">
-                <span aria-hidden className="flex w-7 shrink-0 justify-center pt-[7px]">
-                  <span className="size-1.5 rounded-full bg-[#c3c3c3]" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  {f.text} {f.at && <span className="whitespace-nowrap text-muted-2">· {f.at}</span>}
-                </span>
-              </li>
-            ) : (
-              // What someone said: a comment as work tools show one — who, when, then the words — the same for both sides.
-              <li key={f.id ?? `c${i}-${f.ts}`}>
-                <article aria-label={`Comment from ${f.name || people[f.side].name}`} className="flex gap-3">
-                  <Avatar src={people[f.side].avatar} size={28} />
-                  <div className="min-w-0 flex-1 rounded-lg bg-white px-3 py-2.5 outline -outline-offset-1 outline-border">
-                    <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] leading-[1.3]">
-                      <span className="font-semibold text-ink">{f.name || people[f.side].name}</span>
-                      {f.side === me && <span className="text-[12px] text-ink-2">(you)</span>}
-                      <span className="text-[12px] text-ink-2">{f.at}</span>
-                    </p>
-                    <p className="mt-1 text-[14px] leading-[1.45] whitespace-pre-line text-ink [overflow-wrap:anywhere]">{f.text}</p>
-                  </div>
-                </article>
-              </li>
-            ),
-          )}
-        />
-        {caps.comment && (
-          <CommentBox
-            label="Add a comment"
-            placeholder={
-              talent ? `Add a comment — ${names.team} gets a notification` : hearsComments(t, "independent") ? `Add a comment — ${names.independent} gets a notification` : `Add a comment — ${names.independent} can read it but won't be notified`
-            }
-            maxLength={2000}
-            validate={(v) => checkComment(v)?.message ?? null}
-            onSend={(text) => void actions.comment(t, text)}
-          />
-        )}
-      </Section>
+      <ActivitySection ref={activity} item={t} changes={changes} review={review} canComment={caps.comment} />
     </>
+  );
+}
+
+/** What's needed now, if anything — said once, in a callout, and left out of the history below. */
+function neededNow(t: WorkItem) {
+  return {
+    changes: t.changes && (t.status === "todo" || t.status === "doing") ? t.changes : null,
+    review: t.status === "review" ? t.submitted : undefined,
+  };
+}
+
+/** Whether there's anything to say under Dependencies: what this waits on, or live work waiting on it. */
+function hasDependencies(t: WorkItem, items: readonly WorkItem[]) {
+  return t.dependsOn.length > 0 || items.some((x) => !isArchived(x) && x.dependsOn.includes(t.id));
+}
+
+/** A deleted item says so, and by whom; restoring it is this banner's one action. */
+function DeletedBanner({ item: t, restorable }: { item: WorkItem; restorable: boolean }) {
+  const { actions } = useWorkspace();
+  return (
+    <InfoBanner>
+      Deleted{t.archivedBy ? ` by ${t.archivedBy}` : ""}. It&apos;s out of every view and count until it&apos;s restored.
+      {restorable && (
+        <span className="mt-2 block">
+          <Button size="sm" onClick={() => void actions.restore(t)}>
+            <ICONS.unarchive size={16} aria-hidden /> Restore
+          </Button>
+        </span>
+      )}
+    </InfoBanner>
+  );
+}
+
+/** Changes asked for: who asked and when, their note, and — for the Independent — what to do about it. */
+function ChangesBanner({ changes }: { changes: NonNullable<WorkItem["changes"]> }) {
+  const { actor, names } = useWorkspace();
+  const talent = actor.role === "contributor";
+  return (
+    <InfoBanner tone="warn">
+      <span className="font-semibold">{changes.by || names.team} asked for changes</span> · {changes.at}
+      {changes.note && <span className="mt-1 block">“{changes.note}”</span>}
+      {talent && <span className="mt-1 block">Make the changes, then send it for review again.</span>}
+    </InfoBanner>
+  );
+}
+
+/** The submission waiting on review: whose hands it's in, when it was sent, and the note for the reviewer. */
+function ReviewBanner({ review }: { review: NonNullable<WorkItem["submitted"]> }) {
+  const { actor, names } = useWorkspace();
+  const talent = actor.role === "contributor";
+  return (
+    <InfoBanner>
+      <span className="font-semibold">{talent ? `With ${names.team} for review` : `${names.independent} sent this for review`}</span> · {review.at}
+      {review.note && <span className="mt-1 block">“{review.note}”</span>}
+    </InfoBanner>
+  );
+}
+
+/** The plan's properties, each a field this person can change or plain text where they can't. */
+function PlanCard({ item: t, items }: { item: WorkItem; items: readonly WorkItem[] }) {
+  const { projects } = useWorkspace();
+  /** Every tag in use on the contract, the most used first, to suggest when adding one. */
+  const knownTags = tagsInUse(items);
+  return (
+    <dl className="flex flex-col rounded-xl border border-[#ebebeb] bg-white py-2 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+      <Prop label="Assignee" icon="person">
+        <AssigneeField item={t} />
+      </Prop>
+      {/* A role's work sits in a project or none; a trial has no projects. */}
+      {projects.ctx.split && (
+        <Prop label="Project" icon="project">
+          <ProjectField item={t} />
+        </Prop>
+      )}
+      <Prop label="Priority" icon="flag">
+        <PriorityField item={t} />
+      </Prop>
+      {t.type !== "milestone" && (
+        <Prop label="Start" icon="calendar">
+          <DateField item={t} which="start" />
+        </Prop>
+      )}
+      <Prop label={t.type === "milestone" ? "Date" : "Due"} icon="schedule">
+        <DateField item={t} which="due" />
+      </Prop>
+      {t.type !== "milestone" && (
+        <Prop label="Effort" icon="effort" hint={EFFORT_HELP}>
+          <EffortField item={t} />
+        </Prop>
+      )}
+      <Prop label="Work type" icon="work">
+        <TypeField item={t} />
+      </Prop>
+      <Prop label="Tags" icon="tag" flush>
+        <TagsField item={t} known={knownTags} />
+      </Prop>
+    </dl>
+  );
+}
+
+/** What done looks like, edited in place by whoever may change the item's text. */
+function DescriptionSection({ item: t, editable }: { item: WorkItem; editable: boolean }) {
+  const { actions } = useWorkspace();
+  return (
+    <Section title="Description">
+      <DraftText
+        key={`desc-${t.id}`}
+        label="Description"
+        multiline
+        value={t.description ?? ""}
+        editable={editable}
+        updatedBy={t.updatedBy}
+        placeholder="What done looks like, links, anything to check"
+        onSave={(next, base) => void actions.patch({ ...t, description: base || undefined }, { description: next || null })}
+        className="text-[14px] leading-[1.5] text-ink"
+      />
+    </Section>
+  );
+}
+
+/** The subtasks and how many are done: ticked off with `caps.tick`, added and removed with `caps.subtasks`. */
+function SubtasksSection({ item: t, caps }: { item: WorkItem; caps: Caps }) {
+  const { actions } = useWorkspace();
+  const subs = t.subtasks;
+  const done = subs.filter((s) => s.done).length;
+  return (
+    <Section
+      title="Subtasks"
+      aside={
+        subs.length > 0 && (
+          <>
+            <span className="h-1.5 max-w-40 flex-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+              <span className="block h-full rounded-full bg-ok transition-[width]" style={{ width: `${(done / subs.length) * 100}%` }} />
+            </span>
+            <span className="text-[12.5px] font-normal text-ink-2 tabular-nums">
+              {done} of {subs.length} done
+            </span>
+          </>
+        )
+      }
+    >
+      {subs.length > 0 && (
+        <ul className="flex flex-col">
+          {subs.map((s) => (
+            <li key={s.id} className="group flex min-h-9 items-center gap-2 border-t border-[#eeeeee] first:border-t-0">
+              <Checkbox checked={s.done} disabled={!caps.tick} onChange={(v) => void actions.toggleSubtask(t, s.id, v)} className="min-w-0 flex-1">
+                <span className={`min-w-0 flex-1 ${s.done ? "text-ink-2 line-through" : ""}`}>{s.title}</span>
+              </Checkbox>
+              {caps.subtasks && (
+                <button type="button" aria-label={`Remove subtask ${s.title}`} onClick={() => void actions.removeSubtask(t, s.id)} className="flex size-7 items-center justify-center rounded-md text-ink-2 opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger focus-visible:opacity-100">
+                  <ICONS.close size={14} aria-hidden />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* "+ Add subtask" opens a row drawn as the subtask it becomes, with the cursor in it. */}
+      {caps.subtasks && (
+        <QuickAdd
+          key={t.id}
+          variant="inline"
+          label="Add subtask"
+          fieldLabel="New subtask"
+          placeholder="Name the step — Enter to add another"
+          check={checkSubtaskTitle}
+          marker={<span aria-hidden className="size-4 shrink-0 rounded-[4px] border border-input bg-white" />}
+          onAdd={(title) => actions.addSubtask(t, title)}
+        />
+      )}
+    </Section>
+  );
+}
+
+/**
+ * Everything that happened, oldest first, with the comments in between. Where it came from is
+ * its first line — from the log, or from the item itself when the log doesn't say. The event a
+ * callout above already shows (this review, these changes) isn't said twice.
+ */
+function historyOf(t: WorkItem, people: WorkspaceEnv["people"], { changes, review }: ReturnType<typeof neededNow>) {
+  const events = [...t.activity].reverse();
+  const origin = events.some((e) => CREATED.test(e.text)) ? [] : [{ ts: t.createdAt, at: t.created, text: t.agreed ? "Agreed in the signed offer" : `Added by ${t.createdBy ?? people[t.addedBy].name}` }];
+  const inCallout = (e: { at: string; text: string }) => (!!changes && e.at === changes.at && e.text.startsWith("Changes requested")) || (!!review && e.at === review.at && e.text.startsWith("Sent for review"));
+  return [
+    ...[...origin, ...events].filter((e) => !inCallout(e)).map((e) => ({ kind: "event" as const, ...e })),
+    ...t.comments.map((c) => ({ kind: "comment" as const, ...c })),
+  ].sort((a, b) => a.ts - b.ts);
+}
+
+/** The comment box's prompt: who a comment notifies — or that the Independent can read it but won't hear. */
+function commentPlaceholder(t: WorkItem, talent: boolean, names: WorkspaceEnv["names"]) {
+  if (talent) return `Add a comment — ${names.team} gets a notification`;
+  return hearsComments(t, "independent") ? `Add a comment — ${names.independent} gets a notification` : `Add a comment — ${names.independent} can read it but won't be notified`;
+}
+
+/** The history, filtered by kind, and the comment box under it. `ref` is how a comment's notification scrolls here. */
+function ActivitySection({ ref, item: t, changes, review, canComment }: { ref: Ref<HTMLElement>; item: WorkItem; canComment: boolean } & ReturnType<typeof neededNow>) {
+  const { actor, actions, people, names } = useWorkspace();
+  const talent = actor.role === "contributor";
+  /** Which part of the history is showing; back to all of it when another item opens. */
+  const [shown, setShown] = useState<{ id: string; kind: FeedFilter }>({ id: t.id, kind: "all" });
+  if (shown.id !== t.id) setShown({ id: t.id, kind: "all" });
+  const feed = historyOf(t, people, { changes, review });
+  const comments = feed.filter((f) => f.kind === "comment").length;
+  const filter = shown.id === t.id ? shown.kind : "all";
+  const visible = filter === "all" ? feed : feed.filter((f) => (filter === "comments" ? f.kind === "comment" : f.kind === "event"));
+
+  return (
+    <Section title="Activity" ref={ref}>
+      {/* Only worth filtering when there's both talk and history to tell apart. */}
+      {comments > 0 && comments < feed.length && (
+        <Pills<FeedFilter>
+          aria-label="Show in activity"
+          value={filter}
+          onChange={(kind) => setShown({ id: t.id, kind })}
+          options={[
+            { value: "all", label: `All (${feed.length})` },
+            { value: "comments", label: `Comments (${comments})` },
+            { value: "updates", label: `Updates (${feed.length - comments})` },
+          ]}
+        />
+      )}
+      {feed.length === 0 && <p className="text-[13px] leading-[1.4] text-ink-2">Nothing yet.</p>}
+      <ActivityFeed
+        key={`${t.id}:${filter}`}
+        items={keyed(visible, (f) => (f.kind === "event" ? `e-${f.ts}` : (f.id ?? `c-${f.ts}`))).map(({ item: f, key }) => (f.kind === "event" ? <EventEntry key={key} event={f} /> : <CommentEntry key={key} comment={f} />))}
+      />
+      {canComment && (
+        <CommentBox
+          label="Add a comment"
+          placeholder={commentPlaceholder(t, talent, names)}
+          maxLength={2000}
+          validate={(v) => checkComment(v)?.message ?? null}
+          onSend={(text) => void actions.comment(t, text)}
+        />
+      )}
+    </Section>
+  );
+}
+
+/** One entry in the history: something that happened, or a comment. */
+type HistoryEntry = ReturnType<typeof historyOf>[number];
+
+/** What happened: a quiet line, its dot on the avatars' centre line so the thread reads as one column. */
+function EventEntry({ event: f }: { event: Extract<HistoryEntry, { kind: "event" }> }) {
+  return (
+    <li className="flex gap-3 text-[12.5px] leading-[1.45] text-ink-2">
+      <span aria-hidden className="flex w-7 shrink-0 justify-center pt-[7px]">
+        <span className="size-1.5 rounded-full bg-[#c3c3c3]" />
+      </span>
+      <span className="min-w-0 flex-1">
+        {f.text} {f.at && <span className="whitespace-nowrap text-muted-2">· {f.at}</span>}
+      </span>
+    </li>
+  );
+}
+
+/** What someone said: a comment as work tools show one — who, when, then the words — the same for both sides. */
+function CommentEntry({ comment: f }: { comment: Extract<HistoryEntry, { kind: "comment" }> }) {
+  const { actor, people } = useWorkspace();
+  /** Which side the reader is on: their own comments say so. */
+  const me = sideOf(actor);
+  return (
+    <li>
+      <article aria-label={`Comment from ${f.name || people[f.side].name}`} className="flex gap-3">
+        <Avatar src={people[f.side].avatar} size={28} />
+        <div className="min-w-0 flex-1 rounded-lg bg-white px-3 py-2.5 outline -outline-offset-1 outline-border">
+          <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] leading-[1.3]">
+            <span className="font-semibold text-ink">{f.name || people[f.side].name}</span>
+            {f.side === me && <span className="text-[12px] text-ink-2">(you)</span>}
+            <span className="text-[12px] text-ink-2">{f.at}</span>
+          </p>
+          <p className="mt-1 text-[14px] leading-[1.45] whitespace-pre-line text-ink [overflow-wrap:anywhere]">{f.text}</p>
+        </div>
+      </article>
+    </li>
   );
 }
 
@@ -411,88 +488,113 @@ function stepFor(t: WorkItem, { actor, access, names }: Pick<WorkspaceEnv, "acto
   return can("todo") ? "reopen" : null;
 }
 
-function NextStep({ kind, item: t, focus }: { kind: Step; item: WorkItem; focus?: DetailFocus }) {
+/** The footer for step `kind`, each with its own controls. */
+function NextStep({ kind, item, focus }: { kind: Step; item: WorkItem; focus?: DetailFocus }) {
+  if (kind === "submit") return <SubmitStep item={item} />;
+  if (kind === "takeBack") return <TakeBackStep item={item} />;
+  if (kind === "review") return <ReviewStep item={item} focus={focus} />;
+  if (kind === "complete") return <CompleteStep item={item} />;
+  return <ReopenStep item={item} />;
+}
+
+/** The Independent's: send it for review — with a note for the Team Builder, if they want one. */
+function SubmitStep({ item: t }: { item: WorkItem }) {
   const { actions, names } = useWorkspace();
   const [note, setNote] = useState("");
   /** The note for the reviewer is optional, so it's a link until it's wanted — not a second text box beside the comment box. */
   const [noting, setNoting] = useState(false);
-  const [changes, setChanges] = useState("");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void actions.transition(t, "review", noting ? note : undefined, { success: `Sent ${refOf(t)} to ${names.team} for review` });
+        setNote("");
+        setNoting(false);
+      }}
+      className="flex flex-col gap-3"
+    >
+      {noting && <Textarea rows={2} autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder={`What ${names.team} should look at — links, anything to check`} aria-label={`Note for ${names.team}`} maxLength={1000} />}
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setNoting((n) => !n);
+            setNote("");
+          }}
+          className="inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
+        >
+          {noting ? (
+            "Remove the note"
+          ) : (
+            <>
+              <ICONS.add size={16} aria-hidden /> Add a note for {names.team}
+            </>
+          )}
+        </button>
+        <Button type="submit" size="lg" variant="primary">
+          Send for review
+        </Button>
+      </div>
+    </form>
+  );
+}
 
-  if (kind === "submit")
-    return (
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void actions.transition(t, "review", noting ? note : undefined, { success: `Sent ${refOf(t)} to ${names.team} for review` });
-          setNote("");
-          setNoting(false);
-        }}
-        className="flex flex-col gap-3"
-      >
-        {noting && <Textarea rows={2} autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder={`What ${names.team} should look at — links, anything to check`} aria-label={`Note for ${names.team}`} maxLength={1000} />}
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              setNoting((n) => !n);
-              setNote("");
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            {noting ? (
-              "Remove the note"
-            ) : (
-              <>
-                <ICONS.add size={16} aria-hidden /> Add a note for {names.team}
-              </>
-            )}
-          </button>
-          <Button type="submit" size="lg" variant="primary">
-            Send for review
-          </Button>
-        </div>
-      </form>
-    );
-  if (kind === "takeBack")
-    return (
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[13px] leading-[1.4] text-ink-2">Changed your mind? Take it back to keep working on it.</p>
-        <Button size="lg" onClick={() => void actions.transition(t, "doing", undefined, { success: `Took ${refOf(t)} back — it's In progress again` })}>
-          <ICONS.undo size={16} aria-hidden /> Take back
+/** The Independent's, while it waits on review: take it back to keep working on it. */
+function TakeBackStep({ item: t }: { item: WorkItem }) {
+  const { actions } = useWorkspace();
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-[13px] leading-[1.4] text-ink-2">Changed your mind? Take it back to keep working on it.</p>
+      <Button size="lg" onClick={() => void actions.transition(t, "doing", undefined, { success: `Took ${refOf(t)} back — it's In progress again` })}>
+        <ICONS.undo size={16} aria-hidden /> Take back
+      </Button>
+    </div>
+  );
+}
+
+/** The Team Builder's, on work in review: approve it, or ask for changes — which takes a note first. */
+function ReviewStep({ item: t, focus }: { item: WorkItem; focus?: DetailFocus }) {
+  const { actions, names } = useWorkspace();
+  const [changes, setChanges] = useState("");
+  return (
+    <div className="flex flex-col gap-3">
+      <Textarea rows={2} autoFocus={focus === "changes"} value={changes} onChange={(e) => setChanges(e.target.value)} placeholder={`To ask for changes, say what ${names.independent} should fix`} aria-label="What should change" maxLength={1000} />
+      <div className="flex justify-end gap-2">
+        <Button
+          size="lg"
+          disabled={!changes.trim()}
+          title={changes.trim() ? undefined : "Write what should change first"}
+          onClick={() => {
+            void actions.transition(t, "doing", changes, { success: `Sent ${refOf(t)} back to ${names.independent} with your note` });
+            setChanges("");
+          }}
+        >
+          Request changes
+        </Button>
+        <Button size="lg" variant="primary" onClick={() => void actions.transition(t, "done", undefined, { success: `Approved ${refOf(t)} — ${names.independent} has been told` })}>
+          Approve
         </Button>
       </div>
-    );
-  if (kind === "review")
-    return (
-      <div className="flex flex-col gap-3">
-        <Textarea rows={2} autoFocus={focus === "changes"} value={changes} onChange={(e) => setChanges(e.target.value)} placeholder={`To ask for changes, say what ${names.independent} should fix`} aria-label="What should change" maxLength={1000} />
-        <div className="flex justify-end gap-2">
-          <Button
-            size="lg"
-            disabled={!changes.trim()}
-            title={changes.trim() ? undefined : "Write what should change first"}
-            onClick={() => {
-              void actions.transition(t, "doing", changes, { success: `Sent ${refOf(t)} back to ${names.independent} with your note` });
-              setChanges("");
-            }}
-          >
-            Request changes
-          </Button>
-          <Button size="lg" variant="primary" onClick={() => void actions.transition(t, "done", undefined, { success: `Approved ${refOf(t)} — ${names.independent} has been told` })}>
-            Approve
-          </Button>
-        </div>
-      </div>
-    );
-  if (kind === "complete")
-    return (
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[13px] leading-[1.4] text-ink-2">{t.assignee === "team" ? "Your own item — it doesn't go through review." : "Nobody is assigned. Assign it, or mark it done yourself."}</p>
-        <Button size="lg" variant="primary" onClick={() => void actions.transition(t, "done", undefined, { success: `Marked ${refOf(t)} done` })}>
-          <ICONS.check size={16} aria-hidden /> Mark done
-        </Button>
-      </div>
-    );
+    </div>
+  );
+}
+
+/** The Team Builder's, on their own item or one nobody has: mark it done — it doesn't go through review. */
+function CompleteStep({ item: t }: { item: WorkItem }) {
+  const { actions } = useWorkspace();
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="text-[13px] leading-[1.4] text-ink-2">{t.assignee === "team" ? "Your own item — it doesn't go through review." : "Nobody is assigned. Assign it, or mark it done yourself."}</p>
+      <Button size="lg" variant="primary" onClick={() => void actions.transition(t, "done", undefined, { success: `Marked ${refOf(t)} done` })}>
+        <ICONS.check size={16} aria-hidden /> Mark done
+      </Button>
+    </div>
+  );
+}
+
+/** The Team Builder's, on finished work of their own: reopen it. */
+function ReopenStep({ item: t }: { item: WorkItem }) {
+  const { actions } = useWorkspace();
   return (
     <div className="flex items-center justify-end gap-3">
       <Button size="lg" onClick={() => void actions.transition(t, "todo", undefined, { announce: `Reopened ${refOf(t)}` })}>
@@ -517,76 +619,11 @@ function leaveOnly(e: KeyboardEvent) {
  * draft isn't wiped — it says so, and the save is checked against what was there when editing
  * began, so it can't silently overwrite theirs.
  */
-function DraftText({
-  value,
-  editable,
-  onSave,
-  label,
-  multiline = false,
-  placeholder,
-  empty,
-  className = "",
-  autoFocus,
-  updatedBy,
-  validate,
-}: {
-  value: string;
-  editable: boolean;
-  onSave: (next: string, base: string) => void;
-  label: string;
-  multiline?: boolean;
-  placeholder?: string;
-  empty?: string;
-  className?: string;
-  autoFocus?: boolean;
-  updatedBy?: string;
-  validate?: (v: string) => string | null;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const [base, setBase] = useState(value);
-  const [error, setError] = useState<string | null>(null);
-  const editing = draft !== null;
-  // Not being edited: follow the saved value, including other people's changes.
-  if (!editing && base !== value) setBase(value);
-  const theirs = editing && value !== base;
-
+function DraftText({ value, editable, onSave, label, multiline = false, placeholder, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
+  const draft = useTextDraft(value, onSave, validate);
   if (!editable) return <p className={`${className} px-1 whitespace-pre-line break-words ${!value ? "text-ink-2" : ""}`}>{value || empty}</p>;
 
-  const commit = () => {
-    if (draft === null) return;
-    const next = draft.trim();
-    const bad = validate?.(next) ?? null;
-    if (bad) {
-      setError(bad);
-      return;
-    }
-    setDraft(null);
-    setError(null);
-    if (next !== base.trim()) onSave(next, base);
-  };
-  const common = {
-    value: draft ?? value,
-    "aria-label": label,
-    "aria-invalid": !!error,
-    placeholder,
-    autoFocus,
-    onFocus: () => {
-      if (draft === null) {
-        setDraft(value);
-        setBase(value);
-      }
-    },
-    onChange: (e: { target: { value: string } }) => {
-      setDraft(e.target.value);
-      setError(null);
-    },
-    // Leaving for another window or tab isn't a decision: the draft waits. Clicking elsewhere
-    // on the page saves it.
-    onBlur: () => {
-      if (typeof document !== "undefined" && !document.hasFocus()) return;
-      commit();
-    },
-  };
+  const common = { value: draft.value, "aria-label": label, "aria-invalid": !!draft.error, placeholder, autoFocus, ...draft.handlers };
   return (
     <div className="flex flex-col gap-1">
       {multiline ? (
@@ -594,13 +631,7 @@ function DraftText({
           {...common}
           rows={3}
           onKeyDown={(e) => {
-            if (e.key === "Escape") {
-              e.preventDefault();
-              leaveOnly(e);
-              setDraft(null);
-              setError(null);
-              (e.target as HTMLTextAreaElement).blur();
-            }
+            if (e.key === "Escape") draft.escape(e);
           }}
           className={className}
         />
@@ -618,32 +649,99 @@ function DraftText({
               e.preventDefault();
               (e.target as HTMLTextAreaElement).blur();
             }
-            if (e.key === "Escape") {
-              e.preventDefault();
-              leaveOnly(e);
-              setDraft(null);
-              setError(null);
-              (e.target as HTMLTextAreaElement).blur();
-            }
+            if (e.key === "Escape") draft.escape(e);
           }}
           className={`field-sizing-content min-w-0 resize-none rounded-md px-1 py-1 outline-none hover:bg-surface-2 focus:bg-white focus:ring-2 focus:ring-primary/30 ${className}`}
           style={{ fontVariationSettings: '"opsz" 14' }}
         />
       )}
-      {error && (
+      {draft.error && (
         <span role="alert" className="px-1 text-[12.5px] text-danger">
-          {error}
+          {draft.error}
         </span>
       )}
-      {theirs && (
-        <span role="status" className="flex flex-wrap items-center gap-2 rounded-md bg-warn-bg px-2 py-1.5 text-[12.5px] text-[#7a5e0a]">
-          {updatedBy ?? "Someone"} changed this while you were editing.
-          <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => (setDraft(null), setBase(value))} className="font-semibold underline">
-            Use theirs
-          </button>
-          <span>or keep typing — saving will check first.</span>
-        </span>
-      )}
+      {draft.theirs && <TheirChange updatedBy={updatedBy} onUseTheirs={draft.takeTheirs} />}
     </div>
+  );
+}
+
+type DraftTextProps = {
+  value: string;
+  editable: boolean;
+  onSave: (next: string, base: string) => void;
+  label: string;
+  multiline?: boolean;
+  placeholder?: string;
+  empty?: string;
+  className?: string;
+  autoFocus?: boolean;
+  updatedBy?: string;
+  validate?: (v: string) => string | null;
+};
+
+/**
+ * The draft over a saved text, from the moment the field takes focus: `base` is the value editing
+ * began from, so `theirs` can say someone else has changed it since, and the save is checked
+ * against it. `handlers` go on the field; `escape` throws the draft away.
+ */
+function useTextDraft(value: string, onSave: (next: string, base: string) => void, validate?: (v: string) => string | null) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const [base, setBase] = useState(value);
+  const [error, setError] = useState<string | null>(null);
+  const editing = draft !== null;
+  // Not being edited: follow the saved value, including other people's changes.
+  if (!editing && base !== value) setBase(value);
+
+  const commit = () => {
+    if (draft === null) return;
+    const next = draft.trim();
+    const bad = validate?.(next) ?? null;
+    if (bad) {
+      setError(bad);
+      return;
+    }
+    setDraft(null);
+    setError(null);
+    if (next !== base.trim()) onSave(next, base);
+  };
+  const handlers = {
+    onFocus: () => {
+      if (draft === null) {
+        setDraft(value);
+        setBase(value);
+      }
+    },
+    onChange: (e: { target: { value: string } }) => {
+      setDraft(e.target.value);
+      setError(null);
+    },
+    // Leaving for another window or tab isn't a decision: the draft waits. Clicking elsewhere
+    // on the page saves it.
+    onBlur: () => {
+      if (typeof document !== "undefined" && !document.hasFocus()) return;
+      commit();
+    },
+  };
+  /** Escape: the draft is thrown away, and the field — only the field — is left. */
+  const escape = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault();
+    leaveOnly(e);
+    setDraft(null);
+    setError(null);
+    (e.target as HTMLTextAreaElement).blur();
+  };
+  return { value: draft ?? value, error, theirs: editing && value !== base, handlers, escape, takeTheirs: () => (setDraft(null), setBase(value)) };
+}
+
+/** Someone else changed the text mid-edit: said, with Use theirs — or keep typing, and the save checks first. */
+function TheirChange({ updatedBy, onUseTheirs }: { updatedBy?: string; onUseTheirs: () => void }) {
+  return (
+    <span role="status" className="flex flex-wrap items-center gap-2 rounded-md bg-warn-bg px-2 py-1.5 text-[12.5px] text-[#7a5e0a]">
+      {updatedBy ?? "Someone"} changed this while you were editing.
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onUseTheirs} className="font-semibold underline">
+        Use theirs
+      </button>
+      <span>or keep typing — saving will check first.</span>
+    </span>
   );
 }

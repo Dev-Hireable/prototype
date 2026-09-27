@@ -11,6 +11,40 @@ function getOptionGradient(index: number): string {
   ];
 }
 
+/** The reply arrow in its circle at the start of every option. Decorative. */
+function OptionIcon() {
+  return (
+    <div
+      className="relative z-10 flex size-10 shrink-0 flex-col items-center justify-center gap-2.5 rounded-[100px] bg-background/40 px-[11px]"
+      aria-hidden
+    >
+      <svg
+        width={20}
+        height={20}
+        viewBox="0 0 20 20"
+        fill="none"
+        className="text-muted-foreground"
+        aria-hidden
+      >
+        <path
+          d="M12.5 8.33L16.67 12.5L12.5 16.67"
+          stroke="currentColor"
+          strokeWidth="1.67"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M3.34 3.33V9.16C3.34 10.05 3.69 10.89 4.31 11.52C4.94 12.14 5.79 12.49 6.67 12.49H16.67"
+          stroke="currentColor"
+          strokeWidth="1.67"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
 type OptionButtonProps = {
   label: string;
   selected?: boolean;
@@ -48,34 +82,7 @@ export function OptionButton({
         style={{ backgroundColor: gradientColor }}
         aria-hidden
       />
-      <div
-        className="relative z-10 flex size-10 shrink-0 flex-col items-center justify-center gap-2.5 rounded-[100px] bg-background/40 px-[11px]"
-        aria-hidden
-      >
-        <svg
-          width={20}
-          height={20}
-          viewBox="0 0 20 20"
-          fill="none"
-          className="text-muted-foreground"
-          aria-hidden
-        >
-          <path
-            d="M12.5 8.33L16.67 12.5L12.5 16.67"
-            stroke="currentColor"
-            strokeWidth="1.67"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M3.34 3.33V9.16C3.34 10.05 3.69 10.89 4.31 11.52C4.94 12.14 5.79 12.49 6.67 12.49H16.67"
-            stroke="currentColor"
-            strokeWidth="1.67"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
+      <OptionIcon />
       <div className="relative z-20 flex min-w-0 flex-1 flex-row items-center justify-center gap-[10px]">
         <span className="font-secondary wrap-break-word text-foreground w-full text-left text-[14px] font-normal leading-[125%] tracking-[0.2px]">
           {label}

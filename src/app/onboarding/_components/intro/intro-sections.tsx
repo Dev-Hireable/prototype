@@ -69,6 +69,57 @@ export function OnboardingSuccessSplash({
   );
 }
 
+/**
+ * The intro's heading: its title and description and, on a retake, the traits the quiz is about to
+ * replace.
+ */
+function IntroHeading({
+  copy,
+  retake,
+}: {
+  copy: IntroCopy;
+  retake: IntroRetake | null;
+}) {
+  return (
+    <div className="flex w-full flex-col items-center gap-4 text-center">
+      <h1 className="text-foreground w-full text-3xl font-semibold leading-[1.2] text-balance sm:text-4xl lg:text-5xl">
+        {copy.title}
+      </h1>
+      {copy.description ? (
+        <p className="text-muted-foreground mt-2 text-sm leading-normal text-balance">
+          {copy.description}
+        </p>
+      ) : null}
+      {retake && retake.traits.length > 0 ? (
+        <div className="mt-4 flex flex-col items-center gap-3">
+          <p className="text-muted-foreground text-xs font-semibold uppercase leading-[120%] tracking-[0.2px]">
+            {RETAKE_TRAITS_LABEL}
+          </p>
+          <div className="flex max-w-120 flex-wrap justify-center gap-2">
+            {retake.traits.map((trait) => (
+              <WorkstyleTraitTag
+                key={`${trait.trait}-${trait.label}`}
+                label={trait.label}
+                questionIndex={trait.trait}
+                tagMetadata={retake.tagMetadata}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+type OnboardingIntroContentProps = {
+  copy: IntroCopy;
+  retake: IntroRetake | null;
+  introLogoRef: React.RefObject<HTMLDivElement | null>;
+  introHeadingRef: React.RefObject<HTMLDivElement | null>;
+  introButtonRef: React.RefObject<HTMLDivElement | null>;
+  onContinue: () => void;
+};
+
 export function OnboardingIntroContent({
   copy,
   retake,
@@ -76,14 +127,7 @@ export function OnboardingIntroContent({
   introHeadingRef,
   introButtonRef,
   onContinue,
-}: {
-  copy: IntroCopy;
-  retake: IntroRetake | null;
-  introLogoRef: React.RefObject<HTMLDivElement | null>;
-  introHeadingRef: React.RefObject<HTMLDivElement | null>;
-  introButtonRef: React.RefObject<HTMLDivElement | null>;
-  onContinue: () => void;
-}) {
+}: OnboardingIntroContentProps) {
   return (
     <div
       key="intro"
@@ -107,33 +151,7 @@ export function OnboardingIntroContent({
         className="w-full"
         style={{ opacity: 0, transform: 'translateY(30px)' }}
       >
-        <div className="flex w-full flex-col items-center gap-4 text-center">
-          <h1 className="text-foreground w-full text-3xl font-semibold leading-[1.2] text-balance sm:text-4xl lg:text-5xl">
-            {copy.title}
-          </h1>
-          {copy.description ? (
-            <p className="text-muted-foreground mt-2 text-sm leading-normal text-balance">
-              {copy.description}
-            </p>
-          ) : null}
-          {retake && retake.traits.length > 0 ? (
-            <div className="mt-4 flex flex-col items-center gap-3">
-              <p className="text-muted-foreground text-xs font-semibold uppercase leading-[120%] tracking-[0.2px]">
-                {RETAKE_TRAITS_LABEL}
-              </p>
-              <div className="flex max-w-120 flex-wrap justify-center gap-2">
-                {retake.traits.map((trait) => (
-                  <WorkstyleTraitTag
-                    key={`${trait.trait}-${trait.label}`}
-                    label={trait.label}
-                    questionIndex={trait.trait}
-                    tagMetadata={retake.tagMetadata}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <IntroHeading copy={copy} retake={retake} />
       </div>
       <div
         ref={introButtonRef}

@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { Button, EmptyState, InfoBanner, LinkButton, Page } from "@/components/independent/ui";
-import { CONTRACT_LAYOUTS, ContractList, ContractListToolbar, type ContractTypeFilter, type ContractSummary } from "@/components/portal/ContractCard";
+import { ContractList, ContractListToolbar, type ContractTypeFilter, type ContractSummary } from "@/components/portal/ContractCard";
 import { useQueryState } from "@/lib/portal/query-state";
 import { Avatar } from "@/components/team/ui";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { byName, CONTRACT_NAMES } from "@/lib/team/data";
-import { useDemo } from "@/lib/team/store";
+import { useTeamContracts } from "@/lib/team/contracts";
 import { useWithReturn } from "@/components/portal/return";
 import type { Contract } from "@/lib/team/data";
+import { CONTRACT_LAYOUTS } from "@/lib/contract/view";
 
 /** Working days left in a trial; full-time contracts have no countdown. */
 const daysLeft = (c: Contract) => c.left;
@@ -24,7 +25,7 @@ const trialEnded = (c: Contract) => c.type === "trial" && c.over;
  * Was a table, which had nowhere to put the per-contract counts the AC asks for.
  */
 export default function AllIndependents() {
-  const { contracts } = useDemo();
+  const { contracts } = useTeamContracts();
   const withReturn = useWithReturn();
   const [q, setQ] = useState("");
   const [type, setType] = useState<ContractTypeFilter>("All");
@@ -63,46 +64,60 @@ export default function AllIndependents() {
 
       {contracts.length === 0 ? (
         /* TB-051: nobody hired yet — two ways forward, not a dead end. */
-        <div className="flex flex-col gap-3">
-          <EmptyState
-            title="No independents yet"
-            body="When a candidate accepts an offer, their contract and tracker appear here."
-            action={
-              <div className="flex gap-2">
-                <LinkButton href={withReturn("/team/discover")} variant="primary" size="lg">
-                  Discover independents
-                </LinkButton>
-                <LinkButton href="/team/hire" size="lg">
-                  Create job post
-                </LinkButton>
-              </div>
-            }
-          />
-          <InfoBanner>Independents appear here only after they accept an offer — for a trial, a full-time or a part-time role.</InfoBanner>
-        </div>
+        <NoIndependents discoverHref={withReturn("/team/discover")} />
       ) : list.length === 0 ? (
-        <EmptyState
-          title="No independents match"
-          body={filtering ? "Try a different filter, or clear the search to see everyone." : "Turn on Show inactive to include ended contracts."}
-          action={
-            <div className="flex gap-2">
-              {filtering && (
-                <Button size="lg" variant="primary" onClick={clearAll}>
-                  Clear search
-                </Button>
-              )}
-              {!showInactive && (
-                <Button size="lg" onClick={() => setShowInactive(true)}>
-                  Show inactive
-                </Button>
-              )}
-            </div>
-          }
-        />
+        <NoMatches filtering={filtering} showInactive={showInactive} onClear={clearAll} onShowInactive={() => setShowInactive(true)} />
       ) : (
         <ContractList layout={layout} who="Independent" items={list.map((c) => ({ id: c.slug, ...summaryOf(c, withReturn) }))} />
       )}
     </Page>
+  );
+}
+
+/** Before the first hire: where independents will appear, and the two ways to get one. */
+function NoIndependents({ discoverHref }: { discoverHref: string }) {
+  return (
+    <div className="flex flex-col gap-3">
+      <EmptyState
+        title="No independents yet"
+        body="When a candidate accepts an offer, their contract and tracker appear here."
+        action={
+          <div className="flex gap-2">
+            <LinkButton href={discoverHref} variant="primary" size="lg">
+              Discover independents
+            </LinkButton>
+            <LinkButton href="/team/hire" size="lg">
+              Create job post
+            </LinkButton>
+          </div>
+        }
+      />
+      <InfoBanner>Independents appear here only after they accept an offer — for a trial, a full-time or a part-time role.</InfoBanner>
+    </div>
+  );
+}
+
+/** Nobody left after the search and filters: clear them, or bring back the ended contracts. */
+function NoMatches({ filtering, showInactive, onClear, onShowInactive }: { filtering: boolean; showInactive: boolean; onClear: () => void; onShowInactive: () => void }) {
+  return (
+    <EmptyState
+      title="No independents match"
+      body={filtering ? "Try a different filter, or clear the search to see everyone." : "Turn on Show inactive to include ended contracts."}
+      action={
+        <div className="flex gap-2">
+          {filtering && (
+            <Button size="lg" variant="primary" onClick={onClear}>
+              Clear search
+            </Button>
+          )}
+          {!showInactive && (
+            <Button size="lg" onClick={onShowInactive}>
+              Show inactive
+            </Button>
+          )}
+        </div>
+      }
+    />
   );
 }
 

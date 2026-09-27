@@ -6,6 +6,7 @@ import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
 import { ViewSwitch } from "@/components/portal/ViewSwitch";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Row, Table } from "@/components/team/ui";
+import type { CONTRACT_LAYOUTS } from "@/lib/contract/view";
 import { daysLeftLabel } from "@/lib/demo/dates";
 import type { JobType } from "@/lib/demo/job-types";
 import { taskCounts } from "@/lib/demo/tasks";
@@ -39,9 +40,8 @@ export type ContractSummary = {
   action?: ReactNode;
 };
 
-export const CONTRACT_LAYOUTS = ["grid", "list"] as const;
-export type ContractLayout = (typeof CONTRACT_LAYOUTS)[number];
-export const CONTRACT_LAYOUT_OPTIONS = [
+type ContractLayout = (typeof CONTRACT_LAYOUTS)[number];
+const CONTRACT_LAYOUT_OPTIONS = [
   { value: "grid", label: "Grid", icon: "viewGrid" },
   { value: "list", label: "List", icon: "viewList" },
 ] as const;
@@ -89,7 +89,7 @@ const COLS = {
  * contract type, TFS and time left. The Team Builder's All independents and the independent's All
  * contracts both draw it, so the two lists of the same contracts look the same from either side.
  */
-export function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, inactive, ended, started, status, action }: ContractSummary) {
+function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, inactive, ended, started, status, action }: ContractSummary) {
   const counts = taskCounts(tasks);
   /** Open and on time; the overdue ones are counted on their own. */
   const inProgress = counts.total - counts.done - counts.overdue;
@@ -215,7 +215,7 @@ function TimeLeft({ type, left, inactive, ended, started }: Pick<ContractSummary
 
 
 /** The contract types the lists filter by. */
-export const CONTRACT_TYPE_FILTERS = ["All", "Trial", "Full-time", "Part-time"] as const;
+const CONTRACT_TYPE_FILTERS = ["All", "Trial", "Full-time", "Part-time"] as const;
 export type ContractTypeFilter = (typeof CONTRACT_TYPE_FILTERS)[number];
 
 /**

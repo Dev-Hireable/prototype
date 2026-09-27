@@ -17,11 +17,13 @@ import type { RateSuggestion, RoleTemplate, TemplateCategory } from "@/lib/team/
 /** The most-used roles lead the unfiltered list. */
 const BY_POPULARITY = [...ROLE_TEMPLATES.filter((t) => t.popular), ...ROLE_TEMPLATES.filter((t) => !t.popular)];
 
+/** The templates under a category pill: all of them, most-used first, or the category's own. */
+const inCategory = (c: TemplateCategory | "All") => (c === "All" ? BY_POPULARITY : ROLE_TEMPLATES.filter((t) => t.category === c));
+
 /** The library: search it, narrow it by category, see what each template fills in, or go back to blank. */
 export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { open: boolean; onClose: () => void; onPick: (t: RoleTemplate) => void; onClear: () => void; applied: RoleTemplate | null }) {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<TemplateCategory | "All">("All");
-  const inCategory = (c: TemplateCategory | "All") => (c === "All" ? BY_POPULARITY : ROLE_TEMPLATES.filter((t) => t.category === c));
   const list = searchTemplates(q, inCategory(category));
   const close = () => {
     setQ("");
@@ -44,19 +46,7 @@ export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { o
               <MdClose size={20} aria-hidden />
             </button>
           </div>
-          {applied && (
-            <div className="flex items-center justify-between gap-4 rounded-lg bg-accent-bg px-4 py-3 text-[13px] leading-[1.4] text-accent-ink">
-              <span className="flex items-center gap-2">
-                <MdCheckCircle size={16} aria-hidden className="shrink-0" />
-                <span>
-                  The form is filled from the <strong className="font-semibold">{applied.title}</strong> template.
-                </span>
-              </span>
-              <Button size="sm" onClick={onClear}>
-                Start from scratch
-              </Button>
-            </div>
-          )}
+          {applied && <AppliedTemplate template={applied} onClear={onClear} />}
           <SearchBox value={q} onChange={setQ} placeholder="Search roles, e.g. assistant, sales, designer" />
           <Pills
             aria-label="Template category"
@@ -73,64 +63,92 @@ export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { o
           />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
-          {list.length === 0 ? (
-            <p className="rounded-lg bg-[#fafafa] px-4 py-8 text-center text-[13px] leading-[1.4] text-ink-2">No templates match “{q.trim()}”. Try another word, or close this and start from scratch.</p>
-          ) : (
-            <ul className="grid grid-cols-2 gap-3">
-              {list.map((t) => {
-                const on = applied?.id === t.id;
-                return (
-                  <li key={t.id}>
-                    {/* The whole card is the button — a small "Use template" button at the
-                        bottom was a hard target to find and hit. */}
-                    <button
-                      type="button"
-                      onClick={() => onPick(t)}
-                      disabled={on}
-                      aria-label={on ? `${t.title} — in use` : `Use the ${t.title} template`}
-                      className={`group flex h-full w-full flex-col gap-3 rounded-lg p-4 text-left transition ${
-                        on ? "cursor-default bg-accent-bg/40 outline-2 -outline-offset-2 outline-primary" : "cursor-pointer outline -outline-offset-1 outline-border hover:bg-[#f7fbff] hover:shadow-[0_2px_8px_rgba(0,0,0,.08)] hover:outline-primary focus-visible:outline-2 focus-visible:outline-primary"
-                      }`}
-                    >
-                      <span className="flex flex-col gap-0.5">
-                        <span className="flex items-center gap-2 text-[15px] leading-[1.3] font-semibold text-ink">
-                          {t.title}
-                          {t.popular && <Badge tone="trial">Popular</Badge>}
-                        </span>
-                        <span className="text-[12px] leading-[1.3] text-ink-2">
-                          {t.category} · {levelName(t.level)} · {templateRange(t)} · {t.days}-day trial, {t.tasks.length} tasks
-                        </span>
-                      </span>
-                      <span className="line-clamp-3 text-[13px] leading-[1.4] text-ink-2">{t.description}</span>
-                      <span className="flex flex-wrap gap-1.5">
-                        {t.skills.map((s) => (
-                          <Chip key={s} size="sm">
-                            {s}
-                          </Chip>
-                        ))}
-                      </span>
-                      {/* A label, not a second button: it says what a click does and lights up on hover. */}
-                      <span className={`mt-auto inline-flex items-center gap-1 text-[13px] leading-none font-semibold ${on ? "text-primary" : "text-primary opacity-70 group-hover:opacity-100"}`}>
-                        {on ? (
-                          <>
-                            <MdCheckCircle size={16} aria-hidden /> In use
-                          </>
-                        ) : (
-                          <>
-                            Use this template <MdArrowForward size={16} aria-hidden className="transition group-hover:translate-x-0.5" />
-                          </>
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+        <TemplateResults list={list} query={q} applied={applied} onPick={onPick} />
       </div>
     </Modal>
+  );
+}
+
+/** The note over the library once a template has filled in the form, with the way back to a blank one. */
+function AppliedTemplate({ template, onClear }: { template: RoleTemplate; onClear: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-lg bg-accent-bg px-4 py-3 text-[13px] leading-[1.4] text-accent-ink">
+      <span className="flex items-center gap-2">
+        <MdCheckCircle size={16} aria-hidden className="shrink-0" />
+        <span>
+          The form is filled from the <strong className="font-semibold">{template.title}</strong> template.
+        </span>
+      </span>
+      <Button size="sm" onClick={onClear}>
+        Start from scratch
+      </Button>
+    </div>
+  );
+}
+
+/** The library's scrolling part: the templates that match, two to a row — or a line saying none do. */
+function TemplateResults({ list, query, applied, onPick }: { list: RoleTemplate[]; query: string; applied: RoleTemplate | null; onPick: (t: RoleTemplate) => void }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
+      {list.length === 0 ? (
+        <p className="rounded-lg bg-[#fafafa] px-4 py-8 text-center text-[13px] leading-[1.4] text-ink-2">No templates match “{query.trim()}”. Try another word, or close this and start from scratch.</p>
+      ) : (
+        <ul className="grid grid-cols-2 gap-3">
+          {list.map((t) => (
+            <li key={t.id}>
+              <TemplateCard template={t} inUse={applied?.id === t.id} onPick={onPick} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** One template: what it fills in — level, budget, trial, skills — on a card that picks it, or says it's the one in use. */
+function TemplateCard({ template: t, inUse: on, onPick }: { template: RoleTemplate; inUse: boolean; onPick: (t: RoleTemplate) => void }) {
+  return (
+    // The whole card is the button — a small "Use template" button at the
+    // bottom was a hard target to find and hit.
+    <button
+      type="button"
+      onClick={() => onPick(t)}
+      disabled={on}
+      aria-label={on ? `${t.title} — in use` : `Use the ${t.title} template`}
+      className={`group flex h-full w-full flex-col gap-3 rounded-lg p-4 text-left transition ${
+        on ? "cursor-default bg-accent-bg/40 outline-2 -outline-offset-2 outline-primary" : "cursor-pointer outline -outline-offset-1 outline-border hover:bg-[#f7fbff] hover:shadow-[0_2px_8px_rgba(0,0,0,.08)] hover:outline-primary focus-visible:outline-2 focus-visible:outline-primary"
+      }`}
+    >
+      <span className="flex flex-col gap-0.5">
+        <span className="flex items-center gap-2 text-[15px] leading-[1.3] font-semibold text-ink">
+          {t.title}
+          {t.popular && <Badge tone="trial">Popular</Badge>}
+        </span>
+        <span className="text-[12px] leading-[1.3] text-ink-2">
+          {t.category} · {levelName(t.level)} · {templateRange(t)} · {t.days}-day trial, {t.tasks.length} tasks
+        </span>
+      </span>
+      <span className="line-clamp-3 text-[13px] leading-[1.4] text-ink-2">{t.description}</span>
+      <span className="flex flex-wrap gap-1.5">
+        {t.skills.map((s) => (
+          <Chip key={s} size="sm">
+            {s}
+          </Chip>
+        ))}
+      </span>
+      {/* A label, not a second button: it says what a click does and lights up on hover. */}
+      <span className={`mt-auto inline-flex items-center gap-1 text-[13px] leading-none font-semibold ${on ? "text-primary" : "text-primary opacity-70 group-hover:opacity-100"}`}>
+        {on ? (
+          <>
+            <MdCheckCircle size={16} aria-hidden /> In use
+          </>
+        ) : (
+          <>
+            Use this template <MdArrowForward size={16} aria-hidden className="transition group-hover:translate-x-0.5" />
+          </>
+        )}
+      </span>
+    </button>
   );
 }
 
@@ -154,8 +172,6 @@ function Source({ title, children }: { title: string; children: ReactNode }) {
  */
 export function RateSourceModal({ open, onClose, suggestion: s, role, noun, inUse, onUse }: { open: boolean; onClose: () => void; suggestion: RateSuggestion | null; role: string; noun: "rate" | "salary"; inUse: boolean; onUse: () => void }) {
   const range = s ? `${money(s.min)} – ${money(s.max)} /month` : "";
-  const median = s && s.peers.length ? [...s.peers].sort((a, b) => a.rate - b.rate)[Math.floor((s.peers.length - 1) / 2)].rate : null;
-  const how = s ? { template: "You started from this template.", title: `Matched on the role title “${role}”.`, skills: "Matched on the skills you picked." }[s.matched] : "";
   return (
     <Modal
       open={open && !!s}
@@ -185,50 +201,76 @@ export function RateSourceModal({ open, onClose, suggestion: s, role, noun, inUs
     >
       {s && (
         <div className="flex flex-col gap-3">
-          <Source title="Hireable rate guide">
-            <p className="text-ink">
-              {s.guide.title} · {s.guide.category} · {levelName(s.guide.level)}: <strong className="font-semibold">{templateRange(s.guide)}</strong>
-            </p>
-            <p className="text-ink-2">Typical monthly rates for remote {s.guide.title.toLowerCase()} roles. {how}</p>
-            {s.adjustedFor && (
-              <p className="text-ink-2">
-                Scaled to {levelName(s.adjustedFor)} experience, the level on this role: <strong className="font-semibold text-ink">{range}</strong>.
-              </p>
-            )}
-          </Source>
-          <Source title="Independents on Hireable doing this work">
-            {s.peers.length === 0 ? (
-              <p className="text-ink-2">No independents with these skills yet, so the range comes from the rate guide alone.</p>
-            ) : (
-              <>
-                <ul className="flex flex-col gap-2">
-                  {s.peers.map((p) => (
-                    <li key={p.name} className="flex items-start justify-between gap-4">
-                      <span className="flex flex-col">
-                        <span className="font-medium text-ink">
-                          {p.name} · {p.role}
-                        </span>
-                        <span className="text-[12px] text-ink-2">
-                          {levelName(p.level)}
-                          {p.shared.length > 0 && ` · shares ${p.shared.join(", ")}`}
-                        </span>
-                      </span>
-                      <span className="shrink-0 font-semibold text-ink">{money(p.rate)} /month</span>
-                    </li>
-                  ))}
-                </ul>
-                {median !== null && (
-                  <p className="text-ink-2">
-                    {s.peers.length === 1 ? "Their rate" : `Median of ${s.peers.length} independents`}: {money(median)} /month{median >= s.min && median <= s.max ? ", inside the suggested range." : median < s.min ? ", below the suggested range." : ", above the suggested range."}
-                  </p>
-                )}
-              </>
-            )}
-          </Source>
+          <GuideSource suggestion={s} role={role} range={range} />
+          <PeersSource suggestion={s} />
           <p className="text-[12px] leading-[1.4] text-ink-2">A guide, not a rule — you can set any {noun}.</p>
         </div>
       )}
     </Modal>
+  );
+}
+
+/** The rate-guide entry the range starts from, what it was matched on, and the level it was scaled to. */
+function GuideSource({ suggestion: s, role, range }: { suggestion: RateSuggestion; role: string; range: string }) {
+  const how = { template: "You started from this template.", title: `Matched on the role title “${role}”.`, skills: "Matched on the skills you picked." }[s.matched];
+  return (
+    <Source title="Hireable rate guide">
+      <p className="text-ink">
+        {s.guide.title} · {s.guide.category} · {levelName(s.guide.level)}: <strong className="font-semibold">{templateRange(s.guide)}</strong>
+      </p>
+      <p className="text-ink-2">Typical monthly rates for remote {s.guide.title.toLowerCase()} roles. {how}</p>
+      {s.adjustedFor && (
+        <p className="text-ink-2">
+          Scaled to {levelName(s.adjustedFor)} experience, the level on this role: <strong className="font-semibold text-ink">{range}</strong>.
+        </p>
+      )}
+    </Source>
+  );
+}
+
+/** The middle peer rate — the lower middle one when the count is even — or null with no peers. */
+function peerMedian(s: RateSuggestion) {
+  return s.peers.length ? [...s.peers].sort((a, b) => a.rate - b.rate)[Math.floor((s.peers.length - 1) / 2)].rate : null;
+}
+
+/** How the median sentence ends: where the median falls against the suggested range. */
+function medianPlace(median: number, s: RateSuggestion) {
+  return median >= s.min && median <= s.max ? ", inside the suggested range." : median < s.min ? ", below the suggested range." : ", above the suggested range.";
+}
+
+/** The independents on Hireable doing this work, at their rates, and where their median falls. */
+function PeersSource({ suggestion: s }: { suggestion: RateSuggestion }) {
+  const median = peerMedian(s);
+  return (
+    <Source title="Independents on Hireable doing this work">
+      {s.peers.length === 0 ? (
+        <p className="text-ink-2">No independents with these skills yet, so the range comes from the rate guide alone.</p>
+      ) : (
+        <>
+          <ul className="flex flex-col gap-2">
+            {s.peers.map((p) => (
+              <li key={p.name} className="flex items-start justify-between gap-4">
+                <span className="flex flex-col">
+                  <span className="font-medium text-ink">
+                    {p.name} · {p.role}
+                  </span>
+                  <span className="text-[12px] text-ink-2">
+                    {levelName(p.level)}
+                    {p.shared.length > 0 && ` · shares ${p.shared.join(", ")}`}
+                  </span>
+                </span>
+                <span className="shrink-0 font-semibold text-ink">{money(p.rate)} /month</span>
+              </li>
+            ))}
+          </ul>
+          {median !== null && (
+            <p className="text-ink-2">
+              {s.peers.length === 1 ? "Their rate" : `Median of ${s.peers.length} independents`}: {money(median)} /month{medianPlace(median, s)}
+            </p>
+          )}
+        </>
+      )}
+    </Source>
   );
 }
 

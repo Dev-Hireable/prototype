@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const workstyleResponsesSchema = z.array(
+const workstyleResponsesSchema = z.array(
   z.object({
     questionId: z.number().int().positive(),
     answerId: z.number().int().positive(),

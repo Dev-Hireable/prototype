@@ -13,7 +13,7 @@ import { useContractClock } from "@/lib/demo/contract";
 import { unseenByAdmin, useDisputeDeadlines, useDisputes } from "@/lib/demo/disputes";
 import { unreadChat, useLive } from "@/lib/demo/live";
 import { menuItemFor, sectionFor } from "@/lib/portal/nav";
-import type { Section } from "@/lib/portal/nav";
+import type { MenuItem, Section } from "@/lib/portal/nav";
 
 /*
  * Geometry is lifted 1:1 from the Figma frames (1512×982):
@@ -46,9 +46,74 @@ export function PortalShell({
 }) {
   const pathname = usePathname();
   const section = sectionFor(sections, pathname);
+  const activeMenuHref = menuItemFor(section, pathname);
+  /** Destination of a pending log-out, held while the confirm dialog is open. */
+  const [logout, setLogout] = useState<string | null>(null);
+  const hydrated = useHydrated();
+  // A dispute turn that runs out closes the case — whichever portal happens to be open checks.
+  useDisputeDeadlines();
+  // The contract's own clock: the evaluation reminder, the escrow's release when the window closes, monthly pay.
+  useContractClock();
+  /** A bare page (Messages) draws its own panels, so the shell draws no page panel around them. */
+  const bare = section.menu.find((m) => m.href === activeMenuHref)?.bare;
+
+  return (
+    // min-h keeps the rail (7 × 68) + avatar intact on short viewports; 560 lets a 14" laptop window
+    // (600–650 tall once the browser toolbars take theirs) fit without the whole app scrolling
+    <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink">
+      <Sidebar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} onLogout={setLogout} />
+
+      <div className={`flex h-full min-w-0 flex-1 flex-col ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]"}`}>
+        {/* The demo's records live in localStorage, so the page waits one paint for them rather
+            than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
+        {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
+            Suspense boundary — this one covers every portal page, so none needs its own. */}
+        <Suspense>{hydrated ? children : null}</Suspense>
+      </div>
+
+      <LogoutDialog to={logout} onClose={() => setLogout(null)} />
+    </div>
+  );
+}
+
+/**
+ * The sidebar: the icon rail, the open section's tab, and its panel — at full width, folded to its
+ * icons, or (on a phone) left out so the rail stands alone.
+ */
+function Sidebar({ sections, section, activeMenuHref, profileHref, avatar, onLogout }: { sections: Section[]; section: Section; activeMenuHref: string | undefined; profileHref: string; avatar: string; onLogout: (href: string) => void }) {
+  const pathname = usePathname();
   const rail = sections.filter((s) => !s.hidden);
   const activeIndex = rail.indexOf(section); // -1 when a hidden section (Profile) is open
-  const activeMenuHref = menuItemFor(section, pathname);
+  const { collapsed, railOnly, toggle } = useSidebarFold();
+  const { badges, railBadges } = useNavBadges(pathname);
+
+  return (
+    // Sidebar width eases 336 ↔ 152, or just the rail on a phone; main is flex-1 so it follows the same curve.
+    // Rail only, there's no section panel for the active tab to join, so main's own panel takes its
+    // place: the sidebar keeps the tab's 12px reach (108) and main tucks under it (-mr-4 undoes that
+    // and the 4px gap), so main's edge sits on x 96 where the section panel's would, and the tab runs
+    // into it. The sidebar floats above main there, click-through except the rail itself.
+    <div
+      className={`relative h-full shrink-0 overflow-hidden transition-[width,margin] ${EASE} ${
+        railOnly ? "pointer-events-none z-10 -mr-4 w-[108px]" : collapsed ? "w-[152px]" : "w-[336px]"
+      }`}
+    >
+      {/* Icon rail */}
+      <SectionRail rail={rail} activeIndex={activeIndex} badges={railBadges} profileHref={profileHref} avatar={avatar} />
+
+      {/* Active tab — one outline with the panel's edge, above the panel so it hides that stroke where
+          they join. Profile (hidden section, reached from the avatar) is the same shape flipped to the bottom. */}
+      <ActiveTab index={activeIndex >= 0 ? activeIndex : "profile"} />
+
+      {/* Section panel — ONE set of DOM nodes for both states so items morph instead of swapping.
+          On a phone it stays mounted at no width. */}
+      <SectionPanel section={section} activeMenuHref={activeMenuHref} badges={badges} collapsed={collapsed} railOnly={railOnly} onToggle={toggle} onLogout={onLogout} />
+    </div>
+  );
+}
+
+/** Whether the section panel is folded to its icons or (on a phone) left out, and the toggle that folds and unfolds it. */
+function useSidebarFold() {
   // Collapsed by default below 1440px — 14" laptops at 125–150% scaling (1280–1400 wide), where
   // the full 336px panel left the page ~930px and boards, tables and workspaces scrolled sideways.
   // The Figma frame (1512, a 14" MacBook) keeps it open. The toggle overrides that for the session.
@@ -57,16 +122,37 @@ export function PortalShell({
   const tiny = useMedia("(max-width: 639px)");
   const [chosen, setChosen] = useState<boolean | null>(null);
   const collapsed = chosen ?? narrow;
-  const setCollapsed = (fn: (c: boolean) => boolean) => setChosen(fn(collapsed));
-  /** Destination of a pending log-out, held while the confirm dialog is open. */
-  const [logout, setLogout] = useState<string | null>(null);
-  const hydrated = useHydrated();
-  // A dispute turn that runs out closes the case — whichever portal happens to be open checks.
-  useDisputeDeadlines();
-  // The contract's own clock: the evaluation reminder, the escrow's release when the window closes, monthly pay.
-  useContractClock();
-  const router = useRouter();
+  /** On a phone the sidebar is just the rail. */
+  const railOnly = tiny;
+  return { collapsed, railOnly, toggle: () => setChosen(!collapsed) };
+}
 
+/** Log out's confirm: Log out signs out and follows the menu item's link; Cancel stays. */
+function LogoutDialog({ to, onClose }: { to: string | null; onClose: () => void }) {
+  const router = useRouter();
+  return (
+    <Modal
+      open={!!to}
+      onClose={onClose}
+      tone="danger"
+      title="Log out?"
+      description="You'll be signed out of this device. Anything you haven't saved is lost, and you'll need to sign in again to get back in."
+      footer={
+        <>
+          <Button size="lg" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button size="lg" variant="danger" onClick={() => { signOut(); if (to) router.push(to); }}>
+            Log out
+          </Button>
+        </>
+      }
+    />
+  );
+}
+
+/** The unread counts the nav carries, by href: `badges` for the section menus, `railBadges` for the rail. */
+function useNavBadges(pathname: string) {
   /* Live unread counts on the Messages and Notifications nav items (TB-007/008, IN-007/008). */
   const live = useLive();
   const side = pathname.startsWith("/team") ? "team" : "independent";
@@ -84,201 +170,189 @@ export function PortalShell({
      every section, not only the one whose submenu happens to list Messages. Rail only: the Home
      section and its Dashboard item share a href, and the count belongs on Messages, not Dashboard. */
   const railBadges: Record<string, number> = pathname.startsWith("/admin") ? badges : { ...badges, [root]: unreadChat(live, side) };
-  /** On a phone the sidebar is just the rail. */
-  const railOnly = tiny;
-  /** A bare page (Messages) draws its own panels, so the shell draws no page panel around them. */
-  const bare = section.menu.find((m) => m.href === activeMenuHref)?.bare;
+  return { badges, railBadges };
+}
 
+/** The icon rail: a tab per section with its unread count, and at its foot the avatar that opens My profile. */
+function SectionRail({ rail, activeIndex, badges, profileHref, avatar }: { rail: Section[]; activeIndex: number; badges: Record<string, number>; profileHref: string; avatar: string }) {
   return (
-    // min-h keeps the rail (7 × 68) + avatar intact on short viewports; 560 lets a 14" laptop window
-    // (600–650 tall once the browser toolbars take theirs) fit without the whole app scrolling
-    <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink">
-      {/* Sidebar width eases 336 ↔ 152, or just the rail on a phone; main is flex-1 so it follows the same curve.
-          Rail only, there's no section panel for the active tab to join, so main's own panel takes its
-          place: the sidebar keeps the tab's 12px reach (108) and main tucks under it (-mr-4 undoes that
-          and the 4px gap), so main's edge sits on x 96 where the section panel's would, and the tab runs
-          into it. The sidebar floats above main there, click-through except the rail itself. */}
-      <div
-        className={`relative h-full shrink-0 overflow-hidden transition-[width,margin] ${EASE} ${
-          railOnly ? "pointer-events-none z-10 -mr-4 w-[108px]" : collapsed ? "w-[152px]" : "w-[336px]"
+    <nav aria-label="Sections" className="pointer-events-auto absolute top-0 left-0 h-full w-24 overflow-clip rounded-lg">
+      <ul className="flex flex-col pl-2">
+        {rail.map((s, i) => {
+          const active = i === activeIndex;
+          const badge = badges[s.href] ?? 0;
+          return (
+            <li key={s.href} className="relative z-20">
+              <Link
+                href={s.href}
+                aria-current={active ? "page" : undefined}
+                className={`group relative flex h-[68px] w-full flex-col items-center gap-1 px-2 py-4 text-[10px] leading-[1.2] tracking-[0.2px] whitespace-nowrap transition-colors
+                      ${active ? "font-semibold text-accent-ink" : "font-normal text-ink-2 hover:text-ink"}`}
+              >
+                {/* On hover a white card comes up behind the glyph and label, a lighter take on the open
+                    section's white tab, so a section reads as something to click. -z-10 keeps it behind
+                    them, inside the li's own z-20. */}
+                {!active && <span aria-hidden className="absolute inset-1 -z-10 rounded-xl transition-colors group-hover:bg-white" />}
+                <RailGlyph icon={s.icon} active={active} />
+                {badge > 0 && (
+                  <span aria-label={`${badge} unread`} className="pointer-events-none absolute top-2.5 right-[22px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white">
+                    <span className="badge-count">{badge > 9 ? "9+" : badge}</span>
+                  </span>
+                )}
+                {s.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      {/* z-20: paints above the active tab when Profile is open */}
+      <Tip label="My profile" side="right">
+        <Link
+          href={profileHref}
+          aria-label="My profile"
+          aria-current={activeIndex === -1 ? "page" : undefined}
+          className="group absolute bottom-0 left-5 z-20 flex h-[68px] w-16 items-center justify-center rounded-lg px-2 py-4"
+        >
+          {/* The sections' hover card, as wide as theirs (x 12 → 92), unless Profile is the open tab */}
+          {activeIndex !== -1 && <span aria-hidden className="absolute -inset-x-2 inset-y-1 -z-10 rounded-xl transition-colors group-hover:bg-white" />}
+          <span className="rounded-full p-[4.8px]">
+            <Image
+              src={avatar}
+              alt=""
+              width={128}
+              height={128}
+              priority
+              className="size-[38.4px] rounded-full bg-[#d2d8db] object-cover"
+            />
+          </span>
+        </Link>
+      </Tip>
+    </nav>
+  );
+}
+
+/** The open section's panel beside the rail: its title, the collapse button and its menu, at full width, folded to icons, or none. */
+function SectionPanel({
+  section,
+  activeMenuHref,
+  badges,
+  collapsed,
+  railOnly,
+  onToggle,
+  onLogout,
+}: {
+  section: Section;
+  activeMenuHref: string | undefined;
+  badges: Record<string, number>;
+  collapsed: boolean;
+  railOnly: boolean;
+  onToggle: () => void;
+  onLogout: (href: string) => void;
+}) {
+  return (
+    <div
+      inert={railOnly}
+      className={`absolute top-0 left-24 h-full overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] ${EASE} transition-[width] ${
+        railOnly ? "w-0" : collapsed ? "w-14" : "w-60"
+      }`}
+    >
+      <h2
+        className={`absolute top-4 left-4 text-[16px] leading-[1.5] font-semibold tracking-[0.2px] whitespace-nowrap text-ink ${EASE} transition-opacity ${
+          collapsed ? "opacity-0" : "opacity-100"
         }`}
       >
-        {/* Icon rail */}
-        <nav aria-label="Sections" className="pointer-events-auto absolute top-0 left-0 h-full w-24 overflow-clip rounded-lg">
-          <ul className="flex flex-col pl-2">
-            {rail.map((s, i) => {
-              const active = i === activeIndex;
-              const badge = railBadges[s.href] ?? 0;
-              return (
-                <li key={s.href} className="relative z-20">
-                  <Link
-                    href={s.href}
-                    aria-current={active ? "page" : undefined}
-                    className={`group relative flex h-[68px] w-full flex-col items-center gap-1 px-2 py-4 text-[10px] leading-[1.2] tracking-[0.2px] whitespace-nowrap transition-colors
-                      ${active ? "font-semibold text-accent-ink" : "font-normal text-ink-2 hover:text-ink"}`}
-                  >
-                    {/* On hover a white card comes up behind the glyph and label, a lighter take on the open
-                        section's white tab, so a section reads as something to click. -z-10 keeps it behind
-                        them, inside the li's own z-20. */}
-                    {!active && <span aria-hidden className="absolute inset-1 -z-10 rounded-xl transition-colors group-hover:bg-white" />}
-                    <RailGlyph icon={s.icon} active={active} />
-                    {badge > 0 && (
-                      <span aria-label={`${badge} unread`} className="pointer-events-none absolute top-2.5 right-[22px] flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white">
-                        <span className="badge-count">{badge > 9 ? "9+" : badge}</span>
-                      </span>
-                    )}
-                    {s.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-          {/* z-20: paints above the active tab when Profile is open */}
-          <Tip label="My profile" side="right">
-            <Link
-              href={profileHref}
-              aria-label="My profile"
-              aria-current={activeIndex === -1 ? "page" : undefined}
-              className="group absolute bottom-0 left-5 z-20 flex h-[68px] w-16 items-center justify-center rounded-lg px-2 py-4"
-            >
-              {/* The sections' hover card, as wide as theirs (x 12 → 92), unless Profile is the open tab */}
-              {activeIndex !== -1 && <span aria-hidden className="absolute -inset-x-2 inset-y-1 -z-10 rounded-xl transition-colors group-hover:bg-white" />}
-              <span className="rounded-full p-[4.8px]">
-                <Image
-                  src={avatar}
-                  alt=""
-                  width={128}
-                  height={128}
-                  priority
-                  className="size-[38.4px] rounded-full bg-[#d2d8db] object-cover"
-                />
-              </span>
-            </Link>
-          </Tip>
-        </nav>
+        {section.title}
+      </h2>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+        aria-expanded={!collapsed}
+        className={`absolute flex size-6 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink ${EASE} transition-[left,top,background-color,color]`}
+        style={{ left: collapsed ? 15 : 200, top: collapsed ? 15 : 16 }}
+      >
+        <CollapseIcon size={20} aria-hidden className={`${EASE} transition-transform ${collapsed ? "rotate-180" : ""}`} />
+      </button>
 
-        {/* Active tab — one outline with the panel's edge, above the panel so it hides that stroke where
-            they join. Profile (hidden section, reached from the avatar) is the same shape flipped to the bottom. */}
-        <ActiveTab index={activeIndex >= 0 ? activeIndex : "profile"} />
-
-        {/* Section panel — ONE set of DOM nodes for both states so items morph instead of swapping.
-            On a phone it stays mounted at no width. */}
-        <div
-          inert={railOnly}
-          className={`absolute top-0 left-24 h-full overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] ${EASE} transition-[width] ${
-            railOnly ? "w-0" : collapsed ? "w-14" : "w-60"
-          }`}
-        >
-          <h2
-            className={`absolute top-4 left-4 text-[16px] leading-[1.5] font-semibold tracking-[0.2px] whitespace-nowrap text-ink ${EASE} transition-opacity ${
-              collapsed ? "opacity-0" : "opacity-100"
-            }`}
-          >
-            {section.title}
-          </h2>
-          <button
-            type="button"
-            onClick={() => setCollapsed((c) => !c)}
-            aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-            aria-expanded={!collapsed}
-            className={`absolute flex size-6 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink ${EASE} transition-[left,top,background-color,color]`}
-            style={{ left: collapsed ? 15 : 200, top: collapsed ? 15 : 16 }}
-          >
-            <CollapseIcon size={20} aria-hidden className={`${EASE} transition-transform ${collapsed ? "rotate-180" : ""}`} />
-          </button>
-
-          {/* z-20: above the active tab's 12px overhang (z-10) */}
-          <ul
-            className={`absolute z-20 flex flex-col ${EASE} transition-[left,top,gap] ${collapsed ? "gap-0.5" : "gap-2"}`}
-            style={{ left: collapsed ? 7 : 16, top: collapsed ? 55 : 64 }}
-          >
-            {section.menu.map((item) => {
-              const active = item.href === activeMenuHref;
-              const Glyph = ICONS[item.icon];
-              // Hover greys an item in and press darkens it, so the list reads as links; the open one keeps its blue
-              const cls = `flex items-center gap-2 overflow-hidden rounded-lg p-2 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${EASE} transition-[width,height,background-color,color] ${
-                active ? "bg-accent-bg font-semibold text-accent-ink" : "font-normal text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-black/8"
-              }`;
-              const style = collapsed ? { width: 40, height: 40 } : { width: 208, height: 34 };
-              const body = (
-                <>
-                  <Glyph
-                    aria-hidden
-                    className={`shrink-0 ${EASE} transition-[width,height]`}
-                    style={{ width: collapsed ? 24 : 18, height: collapsed ? 24 : 18 }}
-                  />
-                  <span
-                    className={`overflow-hidden ${EASE} transition-[opacity,max-width] ${
-                      collapsed ? "max-w-0 opacity-0" : "max-w-40 opacity-100"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </>
-              );
-              const badge = badges[item.href] ?? 0;
-              return (
-                <li key={item.href} className="relative">
-                  {badge > 0 && (
-                    <span
-                      aria-label={`${badge} unread`}
-                      className={`pointer-events-none absolute z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white ${EASE} transition-[left,top]`}
-                      style={collapsed ? { left: 24, top: 2 } : { left: 178, top: 8 }}
-                    >
-                      <span className="badge-count">{badge > 9 ? "9+" : badge}</span>
-                    </span>
-                  )}
-                  {/* Collapsed to its icon, an item names itself on hover */}
-                  <Tip label={item.label} side="right" off={!collapsed}>
-                    {item.action === "logout" ? (
-                      <button type="button" onClick={() => setLogout(item.href)} aria-label={collapsed ? item.label : undefined} className={cls} style={style}>
-                        {body}
-                      </button>
-                    ) : (
-                      <Link
-                        href={item.href}
-                        aria-label={collapsed ? item.label : undefined}
-                        aria-current={active ? "page" : undefined}
-                        className={cls}
-                        style={style}
-                      >
-                        {body}
-                      </Link>
-                    )}
-                  </Tip>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      </div>
-
-      <div className={`flex h-full min-w-0 flex-1 flex-col ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]"}`}>
-        {/* The demo's records live in localStorage, so the page waits one paint for them rather
-            than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
-        {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
-            Suspense boundary — this one covers every portal page, so none needs its own. */}
-        <Suspense>{hydrated ? children : null}</Suspense>
-      </div>
-
-      <Modal
-        open={!!logout}
-        onClose={() => setLogout(null)}
-        tone="danger"
-        title="Log out?"
-        description="You'll be signed out of this device. Anything you haven't saved is lost, and you'll need to sign in again to get back in."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setLogout(null)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="danger" onClick={() => { signOut(); if (logout) router.push(logout); }}>
-              Log out
-            </Button>
-          </>
-        }
-      />
+      {/* z-20: above the active tab's 12px overhang (z-10) */}
+      <SectionMenu items={section.menu} activeMenuHref={activeMenuHref} badges={badges} collapsed={collapsed} onLogout={onLogout} />
     </div>
+  );
+}
+
+/** The section's menu: each item's icon and label (the icon alone while collapsed), its unread count, and Log out's confirm. */
+function SectionMenu({ items, activeMenuHref, badges, collapsed, onLogout }: { items: MenuItem[]; activeMenuHref: string | undefined; badges: Record<string, number>; collapsed: boolean; onLogout: (href: string) => void }) {
+  return (
+    <ul
+      className={`absolute z-20 flex flex-col ${EASE} transition-[left,top,gap] ${collapsed ? "gap-0.5" : "gap-2"}`}
+      style={{ left: collapsed ? 7 : 16, top: collapsed ? 55 : 64 }}
+    >
+      {items.map((item) => (
+        <SectionMenuItem key={item.href} item={item} active={item.href === activeMenuHref} badge={badges[item.href] ?? 0} collapsed={collapsed} onLogout={onLogout} />
+      ))}
+    </ul>
+  );
+}
+
+/** One item of the menu: its unread count, then its link (Log out's button) — named on hover while collapsed to its icon. */
+function SectionMenuItem({ item, active, badge, collapsed, onLogout }: { item: MenuItem; active: boolean; badge: number; collapsed: boolean; onLogout: (href: string) => void }) {
+  // Hover greys an item in and press darkens it, so the list reads as links; the open one keeps its blue
+  const cls = `flex items-center gap-2 overflow-hidden rounded-lg p-2 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${EASE} transition-[width,height,background-color,color] ${
+    active ? "bg-accent-bg font-semibold text-accent-ink" : "font-normal text-ink-2 hover:bg-surface-2 hover:text-ink active:bg-black/8"
+  }`;
+  const style = collapsed ? { width: 40, height: 40 } : { width: 208, height: 34 };
+  const body = <ItemFace item={item} collapsed={collapsed} />;
+  return (
+    <li className="relative">
+      {badge > 0 && (
+        <span
+          aria-label={`${badge} unread`}
+          className={`pointer-events-none absolute z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white ${EASE} transition-[left,top]`}
+          style={collapsed ? { left: 24, top: 2 } : { left: 178, top: 8 }}
+        >
+          <span className="badge-count">{badge > 9 ? "9+" : badge}</span>
+        </span>
+      )}
+      {/* Collapsed to its icon, an item names itself on hover */}
+      <Tip label={item.label} side="right" off={!collapsed}>
+        {item.action === "logout" ? (
+          <button type="button" onClick={() => onLogout(item.href)} aria-label={collapsed ? item.label : undefined} className={cls} style={style}>
+            {body}
+          </button>
+        ) : (
+          <Link
+            href={item.href}
+            aria-label={collapsed ? item.label : undefined}
+            aria-current={active ? "page" : undefined}
+            className={cls}
+            style={style}
+          >
+            {body}
+          </Link>
+        )}
+      </Tip>
+    </li>
+  );
+}
+
+/** A menu item's glyph and label: collapsed, the glyph grows to 24 and the label folds away. */
+function ItemFace({ item, collapsed }: { item: MenuItem; collapsed: boolean }) {
+  const Glyph = ICONS[item.icon];
+  return (
+    <>
+      <Glyph
+        aria-hidden
+        className={`shrink-0 ${EASE} transition-[width,height]`}
+        style={{ width: collapsed ? 24 : 18, height: collapsed ? 24 : 18 }}
+      />
+      <span
+        className={`overflow-hidden ${EASE} transition-[opacity,max-width] ${
+          collapsed ? "max-w-0 opacity-0" : "max-w-40 opacity-100"
+        }`}
+      >
+        {item.label}
+      </span>
+    </>
   );
 }
 

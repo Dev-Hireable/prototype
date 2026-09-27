@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import type { Dispatch } from 'react';
+import type { Dispatch, RefObject } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { toast } from 'sonner';
@@ -27,6 +27,70 @@ type UseOnboardingQuizPersistenceParams = {
   ) => Promise<SaveQuizResponsesResult>;
 };
 
+type PersistResponsesContext = Pick<
+  UseOnboardingQuizPersistenceParams,
+  'role' | 'saveQuizResponses'
+> & {
+  /** The set of answers last sent, so the same set isn't sent twice. */
+  persistedResponsesKeyRef: RefObject<string | null>;
+};
+
+/**
+ * Sends the responses to the server action, once per set of answers: no answers, or the set last
+ * sent, count as saved. A save that doesn't go through forgets the set, so the next attempt tries
+ * again, and says so.
+ */
+async function persistResponsesOnce(
+  responses: WorkstyleResponse[],
+  {
+    role,
+    saveQuizResponses,
+    persistedResponsesKeyRef,
+  }: PersistResponsesContext,
+): Promise<SaveQuizResponsesResult> {
+  if (responses.length === 0) {
+    return {
+      status: 'saved',
+    };
+  }
+
+  const nextKey = responses
+    .map((item) => `${item.questionId}:${item.answerId}`)
+    .join('|');
+  if (persistedResponsesKeyRef.current === nextKey) {
+    return {
+      status: 'saved',
+    };
+  }
+
+  persistedResponsesKeyRef.current = nextKey;
+  try {
+    const result = await saveQuizResponses(role, responses);
+    if (result.status === 'auth_redirect') {
+      return result;
+    }
+
+    if (result.status !== 'saved') {
+      persistedResponsesKeyRef.current = null;
+      toast.error(
+        'Your workstyle results are still syncing. Please try again in a moment.',
+      );
+      return result;
+    }
+
+    return result;
+  } catch (error) {
+    persistedResponsesKeyRef.current = null;
+    console.error('[onboarding] Failed to autosave quiz responses.', error);
+    toast.error(
+      'Could not autosave quiz answers yet. Please try again shortly from your dashboard.',
+    );
+    return {
+      status: 'retryable_failure',
+    };
+  }
+}
+
 export function useOnboardingQuizPersistence({
   dispatchFlow,
   initialQuizQuestions,
@@ -38,51 +102,12 @@ export function useOnboardingQuizPersistence({
   const persistedResponsesKeyRef = useRef<string | null>(null);
 
   const persistQuizResponses = useCallback(
-    async (
-      responses: WorkstyleResponse[],
-    ): Promise<SaveQuizResponsesResult> => {
-      if (responses.length === 0) {
-        return {
-          status: 'saved',
-        };
-      }
-
-      const nextKey = responses
-        .map((item) => `${item.questionId}:${item.answerId}`)
-        .join('|');
-      if (persistedResponsesKeyRef.current === nextKey) {
-        return {
-          status: 'saved',
-        };
-      }
-
-      persistedResponsesKeyRef.current = nextKey;
-      try {
-        const result = await saveQuizResponses(role, responses);
-        if (result.status === 'auth_redirect') {
-          return result;
-        }
-
-        if (result.status !== 'saved') {
-          persistedResponsesKeyRef.current = null;
-          toast.error(
-            'Your workstyle results are still syncing. Please try again in a moment.',
-          );
-          return result;
-        }
-
-        return result;
-      } catch (error) {
-        persistedResponsesKeyRef.current = null;
-        console.error('[onboarding] Failed to autosave quiz responses.', error);
-        toast.error(
-          'Could not autosave quiz answers yet. Please try again shortly from your dashboard.',
-        );
-        return {
-          status: 'retryable_failure',
-        };
-      }
-    },
+    (responses: WorkstyleResponse[]): Promise<SaveQuizResponsesResult> =>
+      persistResponsesOnce(responses, {
+        role,
+        saveQuizResponses,
+        persistedResponsesKeyRef,
+      }),
     [role, saveQuizResponses],
   );
 

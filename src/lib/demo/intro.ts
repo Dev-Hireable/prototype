@@ -16,7 +16,7 @@ const KEY = "ind.intro";
 const CHANGED = "hireable:intro";
 
 export const INTRO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
-export const INTRO_MAX_MB = 100;
+const INTRO_MAX_MB = 100;
 
 /** Why a file can't be the intro, or null when it can. */
 export function checkIntro(file: File): string | null {
@@ -73,6 +73,8 @@ export function useIntroVideo(): string | null {
         .then((blob) => {
           if (!live) return;
           if (current) URL.revokeObjectURL(current);
+          // Let go when the next one replaces it (above) or the hook unmounts (below).
+          // react-doctor-disable-next-line react-doctor/no-create-object-url-without-revoke
           current = blob ? URL.createObjectURL(blob) : null;
           setUrl(current);
         })

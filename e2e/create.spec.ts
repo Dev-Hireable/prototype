@@ -1,7 +1,7 @@
 import { card, closePanel, column, expect, notes, open, panel, saved, savedItem, test, toast, view } from "./fixtures";
 
 // Scenario C — creating work: quick add in a column, the full dialog, and who can.
-test.describe("creating work", () => {
+test.describe("creating work · quick add", () => {
   test("quick add: Enter adds and stays open for the next; Enter on nothing closes", async ({ page }) => {
     await open(page, "team");
     const todo = column(page, "To do");
@@ -52,7 +52,9 @@ test.describe("creating work", () => {
     const item = Object.values(await saved(page)).find((t) => t.title === "Book the photographer");
     expect(item?.assignee).toBe("team");
   });
+});
 
+test.describe("creating work · the Add task dialog", () => {
   test("the Add task dialog sets everything at once, and the item shows in every view", async ({ page }) => {
     await open(page, "team");
     await page.getByRole("button", { name: "Add task" }).first().click();
@@ -84,7 +86,9 @@ test.describe("creating work", () => {
     // Alex's day: the kickoff call (1) and the launch plan (5).
     await expect(page.getByTestId("workload").getByLabel(/^Alex, Tue 29 Sep 2026: 6\. /)).toBeVisible();
   });
+});
 
+test.describe("creating work · persistence", () => {
   test("a new item survives a reload", async ({ page }) => {
     await open(page, "team");
     const todo = column(page, "To do");
@@ -95,7 +99,9 @@ test.describe("creating work", () => {
     await page.reload();
     await expect(card(page, /Still here after reload/)).toBeVisible();
   });
+});
 
+test.describe("creating work · who can", () => {
   test("the Independent and admin can't add work", async ({ page }) => {
     await open(page, "independent");
     await expect(page.getByRole("button", { name: "Add task" })).toHaveCount(0);

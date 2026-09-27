@@ -77,9 +77,6 @@ export function roleFromPosting(p: Posting): Role {
   };
 }
 
-/** Nothing is on the board until a role is published from the client portal. */
-export const roles: Role[] = [];
-
 export const INITIAL_SAVED: string[] = [];
 
 /* -------------------------------------------------------- applications ---- */
@@ -113,7 +110,7 @@ const AGREEMENT_PREAMBLE = `USE OF THIS TEMPLATE IS OPTIONAL. HIREABLE OFFERS TH
 
 Important Disclaimer: This is a form provided on an "as is" basis without representation or warranty of any kind as to its contents. Hireable, its employees, independent contractors or lawyers are not providing you with legal advice and any use of the form is at your own risk. This form is intended to be an example of a services agreement for the Philippines, to be used as an information tool and should not be viewed as a substitute for legal advice.`;
 
-export const AGREEMENT = `HIREABLE SERVICES AGREEMENT
+const AGREEMENT = `HIREABLE SERVICES AGREEMENT
 
 TRIAL CONTRACT - SAMPLE DATA
 
@@ -135,7 +132,7 @@ ${AGREEMENT_PREAMBLE}
  * TB-072 / IN-046 — what a full-time offer is signed against. The offer page used to show the
  * trial agreement: escrow at acceptance, a trial period and pro-rata escrow release.
  */
-export const FULLTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
+const FULLTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
 
 FULL-TIME ENGAGEMENT - SAMPLE DATA
 
@@ -154,7 +151,7 @@ ${AGREEMENT_PREAMBLE}
 6. Termination. Either party may end the engagement with 30 days' written notice through the platform. Salary is paid pro rata up to the last working day.`;
 
 /** What a part-time offer is signed against: a monthly rate for the hours a week agreed, no benefits. */
-export const PARTTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
+const PARTTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
 
 PART-TIME ENGAGEMENT - SAMPLE DATA
 
@@ -262,7 +259,7 @@ export const payoutMethods: PayoutMethod[] = [
 ];
 
 /** IN-032 transaction types, plus the wallet-only Payout that isn't tied to a contract. */
-export const TXN_TYPES = ["Payment Deposited", "Payment Released", "Payment Refunded", "Payout"] as const;
+const TXN_TYPES = ["Payment Deposited", "Payment Released", "Payment Refunded", "Payout"] as const;
 
 /**
  * IN-053 — Earnings states the same rows in the independent's own terms: a release is money
@@ -327,12 +324,6 @@ export const pastEvaluations: PastEvaluation[] = [];
 
 /** IN-062 — the bio limit, quoted in the editor and enforced by it. */
 export const BIO_MAX = 500;
-
-/**
- * TB-018 — at or above this, an applicant is a match rather than a plain application, so the
- * Team Builder's tracker files them straight into Matched instead of the Candidates column.
- */
-export const MATCH_THRESHOLD = 80;
 
 /**
  * IN-064 — the fit every role shows: Figma's 80% for this company and this talent. The demo doesn't

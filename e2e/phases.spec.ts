@@ -1,4 +1,4 @@
-import { api, card, closePanel, expect, open, PATH, panel, test, toast } from "./fixtures";
+import { api, card, closePanel, expect, open, PATH, panel, projectPicker, test, tickFilter, toast } from "./fixtures";
 
 // What each side can do to the work, at every point in a contract's life and in every state a
 // project can be in — the edge cases a Monday, Asana, Jira or Notion board would have to get right.
@@ -11,7 +11,6 @@ const conversion = (status: "sent" | "accepted", start: string) => ({ conversion
 
 /** The header's Add task — the board's per-column quick add is named the same, so this counts them all. */
 const addTask = (page: import("@playwright/test").Page) => page.getByRole("button", { name: "Add task" });
-const picker = (page: import("@playwright/test").Page, showing: string) => page.getByRole("button", { name: `Showing ${showing}. Change project` });
 
 test.describe("while the trial runs", () => {
   test("the Team Builder adds work; the Independent works it but doesn't add any; there are no projects yet", async ({ page, secondPage }) => {
@@ -80,7 +79,7 @@ test.describe("hired, before the role's first day", () => {
   });
 });
 
-test.describe("a running role", () => {
+test.describe("a running role · finished work", () => {
   test.use({ seedOptions: { contract: EVALUATED, deal: conversion("accepted", "2026-09-21") } });
 
   test("the trial is a finished chapter — read-only, with nothing to add — while what it left open carries on", async ({ page }) => {
@@ -92,13 +91,13 @@ test.describe("a running role", () => {
     expect(await api(page, "comment", "t-audit", { id: "c1", text: "Noting this" })).toMatchObject({ ok: false, code: "forbidden" });
 
     // All work mixes places, so each card says where it sits — and finished work says it's read-only.
-    await picker(page, "Open work").click();
+    await projectPicker(page, "Open work").click();
     await page.getByRole("menuitemradio", { name: /^All work/ }).click();
     await expect(card(page, /Audit the current brand assets/)).toContainText("Trial");
     await expect(card(page, /Audit the current brand assets/)).toContainText("Read-only");
     await expect(card(page, /Build the colour palette/)).not.toContainText("Read-only");
 
-    await picker(page, "All work").click();
+    await projectPicker(page, "All work").click();
     await page.getByRole("menuitemradio", { name: /^Trial/ }).click();
     await expect(page.getByText("The trial is over. Its work stays as it was finished, for the record.")).toBeVisible();
     await expect(addTask(page)).toHaveCount(0);
@@ -119,7 +118,7 @@ test.describe("a running role", () => {
     expect(await api(page, "create", { id: "n2", title: "One more", project: "p1" })).toMatchObject({ ok: false, message: "“Launch” is finished. Reopen it to add work to it." });
 
     await page.reload();
-    await picker(page, "Open work").click();
+    await projectPicker(page, "Open work").click();
     await page.getByRole("menuitemradio", { name: /^Launch/ }).click();
     await expect(page.getByText("“Launch” is finished, so its work is read-only. Reopen it to change anything.")).toBeVisible();
     await expect(addTask(page)).toHaveCount(0);
@@ -133,6 +132,10 @@ test.describe("a running role", () => {
     await expect(addTask(page).first()).toBeVisible();
     expect(await api(page, "comment", "n1", { id: "c2", text: "Back on it" })).toMatchObject({ ok: true });
   });
+});
+
+test.describe("a running role · the Independent", () => {
+  test.use({ seedOptions: { contract: EVALUATED, deal: conversion("accepted", "2026-09-21") } });
 
   test("the Independent never adds work or runs projects, but works what's theirs", async ({ page, secondPage }) => {
     await open(page, "team");
@@ -186,9 +189,7 @@ test.describe("deleting a task", () => {
     await expect(toast(page, "Deleted #13 “Scratch idea”")).toBeVisible();
     await expect(card(page, /Scratch idea/)).toHaveCount(0);
 
-    await page.getByRole("button", { name: /^Filter/ }).click();
-    await page.getByRole("menuitemcheckbox", { name: "Show deleted instead" }).click();
-    await page.keyboard.press("Escape");
+    await tickFilter(page, "Show deleted instead");
     await expect(card(page, /Scratch idea/)).toContainText("Deleted");
     await card(page, /Scratch idea/).click();
     await expect(panel(page).getByText(/Deleted by Alex Rivera\. It's out of every view and count until it's restored\./)).toBeVisible();

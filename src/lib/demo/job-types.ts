@@ -12,12 +12,16 @@ export type JobType = "trial" | "full-time" | "part-time";
 /** The two ongoing kinds — what a trial can convert into. */
 export type OngoingType = Exclude<JobType, "trial">;
 
-export const JOB_TYPES: JobType[] = ["trial", "full-time", "part-time"];
-
 export const JOB_TYPE_LABEL: Record<JobType, string> = { trial: "Trial", "full-time": "Full-time", "part-time": "Part-time" };
 
-/** Full-time and part-time run on with no trial clock and no escrow. */
-export const isOngoing = (type: JobType): type is OngoingType => type !== "trial";
+/** What the pay is called on each kind of contract. */
+export const payLabel = (type: JobType) => (type === "full-time" ? "Salary" : type === "trial" ? "Budget" : "Rate");
+
+/** How experienced a role wants someone, or a talent says they are — one list for roles, profiles and filters. */
+export const EXPERIENCE_LEVELS = ["Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];
+
+/** The skill filter's choices. The first is its "no skill filter" placeholder; the rest exist on the seeded profiles, so the filter visibly bites. */
+export const SKILL_OPTIONS = ["Select skills", "Cold calling", "HubSpot", "Negotiation", "Enterprise sales", "Lead generation"] as const;
 
 /** Hours a week a part-time role can be posted at (the wizard's chips). */
 export const PART_TIME_HOURS = [10, 20, 30] as const;

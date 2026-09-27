@@ -1,7 +1,7 @@
-import { expect, open, test, view } from "./fixtures";
+import { expect, open, test, tickFilter, view } from "./fixtures";
 
 // Scenario B — switching views, one dataset; scenario O — Back and Forward.
-test.describe("views and history", () => {
+test.describe("views and history · switching views", () => {
   test("every view shows the same items and survives a reload", async ({ page }) => {
     await open(page, "team");
     const expectations: [string, RegExp, string][] = [
@@ -37,16 +37,14 @@ test.describe("views and history", () => {
     await expect(view(page, "List")).toHaveAttribute("aria-selected", "true");
     await expect(page).toHaveURL(/view=list/);
   });
+});
 
+test.describe("views and history · Back and Forward", () => {
   test("Back and Forward move between views, filters and all", async ({ page }) => {
     await open(page, "team");
     await view(page, "List").click();
     await expect(page).toHaveURL(/view=list/);
-    await page.getByRole("button", { name: /^Filter/ }).click();
-    await page.getByRole("menuitem", { name: "Status" }).click();
-    await page.getByRole("menuitemcheckbox", { name: "In progress" }).click();
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("Escape");
+    await tickFilter(page, "Status", "In progress");
     await expect(page).toHaveURL(/status=doing/);
     await view(page, "Calendar").click();
     await expect(page).toHaveURL(/view=calendar/);

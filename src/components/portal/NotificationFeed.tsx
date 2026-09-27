@@ -96,33 +96,9 @@ export function NotificationFeed<F extends string>({
             <section key={g}>
               <h2 className="px-4 pt-3 pb-1.5 text-[10.5px] leading-[1.45] font-semibold text-muted uppercase">{g}</h2>
               <ul>
-                {group.map(({ n, time }) => {
-                  const inner = (
-                    <>
-                      <span className={`mt-[14px] size-2 shrink-0 rounded-full ${n.unread ? "bg-accent" : "bg-line"}`} aria-hidden />
-                      <Sender item={n} />
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-[13.5px] font-semibold text-ink-deep">{n.title}</span>
-                        <span className="text-[12.5px] text-muted">{n.body}</span>
-                      </span>
-                      <span className="shrink-0 text-[11.5px] text-muted">{time}</span>
-                    </>
-                  );
-                  const row = "flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-surface-alt";
-                  return (
-                    <li key={n.id} className={`border-t border-line leading-[1.45] ${n.unread ? "bg-[#f0f5fc]" : "bg-white"}`}>
-                      {n.href ? (
-                        <Link href={withReturn(n.href)} onClick={() => onRead(n.id)} className={row}>
-                          {inner}
-                        </Link>
-                      ) : (
-                        <button type="button" onClick={() => onRead(n.id)} className={row}>
-                          {inner}
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
+                {group.map(({ n, time }) => (
+                  <FeedRow key={n.id} item={n} time={time} href={n.href ? withReturn(n.href) : undefined} onRead={() => onRead(n.id)} />
+                ))}
               </ul>
             </section>
           );
@@ -130,5 +106,37 @@ export function NotificationFeed<F extends string>({
         {items.length === 0 && <p className="px-4 py-8 text-center text-[13px] text-muted">You’re all caught up.</p>}
       </div>
     </>
+  );
+}
+
+/**
+ * One row of the feed: the unread dot, who it's from, what happened and when. The whole row opens
+ * `href` (already carrying the way back) and marks it read; a row with nowhere to go only marks it read.
+ */
+function FeedRow({ item: n, time, href, onRead }: { item: FeedItem; time: string; href?: string; onRead: () => void }) {
+  const inner = (
+    <>
+      <span className={`mt-[14px] size-2 shrink-0 rounded-full ${n.unread ? "bg-accent" : "bg-line"}`} aria-hidden />
+      <Sender item={n} />
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-[13.5px] font-semibold text-ink-deep">{n.title}</span>
+        <span className="text-[12.5px] text-muted">{n.body}</span>
+      </span>
+      <span className="shrink-0 text-[11.5px] text-muted">{time}</span>
+    </>
+  );
+  const row = "flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-surface-alt";
+  return (
+    <li className={`border-t border-line leading-[1.45] ${n.unread ? "bg-[#f0f5fc]" : "bg-white"}`}>
+      {href ? (
+        <Link href={href} onClick={onRead} className={row}>
+          {inner}
+        </Link>
+      ) : (
+        <button type="button" onClick={onRead} className={row}>
+          {inner}
+        </button>
+      )}
+    </li>
   );
 }

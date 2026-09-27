@@ -1,7 +1,7 @@
 import { card, expect, open, panel, test, view } from "./fixtures";
 
 // Scenario A — the workspace loads for every role, from any link.
-test.describe("loading the workspace", () => {
+test.describe("loading the workspace · for every role", () => {
   test("the Team Builder's contract opens on the board, full width", async ({ page }) => {
     await open(page, "team");
     await expect(page.getByTestId("workspace")).toHaveAttribute("data-role", "manager");
@@ -22,7 +22,9 @@ test.describe("loading the workspace", () => {
     await expect(card(page, /#4 Pick a typography pairing/)).toBeVisible();
     await expect(page.getByText("You're viewing this workspace as an admin. It's read-only.")).toBeVisible();
   });
+});
 
+test.describe("loading the workspace · from any link", () => {
   test("an unknown view falls back to the board", async ({ page }) => {
     await open(page, "team", "?view=gantt");
     await expect(view(page, "Board")).toHaveAttribute("aria-selected", "true");
@@ -48,7 +50,9 @@ test.describe("loading the workspace", () => {
     await page.getByRole("button", { name: "Dismiss" }).click();
     await expect(page).not.toHaveURL(/task=/);
   });
+});
 
+test.describe("loading the workspace · the Overview tab", () => {
   test("the Overview tab keeps the contract's summary", async ({ page }) => {
     await open(page, "team");
     await page.getByRole("tab", { name: "Overview" }).click();

@@ -1,4 +1,5 @@
-import { AdminPage, Badge, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
+import { Badge } from "@/components/portal/Badge";
 import { independents } from "@/lib/admin/data/users";
 import type { Independent } from "@/lib/admin/data/users";
 

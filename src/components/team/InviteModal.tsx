@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Button, Field, LinkButton, Modal, Select, Textarea } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
-import type { Independent } from "@/lib/team/data";
-import { useDemo } from "@/lib/team/store";
+import type { Independent, Role } from "@/lib/team/data";
+import { useRoles } from "@/lib/team/roles";
+import { usePipeline } from "@/lib/team/pipeline";
 
 /**
  * TB-017 / TB-023 — "Invite to apply", shared by Discover and Saved Independents so the saved
@@ -13,24 +14,12 @@ import { useDemo } from "@/lib/team/store";
  * Independent when the invite lands.
  */
 export function InviteModal({ target, onClose, onSent }: { target: Independent | null; onClose: () => void; onSent: (name: string) => void }) {
-  const { roles, invite } = useDemo();
+  const { roles } = useRoles();
   const withReturn = useWithReturn();
   const active = roles.filter((r) => r.status === "Active");
   const drafts = roles.filter((r) => r.status === "Draft").length;
-  const [picked, setPicked] = useState("");
-  // Roles hydrate after mount, so the default can't be fixed in useState: fall back to the first
-  // active role whenever nothing valid has been picked yet.
-  const role = active.some((r) => r.slug === picked) ? picked : (active[0]?.slug ?? "");
-  const [note, setNote] = useState("");
+  const draft = useInviteDraft(target, active, onSent, onClose);
   const first = target?.name.split(" ")[0] ?? "them";
-
-  const send = () => {
-    if (!target || !role) return;
-    invite(target.slug, role);
-    onSent(target.name);
-    setNote("");
-    onClose();
-  };
 
   // An invite is always to a specific live post, so with none there is nothing to send — say so
   // and point at the fix instead of showing an empty dropdown and a dead Send button.
@@ -69,24 +58,54 @@ export function InviteModal({ target, onClose, onSent }: { target: Independent |
           <Button size="lg" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" variant="primary" onClick={send} disabled={!role}>
+          <Button size="lg" variant="primary" onClick={draft.send} disabled={!draft.role}>
             Send invite
           </Button>
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <Field label="Role">
-          <Select
-            options={active.map((r) => r.title)}
-            value={active.find((r) => r.slug === role)?.title}
-            onChange={(e) => setPicked(active.find((r) => r.title === e.target.value)?.slug ?? role)}
-          />
-        </Field>
-        <Field label="Note (optional)">
-          <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Tell ${first} why this role fits`} />
-        </Field>
-      </div>
+      <InviteFields roles={active} draft={draft} first={first} />
     </Modal>
+  );
+}
+
+/**
+ * The invite being written: the live role it's for (its slug) and the note, and `send`, which
+ * invites the Independent to that role, says so and closes.
+ */
+function useInviteDraft(target: Independent | null, active: Role[], onSent: (name: string) => void, onClose: () => void) {
+  const { invite } = usePipeline();
+  const [picked, setPicked] = useState("");
+  // Roles hydrate after mount, so the default can't be fixed in useState: fall back to the first
+  // active role whenever nothing valid has been picked yet.
+  const role = active.some((r) => r.slug === picked) ? picked : (active[0]?.slug ?? "");
+  const [note, setNote] = useState("");
+
+  const send = () => {
+    if (!target || !role) return;
+    invite(target.slug, role);
+    onSent(target.name);
+    setNote("");
+    onClose();
+  };
+  return { role, setPicked, note, setNote, send };
+}
+
+/** The invite's fields: the live role it's for, picked by its title, and a note to go with it. */
+function InviteFields({ roles, draft, first }: { roles: Role[]; draft: ReturnType<typeof useInviteDraft>; first: string }) {
+  const { role, setPicked, note, setNote } = draft;
+  return (
+    <div className="flex flex-col gap-3">
+      <Field label="Role">
+        <Select
+          options={roles.map((r) => r.title)}
+          value={roles.find((r) => r.slug === role)?.title}
+          onChange={(e) => setPicked(roles.find((r) => r.title === e.target.value)?.slug ?? role)}
+        />
+      </Field>
+      <Field label="Note (optional)">
+        <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Tell ${first} why this role fits`} />
+      </Field>
+    </div>
   );
 }

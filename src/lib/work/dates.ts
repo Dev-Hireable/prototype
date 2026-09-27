@@ -10,7 +10,7 @@
 
 export type Day = number;
 
-export const MS_DAY = 86_400_000;
+const MS_DAY = 86_400_000;
 
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -86,7 +86,7 @@ export function todayDay(now: Date = new Date()): Day {
 }
 
 /** Every day from `from` to `to`, both included. */
-export function daysBetween(from: Day, to: Day): Day[] {
+function daysBetween(from: Day, to: Day): Day[] {
   const out: Day[] = [];
   for (let d = from; d <= to; d++) out.push(d);
   return out;

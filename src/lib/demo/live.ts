@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { dayStamp, today } from "@/lib/demo/dates";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import type { JobType } from "@/lib/demo/job-types";
@@ -8,6 +8,7 @@ import { notifications as indSeed } from "@/lib/independent/data";
 import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
 import type { Notification as TeamNote } from "@/lib/team/data";
+import type { Side } from "@/lib/work/model";
 
 /**
  * The one demo loop that crosses portals.
@@ -22,8 +23,6 @@ import type { Notification as TeamNote } from "@/lib/team/data";
  *   Independent   Juan Dela Cruz
  * Other names in the seed data are static background for the list screens.
  */
-
-export type Side = "team" | "independent";
 
 export const PAIR = {
   team: { name: "Alex Rivera", company: "Nairobi Solutions Inc.", avatar: "/team/alex.jpg", initials: "NS" },
@@ -49,7 +48,7 @@ export type ChatSource = { kind: "proposal"; version: number; roleSlug: string; 
 
 /** TB-010 / IN-010 — what the composer accepts. */
 export const ACCEPTED_FILES = ".pdf,.doc,.docx,.png,.jpg,.jpeg";
-export const MAX_FILE_MB = 10;
+const MAX_FILE_MB = 10;
 
 /**
  * Blob URLs for files attached this session, keyed by message id, so the recipient can download
@@ -584,7 +583,7 @@ export function noteComment(from: Side, role: { slug: string; title: string }, t
   write({ ...snapshot, team: [{ ...note, kind: "independents" } satisfies TeamNote, ...snapshot.team.filter(fresh)].slice(0, MAX_NOTES) });
 }
 
-export function markRead(side: Side, noteId?: string) {
+function markRead(side: Side, noteId?: string) {
   refresh();
   const feed = snapshot[side].map((n) => (noteId === undefined || n.id === noteId ? { ...n, unread: false } : n));
   write({ ...snapshot, [side]: feed } as Live);
@@ -700,38 +699,64 @@ export function resetDemo(to?: string) {
 
 /* ------------------------------------------------- per-portal persistence */
 
-/**
- * `useState` that survives a refresh. Used for state only one portal cares about (roles,
- * applications, cards, payouts) — no cross-tab sync, that's what `useLive` is for.
- */
-export function usePersisted<T>(key: string, seed: T) {
-  const storeKey = PREFIX + key;
-  const [value, setValue] = useState<T>(seed);
+/** A value kept by `persisted`: `get` and `set` anywhere, `useStored` in render. */
+export type Stored<T> = { get: () => T; set: (next: T | ((prev: T) => T)) => void; subscribe: (fn: () => void) => () => void; seed: () => T };
 
-  // Hydration: the server renders the seed, so the stored value can only be adopted after mount.
-  // oxlint-disable-next-line react/set-state-in-effect
-  useEffect(() => {
+/**
+ * A value one portal keeps in this browser (its roles, cards, applications): one copy for the tab,
+ * shared by every page that reads it, so an action can run anywhere and every reader sees it. The
+ * server and the hydrating render get the seed, then the saved value.
+ *
+ * Storage is read again whenever the portal takes the value up afresh — its first reader
+ * subscribing — because other pages write these keys directly: the quiz its answers, sign-up the
+ * profile. That is when a portal's provider used to remount and read them. No cross-tab sync;
+ * that's what `useLive` is for.
+ */
+export function persisted<T>(key: string, seed: T): Stored<T> {
+  const storeKey = PREFIX + key;
+  const subscribers = new Set<() => void>();
+  let value = seed;
+  let raw: string | null = null;
+  let loaded = false;
+  const get = () => {
+    if (loaded || typeof window === "undefined") return value;
+    loaded = true;
     try {
-      const raw = localStorage.getItem(storeKey);
-      if (raw) setValue(JSON.parse(raw) as T);
+      const now = localStorage.getItem(storeKey);
+      // The same text keeps the same object, so an unchanged value doesn't redraw its readers.
+      if (now !== raw) {
+        raw = now;
+        value = now ? (JSON.parse(now) as T) : seed;
+      }
+    } catch {
+      /* private mode: the tab keeps what it has */
+    }
+    return value;
+  };
+  const set = (next: T | ((prev: T) => T)) => {
+    value = typeof next === "function" ? (next as (prev: T) => T)(get()) : next;
+    try {
+      raw = JSON.stringify(value);
+      localStorage.setItem(storeKey, raw);
     } catch {
       /* ignore */
     }
-  }, [storeKey]);
+    for (const fn of subscribers) fn();
+  };
+  const subscribe = (fn: () => void) => {
+    if (!subscribers.size) loaded = false;
+    subscribers.add(fn);
+    return () => void subscribers.delete(fn);
+  };
+  return { get, set, subscribe, seed: () => seed };
+}
 
-  const update = useCallback(
-    (next: T | ((prev: T) => T)) =>
-      setValue((prev) => {
-        const v = typeof next === "function" ? (next as (p: T) => T)(prev) : next;
-        try {
-          localStorage.setItem(storeKey, JSON.stringify(v));
-        } catch {
-          /* ignore */
-        }
-        return v;
-      }),
-    [storeKey],
-  );
+export function useStored<T>(store: Stored<T>): T {
+  return useSyncExternalStore(store.subscribe, store.get, store.seed);
+}
 
-  return [value, update] as const;
+/** A portal's notifications, and marking one read (or all of them, with no id). */
+export function useNotifications<S extends Side>(side: S) {
+  const notifications: Live[S] = useLive()[side];
+  return { notifications, markRead: (id?: string) => markRead(side, id) };
 }

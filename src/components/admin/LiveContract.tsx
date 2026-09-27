@@ -8,7 +8,7 @@ import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { countsOf } from "@/lib/work/model";
 import { todayDay } from "@/lib/work/dates";
-import { Card } from "./ui";
+import { Card } from "@/components/independent/ui";
 
 /** The Team Builder's account slug under User management (see @/lib/demo/disputes TEAM). */
 const TEAM_SLUG = "nairobi-solutions";

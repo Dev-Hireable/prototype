@@ -95,6 +95,24 @@ const R = 62;
 const STROKE = 16;
 const GAP_DEG = 6;
 
+/** A slice's share of the whole, as a whole percentage. */
+const shareOf = (count: number, total: number) => Math.round((count / total) * 100);
+
+/**
+ * Each slice's arc, in order round the ring: where it starts (degrees past 12 o'clock) and how far it
+ * sweeps, with half the gap taken off either end.
+ */
+function arcsOf(slices: Slice[], total: number) {
+  return slices.reduce<{ start: number; items: { slice: Slice; start: number; sweep: number }[] }>(
+    (acc, slice) => {
+      const full = (slice.count / total) * 360;
+      acc.items.push({ slice, start: acc.start + GAP_DEG / 2, sweep: full - GAP_DEG });
+      return { start: acc.start + full, items: acc.items };
+    },
+    { start: 0, items: [] },
+  ).items;
+}
+
 export function Donut({
   slices,
   centerValue,
@@ -108,14 +126,7 @@ export function Donut({
 }) {
   const total = slices.reduce((n, s) => n + s.count, 0);
   const circumference = 2 * Math.PI * R;
-  const arcs = slices.reduce<{ start: number; items: { slice: Slice; start: number; sweep: number }[] }>(
-    (acc, slice) => {
-      const full = (slice.count / total) * 360;
-      acc.items.push({ slice, start: acc.start + GAP_DEG / 2, sweep: full - GAP_DEG });
-      return { start: acc.start + full, items: acc.items };
-    },
-    { start: 0, items: [] },
-  ).items;
+  const arcs = arcsOf(slices, total);
 
   return (
     <div className="flex w-full items-center gap-[22px] py-1">
@@ -125,7 +136,7 @@ export function Donut({
           width={RING}
           height={RING}
           role="img"
-          aria-label={slices.map((s) => `${s.label} ${Math.round((s.count / total) * 100)}%`).join(", ")}
+          aria-label={slices.map((s) => `${s.label} ${shareOf(s.count, total)}%`).join(", ")}
         >
           {arcs.map(({ slice, start, sweep }) => (
             <circle
@@ -148,22 +159,29 @@ export function Donut({
           {centerLabel}
         </p>
       </div>
-      <ul className="flex min-w-0 flex-1 flex-col gap-3 overflow-clip">
-        {slices.map((s) => (
-          <li key={s.label} className="flex w-full items-center gap-[10px]">
-            <span aria-hidden className="size-[10px] shrink-0 rounded-[3px]" style={{ background: s.color }} />
-            <span className="flex min-w-0 flex-1 flex-col gap-px leading-[1.3] whitespace-nowrap">
-              <span className="text-[11.5px] text-ink-2">{s.label}</span>
-              <span className="flex items-baseline gap-1.5">
-                <span className="text-[13px] font-semibold text-ink">
-                  {s.count} {unit}
-                </span>
-                <span className="text-[11px] text-muted-2">{Math.round((s.count / total) * 100)}%</span>
-              </span>
-            </span>
-          </li>
-        ))}
-      </ul>
+      <DonutLegend slices={slices} total={total} unit={unit} />
     </div>
+  );
+}
+
+/** The legend beside the ring: each slice's swatch and label, its count in `unit`s and its share. */
+function DonutLegend({ slices, total, unit }: { slices: Slice[]; total: number; unit: string }) {
+  return (
+    <ul className="flex min-w-0 flex-1 flex-col gap-3 overflow-clip">
+      {slices.map((s) => (
+        <li key={s.label} className="flex w-full items-center gap-[10px]">
+          <span aria-hidden className="size-[10px] shrink-0 rounded-[3px]" style={{ background: s.color }} />
+          <span className="flex min-w-0 flex-1 flex-col gap-px leading-[1.3] whitespace-nowrap">
+            <span className="text-[11.5px] text-ink-2">{s.label}</span>
+            <span className="flex items-baseline gap-1.5">
+              <span className="text-[13px] font-semibold text-ink">
+                {s.count} {unit}
+              </span>
+              <span className="text-[11px] text-muted-2">{shareOf(s.count, total)}%</span>
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }

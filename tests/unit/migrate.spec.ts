@@ -10,7 +10,7 @@ const legacy = [
   { id: "d", title: "Moodboard", status: "review", addedBy: "independent", created: "23 Sep 2026", submitted: { at: "z", note: "Have a look" } },
 ];
 
-test.describe("migration of saved task lists", () => {
+test.describe("migration of saved task lists · the pre-workspace list", () => {
   test("older tasks become complete work items", () => {
     const { items, nextNumber } = migrateItems(legacy);
     expect(items.map((t) => t.number)).toEqual([1, 2, 3, 4]);
@@ -37,10 +37,14 @@ test.describe("migration of saved task lists", () => {
 
   test("running it again changes nothing", () => {
     const once = migrateItems(legacy);
+    // A save and a reload — what the migration really gets back from localStorage.
+    // react-doctor-disable-next-line react-doctor/no-json-parse-stringify-clone
     const twice = migrateItems(JSON.parse(JSON.stringify(once.items)), once.nextNumber);
     expect(twice).toEqual(once);
   });
+});
 
+test.describe("migration of saved task lists · hand-edited and half-written data", () => {
   test("bad values are dropped, not guessed at", () => {
     const { items } = migrateItems([
       { id: "x", title: "Odd one", status: "sideways", type: "spaceship", priority: "urgent", start: "2026-10-05", due: "2026-10-01", effort: 2.5, dependsOn: ["x", "ghost", "y", "y"], tags: ["  Big Deal ", "big-deal", 5], assignee: "someone" },

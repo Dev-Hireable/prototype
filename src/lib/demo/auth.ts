@@ -1,6 +1,5 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { quizPath, quizTaken } from "@/lib/demo/work-style";
 
 /**
@@ -27,10 +26,10 @@ export type Account = {
   verified: boolean;
 };
 
-export type Session = { email: string; name: string; role: Role } | null;
+type Session = { email: string; name: string; role: Role } | null;
 
 /** Where each account type lands after signing in (OB-001). */
-export const HOME: Record<Role, string> = { team: "/team", independent: "/independent", admin: "/admin" };
+const HOME: Record<Role, string> = { team: "/team", independent: "/independent", admin: "/admin" };
 
 /**
  * Where signing in actually goes: the dashboard, unless it's a Team Builder or an Independent who
@@ -103,34 +102,7 @@ function ensureLoaded() {
   snapshot = parse(localStorage.getItem(KEY));
 }
 
-function subscribe(fn: () => void) {
-  if (!loaded) {
-    ensureLoaded();
-    emit();
-  }
-  subscribers.add(fn);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== KEY) return;
-    snapshot = parse(e.newValue);
-    emit();
-  };
-  window.addEventListener("storage", onStorage);
-  return () => {
-    subscribers.delete(fn);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-/** OB-001 — the session survives reloads and other tabs until Log out clears it. */
-export function useAuth(): Auth {
-  return useSyncExternalStore(
-    subscribe,
-    () => snapshot,
-    () => SEED,
-  );
-}
-
-export const findAccount = (email: string) => {
+const findAccount = (email: string) => {
   ensureLoaded();
   return snapshot.accounts.find((a) => a.email.toLowerCase() === email.trim().toLowerCase());
 };

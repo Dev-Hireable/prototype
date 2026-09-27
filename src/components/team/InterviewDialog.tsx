@@ -2,17 +2,11 @@
 
 import { useState } from "react";
 import { Button, Field, Input, Modal, Select, Textarea } from "@/components/independent/ui";
-import { DatePicker, formatDate, startOfToday } from "@/components/portal/DatePicker";
-import { byName } from "@/lib/team/data";
+import { DatePicker } from "@/components/portal/DatePicker";
+import { byName, INTERVIEW_TIMES } from "@/lib/team/data";
 import type { Candidate } from "@/lib/team/data";
-import { useDemo } from "@/lib/team/store";
-
-/**
- * The slots an interview can be booked or moved to, in the Team Builder's time zone — (GMT+8)
- * Manila, as the availability settings say. They were EST here and PHT in Reschedule, so one
- * interview could read in two zones.
- */
-export const INTERVIEW_TIMES = ["09:00 AM (PHT)", "10:00 AM (PHT)", "02:00 PM (PHT)", "04:00 PM (PHT)"];
+import { usePipeline } from "@/lib/team/pipeline";
+import { formatDate, startOfToday } from "@/lib/demo/dates";
 
 /**
  * TB-037 / TB-040 — "Invite to interview", shared by the candidate profile and the pipeline board,
@@ -20,7 +14,7 @@ export const INTERVIEW_TIMES = ["09:00 AM (PHT)", "10:00 AM (PHT)", "02:00 PM (P
  * how a declined or cancelled interview is offered again: a new slot replaces the old one.
  */
 export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Candidate | null; onClose: () => void; onSent: (name: string) => void }) {
-  const { inviteToInterview } = useDemo();
+  const { inviteToInterview } = usePipeline();
   const [date, setDate] = useState<Date | undefined>();
   const [time, setTime] = useState("");
   const [link, setLink] = useState("https://meet.google.com/yxw-vuts-rqp");

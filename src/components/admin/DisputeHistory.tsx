@@ -1,6 +1,7 @@
 "use client";
 
-import { Badge, DataTable } from "@/components/admin/ui";
+import { DataTable } from "@/components/admin/ui";
+import { Badge } from "@/components/portal/Badge";
 import { dateOf, otherParty, partyName, STATUS_TONE, usd, useDisputes } from "@/lib/demo/disputes";
 import type { Dispute, DisputeParty } from "@/lib/demo/disputes";
 

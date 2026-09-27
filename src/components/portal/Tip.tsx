@@ -32,8 +32,11 @@ export function Tip({
   off?: boolean;
 }) {
   if (!label) return children;
+  // Keyed on the trigger's shape: a control that turns disabled (or back) while the page is open
+  // swaps the button for the span, and a tooltip kept across that swap never opens again unless it
+  // had opened before. The control remounts at that point anyway, as it moves in or out of the span.
   return (
-    <Tooltip disabled={off}>
+    <Tooltip key={wrap ? "wrapped" : "direct"} disabled={off}>
       {wrap ? (
         <TooltipTrigger render={<span className={`inline-flex cursor-not-allowed [&>*]:pointer-events-none ${wrapClassName}`} />}>{children}</TooltipTrigger>
       ) : (
@@ -43,10 +46,3 @@ export function Tip({
     </Tooltip>
   );
 }
-
-/** The classes in a control's className that place it in its parent, for the span that wraps it. */
-export const layoutClasses = (className: string) =>
-  className
-    .split(/\s+/)
-    .filter((c) => /^(w-full|flex-1|grow|shrink-0|self-\S+|w-\[.+\])$/.test(c))
-    .join(" ");

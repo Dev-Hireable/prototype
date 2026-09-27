@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { Children, isValidElement, type ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { PORTAL_CONTENT_CLASS } from "@/components/portal/layout";
 import { dayLabel } from "@/lib/demo/dates";
@@ -41,6 +41,8 @@ export function DashboardHero({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] items-stretch gap-6">{children}</div>;
 }
 
+const cardKey = (card: ReactNode) => (isValidElement(card) ? String(card.key) : String(card));
+
 /**
  * The cards under the hero, in rows that line up: two equal columns, `main` (My tasks, then the
  * stats card) beside `side` (Interviews, then Active contracts). Each row takes its taller card's
@@ -52,14 +54,15 @@ export function DashboardHero({ children }: { children: ReactNode }) {
  * to stretch down beside two: the cards sit in one row of equal columns instead.
  */
 export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: ReactNode[] }) {
-  const columns = [main.filter(Boolean), side.filter(Boolean)];
+  // toArray drops the cards that aren't there and keeps the keys the callers name them by.
+  const columns = [Children.toArray(main), Children.toArray(side)];
   const rows = Math.max(...columns.map((c) => c.length), 1);
   if (columns[0].length < columns[1].length) {
     const cards = columns.flat();
     return (
       <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))` }}>
-        {cards.map((card, i) => (
-          <div key={i} className="flex min-w-0 flex-col">
+        {cards.map((card) => (
+          <div key={cardKey(card)} className="flex min-w-0 flex-col">
             {card}
           </div>
         ))}
@@ -72,7 +75,7 @@ export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: 
       {columns.flatMap((cards, col) =>
         cards.map((card, row) => (
           // flex-col so the card (grow, shrink-0) fills the cell's height and never shrinks below its content.
-          <div key={`${col}-${row}`} className="flex min-w-0 flex-col" style={{ gridColumn: col + 1, gridRow: row === cards.length - 1 ? `${row + 1} / ${rows + 1}` : row + 1 }}>
+          <div key={cardKey(card)} className="flex min-w-0 flex-col" style={{ gridColumn: col + 1, gridRow: row === cards.length - 1 ? `${row + 1} / ${rows + 1}` : row + 1 }}>
             {card}
           </div>
         )),
@@ -102,6 +105,7 @@ export function DashboardGreeting({ name, dateClassName = "text-[15px] tracking-
         {/* The real date — it was a fixed "Today, is 09 July 2026" on both dashboards. Portal pages
             render after hydration, so this never disagrees with a server render. */}
         <p className={dateClassName}>
+          {/* react-doctor-disable-next-line react-doctor/rendering-hydration-mismatch-time -- PortalShell renders pages only once hydrated */}
           Today is {WEEKDAYS[new Date().getDay()]}, {dayLabel(new Date())}
         </p>
       </div>

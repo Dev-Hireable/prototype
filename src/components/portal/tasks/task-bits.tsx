@@ -2,12 +2,14 @@
 
 import { ICONS } from "@/components/admin/icons";
 import { StatusDot } from "@/components/independent/ui";
-import type { Tone } from "@/components/independent/ui";
+import type { Tone } from "@/components/portal/Badge";
 import { Tip } from "@/components/portal/Tip";
 import { Avatar } from "@/components/team/ui";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { PRIORITIES, PRIORITY_LABEL, TASK_STATUS_LABEL, weekLabel } from "@/lib/demo/tasks";
+import { firstName } from "@/components/workspace/labels";
+import { PRIORITY_LABEL, TASK_STATUS_LABEL, weekLabel } from "@/lib/demo/tasks";
 import type { TaskPriority, TaskSide, TaskStatus } from "@/lib/demo/tasks";
+import { PRIORITIES } from "@/lib/work/model";
 
 /**
  * The small parts a task is drawn from, shared by the contract workspace (@/components/workspace)
@@ -18,9 +20,7 @@ import type { TaskPriority, TaskSide, TaskStatus } from "@/lib/demo/tasks";
 /** Who is on each side of the contract, for "Added by" and the activity feed. */
 export type TaskPeople = Record<TaskSide, { name: string; avatar: string }>;
 
-export const firstName = (name: string) => name.split(" ")[0];
-
-export const STATUS_TONE: Record<TaskStatus, Tone> = { todo: "neutral", doing: "info", review: "warn", done: "ok" };
+const STATUS_TONE: Record<TaskStatus, Tone> = { todo: "neutral", doing: "info", review: "warn", done: "ok" };
 const PRIORITY_TONE: Record<TaskPriority, Tone> = { high: "danger", medium: "warn", low: "info" };
 
 export function StatusPill({ status }: { status: TaskStatus }) {

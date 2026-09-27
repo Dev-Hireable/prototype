@@ -33,10 +33,8 @@ const streakLabel = (streak: number) => (streak === 0 ? "No streak · Unresponsi
  * tracker waits rather than reading Unresponsive for days the talent wasn't due to work.
  */
 export function ActivityLog({ activity, streak, feeding, closed, starts }: { activity: number[]; streak: number; feeding?: number; closed?: string; starts?: string }) {
-  const finished = !!closed;
-  const aside = starts ? <StatusDot tone="info">Starts {starts}</StatusDot> : <StatusDot tone={finished ? "ok" : streak === 0 ? "neutral" : "ok"}>{finished ? `Final streak · ${streak} ${streak === 1 ? "day" : "days"}` : streakLabel(streak)}</StatusDot>;
   return (
-    <PanelCard title="Activity" aside={aside}>
+    <PanelCard title="Activity" aside={<StreakStatus streak={streak} closed={closed} starts={starts} />}>
       <div className="flex flex-col gap-[3px]">
         {WEEKDAYS.map((d, r) => (
           <div key={d} className="flex items-center gap-[3px]">
@@ -67,8 +65,23 @@ export function ActivityLog({ activity, streak, feeding, closed, starts }: { act
       <p className="text-[11px] leading-[1.45] text-ink-2">
         Mon–Fri, one column per week across the quarter. Green is a day a task went for review, light green a day of work on tasks, grey nothing yet. Any activity keeps the streak alive; only an empty weekday breaks it.
         {/* TB-109 — an approved task is off the list of open work; one in review still counts. */}
-        {starts ? ` It starts counting on ${starts}, the contract's first day.` : finished ? ` ${closed}, so the tracker is closed on the streak above.` : feeding === 0 ? " Nothing is open right now." : feeding !== undefined ? ` ${feeding} ${feeding === 1 ? "task is" : "tasks are"} still open.` : ""}
+        {trackerNote(starts, closed, feeding)}
       </p>
     </PanelCard>
   );
+}
+
+/** The pill on the heading: the day it starts counting, the final streak once it's closed, or the streak as it stands. */
+function StreakStatus({ streak, closed, starts }: { streak: number; closed?: string; starts?: string }) {
+  if (starts) return <StatusDot tone="info">Starts {starts}</StatusDot>;
+  const finished = !!closed;
+  return <StatusDot tone={finished ? "ok" : streak === 0 ? "neutral" : "ok"}>{finished ? `Final streak · ${streak} ${streak === 1 ? "day" : "days"}` : streakLabel(streak)}</StatusDot>;
+}
+
+/** The legend's last sentence: when counting starts, why the tracker has closed, or how much open work still feeds it. */
+function trackerNote(starts?: string, closed?: string, feeding?: number) {
+  if (starts) return ` It starts counting on ${starts}, the contract's first day.`;
+  if (closed) return ` ${closed}, so the tracker is closed on the streak above.`;
+  if (feeding === 0) return " Nothing is open right now.";
+  return feeding !== undefined ? ` ${feeding} ${feeding === 1 ? "task is" : "tasks are"} still open.` : "";
 }

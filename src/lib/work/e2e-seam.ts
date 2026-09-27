@@ -59,11 +59,15 @@ export function installSeam(repo: WorkRepository) {
         faults = [];
       },
     },
+    // Plain JSON on purpose, here and below: what a test compares is what's saved — functions and
+    // undefined dropped, as over the wire (structuredClone would throw on a function).
+    // react-doctor-disable-next-line react-doctor/no-json-parse-stringify-clone
     snapshot: () => JSON.parse(JSON.stringify(getDeal()?.contract?.tasks ?? [])),
     call: async (method, ...args) => {
       const r = window.__hireable?.work as unknown as Record<string, (...a: unknown[]) => Promise<unknown>> | null;
       try {
         if (!r || typeof r[method] !== "function") throw new Error(`No such method: ${method}`);
+        // react-doctor-disable-next-line react-doctor/no-json-parse-stringify-clone
         return { ok: true, value: JSON.parse(JSON.stringify(await r[method](...args))) };
       } catch (e) {
         const w = e as WorkError;

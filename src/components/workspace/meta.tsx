@@ -4,49 +4,21 @@ import { lockedReason } from "@/lib/work/permissions";
 import { projectKeyOf } from "@/lib/work/projects";
 import { Tip } from "@/components/portal/Tip";
 import type { ReactNode } from "react";
-import { ICONS, type IconName } from "@/components/admin/icons";
+import { ICONS } from "@/components/admin/icons";
 import type { ColumnColors } from "@/components/portal/board";
-import { firstName, PersonChip } from "@/components/portal/tasks/task-bits";
+import { PersonChip } from "@/components/portal/tasks/task-bits";
+import { TYPE_ICON } from "./labels";
 import type { TaskPeople } from "@/components/portal/tasks/task-bits";
 import { dayOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import type { Group } from "@/lib/work/query";
 import { useOptionalWorkspace } from "./context";
-import { isOverdue, refOf, TAG_COLORS, tagColorOf, TYPE_META, type Assignee, type AssigneeKey, type WorkItem, type WorkStatus, type WorkType } from "@/lib/work/model";
+import { isOverdue, refOf, TAG_COLORS, tagColorOf, TYPE_META, type Assignee, type WorkItem, type WorkType } from "@/lib/work/model";
 
 /**
  * How work reads in the workspace — the look that goes with the domain's tables (@/lib/work/model):
  * an icon per work type, the column palette per status, and the small chips cards and rows are
  * made of. Every chip says what it means in words; colour only reinforces it.
  */
-
-export const TYPE_ICON: Record<WorkType, IconName> = {
-  task: "typeTask",
-  milestone: "typeMilestone",
-  design: "typeDesign",
-  development: "typeDevelopment",
-  marketing: "typeMarketing",
-  content: "typeContent",
-  research: "typeResearch",
-  review: "typeReview",
-  meeting: "typeMeeting",
-  admin: "typeAdmin",
-  operations: "typeOperations",
-  other: "typeOther",
-};
-
-/** Column headers in the pipeline boards' palette: grey, blue, amber, green. */
-export const STATUS_COLUMN: Record<WorkStatus, ColumnColors> = {
-  todo: { bg: "#e5e5e5", text: "#4a4a4a", count: "#d8d8d8" },
-  doing: { bg: "#ebf8fe", text: "#004675", count: "#c9eeff" },
-  review: { bg: "#fffbeb", text: "#7a5e0a", count: "#fff0b6" },
-  done: { bg: "#f0fdf4", text: "#1b6b3a", count: "#c6ffd2" },
-};
-
-/** Every other grouping's columns share one neutral header. */
-export const PLAIN_COLUMN: ColumnColors = { bg: "#f2f2f2", text: "#212121", count: "#e3e3e3" };
-
-/** A group's colours, wherever it's drawn: a Board column, a List heading, a Timeline band. */
-export const groupColors = (g: Group): ColumnColors => (g.value.field === "status" ? STATUS_COLUMN[g.value.value] : PLAIN_COLUMN);
 
 /** A group's name and count on its colours — the heading of a List group and a Timeline band. */
 export function GroupLabel({ group, colors, children }: { group: Group; colors: ColumnColors; children?: ReactNode }) {
@@ -62,10 +34,10 @@ export function GroupLabel({ group, colors, children }: { group: Group; colors: 
   );
 }
 
-export const CHIP = "inline-flex h-6 max-w-full items-center gap-1 rounded px-1.5 text-[12px] leading-[1.2] font-medium whitespace-nowrap";
+const CHIP = "inline-flex h-6 max-w-full items-center gap-1 rounded px-1.5 text-[12px] leading-[1.2] font-medium whitespace-nowrap";
 
 /** A fact on a card's details line: an icon and a few words, grey, with no box around it. */
-export const FACT = "inline-flex max-w-full items-center gap-1 text-[12px] leading-[1.2] whitespace-nowrap text-ink-2";
+const FACT = "inline-flex max-w-full items-center gap-1 text-[12px] leading-[1.2] whitespace-nowrap text-ink-2";
 
 export function TypeChip({ type, iconOnly = false, plain = false }: { type: WorkType; iconOnly?: boolean; /** A card's details line: no box. */ plain?: boolean }) {
   const Icon = ICONS[TYPE_ICON[type]];
@@ -181,13 +153,6 @@ export function AssigneeChip({ assignee, people, size = 20 }: { assignee: Assign
       </span>
     );
   return <PersonChip {...people[assignee]} size={size} />;
-}
-
-/** A person's name for a group heading or a menu: "Juan", "Alex", "Unassigned". */
-export const assigneeLabel = (k: AssigneeKey, people: TaskPeople) => (k === "none" ? "Unassigned" : firstName(people[k].name));
-
-export function Meta({ children }: { children: ReactNode }) {
-  return <span className="flex min-w-0 flex-wrap items-center gap-1.5">{children}</span>;
 }
 
 /** The same shape as Blocked: both say the item can't simply go on. */
