@@ -155,10 +155,17 @@ export function budgetRange(budget: string) {
 
 const amount = (v: string) => Number(v.replace(/,/g, ""));
 
-/** Both amounts filled, and the range isn't upside down. */
-const budgetOk = ({ min, max }: Pick<Snapshot, "min" | "max">) => min.length > 0 && max.length > 0 && amount(min) <= amount(max);
+/**
+ * Both amounts filled, the range the right way up, and more than $0 — a draft's Publish (roleParts
+ * in src/lib/team/roles.ts) wants an amount over zero too.
+ */
+const budgetOk = ({ min, max }: Pick<Snapshot, "min" | "max">) => min.length > 0 && max.length > 0 && amount(min) <= amount(max) && amount(max) > 0;
 
-export const rangeError = ({ min, max }: Pick<Snapshot, "min" | "max">) => (min && max && amount(min) > amount(max) ? "Minimum can't be more than the maximum." : null);
+export function rangeError({ min, max }: Pick<Snapshot, "min" | "max">) {
+  if (!min || !max) return null;
+  if (amount(min) > amount(max)) return "Minimum can't be more than the maximum.";
+  return amount(max) > 0 ? null : "The budget can't be $0.";
+}
 
 /** The range as the review and the post show it. */
 export const moneyLine = ({ min, max }: Pick<Snapshot, "min" | "max">) => `$${min || "0"} – $${max || "0"} /month`;
@@ -205,6 +212,15 @@ export function freshSlug(title: string, roles: Role[]) {
   let fresh = base;
   for (let n = 2; roles.some((r) => r.slug === fresh); n++) fresh = `${base}-${n}`;
   return fresh;
+}
+
+/**
+ * The chip a saved role's duration was written from — "60 Days", or "Starts in 2 weeks" off Build
+ * Team's "In 2 weeks" (see roleFrom) — so a draft opens on the length it was saved with. The first
+ * chip when none matches.
+ */
+export function chipOf(duration: string | undefined, chips: readonly string[]) {
+  return Math.max(0, chips.findIndex((c) => duration === c || duration === `Starts ${c.toLowerCase()}`));
 }
 
 /** The role the form describes, as a draft or a live post. */

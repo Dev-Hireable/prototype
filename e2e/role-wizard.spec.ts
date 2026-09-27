@@ -310,15 +310,12 @@ test.describe("role wizard · steps", () => {
     await expect(page.getByText(NEW_ROLE.task)).toBeVisible();
   });
 
-  // Bug: the budget step lets a $0 – $0 range through. Its check (budgetOk in
-  // src/app/team/hire/new/_lib/wizard.ts) wants both ends, the right way up; roleParts in
-  // src/lib/team/roles.ts, the bar a draft's Publish uses, wants an amount over zero. So All roles
-  // refuses such a draft and opens it on this step, where Review job post is already enabled, and
-  // the wizard then publishes it at $0.00 – $0.00.
-  test.fixme("a range of $0 to $0 is refused like an empty one", async ({ page }) => {
+  // The same bar as a draft's Publish on All roles (roleParts), which wants an amount over zero.
+  test("a range of $0 to $0 is refused like an empty one", async ({ page }) => {
     await toBudgetStep(page);
     await page.getByRole("textbox", { name: "Minimum" }).fill("0");
     await page.getByRole("textbox", { name: "Maximum" }).fill("0");
+    await expect(page.getByText("The budget can't be $0.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Review job post" })).toBeDisabled();
   });
 });
@@ -380,11 +377,8 @@ test.describe("role wizard · drafts", () => {
     await expect(page.getByRole("button", { name: "Add budget", exact: true })).toBeDisabled();
   });
 
-  // Bug: a draft opens back with its trial length reset to 30 days. usePayFields
-  // (src/app/team/hire/new/_lib/form.ts) starts the length chip at 0 instead of reading the draft's
-  // `duration`, so a 60-day draft reopens as 30 Days, and saving or publishing it from there writes
-  // "30 Days" over what was picked. A duplicate of a 60-day role opens the same way.
-  test.fixme("a draft opens back with the trial length it was saved with", async ({ page }) => {
+  // Saving from there keeps it: the length used to reset to 30 Days and be written over the draft's.
+  test("a draft opens back with the trial length it was saved with", async ({ page }) => {
     await fillTrial(page, "60 Days");
     await page.getByRole("button", { name: "Save as draft" }).click();
     await expect.poll(async () => (await savedRoles(page))[0]?.duration).toBe("60 Days");

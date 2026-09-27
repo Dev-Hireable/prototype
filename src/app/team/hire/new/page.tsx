@@ -41,7 +41,7 @@ function Wizard({ editing, type: param }: { editing: Role | undefined; type: str
   const { cards } = useCards();
   const [type, setOngoing] = useRoleType(editing, param);
   const t = PATH[type];
-  const f = useRoleForm(editing, t.sequence);
+  const f = useRoleForm(editing, t);
   const templates = useTemplates(f, type, t.chips);
   const edits = useReviewEdits(f);
   const { slug, canPublish, publish, saveDraft } = usePublish(f, t, type, editing);

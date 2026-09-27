@@ -3,7 +3,7 @@ import type { JobType, OngoingType } from "@/lib/demo/job-types";
 import { blankDraft, toDrafts, type DraftTask } from "@/lib/demo/tasks";
 import type { Role } from "@/lib/team/data";
 import { LEVELS, type RoleTemplate } from "@/lib/team/role-templates";
-import { budgetRange, formShape, onlyTitle, resumeStep, sectionsOk, templateChanges, templateShape, type ReviewSection, type Snapshot } from "./wizard";
+import { budgetRange, chipOf, formShape, onlyTitle, resumeStep, sectionsOk, templateChanges, templateShape, type ReviewSection, type Snapshot } from "./wizard";
 
 /** The kind of role being written: a trial, or Build Team's full-time or part-time. */
 export function useRoleType(editing: Role | undefined, param: string | null) {
@@ -35,10 +35,10 @@ function useTaskFields(editing: Role | undefined) {
 }
 
 /** What the role pays and for how long: the budget range, the length or start chip, the hours and the benefits. */
-function usePayFields(editing: Role | undefined) {
+function usePayFields(editing: Role | undefined, chips: readonly string[]) {
   const [min, setMin] = useState(() => (editing ? budgetRange(editing.budget)[0] : ""));
   const [max, setMax] = useState(() => (editing ? budgetRange(editing.budget)[1] : ""));
-  const [chip, setChip] = useState(0);
+  const [chip, setChip] = useState(() => chipOf(editing?.duration, chips));
   /** A part-time role's hours a week. */
   const [hours, setHours] = useState<number>(editing?.hours || 20);
   /** Benefit label → monthly amount; absent means the checkbox is off. */
@@ -52,11 +52,11 @@ function usePayFields(editing: Role | undefined) {
  * populated), one built from scratch at the first step still missing something. The wizard is keyed
  * on the draft, so these start from it when it turns up (drafts hydrate from storage after mount).
  */
-export function useRoleForm(editing: Role | undefined, sequence: readonly string[]) {
+export function useRoleForm(editing: Role | undefined, { sequence, chips }: { sequence: readonly string[]; chips: readonly string[] }) {
   const [step, setStep] = useState(() => (!editing ? 0 : editing.duplicatedFrom ? sequence.indexOf("review") : resumeStep(editing, sequence)));
   const details = useDetailFields(editing);
   const tasks = useTaskFields(editing);
-  const pay = usePayFields(editing);
+  const pay = usePayFields(editing, chips);
 
   const snapshot = (): Snapshot => ({
     title: details.title,
