@@ -134,3 +134,24 @@ test.describe("keyboard and accessibility · a dialog that gives way to another"
     await expect(opener).toBeFocused();
   });
 });
+
+test.describe("keyboard and accessibility · inline editing", () => {
+  test("closing an inline editor, any way, hands the focus back to its pencil", async ({ page }) => {
+    await page.goto("/independent/profile");
+    const pencil = page.getByRole("button", { name: "Edit bio" });
+    const bio = page.getByRole("textbox", { name: "Bio" });
+    // The editor replaces the part, pencil and all: the one that comes back takes the focus.
+    await pencil.press("Enter");
+    await expect(bio).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(bio).toBeHidden();
+    await expect(pencil).toBeFocused();
+    await pencil.press("Enter");
+    await page.getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(pencil).toBeFocused();
+    await pencil.press("Enter");
+    await page.getByRole("button", { name: "Save", exact: true }).press("Enter");
+    await expect(bio).toBeHidden();
+    await expect(pencil).toBeFocused();
+  });
+});

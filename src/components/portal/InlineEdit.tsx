@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button } from "@/components/independent/ui";
 import { Tip } from "@/components/portal/Tip";
@@ -15,6 +15,14 @@ import { Tip } from "@/components/portal/Tip";
 const Edit = ICONS.edit;
 
 /**
+ * An editor that has just closed — Cancel, Escape or Save — took the focus with it, off its fields or
+ * buttons; it used to be left on <body>, and the keyboard started again from the top of the page. The
+ * part's pencil comes back in the editor's place (the editor replaces the part, pencil and all) and
+ * takes the focus as it appears. Set as an EditPanel goes, cleared once that update is over.
+ */
+let editorClosed = false;
+
+/**
  * The pencil beside a part (a 36px ringed button). While another part is being edited it's disabled,
  * and its tooltip says why. `tip` replaces the plain "Edit" when the pencil does something more
  * particular; `href` makes it a link, for an edit that happens on another page.
@@ -23,6 +31,11 @@ export function EditButton({ label, onClick, disabled, href, tip = "Edit" }: { l
   const name = `Edit ${label.replace(/:$/, "")}`;
   const className = "flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink enabled:hover:bg-surface-2 disabled:opacity-40";
   const icon = <Edit size={16} aria-hidden />;
+  const button = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    // Back in place of the editor that just closed, and the focus went with it: take it here.
+    if (editorClosed && (!document.activeElement || document.activeElement === document.body)) button.current?.focus();
+  }, []);
   return (
     <Tip label={disabled ? "Save or cancel your edit first" : tip} wrap={disabled}>
       {href && !disabled ? (
@@ -30,7 +43,7 @@ export function EditButton({ label, onClick, disabled, href, tip = "Edit" }: { l
           {icon}
         </Link>
       ) : (
-        <button type="button" aria-label={name} onClick={onClick} disabled={disabled} className={className}>
+        <button ref={button} type="button" aria-label={name} onClick={onClick} disabled={disabled} className={className}>
           {icon}
         </button>
       )}
@@ -41,7 +54,8 @@ export function EditButton({ label, onClick, disabled, href, tip = "Edit" }: { l
 /**
  * The part being edited, in line with the page — no outline or tint around it: its label, its fields,
  * then Cancel / Save on the right. Escape cancels, unless something inside (an open menu) claimed the
- * key. `saveTip` says why Save is disabled.
+ * key. Closing, either way, hands the focus to the part's pencil as it comes back. `saveTip` says why
+ * Save is disabled.
  */
 export function EditPanel({
   label,
@@ -61,6 +75,16 @@ export function EditPanel({
   onCancel: () => void;
   children: ReactNode;
 }) {
+  // As it goes: the pencil that appears in the same update takes the focus (see `editorClosed`).
+  useEffect(
+    () => () => {
+      editorClosed = true;
+      queueMicrotask(() => {
+        editorClosed = false;
+      });
+    },
+    [],
+  );
   return (
     <div
       className="flex flex-col gap-4"
