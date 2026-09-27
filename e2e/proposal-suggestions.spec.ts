@@ -92,6 +92,9 @@ test.describe("suggesting task changes in a revision", () => {
   });
 
   test("Juan suggests, Alex accepts one and ignores one, and the offer starts from what was accepted", async ({ page, secondPage }) => {
+    // Two tabs through the whole round trip, the suite's longest journey: allowed longer, since on
+    // a loaded test machine it runs many times its usual 5–15 s and used to hit the 60 s default.
+    test.setTimeout(180_000);
     await postTheRole(page);
     const juan = await secondPage();
     await suggestChanges(juan);
