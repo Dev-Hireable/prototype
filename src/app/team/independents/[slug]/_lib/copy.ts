@@ -141,7 +141,7 @@ export function endNote({ contract, view, first, isTrial, fromTrial, typeLabel, 
       : `Give notice and the ${typeLabel.toLowerCase()} role carries on, paid, for ${NOTICE_DAYS[contract.type as OngoingType]} days — through ${dayLabel(ends.notice?.lastDay)} — then ends on its own. Or end it today and pay ${first} through that day instead. Either way it can't be reopened.`;
   }
   if (fromTrial && isTrial) {
-    return `${releasable > 0 ? `${usd(releasable)} still in escrow is released to ${first}` : "The trial's money has already been paid out"}${conversion?.status === "sent" ? `, your ${offerType} offer is withdrawn,` : ""} and the contract moves to your inactive list — it can't be reopened.${releasable > 0 ? " Filing a dispute instead keeps the funds held while support reviews it." : ""}`;
+    return `${releasable > 0 ? `${usd(releasable)} still in escrow is released to ${first}` : "The trial's money has already been paid out"}${conversion?.status === "sent" ? `, your ${offerType} offer is withdrawn,` : ""} and the contract moves to your inactive list — it can't be reopened.`;
   }
   return `The ${typeLabel.toLowerCase()} engagement ends today. It moves to your inactive list and can't be reopened; ${first} is told, and the task list and evaluations stay on file.`;
 }

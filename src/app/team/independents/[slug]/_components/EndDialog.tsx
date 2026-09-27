@@ -6,9 +6,13 @@ import type { Tracker } from "../_lib/tracker";
 /**
  * TB-071 — how the contract ends depends on where it is: cancelled before its first day, closed
  * after the trial's evaluation, or a running role ended with notice or today.
+ *
+ * It doesn't offer to file a dispute instead: a trial closes only once its evaluation has paid the
+ * escrow out (TB-067), leaving nothing to hold. File a Dispute is open from the trial's last day
+ * until then, and while a role runs.
  */
-export function EndDialog({ t, open, onClose, onDispute, onNotice, onEnd }: { t: Tracker; open: boolean; onClose: () => void; onDispute: () => void; onNotice: () => void; onEnd: (how: "cancel" | "close" | "now") => void }) {
-  const { name, isTrial, view, ends } = t;
+export function EndDialog({ t, open, onClose, onNotice, onEnd }: { t: Tracker; open: boolean; onClose: () => void; onNotice: () => void; onEnd: (how: "cancel" | "close" | "now") => void }) {
+  const { name, ends } = t;
   return (
     <Modal
       open={open}
@@ -21,11 +25,6 @@ export function EndDialog({ t, open, onClose, onDispute, onNotice, onEnd }: { t:
           <Button size="lg" onClick={onClose}>
             {ends.cancel ? "Keep it" : "Cancel"}
           </Button>
-          {!view.block && isTrial && view.releasable > 0 && ends.close && (
-            <Button size="lg" onClick={onDispute}>
-              File a dispute instead
-            </Button>
-          )}
           {ends.notice && (
             <Button size="lg" onClick={onNotice}>
               Give notice

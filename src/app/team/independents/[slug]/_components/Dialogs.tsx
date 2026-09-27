@@ -39,10 +39,6 @@ export function TrackerDialogs({ t, on, onToast }: { t: Tracker; on: TrackerActi
         t={t}
         open={on.ending}
         onClose={() => on.setEnding(false)}
-        onDispute={() => {
-          on.setEnding(false);
-          on.setDisputing(true);
-        }}
         onNotice={() => {
           const r = endContract(contract.slug, "notice");
           on.setEnding(false);
