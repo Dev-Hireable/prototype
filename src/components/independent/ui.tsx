@@ -552,16 +552,32 @@ function keepTabInside(e: KeyboardEvent<HTMLDivElement>) {
   }
 }
 
-/** Escape closes the dialog while it's open — unless a popup inside it claimed the key first. */
+/** The dialogs open now, in the order they opened: the last is the one on top. */
+const openDialogs: symbol[] = [];
+
+/**
+ * Escape closes the dialog while it's open — only the top one, with one open over another — unless a
+ * popup inside it claimed the key first.
+ */
 function useCloseOnEscape(open: boolean, onClose: () => void) {
   const close = useEffectEvent(onClose);
   useEffect(() => {
     if (!open) return;
+    const me = Symbol("dialog");
+    openDialogs.push(me);
     // A popup inside the dialog (a Select menu, the date picker) claims Escape with preventDefault;
-    // it closes that popup, not the whole dialog.
-    const onKey = (e: globalThis.KeyboardEvent) => e.key === "Escape" && !e.defaultPrevented && close();
+    // it closes that popup, not the whole dialog. Every open dialog listens, so the top one claims
+    // the key as it closes: one Escape used to close the whole stack.
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || openDialogs.at(-1) !== me) return;
+      e.preventDefault();
+      close();
+    };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      openDialogs.splice(openDialogs.indexOf(me), 1);
+    };
   }, [open]);
 }
 
