@@ -43,7 +43,7 @@ export default function Messages() {
       emptyThread="Invite a candidate to interview, or start a trial, and your thread with them opens here."
       face={(c, size) => <Avatar src={c.avatar} size={size} />}
       badge={trial && (
-        <Badge tone="trial">
+        <Badge variant="solid" tone="trial">
           TRIAL · {trial.day}
         </Badge>
       )}

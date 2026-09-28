@@ -34,7 +34,7 @@ export default function Messages() {
       emptyThread="Your thread with a Team Builder opens once they invite you to interview."
       face={(c, size) => <Initials text={c.initials} className={`${FACE[size]} rounded-full`} />}
       badge={trial && (
-        <Badge tone="trial">
+        <Badge variant="solid" tone="trial">
           TRIAL · {trial.day}
         </Badge>
       )}
