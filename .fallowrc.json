@@ -1,0 +1,30 @@
+{
+  // JSONC: fallow reads the comments. Only what fallow can't see for itself belongs here.
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    // shadcn's `utils` alias (components.json): every `npx shadcn@latest add` imports `cn` from here.
+    "src/lib/utils.ts",
+    // The server-only Jev client, kept for the app's first Jev feature (the .claude hooks use the SDK directly).
+    "src/lib/jev/client.ts"
+  ],
+  "ignoreExports": [
+    // shadcn components, added and updated by the CLI: their exports are the library's surface, and
+    // local edits are wiped by `add --overwrite`.
+    { "file": "src/components/ui/**", "exports": ["*"] },
+    // Ported as-is from the real Web-App so the two stay easy to compare.
+    { "file": "src/web-app/**", "exports": ["*"] },
+    // Each portal has its own data module with the same shape, and imports only its own:
+    // the shared names are the design, not copies. Named, so a real unused export there still shows.
+    {
+      "file": "src/lib/{team,independent}/data.ts",
+      "exports": ["CompanyProfile", "Contract", "Conversation", "INITIAL_SAVED", "Interview", "MARKETING_BANNER", "MATCH_TOOLTIP", "Notification", "Role", "Transaction", "TxnType", "contracts", "conversationsFor", "interviews", "notifications", "setupSteps", "transactions"]
+    },
+    // The Team Builder's match tooltip; the talent's, with different copy, is in lib/independent/data.ts.
+    { "file": "src/components/team/ui.tsx", "exports": ["MATCH_TOOLTIP"] }
+  ],
+  "health": {
+    // Code we don't write, for the same reasons as above: shadcn's components belong to the CLI,
+    // and the Web-App port stays as-is so it can be compared line by line with the real app.
+    "ignore": ["src/components/ui/**", "src/web-app/**"]
+  }
+}

@@ -1,0 +1,447 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* The app is light-only. Scoping `dark:` to a `.dark` class that nothing sets keeps OS dark mode from
+   flipping the shadcn components, whose classes carry `dark:` variants. */
+@custom-variant dark (&:is(.dark *));
+
+/* Windows too short for the onboarding quiz's full header and answer panel to leave its chat
+   comfortable room (below ~300px of it): most laptops, and phones with their browser bars. The
+   quiz tightens both there. Registered after the breakpoints, so it beats `sm:` on the same
+   property. */
+@custom-variant short (@media (max-height: 859px));
+
+/*
+ * shadcn/ui theme variables (written by `shadcn init`), set to the Hireable values below so every
+ * component the CLI installs comes out on-brand without restyling.
+ *
+ * `muted` and `accent` are Hireable tokens with their own meaning (label grey, link blue), and
+ * `--color-muted` / `--color-accent` below keep it. So `bg-muted` / `bg-accent` in an installed
+ * component are not shadcn's hover surface: swap them for `bg-surface-2` or `bg-accent-bg`.
+ * --muted / --accent here only serve components that read the variables directly.
+ */
+:root {
+  --background: #ffffff;
+  --foreground: #212121; /* ink */
+  --card: #ffffff;
+  --card-foreground: #212121;
+  --popover: #ffffff;
+  --popover-foreground: #212121;
+  --primary: #007acc; /* primary */
+  --primary-foreground: #ffffff;
+  --secondary: #f2f2f2; /* surface-2 */
+  --secondary-foreground: #212121;
+  --muted: #f2f2f2; /* surface-2 */
+  --muted-foreground: #616161; /* ink-2 */
+  --accent: #f2f2f2; /* surface-2 */
+  --accent-foreground: #212121;
+  /* Danger: a deeper brick red (2026's muted signal reds, around L 0.5 in OKLCH) rather than the bright
+     red-600 it was — still unmistakable, less alarming on a solid button. White on it is 5.4:1. */
+  --destructive: #c4352c; /* danger */
+  --border: #c3c3c3; /* border */
+  --input: #c3c3c3; /* border */
+  --ring: #007acc; /* focus = primary, as focus:border-primary / focus-visible:outline-primary */
+  --radius: 0.5rem; /* Tailwind's rounded-lg — the radius scale itself stays Tailwind's */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* `--app-font-sans` is unset in the portals; the ported onboarding sets it (.web-app-theme). */
+  --font-sans: var(--app-font-sans, var(--font-inter));
+  --font-display: var(--font-dm-sans);
+  --font-heading: var(--font-dm-sans); /* shadcn titles, same face as font-display headings */
+
+  /* Hireable brand */
+  --color-brand-pink: #fb2e6f;
+  --color-brand-magenta: #ff2fc5;
+  --color-brand-orange: #ff8112;
+  --color-brand-blue: #00a7f8;
+  --color-ink-muted: #616161;
+  --color-ink-faint: #b0b0b0;
+
+  /* Portal tokens */
+  --color-ink: #212121; /* primary text */
+  --color-ink-2: #616161; /* secondary text and icons */
+  --color-ink-deep: #141a21; /* card values, table primary cells */
+  /* muted, border and danger read variables (same values as before) so .web-app-theme can swap in
+     the real app's for the ported onboarding; the portals never set --hireable-muted. */
+  --color-muted: var(--hireable-muted, #737d8a); /* card labels, table secondary cells */
+  --color-muted-2: #8a8f98;
+  --color-border: var(--border); /* #c3c3c3 — panels, header, inputs */
+  --color-line: #e3e8ed; /* card + table hairlines */
+  --color-grid: #edf0f2; /* chart gridlines */
+  --color-baseline: #ccd4db; /* chart baseline */
+  --color-surface-2: #f2f2f2; /* the shell's frame + rail */
+  --color-surface-alt: #f9fafb; /* table head */
+  --color-row-alt: #fcfdfe; /* even table rows */
+  --color-accent: #1770d9;
+  --color-accent-soft: #99c7f5;
+  --color-accent-bg: #e6f3fc;
+  --color-accent-ink: #004675;
+  --color-primary: #007acc; /* primary buttons (Independent + Team Builder portals) */
+  --color-ok: #27ae60;
+  --color-warn: #f7ba00;
+  --color-warn-bg: #fff9e7;
+  --color-danger: var(--destructive); /* #c4352c */
+  --color-danger-hover: #a92d25;
+
+  /* shadcn/ui semantic colours that don't clash with a Hireable token (values in :root above).
+     No --radius-* overrides: the app is drawn on Tailwind's default radius scale, and shadcn's
+     would round every rounded-md/lg/xl in it differently. */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+/* ------------------------------------------------- ported onboarding quiz -- */
+
+/*
+ * The real app's work-style onboarding runs here unchanged (src/app/onboarding, src/web-app). Its
+ * components are written against the real app's theme (Web-App apps/web/app/globals.css), so the
+ * tokens it has that the portals don't are registered here with the real values...
+ */
+@theme inline {
+  --font-secondary: var(--font-inter);
+  --font-nunito: var(--font-nunito-sans);
+
+  --color-neutral-650: oklch(0.556 0 0);
+  --color-neutral-750: oklch(0.45 0 0);
+  --color-neutral-850: oklch(0.26 0 0);
+
+  --color-client: oklch(0.65 0.19 230);
+  --color-client-hover: oklch(0.52 0.15 230);
+  --color-client-active: oklch(0.52 0.15 230);
+  --color-talent: oklch(0.65 0.19 230);
+  --color-brand-client-subtle: oklch(0.96 0.02 230);
+  --color-success: oklch(0.64 0.17 145);
+  --color-success-foreground: oklch(1 0 0);
+  --color-warning: oklch(0.83 0.16 85);
+  --color-warning-foreground: oklch(0.205 0 0);
+  --color-danger-foreground: oklch(1 0 0);
+
+  --color-border-focused: oklch(0.65 0.19 230);
+  --color-border-hover: oklch(0.8 0 0);
+  --color-icon: oklch(0.45 0 0);
+  --color-surface-hover: oklch(0.95 0 0);
+  --color-auth-sidebar: #212121;
+  --color-neutral-subtle: oklch(0.97 0 0);
+  --color-neutral-muted: oklch(0.8 0 0);
+  --color-text-tertiary: oklch(0.5 0 0);
+
+  --color-toast-success-bg: oklch(0.92 0.06 145);
+  --color-toast-info-bg: oklch(0.94 0.04 230);
+  --color-toast-warning-bg: oklch(0.96 0.06 85);
+  --color-toast-error-bg: oklch(0.94 0.05 25);
+
+  --color-worktrait-decision: #66c8ff;
+  --color-worktrait-adapt: #ff739a;
+  --color-worktrait-response: #ff73d1;
+  --color-worktrait-time: #ffa366;
+  --color-worktrait-coop: #c86bfa;
+  --color-worktrait-comm: #b4ffff;
+}
+
+/*
+ * ...and the ones both apps name but define differently take the real app's values inside the
+ * quiz only: DM Sans body text, its neutral/blue/red/green/amber steps, its radius scale and its
+ * semantic colours. Outside `.web-app-theme` nothing here applies, so the portals are unchanged.
+ */
+.web-app-theme {
+  --app-font-sans: var(--font-dm-sans);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --hireable-muted: oklch(0.97 0 0);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  /* bg-danger / text-danger read --destructive in this app; the real app's danger is red-500. */
+  --destructive: oklch(0.58 0.22 25);
+
+  --color-neutral-50: oklch(0.985 0 0);
+  --color-neutral-100: oklch(0.97 0 0);
+  --color-neutral-200: oklch(0.95 0 0);
+  --color-neutral-300: oklch(0.922 0 0);
+  --color-neutral-400: oklch(0.8 0 0);
+  --color-neutral-500: oklch(0.78 0 0);
+  --color-neutral-600: oklch(0.708 0 0);
+  --color-neutral-700: oklch(0.5 0 0);
+  --color-neutral-800: oklch(0.269 0 0);
+  --color-neutral-900: oklch(0.205 0 0);
+  --color-neutral-950: oklch(0.145 0 0);
+  --color-blue-50: oklch(0.94 0.04 230);
+  --color-blue-100: oklch(0.92 0.04 230);
+  --color-blue-200: oklch(0.87 0.06 230);
+  --color-blue-500: oklch(0.65 0.19 230);
+  --color-blue-600: oklch(0.52 0.15 230);
+  --color-blue-700: oklch(0.42 0.09 230);
+  --color-red-100: oklch(0.94 0.05 25);
+  --color-red-500: oklch(0.58 0.22 25);
+  --color-red-600: oklch(0.52 0.2 25);
+  --color-green-100: oklch(0.92 0.06 145);
+  --color-green-500: oklch(0.64 0.17 145);
+  --color-amber-100: oklch(0.96 0.06 85);
+  --color-amber-400: oklch(0.83 0.16 85);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+}
+
+/* The real app's base rules, for the quiz's own subtree. */
+.web-app-theme img {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+.web-app-theme ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.web-app-theme ::-webkit-scrollbar-track {
+  border: 0;
+  background: #f2f2f2;
+  border-radius: 100px;
+}
+
+.web-app-theme ::-webkit-scrollbar-thumb {
+  border: 0;
+  background: #969696;
+  border-radius: 100px;
+}
+
+.web-app-theme ::-webkit-scrollbar-thumb:hover {
+  background: #7a7a7a;
+}
+
+/* Scrollbar: 8px pill track #f2f2f2, 8px pill thumb #969696. Inherited from :root, so every
+   scroll container in the app matches. */
+/* Chromium ignores ::-webkit-scrollbar as soon as scrollbar-width/-color are set, so the standard
+   properties are the Firefox-only fallback (no radius control there). scrollbar-width doesn't
+   inherit — hence `*` rather than :root. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #969696 var(--color-surface-2);
+  }
+}
+
+/* Same box on both axes, so the two bars are identical apart from orientation. */
+::-webkit-scrollbar {
+  width: 24px;
+  height: 24px;
+}
+
+/* The 8px bar sits in an 8px-padded box. 8px of transparent border plus padding-box clipping
+   keeps the painted track 8px thick and inset 8px from the container's sides; that same 8px
+   border also caps the ends, so the pill is fully rounded top and bottom. */
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-thumb {
+  border: 8px solid transparent;
+  background-clip: padding-box;
+  border-radius: 100px;
+}
+
+/* No margin here: the 8px transparent border above already insets the painted track by 8px on every
+   side, ends included. Adding a margin insets the track a second time but not the thumb, so at the
+   extremes the thumb's rounded cap overshoots the track's and both ends read as cut off. */
+::-webkit-scrollbar-track {
+  background-color: var(--color-surface-2);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #969696;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Track + thumb only — drop the platform stepper arrows. */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* ------------------------------------------------------------ ScrollFade -- */
+
+/* Registered so the fades can ease in and out: an unregistered custom property only snaps. */
+@property --fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --fade-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+/*
+ * ScrollFade fades a scroller's own content at whichever edges still have more behind them. It is
+ * a mask, not the white overlay it used to be: an overlay painted over everything under it —
+ * including the border of the panel the scroller sits flush against — while a mask only thins the
+ * content, so that border and anything outside the scroller are never covered.
+ *
+ * Layers, top to bottom: the vertical scrollbar strip and the horizontal one (always solid, so the
+ * bars never fade), then the vertical and horizontal fades, intersected. The top and side edges
+ * keep 20%, so a card cut by one still shows its outline there. The bottom fades out completely,
+ * over a deeper ramp: the scroller runs down to the panel's bottom edge, and a short fade that kept
+ * 20% there read as content stuck to the border rather than content carrying on below (the top has
+ * the page header to scroll under instead). ScrollFade sets the four --fade-* lengths and the two
+ * bar sizes from the scroll position.
+ */
+.edge-fade {
+  --bar-y: 0px;
+  --bar-x: 0px;
+  mask-image:
+    linear-gradient(#000, #000),
+    linear-gradient(#000, #000),
+    linear-gradient(to bottom, #0003, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent),
+    linear-gradient(to right, #0003, #000 var(--fade-left), #000 calc(100% - var(--fade-right)), #0003);
+  mask-size:
+    var(--bar-y) 100%,
+    100% var(--bar-x),
+    100% 100%,
+    100% 100%;
+  mask-position:
+    right top,
+    left bottom,
+    0 0,
+    0 0;
+  mask-repeat: no-repeat;
+  mask-composite: add, add, intersect, add;
+  transition:
+    --fade-top 200ms,
+    --fade-bottom 200ms,
+    --fade-left 200ms,
+    --fade-right 200ms;
+}
+
+/* Tailwind v4's preflight leaves buttons at `cursor: default`, so every clickable control in the
+   app read as dead — you could not tell an active button from a disabled one without clicking it.
+   One rule here rather than a `cursor-pointer` class on each of the hundreds of call sites.
+   Anything genuinely disabled keeps the not-allowed cursor the components already set. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+[role="tab"],
+[role="menuitem"],
+[role="option"],
+label:has(> input[type="checkbox"]:not(:disabled)),
+label:has(> input[type="radio"]:not(:disabled)),
+summary {
+  cursor: pointer;
+}
+
+/* shadcn/ui base styles (from `shadcn init`). Every border and outline the app draws names its own
+   colour, so the defaults below only reach the installed components. */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* A success badge (role published, …) growing in from small with a little overshoot and a turn, so
+   it lands instead of popping in. Started once the image has loaded (see `.badge-pop` users).
+   Without motion it simply fades in. */
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-18deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(1.12) rotate(4deg);
+  }
+  75% {
+    transform: scale(0.95) rotate(-1deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+@keyframes badge-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.badge-pop {
+  animation: badge-pop 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .badge-pop {
+    animation: badge-fade 200ms ease-out both;
+  }
+}
+
+/*
+ * UI scale. On a laptop — a window 1024–1535px wide, or one under 820px tall (a 14" screen at
+ * 125–150% scaling, once the browser's toolbars take their share) — the whole app draws at 90%, the
+ * size it reads best at there; big screens stay at 100%. `zoom` scales everything, the many fixed
+ * pixel sizes included, where scaling the root font would only move rem-based ones. Phones and
+ * tablets have their own layouts and aren't scaled.
+ *
+ * It's on the app's wrapper (.ui-zoom, in the root layout), not on <html>: menus, tooltips and
+ * dialogs are portalled to <body>, where Floating UI measures an unzoomed page in every browser (on a
+ * zoomed <html> it placed menus a different wrong way per Chrome version). Each of those scales its
+ * own content instead — the popup inside a positioner, the panel inside an overlay.
+ *
+ * Viewport units inside a zoomed box are zoomed too, so anything sized to the window divides by the
+ * scale: `calc(100dvh / var(--ui-scale))` is the full window height at any scale.
+ */
+:root {
+  --ui-scale: 1;
+}
+@media (min-width: 1024px) and (max-width: 1535px), (min-width: 1024px) and (max-height: 820px) {
+  :root {
+    --ui-scale: 0.9;
+  }
+}
+.ui-zoom {
+  zoom: var(--ui-scale);
+}
+
+/*
+ * A count in a badge (unread, filters on): trimmed to the digits' cap height, so they sit in the
+ * middle of the pill. With the font's full line box they sat off-centre — the box counts the
+ * ascender and descender room digits don't use.
+ */
+.badge-count {
+  text-box: trim-both cap alphabetic;
+  font-variant-numeric: tabular-nums;
+}
