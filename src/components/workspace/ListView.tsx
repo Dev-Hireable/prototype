@@ -87,9 +87,11 @@ export function ListView({ groups, byId, query, setQuery, pendingIds }: { groups
   return (
     <div className="flex min-h-0 flex-1 flex-col px-[var(--ws-gutter,1rem)] pt-3 pb-4">
       {/* The border is on this frame and the table scrolls inside it. On the scroller itself it was
-          an outline, which the pinned header and name column paint over — so the edge came and went. */}
+          an outline, which the pinned header and name column paint over — so the edge came and went.
+          The scroller is positioned so it holds the cells' screen-reader text (sr-only is absolute):
+          with nothing positioned above it, a row below the fold stretched the page and it scrolled. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-white">
-        <div ref={frameRef} className="min-h-0 flex-1 overflow-auto" data-testid="list">
+        <div ref={frameRef} className="relative min-h-0 flex-1 overflow-auto" data-testid="list">
           <table className="w-full table-fixed border-separate border-spacing-0 text-[13px] leading-[1.4]" style={{ minWidth: tableWidth }} aria-label="Work items">
             <colgroup>
               {cols.map((c) => (
