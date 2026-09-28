@@ -47,7 +47,8 @@ export function BoardView({ groups, byId, query, pendingIds }: { groups: Group[]
           {hint}
         </p>
       )}
-      <div className="flex min-h-0 flex-1 items-stretch gap-3 overflow-x-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="board">
+      {/* Positioned, like the List's scroller, so nothing a column places absolutely passes through it to stretch the page. */}
+      <div className="relative flex min-h-0 flex-1 items-stretch gap-3 overflow-x-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="board">
         {groups.map((g) => (
           <BoardColumn key={g.key} group={g} dnd={dnd} cards={cards} reorderable={reorderable} archived={query.archived} kit={kit} />
         ))}

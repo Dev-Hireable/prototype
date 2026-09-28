@@ -83,10 +83,13 @@ export function KanbanColumn({
   );
 }
 
-/** A column's cards: they scroll inside the panel, under its header. */
+/**
+ * A column's cards: they scroll inside the panel, under its header. The list is positioned, so what
+ * a card places absolutely (sr-only text) stays inside it instead of stretching the page.
+ */
 export function KanbanList({ className = "", children, ...rest }: ComponentProps<"ul">) {
   return (
-    <ul aria-label="Cards" {...rest} className={`flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto p-2 ${className}`}>
+    <ul aria-label="Cards" {...rest} className={`relative flex min-h-16 flex-1 flex-col gap-2 overflow-y-auto p-2 ${className}`}>
       {children}
     </ul>
   );
