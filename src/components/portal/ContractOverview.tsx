@@ -3,23 +3,18 @@
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button } from "@/components/independent/ui";
-import { Meter, Swatch } from "@/components/portal/Meter";
 import { FactStrip, SIDE_COLUMN, WITH_SIDE } from "@/components/portal/PageParts";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { StatusCircle, type TaskPeople } from "@/components/portal/tasks/task-bits";
+import { WorkLegend, WorkMeter } from "@/components/portal/WorkProgress";
 import { AssigneeChip } from "@/components/workspace/meta";
 import { ago } from "@/components/workspace/util";
 import { keyed } from "@/lib/portal/keys";
 import { writeParams } from "@/lib/portal/query-state";
 import { dayOf, relativeLabel, shortLabel, todayDay, type Day } from "@/lib/work/dates";
-import { countsOf, isArchived, isCompleted, isOverdue, refOf, scoredItems, STATUS_META, type WorkItem } from "@/lib/work/model";
+import { countsOf, isArchived, isCompleted, isOverdue, refOf, scoredItems, type WorkItem } from "@/lib/work/model";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
-/** The Progress bar fills most-done first; To do is what's left of it, hatched, so it has no colour. */
-const FILLED = ["done", "review", "doing"] as const;
-const BAR: Record<(typeof FILLED)[number], string> = { done: "var(--color-ok)", review: "var(--color-warn)", doing: "var(--color-primary)" };
-/** The key under the bar, in the bar's order. */
-const LEGEND = [...FILLED, "todo"] as const;
 /** How far ahead "Coming up" looks, in days. */
 const AHEAD = 14;
 /** Rows a list shows before it sends you to the work for the rest. */
@@ -120,8 +115,8 @@ function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; tria
             <Stats stats={statsOf(items, counts, scored)} />
           </div>
           <div className="flex flex-col gap-3">
-            <Meter total={counts.total} parts={FILLED.map((s) => ({ value: counts[s], color: BAR[s], label: STATUS_META[s].label }))} label={LEGEND.map((s) => `${counts[s]} ${STATUS_META[s].label}`).join(", ")} />
-            <Legend counts={counts} />
+            <WorkMeter counts={counts} />
+            <WorkLegend counts={counts} />
           </div>
           {scored.length > 0 && <p className="text-[12.5px] leading-[1.4] text-ink-2">Trial tasks are the ones the Trial Fit Score&apos;s Performance counts.</p>}
         </>
@@ -171,21 +166,6 @@ function Stats({ stats }: { stats: Stat[] }) {
         </div>
       ))}
     </dl>
-  );
-}
-
-/** The bar's key, in the bar's order: each status's colour — To do's stripes — and how many are in it. */
-function Legend({ counts }: { counts: Record<(typeof LEGEND)[number], number> }) {
-  return (
-    <ul className="flex flex-wrap gap-x-6 gap-y-1.5 text-[12.5px] leading-[1.4] text-ink-2">
-      {LEGEND.map((s) => (
-        <li key={s} className="flex items-center gap-2">
-          <Swatch color={s === "todo" ? undefined : BAR[s]} />
-          {STATUS_META[s].label}
-          <span className="font-semibold text-ink tabular-nums">{counts[s]}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
 

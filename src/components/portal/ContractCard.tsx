@@ -2,8 +2,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { JobBadge } from "@/components/independent/ui";
+import { Badge } from "@/components/portal/Badge";
+import { Tip } from "@/components/portal/Tip";
 import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
 import { ViewSwitch } from "@/components/portal/ViewSwitch";
+import { WorkLegend, WorkMeter } from "@/components/portal/WorkProgress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Row, Table } from "@/components/team/ui";
 import type { CONTRACT_LAYOUTS } from "@/lib/contract/view";
@@ -13,6 +16,7 @@ import { taskCounts } from "@/lib/demo/tasks";
 import type { Task } from "@/lib/demo/tasks";
 
 const Message = ICONS.messages;
+const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
 /** One contract as either layout draws it. */
 export type ContractSummary = {
@@ -59,92 +63,112 @@ export function ContractList({ layout, items, who = "Contract" }: { layout: Cont
         ))}
       </div>
     );
-  // Status and a call to action get a column only when some row has one.
+  // Trial fit, status and a call to action get a column only when some row has one.
+  const withFit = items.some((c) => c.type === "trial" && c.tfs !== null);
   const withStatus = items.some((c) => c.status);
   const withAction = items.some((c) => c.action);
-  const cols = [COLS.who, COLS.type, COLS.progress, COLS.fit, COLS.time, ...(withStatus ? [COLS.status] : []), withAction ? COLS.actionWide : COLS.action];
-  const head = [who, "Type", "Progress", "Trial fit", "Time", ...(withStatus ? ["Status"] : []), ""];
+  const cols = [COLS.who, COLS.type, COLS.progress, ...(withFit ? [COLS.fit] : []), COLS.time, ...(withStatus ? [COLS.status] : []), withAction ? COLS.actionWide : COLS.action];
+  const head = [who, "Type", "Progress", ...(withFit ? ["Trial fit"] : []), "Time", ...(withStatus ? ["Status"] : []), ""];
   return (
     <Table cols={cols} head={head}>
       {items.map(({ id, ...c }) => (
-        <ContractRow key={id} {...c} withStatus={withStatus} withAction={withAction} />
+        <ContractRow key={id} {...c} withFit={withFit} withStatus={withStatus} withAction={withAction} />
       ))}
     </Table>
   );
 }
 
 const COLS = {
-  who: "min-w-[240px] flex-1",
+  // The name keeps to its own width and the bar takes what's spare, up to a point, so the facts
+  // sit beside the name rather than across the page from it.
+  who: "w-[280px]",
   type: "w-[112px]",
-  progress: "w-[240px]",
-  fit: "w-[96px]",
-  time: "w-[150px]",
+  progress: "min-w-[240px] max-w-[440px] flex-1",
+  fit: "w-[112px]",
+  time: "w-[176px]",
   status: "w-[120px]",
   action: "w-[64px] justify-end",
   actionWide: "w-[190px] justify-end",
 };
 
+type Counts = ReturnType<typeof taskCounts>;
+
 /**
- * TB-057 / IN-076 — the at-a-glance card for one contract: who it's with, the task list's breakdown,
- * contract type, TFS and time left. The Team Builder's All independents and the independent's All
- * contracts both draw it, so the two lists of the same contracts look the same from either side.
+ * TB-057 / IN-076 — the at-a-glance card for one contract: who it's with and the contract type, the
+ * task list as the contract's Overview draws it (the Progress bar and its key) under TB-057's counts,
+ * and a footer with the time, the Trial Fit Score on a trial, where it stands and the thread. The
+ * whole card opens the contract — the name's link stretches over it — while the footer's controls
+ * and any call to action sit above that. The Team Builder's All independents and the independent's
+ * All contracts both draw it.
  */
 function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, inactive, ended, started, status, action }: ContractSummary) {
-  const counts = taskCounts(tasks);
-  /** Open and on time; the overdue ones are counted on their own. */
-  const inProgress = counts.total - counts.done - counts.overdue;
-
   return (
-    <article className={`flex flex-col gap-4 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border ${inactive ? "opacity-60" : ""}`}>
-      <div className="flex items-start gap-3">
-        {avatar(44)}
-        <Link href={href} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.3]">
-          <span className="truncate text-[15px] font-semibold text-ink hover:text-primary">{name}</span>
-          <span className="truncate text-[13px] text-ink-2">{sub}</span>
-        </Link>
-        <Link href={messageHref} aria-label={`Message ${name}`} className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
-          <Message size={18} aria-hidden />
-        </Link>
+    <article
+      className={`relative flex flex-col rounded-lg bg-white outline -outline-offset-1 outline-border transition-[box-shadow,outline-color] duration-200 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.3)] hover:outline-[#a6a6a6] ${inactive ? "opacity-60" : ""}`}
+    >
+      <div className="flex flex-col gap-5 p-5">
+        <div className="flex items-start gap-3">
+          {avatar(44)}
+          <Link href={href} className={`flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.3] ${ROW_LINK}`}>
+            <span className="truncate text-[15px] font-semibold text-ink">{name}</span>
+            <span className="truncate text-[13px] text-ink-2">{sub}</span>
+          </Link>
+          <JobBadge type={type} />
+        </div>
+        <CardWork counts={taskCounts(tasks)} />
+        {action && <div className="relative z-10 flex flex-col">{action}</div>}
       </div>
-
-      {/* Tasks / In progress / Overdue / Done, colour coded per the AC. */}
-      <dl className="grid grid-cols-4 gap-2 rounded-lg bg-surface-2 p-3 text-center">
-        <Count label="Tasks" value={counts.total} tone="text-ink" />
-        <Count label="In progress" value={inProgress} tone="text-primary" />
-        <Count label="Overdue" value={counts.overdue} tone="text-danger" />
-        <Count label="Done" value={counts.done} tone="text-ok" />
-      </dl>
-
-      <div className="flex flex-wrap items-center gap-2 text-[13px] leading-[1.3] text-ink-2">
-        <TypeBadges type={type} tfs={tfs} />
+      <div className="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-2 border-t border-line px-5 py-2.5 text-[12.5px] leading-[1.3] text-ink-2">
         <TimeLeft type={type} left={left} inactive={inactive} ended={ended} started={started} />
-        {status && <span className="ml-auto">{status}</span>}
+        {type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}
+        <span className="relative z-10 ml-auto flex items-center gap-2">
+          {status}
+          <MessageLink href={messageHref} name={name} />
+        </span>
       </div>
-
-      {action}
     </article>
   );
 }
 
-function Count({ label, value, tone }: { label: string; value: number; tone: string }) {
+/** The card's work: how many tasks, how many are overdue and how much is done, then the Overview's bar and key. */
+function CardWork({ counts }: { counts: Counts }) {
+  const pct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="order-2 text-[11.5px] leading-[1.2] text-ink-2">{label}</dt>
-      <dd className={`order-1 text-[18px] leading-[1.2] font-semibold ${tone}`}>{value}</dd>
+    <div className="flex flex-col gap-3">
+      <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-[12.5px] leading-none text-ink-2">
+        <span>
+          <Figure>{counts.total}</Figure> {counts.total === 1 ? "task" : "tasks"}
+        </span>
+        <span className={counts.overdue ? "text-danger" : ""}>
+          <Figure danger={counts.overdue > 0}>{counts.overdue}</Figure> overdue
+        </span>
+        <span className="ml-auto">
+          <Figure>{pct}%</Figure> done
+        </span>
+      </p>
+      <WorkMeter counts={counts} />
+      <WorkLegend counts={counts} grid />
     </div>
   );
 }
 
+/** A number in the card's summary line, in the display face. */
+function Figure({ children, danger = false }: { children: ReactNode; danger?: boolean }) {
+  return (
+    <span className={`font-display text-[16px] font-semibold tabular-nums ${danger ? "text-danger" : "text-ink"}`} style={DM}>
+      {children}
+    </span>
+  );
+}
+
 /**
- * The same contract as one row of the list: who, the type, how far the work has got (a bar and
- * "2 of 5 done", with what's in progress and overdue under it), the Trial Fit Score, and the time.
- * The whole row opens the contract — the name's link stretches over it — while the message button
- * and any call to action sit above that and stay their own.
+ * The same contract as one row of the list: who, the type, the Overview's Progress bar with how much
+ * is done and anything overdue, the Trial Fit Score, the time and where it stands. The whole row
+ * opens the contract — the name's link stretches over it — while the message button and any call
+ * to action sit above that and stay their own.
  */
-function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, inactive, ended, started, status, action, withStatus, withAction }: ContractSummary & { withStatus: boolean; withAction: boolean }) {
+function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, inactive, ended, started, status, action, withFit, withStatus, withAction }: ContractSummary & { withFit: boolean; withStatus: boolean; withAction: boolean }) {
   const counts = taskCounts(tasks);
-  const inProgress = counts.total - counts.done - counts.overdue;
-  const pct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
   return (
     <Row className={`relative cursor-pointer ${inactive ? "opacity-60" : ""}`}>
       <span className={`${COLS.who} flex gap-3`}>
@@ -157,60 +181,86 @@ function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, l
       <span className={`${COLS.type} flex`}>
         <JobBadge type={type} />
       </span>
-      <span className={`${COLS.progress} flex flex-col justify-center gap-1.5 !items-stretch`}>
-        <span className="flex items-center gap-2.5">
-          <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label="Tasks done" aria-valuemin={0} aria-valuemax={counts.total} aria-valuenow={counts.done}>
-            <span className="block h-full rounded-full bg-ok" style={{ width: `${pct}%` }} />
-          </span>
-          <span className="text-[12.5px] text-ink tabular-nums">
-            <b className="font-semibold">{counts.done}</b> of {counts.total} done
-          </span>
-        </span>
-        <span className="flex gap-3 text-[12px] text-ink-2 tabular-nums">
-          <span>
-            <b className="font-semibold text-primary">{inProgress}</b> in progress
-          </span>
-          <span className={counts.overdue ? "text-danger" : ""}>
-            <b className="font-semibold">{counts.overdue}</b> overdue
-          </span>
-        </span>
+      <span className={`${COLS.progress} flex flex-col justify-center gap-2 !items-stretch`}>
+        <WorkMeter counts={counts} />
+        <WorkLine counts={counts} />
       </span>
-      <span className={`${COLS.fit} flex`}>{type === "trial" && tfs !== null ? <TfsBadge tfs={tfs} /> : <span className="text-ink-2">—</span>}</span>
+      {withFit && <span className={`${COLS.fit} flex`}>{type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}</span>}
       <span className={`${COLS.time} flex text-[12.5px] text-ink-2`}>
         <TimeLeft type={type} left={left} inactive={inactive} ended={ended} started={started} />
       </span>
       {withStatus && <span className={`${COLS.status} relative z-10 flex`}>{status}</span>}
       <span className={`${withAction ? COLS.actionWide : COLS.action} relative z-10 flex gap-2`}>
         {action}
-        <Link href={messageHref} aria-label={`Message ${name}`} className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-white text-ink hover:bg-surface-alt">
-          <Message size={18} aria-hidden />
-        </Link>
+        <MessageLink href={messageHref} name={name} />
       </span>
     </Row>
   );
 }
 
-/** The contract type, and on a trial its Trial Fit Score so far. */
-function TypeBadges({ type, tfs }: { type: JobType; tfs: number | null }) {
+/** The line under a row's bar: how much is done and anything overdue — or that it's all done. */
+function WorkLine({ counts }: { counts: Counts }) {
+  if (counts.total === 0) return <span className="text-[12px] leading-none text-ink-2">No tasks yet</span>;
+  if (counts.done === counts.total) return <span className="text-[12px] leading-none font-medium text-ok">All done</span>;
   return (
-    <>
-      <JobBadge type={type} />
-      {type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}
-    </>
+    <span className="flex gap-1.5 text-[12px] leading-none text-ink-2 tabular-nums">
+      <span>
+        <b className="font-semibold text-ink">{counts.done}</b> of {counts.total} done
+      </span>
+      {counts.overdue > 0 && (
+        <>
+          <span aria-hidden>·</span>
+          <span className="font-medium text-danger">{counts.overdue} overdue</span>
+        </>
+      )}
+    </span>
   );
 }
 
-/** A trial's Trial Fit Score so far. */
-function TfsBadge({ tfs }: { tfs: number }) {
-  return <span className="rounded-md bg-[#eef6ff] px-2 py-1 text-[12.5px] leading-[1.2] font-semibold whitespace-nowrap text-[#005b99]">TFS {tfs}%</span>;
+
+/** A 14px ring filled to the score: the Trial Fit Score badge's glyph, the ScoreRing in small. */
+function MiniRing({ value }: { value: number }) {
+  const r = 5.25;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden>
+      <circle cx="7" cy="7" r={r} fill="none" stroke="currentColor" strokeOpacity={0.22} strokeWidth={2.5} />
+      <circle cx="7" cy="7" r={r} fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeDasharray={`${(Math.min(100, value) / 100) * c} ${c}`} transform="rotate(-90 7 7)" />
+    </svg>
+  );
 }
 
-/** How long is left on a trial, when the contract began, or when it ended. */
+/** A trial's Trial Fit Score so far (TB-057's TFS pill). */
+function TfsBadge({ tfs }: { tfs: number }) {
+  return (
+    <Badge tone="accent" icon={<MiniRing value={tfs} />}>
+      TFS {tfs}%
+    </Badge>
+  );
+}
+
+/** How long is left on a trial, when the contract began, or when it ended — orange once a trial is down to its last 7 days (TB-057). */
 function TimeLeft({ type, left, inactive, ended, started }: Pick<ContractSummary, "type" | "left" | "inactive" | "ended" | "started">) {
-  if (inactive) return <span>Ended {ended}</span>;
-  // 7 days or fewer reads as a warning (TB-057).
-  if (type === "trial") return <span className={left !== null && left <= 7 ? "font-semibold text-brand-orange" : ""}>{daysLeftLabel(left ?? 0, "remaining")}</span>;
-  return <span>Started {started}</span>;
+  const trial = type === "trial" && !inactive;
+  const soon = trial && left !== null && left <= 7;
+  const Icon = trial ? ICONS.hourglass : ICONS.calendar;
+  return (
+    <span className={`flex items-center gap-1.5 whitespace-nowrap ${soon ? "font-semibold text-brand-orange" : ""}`}>
+      <Icon size={15} aria-hidden className="shrink-0" />
+      {inactive ? `Ended ${ended}` : trial ? daysLeftLabel(left ?? 0) : `Started ${started}`}
+    </span>
+  );
+}
+
+/** The thread with the other party: a quiet icon button, named for screen readers and in its tooltip. */
+function MessageLink({ href, name }: { href: string; name: string }) {
+  return (
+    <Tip label={`Message ${name}`}>
+      <Link href={href} aria-label={`Message ${name}`} className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
+        <Message size={18} aria-hidden />
+      </Link>
+    </Tip>
+  );
 }
 
 
