@@ -311,10 +311,10 @@ export function InfoBanner({ children, tone = "info", className = "w-fit max-w-f
 
 /* --------------------------------------------------------------- badges --- */
 
-/** Trial orange, full-time blue, part-time magenta: solid, white text — the shared Badge. */
+/** Trial orange, full-time blue, part-time magenta: a tint in the type's colour — the shared Badge. */
 export function JobBadge({ type }: { type: JobType }) {
   return (
-    <Badge variant="solid" tone={type} caps>
+    <Badge tone={type} caps>
       {type}
     </Badge>
   );
