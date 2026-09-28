@@ -111,7 +111,7 @@ export function TasksStep({ f, t, weeks, cta }: { f: RoleForm; t: PathCopy; week
       <div className="w-[720px]">
         <InfoBanner>{t.note}</InfoBanner>
       </div>
-      <StepCard title={t.h2} body="List the tasks for the trial. They go into your offer, where you can adjust them per candidate, and become the trial's shared task list once it's signed.">
+      <StepCard title={t.h2} body="List the tasks for the trial. They go into your offer as the proposal settles them, and once it's signed each task's name, details, due week and priority stay as agreed.">
         <div className="flex flex-col gap-10">
           <Block label={t.field2}>
             <TaskPlanEditor rows={f.taskRows} onChange={f.setTaskRows} weeks={weeks} placeholder="Name a task for the trial" />

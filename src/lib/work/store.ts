@@ -173,6 +173,9 @@ function say(m: Omit<WorkMessage, "id">) {
   for (const fn of messageListeners) fn(msg);
 }
 
+/** Says why something can't be changed, where no sheet is open to say it (a List cell's lock): a toast, and read out. */
+export const explain = (message: string) => say({ tone: "info", message });
+
 /* --------------------------------------------------------------- queue */
 
 type Job = { run: () => Promise<boolean>; cancel: () => void };

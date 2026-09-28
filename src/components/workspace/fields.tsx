@@ -4,17 +4,17 @@ import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { Matcher } from "react-day-picker";
 import { ICONS, type IconName } from "@/components/admin/icons";
 import { DatePicker } from "@/components/portal/DatePicker";
-import { PriorityMenu, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
+import { PriorityMenu, PriorityPill, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/Tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import { ASSIGNEE_KEYS, assigneeKey, assigneeOf, EFFORT_HELP, EFFORT_MAX, EFFORT_PRESETS, isArchived, isCompleted, refOf, STATUS_META, TAG_COLOR_KEYS, TAG_COLORS, tagColorOf, TYPE_META, WORK_TYPES, type TagColor, type WorkItem, type WorkStatus } from "@/lib/work/model";
 import { matchesSearch } from "@/lib/work/query";
-import { capsFor, targetsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
+import { capsFor, changeFor, targetsFor, transitionFor, type AgreedField, type TransitionKind, type WorkField } from "@/lib/work/permissions";
 import { checkDependency, checkEffort, checkTag, normalizeTag } from "@/lib/work/validate";
 import { movedTo, NO_PROJECT, NO_PROJECT_NAME, projectKeyOf } from "@/lib/work/projects";
-import { LockedValue, type LockedPart } from "./contract-lock";
+import { LockedValue } from "./contract-lock";
 import { lockable } from "./lockable";
 import { useWorkspace } from "./context";
 import { AssigneeChip, TagChip, TypeChip } from "./meta";
@@ -35,6 +35,30 @@ const FIELD_TRIGGER =
  * editable values start on one line in the panel (they used to sit a few pixels apart, row to row).
  */
 const READ_ONLY = "inline-flex h-7 max-w-full min-w-0 items-center gap-1 px-1.5 text-[13px] leading-[1.2] text-ink-2";
+
+/** What trying a locked value does: the sheet's notice. Without one (a List cell) it's a toast. */
+type OnLocked = (field: AgreedField) => void;
+
+/** Whether this person can change `field` on `item` now — the same rule the repository saves by (changeFor). */
+function useCanChange(item: WorkItem, field: WorkField): boolean {
+  const { actor, access, names } = useWorkspace();
+  return changeFor(item, actor, access, field, names).ok;
+}
+
+/**
+ * A value this person can't change, where it would be edited: behind a lock when the signed offer set
+ * it, so trying it says why; as plain text when it isn't theirs to change for who they are.
+ */
+function ReadOnly({ item, field, onLocked, children }: { item: WorkItem; field: WorkField; onLocked?: OnLocked; children: ReactNode }) {
+  const { actor, access } = useWorkspace();
+  if (lockable(item, field, actor.role, access))
+    return (
+      <LockedValue field={field} onLocked={onLocked}>
+        {children}
+      </LockedValue>
+    );
+  return <span className={READ_ONLY}>{children}</span>;
+}
 
 const KIND_LABEL = (kind: TransitionKind, to: WorkStatus, names: { team: string }) =>
   ({
@@ -85,18 +109,15 @@ export function StatusField({ item }: { item: WorkItem }) {
   );
 }
 
-export function AssigneeField({ item, onLocked }: { item: WorkItem; onLocked?: (part: LockedPart) => void }) {
-  const { actor, access, people, actions, assigneeLabel } = useWorkspace();
-  if (!capsFor(item, actor, access).assign) {
-    const face = <AssigneeChip assignee={item.assignee} people={people} />;
-    if (lockable(item, actor.role, access, onLocked))
-      return (
-        <LockedValue part="assignee" onLocked={onLocked}>
-          {face}
-        </LockedValue>
-      );
-    return <span className={READ_ONLY}>{face}</span>;
-  }
+export function AssigneeField({ item, onLocked }: { item: WorkItem; onLocked?: OnLocked }) {
+  const { people, actions, assigneeLabel } = useWorkspace();
+  const can = useCanChange(item, "assignee");
+  if (!can)
+    return (
+      <ReadOnly item={item} field="assignee" onLocked={onLocked}>
+        <AssigneeChip assignee={item.assignee} people={people} />
+      </ReadOnly>
+    );
   return (
     <DropdownMenu>
       <DropdownMenuTrigger aria-label={`Assignee: ${assigneeLabel(assigneeKey(item.assignee))}. Change assignee`} className={FIELD_TRIGGER} onClick={(e) => e.stopPropagation()}>
@@ -121,18 +142,15 @@ export function AssigneeField({ item, onLocked }: { item: WorkItem; onLocked?: (
   );
 }
 
-export function TypeField({ item, iconOnly = false, onLocked }: { item: WorkItem; iconOnly?: boolean; onLocked?: (part: LockedPart) => void }) {
-  const { actor, access, actions } = useWorkspace();
-  if (!capsFor(item, actor, access).scope) {
-    const face = <TypeChip type={item.type} iconOnly={iconOnly} />;
-    if (lockable(item, actor.role, access, onLocked))
-      return (
-        <LockedValue part="work type" onLocked={onLocked}>
-          {face}
-        </LockedValue>
-      );
-    return <span className={READ_ONLY}>{face}</span>;
-  }
+export function TypeField({ item, iconOnly = false, onLocked }: { item: WorkItem; iconOnly?: boolean; onLocked?: OnLocked }) {
+  const { actions } = useWorkspace();
+  const can = useCanChange(item, "type");
+  if (!can)
+    return (
+      <ReadOnly item={item} field="type" onLocked={onLocked}>
+        <TypeChip type={item.type} iconOnly={iconOnly} />
+      </ReadOnly>
+    );
   return (
     <DropdownMenu>
       <DropdownMenuTrigger aria-label={`Work type: ${TYPE_META[item.type].label}. Change work type`} className={FIELD_TRIGGER} onClick={(e) => e.stopPropagation()}>
@@ -173,7 +191,8 @@ export function TypeField({ item, iconOnly = false, onLocked }: { item: WorkItem
  * project or out of one; everyone else reads it. The trial's finished work shows as "Trial".
  */
 export function ProjectField({ item }: { item: WorkItem }) {
-  const { actor, access, actions, projects } = useWorkspace();
+  const { actions, projects } = useWorkspace();
+  const can = useCanChange(item, "project");
   const key = projectKeyOf(item, projects.ctx);
   const here = projects.places.find((p) => p.key === key);
   const name = here?.name ?? NO_PROJECT_NAME;
@@ -184,7 +203,7 @@ export function ProjectField({ item }: { item: WorkItem }) {
       <span className="truncate">{name}</span>
     </span>
   );
-  if (!projects.canPlan || !capsFor(item, actor, access).plan) return <span className={READ_ONLY}>{chip}</span>;
+  if (!projects.canPlan || !can) return <span className={READ_ONLY}>{chip}</span>;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger aria-label={`Project: ${name}. Move to another project`} className={FIELD_TRIGGER} onClick={(e) => e.stopPropagation()}>
@@ -211,12 +230,19 @@ export function ProjectField({ item }: { item: WorkItem }) {
   );
 }
 
-export function PriorityField({ item, compact = false }: { item: WorkItem; compact?: boolean }) {
-  const { actor, access, actions } = useWorkspace();
-  const can = capsFor(item, actor, access).plan;
+/** Priority: a menu for whoever plans the item; a task from the signed offer keeps the priority it agreed. */
+export function PriorityField({ item, compact = false, onLocked }: { item: WorkItem; compact?: boolean; onLocked?: OnLocked }) {
+  const { actions } = useWorkspace();
+  const can = useCanChange(item, "priority");
+  if (!can)
+    return (
+      <ReadOnly item={item} field="priority" onLocked={onLocked}>
+        {item.priority ? <PriorityPill priority={item.priority} /> : compact ? "—" : "No priority"}
+      </ReadOnly>
+    );
   return (
     <span onClick={(e) => e.stopPropagation()} className="inline-flex">
-      <PriorityMenu priority={item.priority} placeholder={compact ? "—" : undefined} onChange={can ? (priority) => void actions.patch(item, { priority }, { announce: `Priority of ${refOf(item)} ${priority ? `set to ${priority}` : "cleared"}` }) : undefined} />
+      <PriorityMenu priority={item.priority} placeholder={compact ? "—" : undefined} onChange={(priority) => void actions.patch(item, { priority }, { announce: `Priority of ${refOf(item)} ${priority ? `set to ${priority}` : "cleared"}` })} />
     </span>
   );
 }
@@ -226,21 +252,20 @@ export function PriorityField({ item, compact = false }: { item: WorkItem; compa
  * the past, one before the start, anything after a trial's last day — can't be picked, and the
  * same rules run again when the change is saved.
  */
-export function DateField({ item, which, compact = false, onLocked }: { item: WorkItem; which: "start" | "due"; compact?: boolean; onLocked?: (part: LockedPart) => void }) {
-  const { actor, access, actions, today } = useWorkspace();
-  const caps = capsFor(item, actor, access);
-  const can = which === "start" ? caps.start && item.type !== "milestone" : caps.scope;
+export function DateField({ item, which, compact = false, onLocked }: { item: WorkItem; which: "start" | "due"; compact?: boolean; onLocked?: OnLocked }) {
+  const { access, actions, today } = useWorkspace();
+  // A milestone is its due date alone.
+  const can = useCanChange(item, which) && !(which === "start" && item.type === "milestone");
   const value = dayOf(item[which]);
   const label = which === "start" ? "Start" : "Due";
   const late = which === "due" && value !== null && value < today && item.status !== "done";
   const face = <DateFace text={dateText(value, today, can, compact, label)} late={late} dated={value !== null} />;
-  if (!can && which === "due" && lockable(item, actor.role, access, onLocked))
+  if (!can)
     return (
-      <LockedValue part="due date" onLocked={onLocked}>
+      <ReadOnly item={item} field={which} onLocked={onLocked}>
         {face}
-      </LockedValue>
+      </ReadOnly>
     );
-  if (!can) return <span className={READ_ONLY}>{face}</span>;
   return (
     <span onClick={(e) => e.stopPropagation()} className="inline-flex min-w-0">
       <DatePicker
@@ -271,9 +296,11 @@ function DateFace({ text, late, dated }: { text: string; late: boolean; dated: b
   );
 }
 
-/** What a date field says: how far off the day is; with no day, how to set one — or a dash in a compact cell, or for someone who can't. */
+/** What a date field says: how far off the day is; with no day, how to set one or that there's none — a dash in a compact cell. */
 function dateText(value: Day | null, today: Day, can: boolean, compact: boolean, label: string): string {
-  return value !== null ? relativeLabel(value, today) : can ? (compact ? "—" : `Set ${label.toLowerCase()} date`) : "—";
+  if (value !== null) return relativeLabel(value, today);
+  if (compact) return "—";
+  return `${can ? "Set" : "No"} ${label.toLowerCase()} date`;
 }
 
 /** The days a date field won't offer: before today, a due date before the start, a start after the due date, anything after a trial's last day. */
@@ -289,19 +316,21 @@ function blockedDays(item: WorkItem, which: "start" | "due", today: Day, lastDay
 }
 
 /** Effort: the presets, any whole number up to 999, or none. Relative — not hours. */
-export function EffortField({ item, compact = false, onLocked }: { item: WorkItem; compact?: boolean; onLocked?: (part: LockedPart) => void }) {
-  const { actor, access, actions } = useWorkspace();
+export function EffortField({ item, compact = false, onLocked }: { item: WorkItem; compact?: boolean; onLocked?: OnLocked }) {
+  const { actions } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
-  const can = capsFor(item, actor, access).scope && item.type !== "milestone";
+  // A milestone marks a date, so it has no effort.
+  const milestone = item.type === "milestone";
+  const can = useCanChange(item, "effort") && !milestone;
   const face = <EffortFace effort={item.effort} can={can} compact={compact} />;
-  if (!can && item.type !== "milestone" && lockable(item, actor.role, access, onLocked))
+  if (milestone) return <span className={READ_ONLY}>—</span>;
+  if (!can)
     return (
-      <LockedValue part="effort" onLocked={onLocked}>
+      <ReadOnly item={item} field="effort" onLocked={onLocked}>
         {face}
-      </LockedValue>
+      </ReadOnly>
     );
-  if (!can) return <span className={READ_ONLY}>{item.type === "milestone" ? <span className="text-ink-2">—</span> : face}</span>;
   const save = (effort: number | null) => {
     setOpen(false);
     if (effort === (item.effort ?? null)) return;
@@ -392,8 +421,8 @@ function EffortPicker({ item, text, setText, save }: { item: WorkItem; text: str
  * change a tag's colour from its name — for the whole contract, so the tag reads the same everywhere.
  */
 export function TagsField({ item, known = [] }: { item: WorkItem; /** Every tag in use on this contract, most used first — suggested as you add one. */ known?: readonly string[] }) {
-  const { actor, access, actions, tagColors } = useWorkspace();
-  const can = capsFor(item, actor, access).plan;
+  const { actions, tagColors } = useWorkspace();
+  const can = useCanChange(item, "tags");
   const [text, setText] = useState("");
   const tag = normalizeTag(text);
   const error = text.trim() ? checkTag(tag, item.tags)?.message : undefined;

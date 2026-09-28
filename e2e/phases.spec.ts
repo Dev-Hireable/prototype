@@ -19,8 +19,9 @@ test.describe("while the trial runs", () => {
     const agreed = "The trial's tasks were agreed in the signed offer, so no more can be added.";
     expect(await api(page, "create", { id: "n1", title: "Mood board" })).toMatchObject({ ok: false, code: "forbidden", message: agreed });
     expect(await api(page, "create", { id: "n2", title: "Kickoff notes", assignee: "team" })).toMatchObject({ ok: false, code: "forbidden", message: agreed });
-    // The agreed tasks are still planned.
-    expect(await api(page, "patch", "t-type", { priority: "high" })).toMatchObject({ ok: true });
+    // The agreed tasks are still planned — all but what their offer set (TB-077).
+    expect(await api(page, "patch", "t-type", { effort: 3 })).toMatchObject({ ok: true });
+    expect(await api(page, "patch", "t-type", { priority: "high" })).toMatchObject({ ok: false, code: "forbidden", message: "It was agreed in the signed offer, so it stays as agreed." });
 
     const juan = await secondPage();
     await open(juan, "independent");
@@ -89,8 +90,9 @@ test.describe("a running role · finished work", () => {
 
   test("the trial is a finished chapter — read-only, with nothing to add — while what it left open carries on", async ({ page }) => {
     await open(page, "team");
-    // What it left open is ordinary work now.
+    // What it left open is ordinary work now, even what the trial's offer set of it.
     expect(await api(page, "patch", "t-type", { priority: "high" })).toMatchObject({ ok: true });
+    expect(await api(page, "patch", "t-type", { title: "Pick a typography pairing, for the site", due: "2026-10-09" })).toMatchObject({ ok: true });
     // What it finished stays as it was.
     expect(await api(page, "transition", "t-invoice", { to: "todo" })).toMatchObject({ ok: false, code: "forbidden", message: "It's part of the finished trial, so it stays as it was." });
     expect(await api(page, "comment", "t-audit", { id: "c1", text: "Noting this" })).toMatchObject({ ok: false, code: "forbidden" });

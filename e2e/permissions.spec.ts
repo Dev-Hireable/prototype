@@ -1,4 +1,4 @@
-import { api, card, column, drag, expect, open, panel, saved, savedItem, test } from "./fixtures";
+import { api, card, column, drag, expect, open, panel, saved, savedItem, test, toast } from "./fixtures";
 
 // Scenario K — who can change what. The buttons follow the rules, and so does the "backend":
 // calling the repository directly is refused too, and nothing is saved.
@@ -89,28 +89,52 @@ test.describe("an ended contract", () => {
   });
 });
 
-// TB-077 — a task from the signed offer stays as agreed: its agreed fields show a lock and trying one
-// says why. There's no deleting it and nothing to propose — what it is was settled in the proposal.
+// TB-077 — a task from the signed offer keeps what the offer set — its name, details, due date,
+// priority and who does it — behind a lock that says why, and can't be deleted. Everything the offer
+// didn't set is planned like any other task's.
 test.describe("permissions · the signed offer's tasks", () => {
-  test("their agreed fields are locked for the Team Builder too, and trying one says why", async ({ page }) => {
+  test("what the offer set shows a lock that says why; its effort and work type are planned as usual", async ({ page }) => {
     await open(page, "team", "?task=t-type");
-    await panel(page).getByRole("button", { name: /^Name: agreed in the signed offer/ }).click();
-    await expect(panel(page).getByRole("alert")).toContainText("Name was agreed in the signed offer, so it stays as agreed.");
-    await panel(page).getByRole("button", { name: "OK" }).click();
-    await expect(panel(page).getByRole("alert")).toHaveCount(0);
-    await panel(page).getByRole("button", { name: "Due date: agreed in the signed offer" }).click();
-    await expect(panel(page).getByRole("alert")).toContainText("Due date was agreed in the signed offer, so it stays as agreed.");
-    await expect(panel(page).getByRole("button", { name: /Propose/ })).toHaveCount(0);
-    await expect(panel(page).getByRole("button", { name: "Item actions" })).toHaveCount(0);
+    const p = panel(page);
+    for (const [name, says] of [
+      ["Name", "Name was agreed in the signed offer, so it stays as agreed."],
+      ["Due date", "Due date was agreed in the signed offer, so it stays as agreed."],
+      ["Priority", "Priority was agreed in the signed offer, so it stays as agreed."],
+    ]) {
+      await p.getByRole("button", { name: `${name}: agreed in the signed offer` }).click();
+      await expect(p.getByRole("alert")).toContainText(says);
+      await p.getByRole("button", { name: "Dismiss" }).click();
+      await expect(p.getByRole("alert")).toHaveCount(0);
+    }
+    // Name, assignee, priority and due date — nothing else is locked.
+    await expect(p.getByRole("button", { name: "Assignee: agreed in the signed offer" })).toBeVisible();
+    await expect(p.getByRole("button", { name: /: agreed in the signed offer$/ })).toHaveCount(4);
+    await p.getByRole("button", { name: "Effort: 2. Change effort" }).click();
+    await page.getByRole("button", { name: "5", exact: true }).click();
+    await expect.poll(async () => (await savedItem(page, "t-type")).effort).toBe(5);
+    await p.getByRole("button", { name: "Work type: Design. Change work type" }).click();
+    await page.getByRole("menuitemradio", { name: /^Research/ }).click();
+    await expect.poll(async () => (await savedItem(page, "t-type")).type).toBe("research");
+    await expect(p.getByRole("button", { name: /Propose/ })).toHaveCount(0);
+    await expect(p.getByRole("button", { name: "Item actions" })).toHaveCount(0);
   });
 
-  test("the rules hold without the screens: nothing agreed changes, and it can't be deleted", async ({ page }) => {
+  test("in the List, an agreed value shows the same lock, and a click says why", async ({ page }) => {
+    await open(page, "team", "?view=list");
+    const row = page.getByTestId("list").getByRole("row", { name: /#4 Pick a typography pairing/ });
+    await row.getByRole("button", { name: "Due date: agreed in the signed offer" }).click();
+    await expect(toast(page, "Due date was agreed in the signed offer, so it stays as agreed.")).toBeVisible();
+    await expect(page.getByTestId("task-panel")).toHaveCount(0);
+    await expect(row.getByRole("button", { name: "Effort: 2. Change effort" })).toBeVisible();
+  });
+
+  test("the rules hold without the screens: what the offer set doesn't change, and it can't be deleted", async ({ page }) => {
     await open(page, "team");
     const AGREED = "It was agreed in the signed offer, so it stays as agreed.";
-    for (const change of [{ title: "Renamed" }, { effort: 8 }, { type: "milestone" }, { assignee: "team" }]) expect(await api(page, "patch", "t-type", change)).toMatchObject({ ok: false, code: "forbidden", message: AGREED });
+    for (const change of [{ title: "Renamed" }, { description: "More to do" }, { due: "2026-10-06" }, { priority: "high" }, { assignee: "team" }]) expect(await api(page, "patch", "t-type", change), JSON.stringify(change)).toMatchObject({ ok: false, code: "forbidden", message: AGREED });
     expect(await api(page, "archive", "t-type")).toMatchObject({ ok: false, message: AGREED });
-    // Running the work isn't what was agreed: priority still changes.
-    expect(await api(page, "patch", "t-type", { priority: "high" })).toMatchObject({ ok: true });
-    expect((await savedItem(page, "t-type")).title).toBe("Pick a typography pairing");
+    // What the offer didn't set is planned as on any task.
+    expect(await api(page, "patch", "t-type", { effort: 8, type: "research" })).toMatchObject({ ok: true });
+    expect(await savedItem(page, "t-type")).toMatchObject({ title: "Pick a typography pairing", due: "2026-10-05", effort: 8, type: "research" });
   });
 });

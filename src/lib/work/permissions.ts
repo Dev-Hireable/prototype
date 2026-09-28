@@ -11,10 +11,13 @@ import { isArchived, isCompleted, STATUS_META, type Side, type WorkItem, type Wo
  *                wait on and when they start, sends them for review and can take a submission back;
  *   viewer       Hireable admin: reads everything, changes nothing.
  *
- * The signed offer's tasks (`agreed`) are what both sides signed: nobody rewords, reschedules,
- * re-estimates, reassigns or deletes one. What was agreed was settled in the proposal, before the
- * offer went out. Running the work — its status, start, priority, tags, subtasks and comments — works
- * the same on every item.
+ * TB-077 — a task from the signed offer (`agreed`) is an ordinary task, minus what the offer set: the
+ * fields its task plan carries — the name, the details, the due date its due week became and the
+ * priority — and who does it, since the offer is made to the Independent (AGREED_FIELDS). Nobody
+ * changes those, or deletes the task; what was agreed was settled in the proposal, before the offer
+ * went out. Everything else on it — status, start, effort, work type, tags, dependencies, subtasks and
+ * comments — is worked like any other task. A trial's agreement holds while the contract is a trial;
+ * once it has converted, what the trial left open is the role's work (agreedNow).
  */
 
 export type Role = "manager" | "contributor" | "viewer";
@@ -56,13 +59,11 @@ const DEFAULT_NAMES: Names = { team: "the Team Builder", independent: "the Indep
 export type Caps = {
   /** Rename it or change its description. */
   editText: boolean;
-  /** Type, priority, start, due, effort, tags and project. The start has its own cap too (`start`), which the Independent shares. */
-  plan: boolean;
   /**
-   * The part of the plan a signed offer sets: the due date, the effort and the work type. On one of
-   * its tasks (`agreed`) they stay as agreed; priority, tags and the project stay everyday planning.
+   * Type, priority, due, effort, tags and project. The start has its own cap (`start`), which the
+   * Independent shares. What a signed offer set of the plan stays as agreed: ask changeFor per field.
    */
-  scope: boolean;
+  plan: boolean;
   /** What it waits on. Whoever does the work knows that too, so it isn't only the plan's. */
   depend: boolean;
   /** When it starts. Also the Independent's on their own open work — they know when they begin it; the due date stays the plan's. */
@@ -77,9 +78,34 @@ export type Caps = {
   restore: boolean;
 };
 
-const NONE: Caps = { editText: false, plan: false, scope: false, depend: false, start: false, assign: false, subtasks: false, tick: false, comment: false, archive: false, restore: false };
+const NONE: Caps = { editText: false, plan: false, depend: false, start: false, assign: false, subtasks: false, tick: false, comment: false, archive: false, restore: false };
 
 const isActive = (s: WorkStatus) => s === "todo" || s === "doing";
+
+/* ------------------------------------------------------- what was agreed */
+
+/** What a person changes on an item: the repository's patch fields (WorkPatch), and its tags. */
+export type WorkField = "title" | "description" | "type" | "priority" | "assignee" | "start" | "due" | "effort" | "project" | "tags";
+
+/**
+ * TB-077 — what a signed offer sets on each of its tasks, so nobody changes it once it's signed:
+ * every field its task plan carries (@/lib/demo/tasks PlannedTask — the name, the details, the due
+ * week that becomes the due date, and the priority), even one left blank, and who does it, since the
+ * offer is made to the Independent. tests/unit/permissions.spec holds this to what signing copies.
+ */
+export const AGREED_FIELDS = ["title", "description", "due", "priority", "assignee"] as const satisfies readonly WorkField[];
+export type AgreedField = (typeof AGREED_FIELDS)[number];
+
+/**
+ * Whether the signed offer's terms still hold on `t`. A trial's hold while the contract is a trial —
+ * before it starts, while it runs, and while it's evaluated and decided. Once it has converted, the
+ * trial has been evaluated and paid and its score is frozen, so what it left open is the role's work
+ * like any other; what it finished stays read-only, as its chapter (lockedReason).
+ */
+export const agreedNow = (t: Pick<WorkItem, "agreed" | "trial">, access: Pick<WorkAccess, "trial">) => !!t.agreed && !(t.trial && !access.trial);
+
+/** Whether `field` on `t` is one the signed offer set, while its terms hold. */
+export const isAgreed = (t: Pick<WorkItem, "agreed" | "trial">, access: Pick<WorkAccess, "trial">, field: WorkField): field is AgreedField => agreedNow(t, access) && (AGREED_FIELDS as readonly WorkField[]).includes(field);
 
 /**
  * TB-148 — why an item is read-only as part of finished work, if it is: it sits in a project marked
@@ -104,30 +130,29 @@ export function capsFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAcc
   const manager = actor.role === "manager";
   const side: Side = manager ? "team" : "independent";
   const mine = t.addedBy === side;
-  if (isArchived(t)) return { ...NONE, restore: access.open && mine && !t.agreed };
+  const agreed = agreedNow(t, access);
+  if (isArchived(t)) return { ...NONE, restore: access.open && mine && !agreed };
   const active = isActive(t.status);
   const completed = isCompleted(t.status);
   if (manager)
     return {
-      editText: access.open && mine && !t.agreed && active,
+      editText: access.open && mine && !agreed && active,
       plan: access.open && !completed,
-      scope: access.open && !completed && !t.agreed,
       depend: access.open && !completed,
       start: access.open && !completed,
       // Moving an agreed item off the Independent would take it out of the trial's score.
-      assign: access.open && active && !t.agreed,
+      assign: access.open && active && !agreed,
       subtasks: access.open && !completed,
       tick: access.open && active && t.assignee !== "independent",
       comment: access.reviewOpen,
       // Not the Independent's work once it's submitted or approved — that is what they're scored on.
-      archive: access.open && mine && !t.agreed && (active || t.assignee !== "independent"),
+      archive: access.open && mine && !agreed && (active || t.assignee !== "independent"),
       restore: false,
     };
   const theirs = t.assignee === "independent";
   return {
-    editText: access.open && mine && !t.agreed && active,
+    editText: access.open && mine && !agreed && active,
     plan: false,
-    scope: false,
     // Their own work only: what someone else's item waits on is that person's call.
     depend: access.open && theirs && !completed,
     // Only while they're still working it: once it's sent for review, its dates are the Team Builder's.
@@ -136,9 +161,59 @@ export function capsFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAcc
     subtasks: access.open && theirs && !completed,
     tick: access.open && theirs && active,
     comment: access.reviewOpen,
-    archive: access.open && mine && !t.agreed && active,
+    archive: access.open && mine && !agreed && active,
     restore: false,
   };
+}
+
+/* ---------------------------------------------------------------- fields */
+
+/** Why a task from the signed offer can't be reworded, rescheduled, reprioritised, reassigned or deleted. */
+export const AGREED = "It was agreed in the signed offer, so it stays as agreed.";
+
+/** Why a trial has no projects (canPlanProjects). */
+export const PROJECTS_LATER = "Projects start once the trial becomes a full-time or part-time role.";
+
+export const VIEWER_ONLY = "Admins can see this workspace but can't change it.";
+
+/** Whether someone can change one of an item's fields now; if not, why — and whether the signed offer set it, which reads as a lock. */
+export type FieldChange = { ok: true } | { ok: false; reason: string; agreed: boolean };
+
+const ALLOWED: FieldChange = { ok: true };
+const refused = (reason: string, agreed = false): FieldChange => ({ ok: false, reason, agreed });
+
+/**
+ * TB-077 / TB-063 — whether `actor` can change `field` on `t` right now, and why not: the fields'
+ * counterpart of transitionFor. Every editor, board drop, calendar and timeline drag, keyboard move
+ * and the repository ask this one function, so a control is only offered for a change that saves,
+ * and a field the signed offer set reads the same everywhere.
+ */
+export function changeFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAccess, field: WorkField, names: Names = DEFAULT_NAMES): FieldChange {
+  if (actor.role === "viewer") return refused(VIEWER_ONLY);
+  const lock = lockedReason(t, access);
+  if (lock) return refused(lock);
+  if (isArchived(t)) return refused("It's deleted. Restore it to change it.");
+  if (!access.open) return refused(access.closedReason ?? "This contract isn't taking new work.");
+  if (field === "project" && access.trial) return refused(PROJECTS_LATER);
+  if (isAgreed(t, access, field)) return refused(AGREED, true);
+  return capOf(capsFor(t, actor, access), field) ? ALLOWED : refused(roleReason(t, actor, field, names));
+}
+
+/** The cap each field needs: its wording, who does it and when it starts have their own; the rest is the plan. */
+function capOf(caps: Caps, field: WorkField): boolean {
+  if (field === "title" || field === "description") return caps.editText;
+  if (field === "assignee") return caps.assign;
+  if (field === "start") return caps.start;
+  return caps.plan;
+}
+
+/** Why a field the signed offer didn't set isn't this person's to change, on an open contract. */
+function roleReason(t: WorkItem, actor: Pick<Actor, "role">, field: WorkField, names: Names): string {
+  if (field === "title" || field === "description") return t.status === "review" || t.status === "done" ? "It can't be reworded once it's been sent for review." : "Only whoever added it can reword it.";
+  if (actor.role === "contributor" && field === "start") return t.assignee !== "independent" ? `It isn't yours to work on, so ${names.team} sets when it starts.` : "Its start is set once it's been sent for review.";
+  if (actor.role === "contributor") return `${names.team} plans the work — the due dates, effort, work type, priority, tags and who does it.`;
+  if (field === "assignee") return "It can only be reassigned while it's To do or In progress.";
+  return "It's done, so its plan is final. Reopen it to change it.";
 }
 
 /**
@@ -147,9 +222,6 @@ export function capsFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAcc
  * set on, so nothing is added to it.
  */
 export const canCreate = (actor: Pick<Actor, "role">, access: WorkAccess) => actor.role === "manager" && access.open && !access.trial;
-
-/** Why a task from the signed offer can't be reworded, rescheduled, re-estimated, reassigned or deleted. */
-export const AGREED = "It was agreed in the signed offer, so it stays as agreed.";
 
 /**
  * TB-148 — projects are a role's, not a trial's (the trial is one plan already), and they're the

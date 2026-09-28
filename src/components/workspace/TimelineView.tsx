@@ -6,12 +6,12 @@ import { ICONS } from "@/components/admin/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/Tip";
 import { dayOf, isWeekend, MONTH_SHORT, partsOf, rangeLabel, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";
-import { dateKind, datesOf, isArchived, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
-import { capsFor, type Actor } from "@/lib/work/permissions";
+import { dateKind, datesOf, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
+import { changeFor } from "@/lib/work/permissions";
 import { SCALES, type Group, type Scale, type WorkQuery } from "@/lib/work/query";
 import { barOf, dependencyLinks, dragDates, PX_PER_DAY, ticksOf, timelineRange, type Bar, type DependencyLink, type DragMode } from "@/lib/work/timeline";
 import { checkDates } from "@/lib/work/validate";
-import { useWorkspace } from "./context";
+import { useWorkspace, type WorkspaceEnv } from "./context";
 import { GroupLabel } from "./meta";
 import { useTimedMessage } from "./timed-message";
 import { useProgressive } from "./util";
@@ -78,19 +78,25 @@ function linkPath(x1: number, ya: number, x2: number, yb: number): string {
   return `${d} L${lx},${ly}`;
 }
 
-/** How this person can move bars, said beside the scale — nothing for a viewer, or once the work is closed. */
-function dragHint(open: boolean, role: Actor["role"]) {
-  if (!open) return null;
-  if (role === "manager") return "Drag a bar, or focus one and use the arrow keys (Shift for the due date, Alt+Shift for the start).";
-  return role === "contributor" ? "Drag the left edge of your own bar to change when it starts, or focus it and use Alt+Shift with the arrow keys." : null;
+/**
+ * How this person can move bars, said beside the scale — from what the rules let them change on the
+ * work showing (planRights): whole bars and either end, only when work starts (the Independent's own,
+ * or a task whose due date the signed offer agreed), or nothing — for a viewer, or once work is closed.
+ */
+function dragHint(items: readonly WorkItem[], env: Pick<WorkspaceEnv, "actor" | "access" | "names">) {
+  const rights = items.map((t) => planRights(t, env));
+  if (rights.some((r) => r.can)) return "Drag a bar, or focus one and use the arrow keys (Shift for the due date, Alt+Shift for the start).";
+  if (!rights.some((r) => r.canStart)) return null;
+  return env.actor.role === "contributor" ? "Drag the left edge of your own bar to change when it starts, or focus it and use Alt+Shift with the arrow keys." : "Drag the left edge of a bar to change when it starts, or focus it and use Alt+Shift with the arrow keys.";
 }
 
 export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[]; byId: ReadonlyMap<string, WorkItem>; query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void }) {
-  const { today, actor, access } = useWorkspace();
-  const hint = dragHint(access.open, actor.role);
+  const env = useWorkspace();
+  const { today } = env;
   const scale = query.scale;
   const px = PX_PER_DAY[scale];
   const all = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  const hint = useMemo(() => dragHint(all, env), [all, env]);
   const range = useMemo(() => timelineRange(all, today, scale), [all, today, scale]);
   const from = range.from;
   const { scroller, frameW, scrollToToday } = useChartScroller(today, from, px, scale);
@@ -495,14 +501,14 @@ function Unscheduled({ item: t, left, schedulable }: { item: WorkItem; left: num
 }
 
 /**
- * What of an item's plan this person may change: `can`, all of it — move it, either end; `canStart`,
- * its start alone — the Independent, on their own open work, and anyone on a task from the signed
- * offer, whose due date was agreed (caps.scope). A start-only bar is all start, so it moves.
+ * What of an item's plan this person may change (changeFor, as its date fields): `can`, all of it —
+ * move it, either end; `canStart`, its start alone — the Independent, on their own open work, and
+ * anyone on a task from the signed offer, whose due date was agreed. A start-only bar is all start,
+ * so it moves.
  */
-function planRights(t: WorkItem, caps: ReturnType<typeof capsFor>) {
-  const live = !isArchived(t);
-  const can = caps.scope && live;
-  const canStart = caps.start && live && t.type !== "milestone";
+function planRights(t: WorkItem, { actor, access, names }: Pick<WorkspaceEnv, "actor" | "access" | "names">) {
+  const canStart = changeFor(t, actor, access, "start", names).ok && t.type !== "milestone";
+  const can = changeFor(t, actor, access, "due", names).ok && (canStart || t.type === "milestone");
   const allowed = (mode: DragMode) => can || (canStart && (mode === "start" || (mode === "move" && dateKind(t) === "start")));
   return { can, canStart, allowed };
 }
@@ -515,8 +521,9 @@ function shownBar(t: WorkItem, preview: Preview | null, from: Day, px: number, r
 }
 
 const TimelineRow = memo(function TimelineRow({ item: t, from, px, width, scale, violated }: { item: WorkItem; from: Day; px: number; width: number; scale: Scale; violated: boolean }) {
-  const { actor, access, today } = useWorkspace();
-  const { can, canStart, allowed } = planRights(t, capsFor(t, actor, access));
+  const env = useWorkspace();
+  const { access, today } = env;
+  const { can, canStart, allowed } = planRights(t, env);
   const grabbable = allowed("move");
   const { preview, error, grab, handlers } = useBarDrag(t, px, allowed);
   const { bar, bad, start, due } = shownBar(t, preview, from, px, { today, lastDay: dayOf(access.lastDay) });

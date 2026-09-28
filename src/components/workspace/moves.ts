@@ -1,5 +1,5 @@
 import { refOf, STATUS_META, TYPE_META, type WorkItem, type WorkStatus } from "@/lib/work/model";
-import { capsFor, transitionFor, type TransitionKind } from "@/lib/work/permissions";
+import { changeFor, transitionFor, type TransitionKind, type WorkField } from "@/lib/work/permissions";
 import type { GroupValue } from "@/lib/work/query";
 import type { WorkPatch } from "@/lib/work/repository";
 import { movedTo, NO_PROJECT, projectKeyOf } from "@/lib/work/projects";
@@ -13,6 +13,8 @@ import type { WorkspaceEnv } from "./context";
 export type DropPlan = { kind: "status"; to: WorkStatus; transition: TransitionKind; needsNote: boolean } | { kind: "set"; set: WorkPatch; label: string } | { kind: "reorder" };
 
 export function dropPlan(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv, "actor" | "access" | "names" | "assigneeLabel" | "projects">): DropPlan | null {
+  /** The column sets a field: the same rule as its editor (changeFor) — what the signed offer set stays as agreed. */
+  const can = (field: WorkField) => changeFor(t, env.actor, env.access, field, env.names).ok;
   switch (target.field) {
     case "status": {
       if (target.value === t.status) return { kind: "reorder" };
@@ -22,12 +24,11 @@ export function dropPlan(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv
     case "assignee": {
       const value = target.value === "none" ? null : target.value;
       if (value === t.assignee) return { kind: "reorder" };
-      return capsFor(t, env.actor, env.access).assign ? { kind: "set", set: { assignee: value }, label: `assigned to ${env.assigneeLabel(target.value)}` } : null;
+      return can("assignee") ? { kind: "set", set: { assignee: value }, label: `assigned to ${env.assigneeLabel(target.value)}` } : null;
     }
     case "type": {
       if (target.value === t.type) return { kind: "reorder" };
-      // A task from the signed offer keeps the kind of work agreed (caps.scope).
-      if (!capsFor(t, env.actor, env.access).scope) return null;
+      if (!can("type")) return null;
       // A milestone is one date and no effort: clear them in the same save.
       const clears = target.value === "milestone" ? { ...(t.start ? { start: null } : {}), ...(t.effort !== undefined ? { effort: null } : {}) } : {};
       return { kind: "set", set: { type: target.value, ...clears }, label: `now ${TYPE_META[target.value].label}` };
@@ -35,7 +36,7 @@ export function dropPlan(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv
     case "priority": {
       const value = target.value === "none" ? null : target.value;
       if (value === (t.priority ?? null)) return { kind: "reorder" };
-      return capsFor(t, env.actor, env.access).plan ? { kind: "set", set: { priority: value }, label: value ? `${value} priority` : "no priority" } : null;
+      return can("priority") ? { kind: "set", set: { priority: value }, label: value ? `${value} priority` : "no priority" } : null;
     }
     case "project": {
       const { ctx, places, canPlan } = env.projects;
@@ -43,7 +44,7 @@ export function dropPlan(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv
       if (!here) return null;
       if (projectOf(t, env) === target.value) return { kind: "reorder" };
       // Out of a project or into an active one — not back into the trial, not into a finished project.
-      if (!canPlan || !ctx.split || here.kind === "trial" || here.finished || !capsFor(t, env.actor, env.access).plan) return null;
+      if (!canPlan || !ctx.split || here.kind === "trial" || here.finished || !can("project")) return null;
       return { kind: "set", set: { project: target.value === NO_PROJECT ? null : target.value }, label: `moved ${movedTo(here)}` };
     }
     case "none":
@@ -53,11 +54,19 @@ export function dropPlan(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv
 
 const projectOf = (t: WorkItem, env: Pick<WorkspaceEnv, "projects">) => projectKeyOf(t, env.projects.ctx);
 
-/** Why a card can't be dropped on a column, for the hint shown while dragging. */
+/**
+ * Why a card can't be dropped on a column, for the hint shown while dragging: the status move the
+ * rules refuse, or the field the column sets that isn't this person's to change — one the signed
+ * offer agreed, say — in the words its editor and the repository use.
+ */
 export function refusal(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv, "actor" | "access" | "names">): string | null {
   if (target.field === "status" && target.value !== t.status) {
     const tr = transitionFor(t, env.actor, env.access, target.value, env.names);
     return tr.ok ? null : tr.reason;
+  }
+  if (target.field === "assignee" || target.field === "type" || target.field === "priority") {
+    const change = changeFor(t, env.actor, env.access, target.field, env.names);
+    return change.ok ? null : change.reason;
   }
   return null;
 }

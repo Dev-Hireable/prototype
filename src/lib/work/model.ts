@@ -45,7 +45,7 @@ export type WorkItem = {
   order: number;
   /** Who created it. */
   addedBy: Side;
-  /** From the signed offer: its wording is what was agreed, so it can't be edited or archived. */
+  /** From the signed offer: what the offer set of it stays as agreed, and it can't be deleted, while its terms hold (./permissions agreedNow). */
   agreed?: boolean;
   /** Created while the contract was a trial — what the Trial Fit Score's Performance counts. */
   trial?: boolean;

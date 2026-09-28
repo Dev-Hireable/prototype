@@ -150,6 +150,35 @@ test.describe("patch · who may change what", () => {
   });
 });
 
+// TB-077 — a task from the signed offer keeps what the offer set, and is otherwise planned like any other.
+test.describe("patch · a task from the signed offer", () => {
+  const AGREED = "It was agreed in the signed offer, so it stays as agreed.";
+
+  test("what the offer set stays; effort, work type and tags are planned as on any task", async () => {
+    const { store, alex, juan } = setup([item({ id: "a", title: "Pick a pairing", agreed: true, trial: true, due: iso(5), priority: "high" })], TRIAL);
+    for (const change of [{ title: "Renamed" }, { description: "More to do" }, { due: iso(6) }, { priority: "low" as const }, { assignee: "team" as const }]) expect((await rejection(alex.patch("a", change))).message).toBe(AGREED);
+    expect((await rejection(alex.archive("a"))).message).toBe(AGREED);
+    await alex.patch("a", { effort: 5, type: "design" });
+    await alex.addTag("a", "brand");
+    expect(store.get("a")).toMatchObject({ title: "Pick a pairing", due: iso(5), priority: "high", effort: 5, type: "design", tags: ["brand"] });
+    // The Independent still doesn't plan, and is told so — not that the tags were agreed.
+    expect((await rejection(juan.addTag("a", "mine"))).message).toMatch(/plans the work/);
+  });
+
+  test("finishing keeps the agreed due date while the trial runs, and not once it has converted", async () => {
+    const agreed = () => [item({ id: "a", agreed: true, trial: true, status: "review", due: iso(5) })];
+    const onTrial = setup(agreed(), TRIAL);
+    await onTrial.alex.transition("a", { to: "done" });
+    expect(onTrial.store.get("a").due).toBe(iso(5));
+    expect(onTrial.store.get("a").activity[0].text).toBe("Finished on 25 Sep 2026 — the agreed due date was 30 Sep 2026");
+    // Converted, it's the role's work: its due date moves, and finishing ends it today.
+    const converted = setup(agreed(), OPEN);
+    await converted.alex.patch("a", { due: iso(7) });
+    await converted.alex.transition("a", { to: "done" });
+    expect(converted.store.get("a").due).toBe(iso(0));
+  });
+});
+
 test.describe("patch · type and assignee", () => {
   test("milestones need their start and effort cleared in the same change", async () => {
     const { store, alex } = setup([item({ id: "a", start: iso(1), due: iso(4), effort: 3 })]);

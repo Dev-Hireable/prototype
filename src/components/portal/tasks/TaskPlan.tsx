@@ -11,10 +11,10 @@ import { keyed } from "@/lib/portal/keys";
 import { PriorityMenu, PriorityPill, StatusCircle, WeekMenu } from "./task-bits";
 
 /**
- * The Team Builder's task plan — a trial's tasks in its job post (TB-024), the tasks on an offer
- * (TB-105) — written the way Notion takes a list: type a task, Enter starts the next row, Backspace
- * on an empty row removes it, the arrow keys move between rows. Each task can have a due week and a
- * priority, and details under it.
+ * The Team Builder's task plan — a trial's tasks in its job post (TB-024) — written the way Notion
+ * takes a list: type a task, Enter starts the next row, Backspace on an empty row removes it, the
+ * arrow keys move between rows. Each task can have a due week and a priority, and details under it:
+ * what the offer carries, read-only (TB-105), and what stays as agreed once it's signed (TB-077).
  */
 export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a task" }: { rows: DraftTask[]; onChange: (rows: DraftTask[]) => void; weeks: number; placeholder?: string }) {
   const plan = usePlanRows(rows, onChange);

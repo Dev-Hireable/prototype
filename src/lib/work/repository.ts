@@ -2,7 +2,7 @@ import { dayOf, isoOf, stampLabel, type Day } from "./dates";
 import { WorkError } from "./errors";
 import { datesOf, hearsComments, indexById, isArchived, isCompleted, isTagColor, PRIORITY_META, refOf, STATUS_META, TAG_COLORS, TYPE_META, type Assignee, type Side, type TagColor, type WorkItem, type WorkPriority, type WorkProject, type WorkStatus, type WorkType } from "./model";
 import { orderLast, placeBetween } from "./order";
-import { AGREED, canCreate, canPlanProjects, canReorder, capsFor, lockedReason, sideOf, transitionFor, type Actor, type Caps, type Names, type TransitionKind, type WorkAccess } from "./permissions";
+import { AGREED, agreedNow, canCreate, canPlanProjects, canReorder, capsFor, changeFor, lockedReason, PROJECTS_LATER, sideOf, transitionFor, VIEWER_ONLY, type Actor, type Names, type TransitionKind, type WorkAccess, type WorkField } from "./permissions";
 import { checkComment, checkDates, checkDependency, checkDescription, checkEffort, checkNote, checkProjectName, checkSubtaskTitle, checkTag, checkTitle, normalizeTag, type Invalid } from "./validate";
 
 /**
@@ -80,6 +80,7 @@ export type WorkPatch = Partial<{
   /** Move it to a project, or out of one (null). */
   project: string | null;
 }>;
+/** A field a patch sets: each is a WorkField, so changeFor rules on it; the tags have operations of their own. */
 export type PatchField = keyof WorkPatch;
 /** The values the caller saw for the fields it's changing. */
 type PatchBase = Partial<Record<PatchField, unknown>>;
@@ -110,7 +111,6 @@ const dateText = (iso: string) => {
 const norm = (v: unknown) => (v === null || v === undefined || v === "" ? undefined : v);
 const same = (a: unknown, b: unknown) => JSON.stringify(norm(a)) === JSON.stringify(norm(b));
 
-const PROJECTS_LATER = "Projects start once the trial becomes a full-time or part-time role.";
 const TRIAL_AGREED = "The trial's tasks were agreed in the signed offer, so no more can be added.";
 
 /* ------------------------------------------------------------- plumbing */
@@ -207,7 +207,7 @@ const renumbered = (items: WorkItem[], renumber: ReadonlyMap<string, number>) =>
 
 /* ---------------------------------------------------------------- rules */
 
-const viewerOnly = () => new WorkError("forbidden", "Admins can see this workspace but can't change it.");
+const viewerOnly = () => new WorkError("forbidden", VIEWER_ONLY);
 
 /** Why a contract that's closed takes no new work. */
 const whyClosed = (access: WorkAccess) => access.closedReason ?? "This contract isn't taking new work.";
@@ -233,25 +233,13 @@ function need(r: Repo, ok: boolean, message: () => string) {
   if (!ok) throw new WorkError("forbidden", message());
 }
 
-/** What the signed offer set for each of its tasks: nobody changes these once it's signed (TB-077). */
-const AGREED_FIELDS: readonly PatchField[] = ["title", "description", "due", "effort", "type", "assignee"];
-
-/** Why a field can't be changed, in the reader's terms. */
-function fieldDenied(r: Repo, t: WorkItem, field: PatchField, access: WorkAccess): string {
-  if (!access.open) return whyClosed(access);
-  if (field === "project" && access.trial) return PROJECTS_LATER;
-  if (t.agreed && AGREED_FIELDS.includes(field)) return AGREED;
-  if (field === "title" || field === "description") {
-    if (t.status === "review" || t.status === "done") return "It can't be reworded once it's been sent for review.";
-    return "Only whoever added it can reword it.";
-  }
-  if (r.actor.role === "contributor" && field === "start") {
-    if (t.assignee !== "independent") return `It isn't yours to work on, so ${r.names.team} sets when it starts.`;
-    return "Its start is set once it's been sent for review.";
-  }
-  if (r.actor.role === "contributor") return `${r.names.team} plans the work — the due dates, effort, priority and who does it.`;
-  if (field === "assignee") return "It can only be reassigned while it's To do or In progress.";
-  return "It's done, so its plan is final. Reopen it to change it.";
+/**
+ * A field is this person's to change on this item as it is now — the same answer every control got
+ * (changeFor): a field the signed offer set stays as agreed, and the rest follows who they are.
+ */
+function needField(r: Repo, t: WorkItem, field: WorkField, access: WorkAccess) {
+  const change = changeFor(t, r.actor, access, field, r.names);
+  if (!change.ok) throw new WorkError("forbidden", change.reason);
 }
 
 /** Why what an item waits on can't be changed. */
@@ -259,21 +247,6 @@ function dependDenied(r: Repo, t: WorkItem, access: WorkAccess): string {
   if (!access.open) return whyClosed(access);
   if (r.actor.role === "contributor" && t.assignee !== "independent") return `It isn't yours to work on, so ${r.names.team} says what it waits on.`;
   return "It's done, so its plan is final. Reopen it to change it.";
-}
-
-/** Tags are planning, like the dates and the priority: whoever may plan the item may tag it and colour its tags. */
-function needPlan(r: Repo, t: WorkItem, access: WorkAccess) {
-  need(r, capsFor(t, r.actor, access).plan, () => fieldDenied(r, t, "due", access));
-}
-
-/** The cap each field needs: its wording, who does it, when it starts, its project, what the offer agreed of its plan, or the rest of the plan. */
-function capFor(caps: Caps, field: PatchField, access: WorkAccess): boolean {
-  if (field === "title" || field === "description") return caps.editText;
-  if (field === "assignee") return caps.assign;
-  if (field === "start") return caps.start;
-  if (field === "project") return caps.plan && !access.trial;
-  if (field === "due" || field === "effort" || field === "type") return caps.scope;
-  return caps.plan;
 }
 
 /** Where work can go: an active project on this contract, or no project (null). */
@@ -309,8 +282,7 @@ const FIELD_LINE: Record<PatchField, FieldLine> = {
 
 /** Each field is this person's to change, on this item as it is now. */
 function checkAllowed(r: Repo, t: WorkItem, fields: readonly PatchField[], access: WorkAccess) {
-  const caps = capsFor(t, r.actor, access);
-  for (const f of fields) need(r, capFor(caps, f, access), () => fieldDenied(r, t, f, access));
+  for (const f of fields) needField(r, t, f, access);
 }
 
 /** Nobody else changed a field since the caller read it (`base`) — unless they changed it to what the caller wants. */
@@ -373,17 +345,18 @@ function applyPatch(r: Repo, t: WorkItem, changes: WorkPatch, base: PatchBase | 
  * (planned, or from before a pause), or is overdue, where a start today would come after its due
  * date. Finishing it (approved, or the Team Builder's own marked Done) ends it today; the feed
  * keeps the due date it had. Milestones are a planned date, so they keep theirs — and so does a
- * task from the signed offer: its due date is the one agreed, which finishing doesn't rewrite.
+ * task from the signed offer while its terms hold (`agreed`): its due date is the one agreed, which
+ * finishing doesn't rewrite.
  */
 function startedDates(t: WorkItem, today: Day): { item: WorkItem; line?: string } {
   const { start, due } = datesOf(t);
   if (t.type === "milestone" || (start !== null && start <= today) || (due !== null && due < today)) return { item: t };
   return { item: { ...t, start: isoOf(today) }, line: `Start date set to ${stampLabel(today)} as the work began` };
 }
-function finishedDates(t: WorkItem, today: Day): { item: WorkItem; line?: string } {
+function finishedDates(t: WorkItem, today: Day, agreed: boolean): { item: WorkItem; line?: string } {
   const { start, due } = datesOf(t);
   if (t.type === "milestone" || (due === today && (start === null || start <= today))) return { item: t };
-  if (t.agreed) return { item: start !== null && start > today ? { ...t, start: isoOf(today) } : t, line: t.due && due !== today ? `Finished on ${stampLabel(today)} — the agreed due date was ${dateText(t.due)}` : undefined };
+  if (agreed) return { item: start !== null && start > today ? { ...t, start: isoOf(today) } : t, line: t.due && due !== today ? `Finished on ${stampLabel(today)} — the agreed due date was ${dateText(t.due)}` : undefined };
   return {
     item: { ...t, due: isoOf(today), ...(start !== null && start > today ? { start: isoOf(today) } : {}) },
     line: `Finished on ${stampLabel(today)}${t.due && due !== today ? ` (was due ${dateText(t.due)})` : ""}`,
@@ -391,9 +364,9 @@ function finishedDates(t: WorkItem, today: Day): { item: WorkItem; line?: string
 }
 
 /** What a status change does to the item, its feed line, and who hears about it. */
-function applyTransition(r: Repo, t: WorkItem, to: WorkStatus, kind: TransitionKind, note: string | undefined, now: Now): { item: WorkItem; lines: string[]; notice?: WorkNotice; token?: string } {
+function applyTransition(r: Repo, t: WorkItem, to: WorkStatus, kind: TransitionKind, note: string | undefined, now: Now, access: WorkAccess): { item: WorkItem; lines: string[]; notice?: WorkNotice; token?: string } {
   const s = statusChange(r, t, to, kind, note, now);
-  const dated = kind === "start" ? startedDates(s.item, now.today) : kind === "approve" || kind === "complete" ? finishedDates(s.item, now.today) : { item: s.item };
+  const dated = kind === "start" ? startedDates(s.item, now.today) : kind === "approve" || kind === "complete" ? finishedDates(s.item, now.today, agreedNow(t, access)) : { item: s.item };
   return { ...s, item: dated.item, lines: dated.line ? [s.line, dated.line] : [s.line] };
 }
 
@@ -625,7 +598,7 @@ function transition(r: Repo, id: string, input: TransitionInput) {
   return runOnItem(r, "transition", id, (t, state, access, now) => {
     if (t.status === input.to) return { result: { item: t } };
     const kind = checkedTransition(r, t, input.to, input.from, input.note, access);
-    const { item: changed, lines, notice, token } = applyTransition(r, t, input.to, kind, input.note, now);
+    const { item: changed, lines, notice, token } = applyTransition(r, t, input.to, kind, input.note, now, access);
     const { next, item } = save(r, state, changed, now, lines, { logs: token ? logged(r, state, now, token) : state.logs });
     return { next, result: { item, notices: notice ? [notice] : [] } };
   });
@@ -640,7 +613,7 @@ function move(r: Repo, id: string, input: MoveInput) {
     let logs = state.logs;
     if (input.status && input.status !== t.status) {
       const kind = checkedTransition(r, t, input.status, input.from, input.note, access);
-      const s = applyTransition(r, t, input.status, kind, input.note, now);
+      const s = applyTransition(r, t, input.status, kind, input.note, now, access);
       current = s.item;
       lines.push(...s.lines);
       if (s.notice) notices.push(s.notice);
@@ -678,7 +651,7 @@ function archive(r: Repo, id: string) {
     unlocked(r, t, access);
     if (isArchived(t)) return { result: { item: t } };
     need(r, capsFor(t, r.actor, access).archive, () =>
-      refusal(access, t.agreed ? AGREED : t.addedBy !== r.side ? "Only whoever added it can delete it." : "It's been sent for review or approved, so it stays on the list."),
+      refusal(access, agreedNow(t, access) ? AGREED : t.addedBy !== r.side ? "Only whoever added it can delete it." : "It's been sent for review or approved, so it stays on the list."),
     );
     const { next, item } = save(r, state, { ...t, archivedAt: now.ms, archivedBy: r.actor.name }, now, [`Deleted by ${r.actor.name}`]);
     return { next, result: { item } };
@@ -721,7 +694,7 @@ function removeDependency(r: Repo, id: string, onId: string) {
 
 function addTag(r: Repo, id: string, raw: string) {
   return runOnItem(r, "addTag", id, (t, state, access, now) => {
-    needPlan(r, t, access);
+    needField(r, t, "tags", access);
     const tag = normalizeTag(raw);
     if (tag && t.tags.includes(tag)) return { result: { item: t } };
     invalid(checkTag(tag, t.tags));
@@ -732,7 +705,7 @@ function addTag(r: Repo, id: string, raw: string) {
 
 function removeTag(r: Repo, id: string, tag: string) {
   return runOnItem(r, "removeTag", id, (t, state, access, now) => {
-    needPlan(r, t, access);
+    needField(r, t, "tags", access);
     if (!t.tags.includes(tag)) return { result: { item: t } };
     const { next, item } = save(r, state, { ...t, tags: t.tags.filter((x) => x !== tag) }, now, [`Tag “${tag}” removed by ${r.actor.name}`]);
     return { next, result: { item } };
@@ -746,7 +719,7 @@ function removeTag(r: Repo, id: string, tag: string) {
  */
 function setTagColor(r: Repo, id: string, tag: string, color: TagColor) {
   return runOnItem(r, "setTagColor", id, (t, state, access) => {
-    needPlan(r, t, access);
+    needField(r, t, "tags", access);
     if (!t.tags.includes(tag)) throw new WorkError("not_found", `${refOf(t)} isn't tagged “${tag}” any more.`);
     if (!isTagColor(color)) throw new WorkError("validation", `Pick one of the tag colours: ${Object.values(TAG_COLORS).map((c) => c.label.toLowerCase()).join(", ")}.`, { field: "tags" });
     if (state.tagColors?.[tag] === color) return { result: { item: t } };

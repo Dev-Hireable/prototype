@@ -9,13 +9,13 @@ import { CommentBox } from "@/components/portal/CommentBox";
 import { Tip } from "@/components/portal/Tip";
 import { Avatar, Drawer } from "@/components/team/ui";
 import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, type WorkItem } from "@/lib/work/model";
-import { capsFor, sideOf, transitionFor, type Caps } from "@/lib/work/permissions";
+import { capsFor, changeFor, sideOf, transitionFor, type AgreedField, type Caps } from "@/lib/work/permissions";
 import { checkComment, checkSubtaskTitle, checkTitle } from "@/lib/work/validate";
 import { keyed } from "@/lib/portal/keys";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
 import { AssigneeField, DateField, DependenciesField, EffortField, PriorityField, ProjectField, Prop, StatusField, TagsField, TypeField } from "./fields";
-import { AgreedNotice, type LockedPart } from "./contract-lock";
-import { lockable } from "./lockable";
+import { AgreedNotice } from "./contract-lock";
+import { lockable, lockLabel } from "./lockable";
 import { QuickAdd } from "./QuickAdd";
 
 /**
@@ -30,7 +30,7 @@ import { QuickAdd } from "./QuickAdd";
 export function TaskDetail({ open, item, items, byId, focus, pending, onClose }: { open: boolean; item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean; onClose: () => void }) {
   const step = stepFor(item, useWorkspace());
   /** The agreed part someone just tried to change on a task from the signed offer: its notice shows until they close it. */
-  const [locked, setLocked] = useState<LockedPart | null>(null);
+  const [locked, setLocked] = useState<AgreedField | null>(null);
   return (
     <Drawer
       open={open}
@@ -54,10 +54,9 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
  * scrolls — the header used to hold only its number ("#1"), with the name down in the body. The
  * number sits over the name, where it's found again, with whether a change is still saving.
  */
-function PanelHeading({ item: t, byId, focus, pending, onLocked }: { item: WorkItem; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean; onLocked: (part: LockedPart) => void }) {
-  const { actor, access, actions } = useWorkspace();
-  const nameLocked = lockable(t, actor.role, access, onLocked);
-  const caps = capsFor(t, actor, access);
+function PanelHeading({ item: t, byId, focus, pending, onLocked }: { item: WorkItem; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean; onLocked: (field: AgreedField) => void }) {
+  const { actor, access, actions, names } = useWorkspace();
+  const canRename = changeFor(t, actor, access, "title", names).ok;
   const blockers = isCompleted(t.status) ? [] : openBlockers(t, byId);
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -73,8 +72,8 @@ function PanelHeading({ item: t, byId, focus, pending, onLocked }: { item: WorkI
           key={`title-${t.id}`}
           label="Name"
           value={t.title}
-          editable={caps.editText}
-          onLocked={nameLocked ? () => onLocked("name") : undefined}
+          editable={canRename}
+          lock={lockable(t, "title", actor.role, access) ? { field: "title", onLocked } : undefined}
           autoFocus={focus === "title"}
           updatedBy={t.updatedBy}
           validate={(v) => checkTitle(v)?.message ?? null}
@@ -164,9 +163,10 @@ type FeedFilter = "all" | "comments" | "updates";
 /** How an item's creation reads in its history, whichever way it was made. */
 const CREATED = /^(Added by |Agreed in the signed offer)/;
 
-function DetailBody({ item: t, items, byId, focus, locked, onLocked }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; locked: LockedPart | null; onLocked: (part: LockedPart | null) => void }) {
-  const { actor, access } = useWorkspace();
+function DetailBody({ item: t, items, byId, focus, locked, onLocked }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; locked: AgreedField | null; onLocked: (field: AgreedField | null) => void }) {
+  const { actor, access, names } = useWorkspace();
   const caps = capsFor(t, actor, access);
+  const canDescribe = changeFor(t, actor, access, "description", names).ok;
   /** A comment's notification opens the item on its comments: the history comes into view. */
   const activity = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -178,7 +178,7 @@ function DetailBody({ item: t, items, byId, focus, locked, onLocked }: { item: W
     <>
       {/* What's needed now. */}
       {isArchived(t) && <DeletedBanner item={t} restorable={caps.restore} />}
-      {locked && <AgreedNotice part={locked} onClose={() => onLocked(null)} />}
+      {locked && <AgreedNotice field={locked} onClose={() => onLocked(null)} />}
       {changes && <ChangesBanner changes={changes} />}
       {review && <ReviewBanner review={review} />}
 
@@ -186,7 +186,7 @@ function DetailBody({ item: t, items, byId, focus, locked, onLocked }: { item: W
       <PlanCard item={t} items={items} onLocked={onLocked} />
 
       {/* Nothing to read and nothing to write: no empty section. */}
-      {(t.description || caps.editText) && <DescriptionSection item={t} editable={caps.editText} onLocked={onLocked} />}
+      {(t.description || canDescribe) && <DescriptionSection item={t} editable={canDescribe} onLocked={onLocked} />}
 
       {(t.subtasks.length > 0 || caps.subtasks) && <SubtasksSection item={t} caps={caps} />}
 
@@ -257,7 +257,7 @@ function ReviewBanner({ review }: { review: NonNullable<WorkItem["submitted"]> }
 }
 
 /** The plan's properties, each a field this person can change or plain text where they can't. */
-function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonly WorkItem[]; onLocked: (part: LockedPart) => void }) {
+function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonly WorkItem[]; onLocked: (field: AgreedField) => void }) {
   const { projects } = useWorkspace();
   /** Every tag in use on the contract, the most used first, to suggest when adding one. */
   const knownTags = tagsInUse(items);
@@ -273,11 +273,11 @@ function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonl
         </Prop>
       )}
       <Prop label="Priority" icon="flag">
-        <PriorityField item={t} />
+        <PriorityField item={t} onLocked={onLocked} />
       </Prop>
       {t.type !== "milestone" && (
         <Prop label="Start" icon="calendar">
-          <DateField item={t} which="start" />
+          <DateField item={t} which="start" onLocked={onLocked} />
         </Prop>
       )}
       <Prop label={t.type === "milestone" ? "Date" : "Due"} icon="schedule">
@@ -299,7 +299,7 @@ function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonl
 }
 
 /** What done looks like, edited in place by whoever may change the item's text. */
-function DescriptionSection({ item: t, editable, onLocked }: { item: WorkItem; editable: boolean; onLocked: (part: LockedPart) => void }) {
+function DescriptionSection({ item: t, editable, onLocked }: { item: WorkItem; editable: boolean; onLocked: (field: AgreedField) => void }) {
   const { actions, actor, access } = useWorkspace();
   return (
     <Section title="Description">
@@ -309,7 +309,7 @@ function DescriptionSection({ item: t, editable, onLocked }: { item: WorkItem; e
         multiline
         value={t.description ?? ""}
         editable={editable}
-        onLocked={lockable(t, actor.role, access, onLocked) ? () => onLocked("requirements") : undefined}
+        lock={lockable(t, "description", actor.role, access) ? { field: "description", onLocked } : undefined}
         updatedBy={t.updatedBy}
         placeholder="What done looks like, links, anything to check"
         onSave={(next, base) => void actions.patch({ ...t, description: base || undefined }, { description: next || null })}
@@ -627,14 +627,17 @@ function leaveOnly(e: KeyboardEvent) {
  * draft isn't wiped — it says so, and the save is checked against what was there when editing
  * began, so it can't silently overwrite theirs.
  */
-function DraftText({ value, editable, onLocked, onSave, label, multiline = false, placeholder, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
+function DraftText({ value, editable, lock, onSave, label, multiline = false, placeholder, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
   const draft = useTextDraft(value, onSave, validate);
-  if (!editable && onLocked)
+  // The same lock as every other agreed value (LockedValue), laid out for text that wraps.
+  if (!editable && lock)
     return (
-      <button type="button" onClick={onLocked} aria-label={`${label}: agreed in the signed offer`} className={`${className} flex w-full items-start gap-2 rounded-md px-1 py-1 text-left whitespace-pre-line break-words hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary`}>
-        <span className="min-w-0 flex-1">{value || empty}</span>
-        <ICONS.lock size={14} aria-hidden className="mt-1 shrink-0 text-ink-2" />
-      </button>
+      <Tip label="Agreed in the signed offer">
+        <button type="button" onClick={() => lock.onLocked(lock.field)} aria-label={lockLabel(lock.field)} className={`${className} flex w-full items-start gap-2 rounded-md px-1 py-1 text-left whitespace-pre-line break-words hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary`}>
+          <span className="min-w-0 flex-1">{value || empty}</span>
+          <ICONS.lock size={14} aria-hidden className="mt-1 shrink-0 text-ink-2" />
+        </button>
+      </Tip>
     );
   if (!editable) return <p className={`${className} px-1 whitespace-pre-line break-words ${!value ? "text-ink-2" : ""}`}>{value || empty}</p>;
 
@@ -683,8 +686,8 @@ function DraftText({ value, editable, onLocked, onSave, label, multiline = false
 type DraftTextProps = {
   value: string;
   editable: boolean;
-  /** Text the signed offer agreed: trying to change it shows why it can't be changed. */
-  onLocked?: () => void;
+  /** Text the signed offer agreed: which field it is, and what trying to change it does — say why it can't be. */
+  lock?: { field: AgreedField; onLocked: (field: AgreedField) => void };
   onSave: (next: string, base: string) => void;
   label: string;
   multiline?: boolean;

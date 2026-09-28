@@ -7,8 +7,8 @@ import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { layoutWeek, monthWeeks, moveToDay, spanOf, unscheduled, type Segment, type WeekLayout } from "@/lib/work/calendar";
 import { addMonths, dayOf, isoOf, isWeekend, longLabel, MONTH_LONG, monthKey, parseMonth, partsOf, shortLabel, WEEKDAY_SHORT, type Day } from "@/lib/work/dates";
-import { isArchived, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
-import { capsFor } from "@/lib/work/permissions";
+import { refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
+import { changeFor } from "@/lib/work/permissions";
 import type { WorkQuery } from "@/lib/work/query";
 import { checkDates } from "@/lib/work/validate";
 import { useWorkspace, type WorkspaceEnv } from "./context";
@@ -172,8 +172,12 @@ type DayDrag = ReturnType<typeof useDayDrag>;
 /** What the month's days work from: the month shown, the drag in progress, which day is adding a task, and whether deleted work is showing. */
 type MonthState = { m: number; dnd: DayDrag; adding: Day | null; setAdding: (day: Day | null) => void; archived: boolean };
 
-/** Whoever plans an item can drag it to another day — not once it's deleted, and not a task from the signed offer, whose date was agreed (caps.scope). */
-const movable = (t: WorkItem, { actor, access }: Pick<WorkspaceEnv, "actor" | "access">) => capsFor(t, actor, access).scope && !isArchived(t);
+/**
+ * Whoever may change both of an item's dates can drag it to another day, since a drop sets both — the
+ * rule its date fields follow (changeFor): not once it's deleted, and not a task from the signed offer,
+ * whose due date was agreed.
+ */
+const movable = (t: WorkItem, { actor, access, names }: Pick<WorkspaceEnv, "actor" | "access" | "names">) => changeFor(t, actor, access, "due", names).ok && changeFor(t, actor, access, "start", names).ok;
 
 /** The month as a grid, Monday first: the weekdays, then a row per week — its days, and its items as bars across them. */
 function MonthGrid({ layouts, y, month }: { layouts: WeekLayout[]; y: number; month: MonthState }) {

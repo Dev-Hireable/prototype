@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { taskFromOffer, type PlannedTask } from "../../src/lib/demo/tasks";
 import type { WorkStatus } from "../../src/lib/work/model";
-import { canCreate, canReorder, capsFor, readOnlyReason, targetsFor, transitionFor, type Role } from "../../src/lib/work/permissions";
-import { ENDED, item, OPEN, REVIEW_ONLY, TRIAL } from "./fixtures";
+import { AGREED, AGREED_FIELDS, canCreate, canReorder, capsFor, changeFor, readOnlyReason, targetsFor, transitionFor, type Role, type WorkField } from "../../src/lib/work/permissions";
+import { ENDED, item, iso, OPEN, REVIEW_ONLY, TRIAL } from "./fixtures";
 
 const manager = { role: "manager" as Role };
 const contributor = { role: "contributor" as Role };
@@ -164,5 +165,63 @@ test.describe("capabilities · dependencies and start dates", () => {
     expect(capsFor(item({ assignee: "team" }), contributor, OPEN).start).toBe(false);
     expect(capsFor(item(), contributor, REVIEW_ONLY).start).toBe(false);
     expect(capsFor(item({ status: "done", assignee: "team" }), manager, OPEN).start).toBe(false);
+  });
+});
+
+/** Every field a person changes on an item, and whether the signed offer sets it. */
+const FIELDS: WorkField[] = ["title", "description", "type", "priority", "assignee", "start", "due", "effort", "project", "tags"];
+const offerSets = (f: WorkField) => (AGREED_FIELDS as readonly WorkField[]).includes(f);
+
+// TB-077 — a task from the signed offer is an ordinary task minus what the offer set.
+test.describe("fields · what the signed offer agreed", () => {
+  test("what the trial post sets of a task is exactly what its signed offer locks", () => {
+    const signed = (plan: PlannedTask) => taskFromOffer({ id: "t1", ...plan }, 0, "2026-09-21", { trialEnd: "2026-10-30", created: "21 Sep 2026", name: "Alex" });
+    const bare = signed({ title: "Draft two logo directions" });
+    const full = signed({ title: "Draft two logo directions", description: "On light and dark", priority: "high", week: 2 });
+    // What a plan sets: the fields filling it in changes, and the name every task has…
+    const set = FIELDS.filter((f) => f === "title" || JSON.stringify(bare[f]) !== JSON.stringify(full[f]));
+    // …and who does it: the offer is made to the Independent. A field added to the plan fails here until it's locked.
+    expect([...set, "assignee"].sort()).toEqual([...AGREED_FIELDS].sort());
+    expect(full).toMatchObject({ agreed: true, trial: true, assignee: "independent" });
+  });
+
+  test("agreement takes away exactly the agreed fields — for both sides, on a trial and on a role", () => {
+    for (const actor of [manager, contributor]) {
+      for (const access of [TRIAL, OPEN]) {
+        for (const f of FIELDS) {
+          // A role's own offer is agreed without being a trial's (a trial's lets go once it converts).
+          const base = item({ start: iso(1), due: iso(5) });
+          const was = changeFor(base, actor, access, f).ok;
+          const now = changeFor({ ...base, agreed: true }, actor, access, f);
+          expect(now.ok, `${actor.role} · ${access.trial ? "trial" : "role"} · ${f}`).toBe(was && !offerSets(f));
+          if (offerSets(f)) expect(now).toEqual({ ok: false, reason: AGREED, agreed: true });
+        }
+      }
+    }
+  });
+
+  test("the Team Builder plans what the offer didn't set; the Independent still doesn't, and hears why", () => {
+    const t = item({ agreed: true, trial: true });
+    for (const f of ["effort", "type", "tags", "start"] as const) expect(changeFor(t, manager, TRIAL, f).ok, f).toBe(true);
+    for (const f of ["effort", "type", "tags"] as const) expect(changeFor(t, contributor, TRIAL, f, { team: "Alex", independent: "Juan" })).toEqual({ ok: false, reason: "Alex plans the work — the due dates, effort, work type, priority, tags and who does it.", agreed: false });
+    // When their own work starts is theirs, agreed or not.
+    expect(changeFor(t, contributor, TRIAL, "start").ok).toBe(true);
+  });
+
+  test("a trial's agreement ends when it converts: what it left open is the role's work", () => {
+    const t = item({ agreed: true, trial: true });
+    expect(capsFor(t, manager, TRIAL)).toMatchObject({ editText: false, assign: false, archive: false });
+    // Converted, the contract isn't a trial any more.
+    expect(capsFor(t, manager, OPEN)).toMatchObject({ editText: true, assign: true, archive: true });
+    for (const f of AGREED_FIELDS) expect(changeFor(t, manager, OPEN, f).ok, f).toBe(true);
+    // A role's own offer keeps its terms for as long as the role runs.
+    expect(changeFor({ ...t, trial: undefined }, manager, OPEN, "due")).toEqual({ ok: false, reason: AGREED, agreed: true });
+  });
+
+  test("an admin, a deleted item and a closed trial say why — never that it was agreed", () => {
+    const t = item({ agreed: true, trial: true });
+    expect(changeFor(t, viewer, TRIAL, "due")).toEqual({ ok: false, reason: "Admins can see this workspace but can't change it.", agreed: false });
+    expect(changeFor({ ...t, archivedAt: 1 }, manager, TRIAL, "effort")).toMatchObject({ ok: false, agreed: false });
+    expect(changeFor(t, manager, REVIEW_ONLY, "due")).toEqual({ ok: false, reason: "The trial has closed.", agreed: false });
   });
 });

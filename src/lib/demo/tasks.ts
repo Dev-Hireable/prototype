@@ -29,7 +29,9 @@ export const PRIORITY_LABEL = Object.fromEntries(WORK_PRIORITIES.map((p) => [p, 
 /**
  * A task as the Team Builder plans it before the contract starts: a trial's tasks in its job post,
  * which the offer carries as the proposal settled them. Due dates are due weeks — the start is the
- * one the proposal agreed — so "Week 2" becomes a date once the contract starts.
+ * one the proposal agreed — so "Week 2" becomes a date once the contract starts. Every field here is
+ * one the signed offer agrees, set or left blank (@/lib/work/permissions AGREED_FIELDS), and a unit
+ * test holds the two together: a field added here is locked on the task it becomes.
  */
 export type PlannedTask = { title: string; description?: string; priority?: TaskPriority; week?: number };
 
@@ -114,7 +116,9 @@ export const fromDrafts = (rows: DraftTask[]): PlannedTask[] =>
 
 /**
  * An agreed task as the contract starts it: from the offer the Team Builder wrote it into, with its
- * due week turned into a date, numbered and ordered as the offer listed it.
+ * due week turned into a date, numbered and ordered as the offer listed it, for the Independent the
+ * offer was made to. What the offer didn't set — the work type, effort, start and tags — is left for
+ * the workspace, where it's planned like any other task's.
  */
 export function taskFromOffer(t: OfferTask, index: number, start: string, opts: { trialEnd?: string; created: string; name: string }): Task {
   const now = Date.now();

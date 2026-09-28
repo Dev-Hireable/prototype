@@ -4,7 +4,8 @@ import { weekLabel, type PlannedTask } from "./tasks";
  * IN-073 / TB-106 — changes the talent suggests to a trial's tasks when they revise their proposal.
  * The tasks stay the Team Builder's: a suggestion is a request, with the talent's reason, and the
  * Team Builder accepts or ignores each one when they review the proposal. What they accept goes into
- * the offer's tasks (applySuggestions), which they can still change before sending.
+ * the offer's tasks as it stands (applySuggestions) — the offer doesn't edit them (TB-105), and once
+ * it's signed what each task's plan sets stays as agreed (TB-077).
  *
  *   change  a task, with a new name and/or a different due week
  *   remove  a task that shouldn't be there

@@ -445,14 +445,14 @@ function JobDetails({ role }: { role: RoleData }) {
           {/* The facts strip the talent's job page shows, so the post reads the same on both sides. */}
           <FactStrip size="sm" cells={jobFacts({ type: role.type, pay: role.budget, duration: role.duration, hours: role.hours, level: role.experience })} />
         </Card>
-        {/* TB-025 — the trial's tasks, as the job post sets them; each offer starts from them. */}
+        {/* TB-025 — the trial's tasks, as the job post sets them; each offer carries them as the proposal settles them (TB-105). */}
         {role.type === "trial" && (
           <Card className="flex flex-col gap-4 p-4">
             <div className="flex flex-col gap-1">
               <h3 className={H3}>Trial tasks</h3>
-              <p className="text-[13px] leading-[1.4] text-ink-2">Shared with candidates you match with or invite. Each offer starts from these, and you can adjust them per candidate.</p>
+              <p className="text-[13px] leading-[1.4] text-ink-2">Shared with candidates you match with or invite. Each offer carries them as the proposal settles them, and once it's signed they stay as agreed.</p>
             </div>
-            <TaskPlanList tasks={role.tasks ?? []} empty="No trial tasks yet — add them when you send an offer." />
+            <TaskPlanList tasks={role.tasks ?? []} empty="No trial tasks." />
           </Card>
         )}
         <Card className="flex flex-col gap-6 p-4">
