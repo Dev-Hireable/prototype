@@ -7,6 +7,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from "rea
 import { ICONS } from "@/components/admin/icons";
 import { Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/independent/ui";
 import { Callout } from "@/components/portal/Callout";
+import { Meter } from "@/components/portal/Meter";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { ReturnNav } from "@/components/portal/return";
@@ -476,11 +477,14 @@ function Split({ d, p }: { d: Dispute; p: Pick<Proposal, "refund" | "release"> }
   const share = d.amount > 0 ? (p.refund / d.amount) * 100 : 50;
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex h-2 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${usd(p.refund)} back to ${d.team.company}, ${usd(p.release)} to ${d.independent.name}`}>
-        {/* Each side's share in its colour: the company's refund blue, the Independent's release pink. */}
-        <span className="bg-brand-blue" style={{ width: `${share}%` }} />
-        <span className="bg-brand-pink" style={{ width: `${100 - share}%` }} />
-      </div>
+      {/* Each side's share in its colour: the company's refund blue, the Independent's release pink. */}
+      <Meter
+        parts={[
+          { value: share, color: "var(--color-brand-blue)", label: "refund" },
+          { value: 100 - share, color: "var(--color-brand-pink)", label: "release" },
+        ]}
+        label={`${usd(p.refund)} back to ${d.team.company}, ${usd(p.release)} to ${d.independent.name}`}
+      />
       <dl className="grid grid-cols-2 gap-3 text-[13px] leading-[1.4]">
         <div className="flex flex-col gap-0.5">
           <dt className="text-ink-2">Back to {d.team.company}</dt>

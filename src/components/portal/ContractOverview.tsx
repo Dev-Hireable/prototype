@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { Button } from "@/components/independent/ui";
+import { Meter, Swatch } from "@/components/portal/Meter";
 import { FactStrip, SIDE_COLUMN, WITH_SIDE } from "@/components/portal/PageParts";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { StatusCircle, type TaskPeople } from "@/components/portal/tasks/task-bits";
@@ -11,10 +12,14 @@ import { ago } from "@/components/workspace/util";
 import { keyed } from "@/lib/portal/keys";
 import { writeParams } from "@/lib/portal/query-state";
 import { dayOf, relativeLabel, shortLabel, todayDay, type Day } from "@/lib/work/dates";
-import { countsOf, isArchived, isCompleted, isOverdue, refOf, scoredItems, STATUS_META, STATUSES, type WorkItem } from "@/lib/work/model";
+import { countsOf, isArchived, isCompleted, isOverdue, refOf, scoredItems, STATUS_META, type WorkItem } from "@/lib/work/model";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
-const BAR: Record<WorkItem["status"], string> = { todo: "bg-[#c3c3c3]", doing: "bg-primary", review: "bg-warn", done: "bg-ok" };
+/** The Progress bar fills most-done first; To do is what's left of it, hatched, so it has no colour. */
+const FILLED = ["done", "review", "doing"] as const;
+const BAR: Record<(typeof FILLED)[number], string> = { done: "var(--color-ok)", review: "var(--color-warn)", doing: "var(--color-primary)" };
+/** The key under the bar, in the bar's order. */
+const LEGEND = [...FILLED, "todo"] as const;
 /** How far ahead "Coming up" looks, in days. */
 const AHEAD = 14;
 /** Rows a list shows before it sends you to the work for the rest. */
@@ -89,11 +94,12 @@ export function ContractOverview({
   );
 }
 
+/**
+ * How far the work has got: the share done as the headline, the smaller numbers beside it, and the
+ * bar with its key — every status a part of it, To do the hatched rest.
+ */
 function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; trial: boolean }) {
   const counts = countsOf(items, today);
-  const done = items.filter((t) => isCompleted(t.status));
-  const effort = items.reduce((n, t) => n + (t.effort ?? 0), 0);
-  const effortDone = done.reduce((n, t) => n + (t.effort ?? 0), 0);
   const scored = trial ? scoredItems(items) : [];
   const pct = counts.total ? Math.round((counts.done / counts.total) * 100) : 0;
   return (
@@ -109,24 +115,13 @@ function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; tria
         <p className="text-[13px] leading-[1.4] text-ink-2">{trial ? "No trial tasks: the signed offer has none." : "Nothing on the list yet."}</p>
       ) : (
         <>
-          <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-            <Metric big value={`${pct}%`} label={`${counts.done} of ${counts.total} ${counts.total === 1 ? "item" : "items"} done`} />
-            {effort > 0 && <Metric value={`${effortDone} of ${effort}`} label="Effort done" />}
-            {scored.length > 0 && <Metric value={`${scored.filter((t) => isCompleted(t.status)).length} of ${scored.length}`} label="Trial tasks done" />}
-            <Metric value={String(counts.review)} label="In review" />
-            {counts.overdue > 0 && <Metric value={String(counts.overdue)} label="Overdue" danger />}
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+            <Headline pct={pct} label={`${counts.done} of ${counts.total} ${counts.total === 1 ? "item" : "items"} done`} />
+            <Stats stats={statsOf(items, counts, scored)} />
           </div>
-          <div className="flex flex-col gap-2.5">
-            <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={STATUSES.map((s) => `${counts[s]} ${STATUS_META[s].label}`).join(", ")}>
-              {STATUSES.map((s) => (counts[s] ? <span key={s} className={BAR[s]} style={{ width: `${(counts[s] / counts.total) * 100}%` }} /> : null))}
-            </div>
-            <ul className="flex flex-wrap gap-x-5 gap-y-1 text-[13px] leading-[1.4] text-ink-2">
-              {STATUSES.map((s) => (
-                <li key={s} className="flex items-center gap-1.5">
-                  <StatusCircle status={s} size={12} /> {STATUS_META[s].label} <span className="font-semibold text-ink tabular-nums">{counts[s]}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="flex flex-col gap-3">
+            <Meter total={counts.total} parts={FILLED.map((s) => ({ value: counts[s], color: BAR[s], label: STATUS_META[s].label }))} label={LEGEND.map((s) => `${counts[s]} ${STATUS_META[s].label}`).join(", ")} />
+            <Legend counts={counts} />
           </div>
           {scored.length > 0 && <p className="text-[12.5px] leading-[1.4] text-ink-2">Trial tasks are the ones the Trial Fit Score&apos;s Performance counts.</p>}
         </>
@@ -135,14 +130,62 @@ function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; tria
   );
 }
 
-function Metric({ value, label, big = false, danger = false }: { value: string; label: string; big?: boolean; danger?: boolean }) {
+type Stat = { label: string; value: number; of?: number; danger?: boolean };
+
+/** Progress's smaller numbers: effort and trial tasks done out of all of them, what's in review, what's overdue. */
+function statsOf(items: WorkItem[], counts: ReturnType<typeof countsOf>, scored: WorkItem[]): Stat[] {
+  const effort = items.reduce((n, t) => n + (t.effort ?? 0), 0);
+  const effortDone = items.filter((t) => isCompleted(t.status)).reduce((n, t) => n + (t.effort ?? 0), 0);
+  return [
+    ...(effort > 0 ? [{ label: "Effort done", value: effortDone, of: effort }] : []),
+    ...(scored.length > 0 ? [{ label: "Trial tasks done", value: scored.filter((t) => isCompleted(t.status)).length, of: scored.length }] : []),
+    { label: "In review", value: counts.review },
+    ...(counts.overdue > 0 ? [{ label: "Overdue", value: counts.overdue, danger: true }] : []),
+  ];
+}
+
+/** The share of the work that's done, big, over what it's a share of. */
+function Headline({ pct, label }: { pct: number; label: string }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className={`font-display leading-[1.2] font-semibold tabular-nums ${big ? "text-[32px]" : "text-[20px]"} ${danger ? "text-danger" : "text-ink"}`} style={DM}>
-        {value}
-      </span>
-      <span className="text-[12.5px] leading-[1.3] text-ink-2">{label}</span>
+    <div className="flex flex-col gap-2">
+      <p className="font-display text-[40px] leading-none font-semibold tracking-[-0.02em] text-ink tabular-nums" style={DM}>
+        {pct}
+        <span className="text-[24px] font-medium text-ink-2">%</span>
+      </p>
+      <p className="text-[12.5px] leading-[1.3] text-ink-2">{label}</p>
     </div>
+  );
+}
+
+/** The smaller numbers beside the headline, each over its label, a hairline before each. */
+function Stats({ stats }: { stats: Stat[] }) {
+  return (
+    <dl className="flex flex-wrap gap-y-3">
+      {stats.map((s) => (
+        <div key={s.label} className="flex flex-col-reverse gap-2 border-l border-line px-5">
+          <dt className="text-[12.5px] leading-[1.3] text-ink-2">{s.label}</dt>
+          <dd className={`font-display text-[20px] leading-none font-semibold tabular-nums ${s.danger ? "text-danger" : "text-ink"}`} style={DM}>
+            {s.value}
+            {s.of !== undefined && <span className="text-[14px] font-medium text-ink-2"> of {s.of}</span>}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** The bar's key, in the bar's order: each status's colour — To do's stripes — and how many are in it. */
+function Legend({ counts }: { counts: Record<(typeof LEGEND)[number], number> }) {
+  return (
+    <ul className="flex flex-wrap gap-x-6 gap-y-1.5 text-[12.5px] leading-[1.4] text-ink-2">
+      {LEGEND.map((s) => (
+        <li key={s} className="flex items-center gap-2">
+          <Swatch color={s === "todo" ? undefined : BAR[s]} />
+          {STATUS_META[s].label}
+          <span className="font-semibold text-ink tabular-nums">{counts[s]}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

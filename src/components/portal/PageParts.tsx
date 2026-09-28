@@ -64,10 +64,11 @@ export function FactStrip({ cells, size = "md", className = "" }: { cells: { lab
 
 /**
  * A page's side column beside its main one (a contract's Overview, Contract & payment, Evaluation):
- * a third of the width, kept between 340 and 440px, under the main column on a narrow screen. It was
+ * 38% of the width, kept between 360 and 520px, under the main column on a narrow screen. It was
  * a fixed 360px, so on a wide screen the main column took ~900px of mostly air while the side cards
- * (the score, the company and its badges) were squeezed into three rows.
+ * (the score, the company and its badges) were squeezed into three rows; at a third, capped at
+ * 440px, the main column's lists still ran wider than they needed while the score's bars were short.
  */
-export const SIDE_COLUMN = "flex w-[clamp(340px,33%,440px)] shrink-0 flex-col gap-4 max-lg:w-full";
+export const SIDE_COLUMN = "flex w-[clamp(360px,38%,520px)] shrink-0 flex-col gap-4 max-lg:w-full";
 /** The row that holds the main column and SIDE_COLUMN: side by side, stacked on a narrow screen. */
 export const WITH_SIDE = "flex items-start gap-6 max-lg:flex-col";

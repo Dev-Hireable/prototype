@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Button, Card, Field, Select, Textarea } from "@/components/independent/ui";
 import { Stars } from "@/components/portal/ContractParts";
+import { Meter, ScoreRing } from "@/components/portal/Meter";
 import { Tip } from "@/components/portal/Tip";
 import { MatchAtHire } from "@/components/team/TrialWidgets";
 import { CardHeading } from "@/components/team/ui";
@@ -204,26 +205,22 @@ function ScorePanel({ tfs, final }: { tfs: FitScore; final: boolean }) {
   return (
     <div className="flex w-[320px] shrink-0 flex-col gap-3 rounded-lg bg-[#f3faf6] p-5 outline -outline-offset-1 outline-[#bfe3cc]">
       <p className="text-[14px] leading-[1.4] font-medium text-ink-2">Trial fit score · {final ? "final" : "so far"}</p>
-      <p className="font-display text-[40px] leading-[1.5] font-semibold text-ink" style={DM}>
-        {tfs.overall}%
-      </p>
-      <p className="max-w-[280px] text-[13px] leading-[1.4] text-ink-2">{final ? "Locked at phase 4 after the trial's evaluation." : "Locks after your evaluation. Performance moves as you approve the trial's tasks."}</p>
+      <div className="flex items-center gap-4">
+        <ScoreRing value={tfs.overall} />
+        <p className="text-[13px] leading-[1.4] text-ink-2">{final ? "Locked at phase 4 after the trial's evaluation." : "Locks after your evaluation. Performance moves as you approve the trial's tasks."}</p>
+      </div>
       {(
         [
-          ["Performance", tfs.performance, "trial tasks done"],
-          ["Profile", tfs.profile, "profile vs role alignment"],
-          ["Work style", tfs.workStyle, "from the work-style quiz"],
-          ...(tfs.evaluation !== undefined ? ([["Evaluation", tfs.evaluation, "from your evaluation"]] as const) : []),
+          ["Performance", tfs.performance, "Trial tasks done"],
+          ["Profile", tfs.profile, "Profile vs role alignment"],
+          ["Work style", tfs.workStyle, "From the work-style quiz"],
+          ...(tfs.evaluation !== undefined ? ([["Evaluation", tfs.evaluation, "From your evaluation"]] as const) : []),
         ] as const
       ).map(([k, v, s]) => (
         <div key={k} className="flex flex-col gap-1.5 rounded-md bg-white p-3">
           <p className="text-[13px] leading-[1.4] font-medium text-ink">{k}</p>
-          <span className="block h-1.5 w-full overflow-hidden rounded-[3px] bg-[#e6e6e6]">
-            <span className="block h-full rounded-[3px] bg-[#2e9e5b]" style={{ width: `${v}%` }} />
-          </span>
-          <p className="text-[12px] leading-[1.4] text-ink-2">
-            {v}% · {s}
-          </p>
+          <Meter parts={[{ value: v, color: "#2e9e5b", label: k }]} pill={`${v}%`} label={`${k}: ${v}%`} />
+          <p className="text-[12px] leading-[1.4] text-ink-2">{s}</p>
         </div>
       ))}
     </div>

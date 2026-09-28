@@ -1,5 +1,6 @@
 "use client";
 
+import { Meter, ScoreRing } from "@/components/portal/Meter";
 import { Tip } from "@/components/portal/Tip";
 import { PanelCard } from "@/components/portal/PanelCard";
 import { TFP_TOOLTIP, TFP_WEIGHTS } from "@/lib/team/data";
@@ -22,36 +23,32 @@ export function TrialFitScore({ contract, final = false }: { contract: Scored; f
   /** Once an evaluation is in, it is scored like the rest instead of "Added once the evaluation is in". */
   const evaluated = w.evaluation > 0 && contract.tfs.evaluation !== undefined;
   const rows = [
-    { label: "Performance", value: contract.tfs.performance, weight: w.performance, bar: "bg-primary" },
-    { label: "Profile", value: contract.tfs.profile, weight: w.profile, bar: "bg-[#27ae60]" },
-    { label: "Work Style", value: contract.tfs.workStyle, weight: w.workStyle, bar: "bg-[#f2994a]" },
-    ...(evaluated ? [{ label: "Evaluation", value: contract.tfs.evaluation ?? 0, weight: w.evaluation, bar: "bg-[#9b51e0]" }] : []),
+    { label: "Performance", value: contract.tfs.performance, weight: w.performance, color: "var(--color-primary)" },
+    { label: "Profile", value: contract.tfs.profile, weight: w.profile, color: "#27ae60" },
+    { label: "Work Style", value: contract.tfs.workStyle, weight: w.workStyle, color: "#f2994a" },
+    ...(evaluated ? [{ label: "Evaluation", value: contract.tfs.evaluation ?? 0, weight: w.evaluation, color: "#9b51e0" }] : []),
   ];
 
   return (
     <PanelCard
       title="Trial Fit Score"
+      /* TB-074: on a full-time contract this is the trial's final score and stops moving. */
+      sub={final ? "Final score from the completed trial · read-only" : `${w.label} · Phase ${contract.phase}`}
       aside={
         <Tip label={TFP_TOOLTIP}>
-          <span className="cursor-help rounded-lg bg-ink px-3 py-1.5 text-[18px] leading-[1.2] font-bold text-white">{contract.tfs.overall}%</span>
+          <span className="cursor-help rounded-full">
+            <ScoreRing value={contract.tfs.overall} />
+          </span>
         </Tip>
       }
     >
-      {/* TB-074: on a full-time contract this is the trial's final score and stops moving. */}
-      <p className="-mt-3 text-[12.5px] leading-[1.4] text-ink-2">{final ? "Final score from the completed trial · read-only" : `${w.label} · Phase ${contract.phase}`}</p>
-
       <div className="flex flex-col gap-3">
         {rows.map((r) => (
           <div key={r.label} className="flex flex-col gap-1.5">
-            <p className="flex items-baseline justify-between text-[13px] leading-[1.2] text-ink">
-              <span>
-                {r.label} <span className="text-ink-2">· {r.weight}%</span>
-              </span>
-              <span className="font-semibold">{r.value}%</span>
+            <p className="text-[13px] leading-[1.2] text-ink">
+              {r.label} <span className="text-ink-2">· {r.weight}%</span>
             </p>
-            <span className="block h-2 w-full overflow-hidden rounded-full bg-surface-2">
-              <span className={`block h-full rounded-full ${r.bar}`} style={{ width: `${r.value}%` }} />
-            </span>
+            <Meter parts={[{ value: r.value, color: r.color, label: r.label }]} pill={`${r.value}%`} label={`${r.label}: ${r.value}%`} />
           </div>
         ))}
         {/* Evaluation only counts once the trial is over, so Phase 3 shows it greyed at 0%. */}
@@ -74,8 +71,11 @@ export function TrialFitScore({ contract, final = false }: { contract: Scored; f
  */
 export function MatchAtHire({ match, who, className = "" }: { match: number; who: string; className?: string }) {
   return (
-    <PanelCard title="Match at hire" className={className} aside={<span className="rounded-lg bg-ink px-3 py-1.5 text-[18px] leading-[1.2] font-bold text-white">{match}%</span>}>
-      <p className="-mt-2 text-[12.5px] leading-[1.4] text-ink-2">{who} hired straight onto this role, with no trial, so there is no Trial Fit Score. This is the work-style and profile match the application started on.</p>
-    </PanelCard>
+    <PanelCard
+      title="Match at hire"
+      className={className}
+      sub={`${who} hired straight onto this role, with no trial, so there is no Trial Fit Score. This is the work-style and profile match the application started on.`}
+      aside={<ScoreRing value={match} />}
+    />
   );
 }
