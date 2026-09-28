@@ -41,9 +41,10 @@ export function WorkloadView({ items, query, setQuery }: { items: readonly WorkI
       </details>
 
       {/* Bordered frame, scroller inside (an outline on the scroller sat under its pinned cells). As
-          tall as its three rows, not the whole pane. */}
+          tall as its three rows, not the whole pane. Positioned, like the List's, so what its cells
+          place absolutely (sr-only text) stays inside it instead of stretching the page. */}
       <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-white">
-        <div className="min-h-0 overflow-auto">
+        <div className="relative min-h-0 overflow-auto">
           <table className="w-full border-separate border-spacing-0 text-[13px]" aria-label={`Workload by person, ${shortLabel(from)} to ${shortLabel(last)}, in ${unit}`}>
             <WorkloadHead days={result.days} from={from} />
             <tbody>
