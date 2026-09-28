@@ -15,7 +15,7 @@ import { useWorkspace, type WorkspaceEnv } from "./context";
 import { QuickAdd } from "./QuickAdd";
 
 /**
- * The Calendar: a month, Monday first. An item with a start and a due spans those days (split at
+ * The Calendar: a month, Sunday first. An item with a start and a due spans those days (split at
  * week ends, marked where it carries on); one with only a due date sits on it; only a start, on
  * that day as "Starts"; a milestone on its date. Past three lanes a day says "+k more". Items with
  * no dates wait in Unscheduled beside the month. Dragging moves an item — keeping its length — onto
@@ -179,7 +179,7 @@ type MonthState = { m: number; dnd: DayDrag; adding: Day | null; setAdding: (day
  */
 const movable = (t: WorkItem, { actor, access, names }: Pick<WorkspaceEnv, "actor" | "access" | "names">) => changeFor(t, actor, access, "due", names).ok && changeFor(t, actor, access, "start", names).ok;
 
-/** The month as a grid, Monday first: the weekdays, then a row per week — its days, and its items as bars across them. */
+/** The month as a grid, Sunday first: the weekdays, then a row per week — its days, and its items as bars across them. */
 function MonthGrid({ layouts, y, month }: { layouts: WeekLayout[]; y: number; month: MonthState }) {
   return (
     <div role="grid" aria-label={`${MONTH_LONG[month.m - 1]} ${y}`} className="flex min-w-[720px] flex-1 flex-col">

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addMonths, dayOf, daysInMonth, isoOf, longLabel, mondayOf, monthEnd, monthStart, parseMonth, partsOf, rangeLabel, relativeLabel, shortLabel, todayDay, weekdayOf, workingDays } from "../../src/lib/work/dates";
+import { addMonths, dayOf, daysInMonth, isoOf, longLabel, monthEnd, monthStart, parseMonth, partsOf, rangeLabel, relativeLabel, shortLabel, todayDay, weekdayOf, weekStartOf, workingDays } from "../../src/lib/work/dates";
 
 test.describe("date-only values · days, weeks and months", () => {
   test("round-trips real days and rejects anything else", () => {
@@ -15,12 +15,14 @@ test.describe("date-only values · days, weeks and months", () => {
     expect(monthEnd(2026, 12) - monthStart(2026, 12)).toBe(30);
   });
 
-  test("weeks start on Monday", () => {
-    expect(weekdayOf(dayOf("2026-09-21") as number)).toBe(0); // Monday
-    expect(weekdayOf(dayOf("2026-09-25") as number)).toBe(4); // Friday
-    expect(weekdayOf(dayOf("2026-09-27") as number)).toBe(6); // Sunday
-    expect(isoOf(mondayOf(dayOf("2026-09-27") as number))).toBe("2026-09-21");
-    expect(isoOf(mondayOf(dayOf("2027-01-01") as number))).toBe("2026-12-28");
+  test("weeks start on Sunday", () => {
+    expect(weekdayOf(dayOf("2026-09-27") as number)).toBe(0); // Sunday
+    expect(weekdayOf(dayOf("2026-09-21") as number)).toBe(1); // Monday
+    expect(weekdayOf(dayOf("2026-09-25") as number)).toBe(5); // Friday
+    expect(weekdayOf(dayOf("2026-09-26") as number)).toBe(6); // Saturday
+    expect(isoOf(weekStartOf(dayOf("2026-09-26") as number))).toBe("2026-09-20");
+    expect(isoOf(weekStartOf(dayOf("2026-09-27") as number))).toBe("2026-09-27");
+    expect(isoOf(weekStartOf(dayOf("2027-01-01") as number))).toBe("2026-12-27");
   });
 
   test("month arithmetic crosses year boundaries", () => {

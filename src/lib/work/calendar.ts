@@ -1,9 +1,9 @@
-import { addDays, isoOf, monthEnd, monthStart, mondayOf, type Day } from "./dates";
+import { addDays, isoOf, monthEnd, monthStart, weekStartOf, type Day } from "./dates";
 import { dateKind, datesOf, type DateKind, type WorkItem } from "./model";
 import { byOrder } from "./order";
 
 /**
- * The month view's layout, worked out without the DOM: which weeks the month spans (Monday first),
+ * The month view's layout, worked out without the DOM: which weeks the month spans (Sunday first),
  * where each item's bar sits in each week, and what doesn't fit.
  *
  * An item with a start and a due spans those days; one with only a due date sits on it; one with
@@ -29,9 +29,9 @@ export function spanOf(t: WorkItem): Span | null {
   }
 }
 
-/** The Mondays-to-Sundays that cover the month: four to six rows of seven days. */
+/** The Sundays-to-Saturdays that cover the month: four to six rows of seven days. */
 export function monthWeeks(y: number, m: number): Day[][] {
-  const first = mondayOf(monthStart(y, m));
+  const first = weekStartOf(monthStart(y, m));
   const last = monthEnd(y, m);
   const weeks: Day[][] = [];
   for (let w = first; w <= last; w = addDays(w, 7)) weeks.push(Array.from({ length: 7 }, (_, i) => addDays(w, i)));
@@ -41,7 +41,7 @@ export function monthWeeks(y: number, m: number): Day[][] {
 export type Segment = {
   item: WorkItem;
   kind: Span["kind"];
-  /** Columns 0 (Monday) to 6 the bar covers in this week. */
+  /** Columns 0 (Sunday) to 6 the bar covers in this week. */
   col: number;
   cols: number;
   lane: number;

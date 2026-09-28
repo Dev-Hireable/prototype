@@ -19,7 +19,7 @@ test.describe("timeline · range and ticks", () => {
   });
 
   test("ticks per scale", () => {
-    const from = dayOf("2026-09-21") as number;
+    const from = dayOf("2026-09-20") as number; // a Sunday, where a week's tick falls
     expect(ticksOf(from, from + 6, "day")).toHaveLength(7);
     expect(ticksOf(from, from + 27, "week").map((t) => t.days)).toEqual([7, 7, 7, 7]);
     const months = ticksOf(dayOf("2026-09-01") as number, dayOf("2026-11-30") as number, "month");

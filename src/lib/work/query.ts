@@ -1,4 +1,4 @@
-import { addDays, dayOf, monthEnd, monthStart, mondayOf, parseMonth, partsOf, type Day } from "./dates";
+import { addDays, dayOf, monthEnd, monthStart, weekStartOf, parseMonth, partsOf, type Day } from "./dates";
 import {
   ASSIGNEE_KEYS,
   assigneeKey,
@@ -73,7 +73,7 @@ export type WorkQuery = Filters & {
   scale: Scale;
   /** TB-148 — which work: the open work ("open"), all of it ("all"), or one project's key (./projects). */
   project: string;
-  /** Workload: the Monday its window starts on (yyyy-mm-dd), the weeks shown, the measure, and whether Done counts. */
+  /** Workload: the Sunday its window starts on (yyyy-mm-dd), the weeks shown, the measure, and whether Done counts. */
   week: string | null;
   span: 2 | 4;
   metric: Metric;
@@ -223,7 +223,7 @@ function dueMatches(t: WorkItem, lenses: DueFilter[], today: Day): boolean {
       case "today":
         return due === today;
       case "week": {
-        const from = mondayOf(today);
+        const from = weekStartOf(today);
         return due !== null && due >= from && due <= addDays(from, 6);
       }
       case "month": {

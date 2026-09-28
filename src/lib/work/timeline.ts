@@ -1,4 +1,4 @@
-import { addDays, addMonths, isoOf, monthEnd, monthStart, mondayOf, partsOf, type Day } from "./dates";
+import { addDays, addMonths, isoOf, monthEnd, monthStart, weekStartOf, partsOf, type Day } from "./dates";
 import { dateKind, datesOf, isArchived, isCompleted, type ById, type WorkItem } from "./model";
 import type { Scale } from "./query";
 
@@ -35,18 +35,18 @@ export function timelineRange(items: readonly WorkItem[], today: Day, scale: Sca
     from = monthStart(a.y, a.m);
     to = monthEnd(b.y, b.m);
   } else {
-    from = mondayOf(from);
-    to = addDays(mondayOf(to), 6);
+    from = weekStartOf(from);
+    to = addDays(weekStartOf(to), 6);
   }
   return { from, to };
 }
 
-/** The header's ticks: one per day, per week (its Monday) or per month, with where each starts. */
+/** The header's ticks: one per day, per week (its Sunday) or per month, with where each starts. */
 export function ticksOf(from: Day, to: Day, scale: Scale): { day: Day; x: number; days: number }[] {
   const px = PX_PER_DAY[scale];
   const out: { day: Day; x: number; days: number }[] = [];
   if (scale === "day") for (let d = from; d <= to; d++) out.push({ day: d, x: (d - from) * px, days: 1 });
-  else if (scale === "week") for (let d = mondayOf(from); d <= to; d = addDays(d, 7)) out.push({ day: d, x: (d - from) * px, days: 7 });
+  else if (scale === "week") for (let d = weekStartOf(from); d <= to; d = addDays(d, 7)) out.push({ day: d, x: (d - from) * px, days: 7 });
   else {
     let { y, m } = partsOf(from);
     for (let d = monthStart(y, m); d <= to; ) {

@@ -5,7 +5,7 @@ import { ICONS } from "@/components/admin/icons";
 import { Checkbox } from "@/components/independent/ui";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { addDays, dayOf, isoOf, isWeekend, longLabel, mondayOf, partsOf, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";
+import { addDays, dayOf, isoOf, isWeekend, longLabel, weekStartOf, partsOf, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";
 import { refOf, type WorkItem } from "@/lib/work/model";
 import type { WorkQuery } from "@/lib/work/query";
 import { formatAmount, workload, WORKLOAD_RULE, type Bucket, type WorkloadRow } from "@/lib/work/workload";
@@ -21,7 +21,7 @@ import { AssigneeChip } from "./meta";
  */
 export function WorkloadView({ items, query, setQuery }: { items: readonly WorkItem[]; query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void }) {
   const { today } = useWorkspace();
-  const from = mondayOf(dayOf(query.week) ?? today);
+  const from = weekStartOf(dayOf(query.week) ?? today);
   const days = query.span * 7;
   const result = useMemo(() => workload(items, { from, days, metric: query.metric, includeDone: query.done }), [items, from, days, query.metric, query.done]);
   const max = Math.max(0, ...result.rows.flatMap((r) => r.cells.map((c) => c.value)));
@@ -65,7 +65,7 @@ type WorkloadGrid = { days: Day[]; from: Day; last: Day; max: number; unit: stri
 function WindowBar({ query, setQuery, from, last }: { query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void; from: Day; last: Day }) {
   const { today } = useWorkspace();
   const shift = (weeks: number) => setQuery({ week: isoOf(addDays(from, weeks * 7)) });
-  const isThisWeek = from === mondayOf(today);
+  const isThisWeek = from === weekStartOf(today);
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="flex items-center gap-1" role="group" aria-label="Window">

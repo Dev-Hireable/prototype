@@ -4,13 +4,13 @@ import { dayOf, isoOf } from "../../src/lib/work/dates";
 import { item, iso, TODAY } from "./fixtures";
 
 test.describe("calendar", () => {
-  test("a month is four to six Monday-first weeks", () => {
+  test("a month is four to six Sunday-first weeks", () => {
     const sep = monthWeeks(2026, 9);
-    expect(isoOf(sep[0][0])).toBe("2026-08-31");
-    expect(isoOf(sep[sep.length - 1][6])).toBe("2026-10-04");
+    expect(isoOf(sep[0][0])).toBe("2026-08-30");
+    expect(isoOf(sep[sep.length - 1][6])).toBe("2026-10-03");
     expect(sep).toHaveLength(5);
-    expect(monthWeeks(2021, 2)).toHaveLength(4); // Feb 2021 starts on a Monday
-    expect(monthWeeks(2026, 3)).toHaveLength(6);
+    expect(monthWeeks(2026, 2)).toHaveLength(4); // Feb 2026 starts on a Sunday
+    expect(monthWeeks(2026, 8)).toHaveLength(6); // Aug 2026 starts on a Saturday
     expect(monthWeeks(2026, 9).every((w) => w.length === 7)).toBe(true);
   });
 

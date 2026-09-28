@@ -17,7 +17,8 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 export const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 export const MONTH_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-export const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** In a week's order: weeks start on Sunday, as the date pickers draw them. */
+export const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 /** A real calendar date as a Day; null for anything else ("2026-02-30", "25 Sep", ""). */
 export function dayOf(iso: string | null | undefined): Day | null {
@@ -46,12 +47,17 @@ export function isoOf(day: Day): string {
 
 export const addDays = (day: Day, n: number): Day => day + n;
 
-/** 0 for Monday through 6 for Sunday — weeks here start on Monday. 1970-01-01 was a Thursday. */
-export const weekdayOf = (day: Day) => (((day + 3) % 7) + 7) % 7;
+/**
+ * 0 for Sunday through 6 for Saturday, as Date#getDay counts — weeks here start on Sunday, as the
+ * date pickers' do (the calendar, timeline and workload started on Monday until 2026-09-28).
+ * 1970-01-01 was a Thursday.
+ */
+export const weekdayOf = (day: Day) => (((day + 4) % 7) + 7) % 7;
 
-export const isWeekend = (day: Day) => weekdayOf(day) >= 5;
+export const isWeekend = (day: Day) => weekdayOf(day) === 0 || weekdayOf(day) === 6;
 
-export const mondayOf = (day: Day): Day => day - weekdayOf(day);
+/** The Sunday the week `day` falls in starts on. */
+export const weekStartOf = (day: Day): Day => day - weekdayOf(day);
 
 export function daysInMonth(y: number, m: number) {
   return new Date(Date.UTC(y, m, 0)).getUTCDate();

@@ -63,13 +63,14 @@ test.describe("effort and workload · the workload view", () => {
   });
 
   test("the window moves, and says there's no capacity line", async ({ page }) => {
+    // Weeks start on Sunday: two of them from the one today (Fri 25 Sep) is in.
     await open(page, "team", "?view=workload");
-    await expect(page.getByText("21 Sep – 4 Oct")).toBeVisible();
+    await expect(page.getByText("20 Sep – 3 Oct")).toBeVisible();
     await page.getByRole("button", { name: "Later" }).click();
-    await expect(page.getByText("5 Oct – 18 Oct")).toBeVisible();
+    await expect(page.getByText("4 Oct – 17 Oct")).toBeVisible();
     await expect(page.getByTestId("workload").getByLabel(/^Juan, Fri 16 Oct 2026: 8\. 1 item$/)).toBeVisible();
     await page.getByRole("button", { name: "This week" }).click();
-    await expect(page.getByText("21 Sep – 4 Oct")).toBeVisible();
+    await expect(page.getByText("20 Sep – 3 Oct")).toBeVisible();
     await page.getByText(/How this is worked out/).click();
     await expect(page.getByText(/Effort is relative, not hours, so there's no capacity line/)).toBeVisible();
   });
