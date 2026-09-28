@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Button, Pills } from "@/components/independent/ui";
+import { Pills } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
 import { MONTHS } from "@/lib/demo/dates";
 
@@ -81,12 +81,18 @@ export function NotificationFeed<F extends string>({
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      {/* Mark all as read is plain text at the row's right end. It was a button beside the pills;
+          text is enough. Where the pills leave no room, it wraps to a line of its own, still right. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Pills value={filter} onChange={onFilter} options={filters} />
-        <span className="w-2.5" />
-        <Button size="sm" onClick={() => onRead()} disabled={!unread}>
+        <button
+          type="button"
+          onClick={() => onRead()}
+          disabled={!unread}
+          className="ml-auto shrink-0 rounded-md text-[13px] font-medium text-primary enabled:hover:underline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:text-[#c3c3c3]"
+        >
           Mark all as read
-        </Button>
+        </button>
       </div>
       <div className="overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-line">
         {GROUPS.map((g) => {
