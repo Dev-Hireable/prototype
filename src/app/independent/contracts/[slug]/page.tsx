@@ -34,9 +34,9 @@ export default function ContractTrackerPage({ params }: { params: Promise<{ slug
 }
 
 /**
- * Figma "Contracts / Trial tracker · Full-time tracker · Evaluation received", with the objectives
- * replaced by the contract's shared task list (IN-076 / IN-026…030): the talent works it — moves
- * tasks, ticks subtasks, sends them for review — and the Team Builder reviews each one.
+ * The talent's contract tracker, trial or full-time, and the evaluation they receive. Its work is
+ * the contract's shared task list (IN-076 / IN-026…030): the talent works it — moves tasks, ticks
+ * subtasks, sends them for review — and the Team Builder reviews each one.
  */
 function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);

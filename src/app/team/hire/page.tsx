@@ -6,10 +6,9 @@ import { useEffect, useRef } from "react";
 import { Page } from "@/components/independent/ui";
 
 /**
- * Figma "JobTypeCard" · Enabled / Hover variants — illustrations and their hover twins are Figma
- * exports. The hover twins come from the 1.05× hover frame (a 298.2-wide viewBox), but they're
- * drawn into the same 284-wide box, so they render at the normal size: the card's own zoom is what
- * grows them.
+ * The job-type cards' illustrations, each with a hover twin. The twins are drawn 1.05× (a 298.2-wide
+ * viewBox) but fitted into the same 284-wide box, so they render at the normal size: the card's own
+ * zoom is what grows them.
  */
 const CARDS = [
   {
@@ -39,8 +38,8 @@ const CARDS = [
 ] as const;
 
 /**
- * Figma "Hire / Create job post · start / · Test Independents hovered / · Build Team hovered": DM Sans
- * 32 heading + two 320px cards that zoom to 336 on hover. Keyboard focus gets the same look.
+ * The two kinds of job post, as 320px cards that zoom to 336 on hover. Keyboard focus gets the
+ * same look.
  *
  * A transform zoom draws the card once and stretches that image while it animates, then redraws it
  * sharp when the animation stops — and that redraw is what made the copy jump just after every zoom

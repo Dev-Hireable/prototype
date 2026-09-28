@@ -27,7 +27,6 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 /** What a row's buttons open: the reschedule and the cancel confirmations. */
 type RowActions = { onReschedule: (iv: Interview) => void; onCancel: (iv: Interview) => void };
 
-/** Figma "Interviews / Scheduled list · Reschedule interview · modal · Cancel interview · confirm · Interview availability · setup". */
 export default function Interviews() {
   const [tab, setTab] = useQueryState("tab", "upcoming", ["upcoming", "past"] as const);
   /* From the store, so an interview scheduled from a candidate profile appears here. */

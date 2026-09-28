@@ -1,8 +1,6 @@
 import type { Tone } from "@/components/portal/Badge";
 import type { Stat } from "@/lib/admin/data/users";
 
-/** Content transcribed from the "Roles" section in Figma. */
-
 export type Check = { check: string; result: string; pass: boolean; checked: string };
 
 export type Role = {

@@ -17,7 +17,7 @@ const FILTERS: { value: Filter; label: string }[] = [
 /** Every pill is an allowed value. Interviews was left off this list, so choosing it snapped back to All. */
 const VALUES = FILTERS.map((f) => f.value);
 
-/** Figma "Notifications / Independent" — the feed both portals share (@/components/portal/NotificationFeed). */
+/** The feed both portals share (@/components/portal/NotificationFeed). */
 export default function Notifications() {
   const { notifications, markRead } = useNotifications("independent");
   const [filter, setFilter] = useQueryState<Filter>("filter", "all", VALUES);

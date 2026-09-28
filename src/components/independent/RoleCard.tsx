@@ -13,7 +13,7 @@ import { useWithReturn } from "@/components/portal/return";
 const Bookmark = ICONS.saved;
 const Bookmarked = ICONS.bookmark;
 
-/** Figma "Role card": p 20, gap 12, 1px #c3c3c3 — Discover (Save + View role) and Saved roles (Remove + Apply) variants. */
+/** Discover (Save + View role) and Saved roles (Remove + Apply) variants. */
 export function RoleCard({ role, variant = "discover" }: { role: Role; variant?: "discover" | "saved" }) {
   const { applications, withdrawnRoleSlugs, declinedRoleSlugs, engagement } = useApplications();
   const { saved, toggleSaved } = useSavedRoles();
@@ -95,7 +95,6 @@ function DiscoverActions({ slug, isSaved, onToggle }: { slug: string; isSaved: b
   const Mark = isSaved ? Bookmarked : Bookmark;
   return (
     <>
-      {/* Figma "Save": 28px circle, 1.167px primary stroke */}
       <button
         type="button"
         aria-label={isSaved ? "Unsave role" : "Save role"}

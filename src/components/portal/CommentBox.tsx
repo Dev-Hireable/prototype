@@ -3,11 +3,11 @@
 import { useState, type ReactNode } from "react";
 
 /**
- * Figma "Component 59": the comment box — a white card with the text on top, and along its foot any
- * tools (attach, what it sends) and the send button, which is the Figma send glyph drawn through a
- * mask so it takes the button's colour, grey until there's something to send. Enter sends and
- * Shift+Enter breaks the line. A proposal's Activity pane and a work item's sheet both write their
- * notes with it, so commenting looks and works the same everywhere.
+ * The comment box — a white card with the text on top, and along its foot any tools (attach, what
+ * it sends) and the send button, a send glyph drawn through a mask so it takes the button's colour,
+ * grey until there's something to send. Enter sends and Shift+Enter breaks the line. A proposal's
+ * Activity pane and a work item's sheet both write their notes with it, so commenting looks and
+ * works the same everywhere.
  */
 export function CommentBox({
   onSend,
@@ -69,7 +69,7 @@ export function CommentBox({
   );
 }
 
-/** The box's send button: the Figma send glyph in the button's colour, grey until there's something to send. */
+/** The box's send button: the send glyph in the button's colour, grey until there's something to send. */
 function SendButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
   return (
     <button
@@ -79,7 +79,7 @@ function SendButton({ label, disabled, onClick }: { label: string; disabled: boo
       onClick={onClick}
       className="flex size-8 shrink-0 items-center justify-center rounded-[6.4px] bg-primary text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]"
     >
-      {/* The Figma send glyph (node 5323:69394), masked so it takes the button's text colour. */}
+      {/* The send glyph, masked so it takes the button's text colour. */}
       <span aria-hidden className="size-5 bg-current" style={{ mask: "url(/icons/proposal/send.svg) center / contain no-repeat", WebkitMask: "url(/icons/proposal/send.svg) center / contain no-repeat" }} />
     </button>
   );

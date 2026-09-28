@@ -139,7 +139,6 @@ function RoleTitle({ role }: { role: Role }) {
   );
 }
 
-/** Figma "Hire / All roles · list / · draft filter / · archived filter" + close / reopen / archive / delete confirms. */
 export default function AllRoles() {
   const { candidates } = usePipeline();
   const { roles } = useRoles();

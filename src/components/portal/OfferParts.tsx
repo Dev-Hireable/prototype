@@ -9,7 +9,7 @@ import { agreementFor } from "@/lib/independent/data";
 
 /*
  * The pieces every offer page is built from — the talent's offer, the post-trial offer and the Team
- * Builder's edit of a sent offer — so the three read as one design (Figma "Offer").
+ * Builder's edit of a sent offer — so the three read as one design.
  */
 
 /** "Offer Details": the terms, a row each, label left and value right. */
@@ -65,7 +65,7 @@ export function Agreement({ type, title, height = "h-[320px]" }: { type: JobType
   );
 }
 
-/** Figma "Divider Large": a 48px band with the rule through the middle, between an offer card's sections. */
+/** A 48px band with the rule through the middle, between an offer card's sections. */
 export function OfferDivider() {
   return (
     <span aria-hidden className="flex h-12 items-center px-6">

@@ -1,7 +1,5 @@
 import type { Tone } from "@/components/portal/Badge";
 
-/** Content transcribed from "Home / Dashboard · platform stats" in Figma. */
-
 export const platformStats = [
   { label: "Team Builders", value: "248", sub: "+12 this month" },
   { label: "Independents", value: "1,906", sub: "+83 this month" },
@@ -9,7 +7,7 @@ export const platformStats = [
   { label: "Held in escrow", value: "$214,800", sub: "across 41 trials" },
 ];
 
-/** Bar heights in the design are exactly value × 0.5625 px (320 units over 180 px). */
+/** Bar heights are exactly value × 0.5625 px (320 units over 180 px). */
 export const signups = {
   categories: ["Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"],
   max: 320,

@@ -24,7 +24,7 @@ export type TalentProfileData = {
   name: string;
   headline: string;
   photo: string;
-  /** The intro-video still (Figma "IntroCardThumbnail"). */
+  /** The intro-video still. */
   intro?: string;
   /** The intro video the talent added themselves (@/lib/demo/intro), which plays for real. */
   introVideo?: string;
@@ -54,12 +54,12 @@ const TABS: { value: Tab; label: string }[] = [
 ];
 const TAB_KEYS = TABS.map((t) => t.value);
 
-/** Figma "Text-Paragraph" copy; sections keep the frame's 768 column (PageParts' Section), so it stays readable. */
+/** Body copy; sections keep it to a 768px column (PageParts' Section), so it stays readable. */
 const BODY = "text-[14px] leading-[1.2] tracking-[0.2px] text-ink";
 const QUIET = "text-[14px] leading-[1.4] text-ink-2";
 const DM = { fontVariationSettings: '"opsz" 14' };
 
-/** The Figma link icons, drawn at their own size. */
+/** The link icons, drawn at their own size. */
 const WEBSITE = <Image src="/independent/website.svg" alt="" width={20} height={20} />;
 const LINKEDIN = <Image src="/independent/linkedin.svg" alt="" width={14} height={14} />;
 
@@ -96,12 +96,12 @@ type TalentProfileProps = {
 };
 
 /**
- * Figma "Talent Profile_Full" (5324:85998) laid out like a Contra profile. The hero holds who they
- * are (photo, name, headline, then where they are with their website and LinkedIn — the Figma row
- * under the name), the facts a Team Builder weighs at a glance (rate, experience, rating) and what
- * you can do about it, with About / History / Portfolio under them. The intro video runs down the
- * right beside all of it to the divider along the tab row. On the talent's own view each part is
- * edited in place: the pencil beside it opens an editor where the part was (`editor`).
+ * The talent profile, laid out like a Contra profile. The hero holds who they are (photo, name,
+ * headline, then where they are with their website and LinkedIn), the facts a Team Builder weighs
+ * at a glance (rate, experience, rating) and what you can do about it, with About / History /
+ * Portfolio under them. The intro video runs down the right beside all of it to the divider along
+ * the tab row. On the talent's own view each part is edited in place: the pencil beside it opens an
+ * editor where the part was (`editor`).
  */
 export function TalentProfile({ person: p, viewer, badge, actions, note, onPlayIntro, edit = {}, editor = {}, introAction, aside, photoAction, tabInUrl = true }: TalentProfileProps) {
   const [tab, setTab] = useProfileTab(tabInUrl);
@@ -112,7 +112,7 @@ export function TalentProfile({ person: p, viewer, badge, actions, note, onPlayI
 
   return (
     <div className="@container flex flex-col gap-6">
-      {/* One frame for the hero and the tabs, closed by the divider along the tab row (Figma's #c3c3c3): who they are on
+      {/* One frame for the hero and the tabs, closed by the divider along the tab row: who they are on
           the left with the tabs under them, the intro on the right running down beside them. Narrower, the intro is a 4:5
           card beside the header and the tabs take the full width; narrowest, it drops under the header. */}
       <div
@@ -175,7 +175,7 @@ function IntroPlayer({ src, name, open, onClose }: { src: string; name: string; 
   );
 }
 
-/** Figma "Large Badge Flat" beside the name — the talent's "Pro". A Team Builder's view has the gradient MatchPill there. */
+/** The badge beside the name — the talent's "Pro". A Team Builder's view has the gradient MatchPill there. */
 export function FlatBadge({ tone = "ok", children }: { tone?: "ok" | "warn" | "neutral"; children: ReactNode }) {
   const TONE = { ok: "bg-[#eef9f2] text-ok", warn: "bg-warn-bg text-[#8e6f12]", neutral: "bg-surface-2 text-ink-2" };
   return <span className={`inline-flex h-8 items-center rounded px-3 text-[14px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${TONE[tone]}`}>{children}</span>;
@@ -211,8 +211,8 @@ function Hero({
   return (
     // Kept to the facts strip's width: the header reads as one block beside the intro.
     <div className="flex max-w-[480px] flex-col gap-6">
-      {/* Figma "Candidate Information": 80px photo, the name (DM Sans 32) with its badge — and the talent's edit
-          pencil — then the headline, then where they are with their links (gap 12). */}
+      {/* The photo, the name with its badge — and the talent's edit pencil — then the headline, then
+          where they are with their links. */}
       <div className="flex flex-col gap-3">
         {/* The link sits level with the photo's bottom edge rather than halfway up it. */}
         <div className="flex items-end gap-4">
@@ -242,7 +242,7 @@ function Hero({
   );
 }
 
-/** The Figma row under the name: where they are, with their website and LinkedIn beside it. */
+/** The row under the name: where they are, with their website and LinkedIn beside it. */
 function PlaceAndLinks({ location, links }: { location: string; links: TalentProfileData["links"] }) {
   return (
     <div className="flex flex-wrap items-center gap-4">
@@ -360,7 +360,7 @@ function PortfolioTab({ links, edit, editor }: { links: TalentProfileData["links
 }
 
 /**
- * Contra's stat strip in the Figma face: rate, experience and rating, read at a glance before the
+ * Contra's stat strip: rate, experience and rating, read at a glance before the
  * detail. A rating needs evaluations, so a talent without any reads as new to Hireable.
  */
 function Facts({ rate, level, history }: { rate: string; level: string; history: PastEvaluation[] }) {
@@ -385,7 +385,7 @@ function Facts({ rate, level, history }: { rate: string; level: string; history:
 }
 
 /**
- * Figma "IntroCardThumbnail": the talent's own video when they've added one, the still otherwise; the
+ * The intro card: the talent's own video when they've added one, the still otherwise; the
  * whole card plays it. It fills the box the hero gives it — 4:5 beside the header, or running down beside the tabs.
  */
 function IntroVideo({ still, video, name, onPlay }: { still?: string; video?: string; name: string; onPlay: () => void }) {
@@ -413,7 +413,7 @@ function IntroVideo({ still, video, name, onPlay }: { still?: string; video?: st
   );
 }
 
-/** Figma's link buttons beside the location: a 28px white circle, p 4, around the site's own icon, with a faint ring so it reads as a button. */
+/** The link buttons beside the location: a 28px white circle, p 4, around the site's own icon, with a faint ring so it reads as a button. */
 function IconLink({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
     <Tip label={bare(value)}>
@@ -442,7 +442,6 @@ function Rating({ history }: { history: PastEvaluation[] }) {
   );
 }
 
-/** Figma "Performance": p 24, gap 12 — role (Text-Medium-B) and contract badge, then who and when with the stars (gap 24), then the feedback. */
 function Evaluation({ evaluation: e }: { evaluation: PastEvaluation }) {
   return (
     <article className="flex flex-col gap-3 p-6">
@@ -461,7 +460,6 @@ function Evaluation({ evaluation: e }: { evaluation: PastEvaluation }) {
   );
 }
 
-/** Figma "star": five 16px stars, 2.667 apart, Denotive/Yellow; the ones not earned go grey. */
 function Stars({ value }: { value: number }) {
   return (
     <span role="img" aria-label={`${value} out of 5 stars`} className="flex items-center gap-[2.667px]">

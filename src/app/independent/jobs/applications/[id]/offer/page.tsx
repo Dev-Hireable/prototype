@@ -15,9 +15,6 @@ import { AcceptedDialog, DeclineDialog } from "./_components/OfferDialogs";
 import { SignCard } from "./_components/SignCard";
 
 /**
- * Figma "Offer · unsigned / · signed / Offer accepted · confirm / Decline offer · modal".
- * Frame: px 140, pt 40, pb 80, gap 40, content 1080 wide; sections p 24 separated by 48px dividers.
- *
  * Everything on it is the offer the Team Builder sent: the terms, the escrow funded for them, their
  * name and photo. It carries what the proposal settled — the tasks, the dates, the pay — so the
  * talent signs it or declines it; changes go back through the proposal, before an offer (IN-073).

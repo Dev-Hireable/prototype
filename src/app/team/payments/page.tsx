@@ -7,7 +7,6 @@ import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { Transaction } from "@/lib/team/data";
 import { useLedger } from "@/lib/team/contracts";
 
-/** Figma columns: Date 110 · Description flex · Independent 150 · Type 130 · Amount 110 · Status 132 · Actions 80. */
 const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[130px]", "w-[110px]", "w-[132px]", "w-[80px]"];
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
@@ -31,7 +30,6 @@ const money = (s: string) => Number(s.replace(/[^0-9.]/g, "")) || 0;
 const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Figma "Payments / Transactions · list" + "Transaction · detail drawer". */
 export default function Transactions() {
   const transactions = useLedger();
   const filters = useFilters(transactions);

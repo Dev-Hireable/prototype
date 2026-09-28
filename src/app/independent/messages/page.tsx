@@ -10,7 +10,7 @@ import { conversationsFor } from "@/lib/independent/data";
 /** The company's initials at each size the inbox draws a face. */
 const FACE = { 38: "size-[38px] text-[12px]", 36: "size-9 text-[12px]", 30: "size-[30px] text-[10px]" } as const;
 
-/** Figma "Home / Messages" — the Independent's inbox; the Team Builder's is the same page (MessagesPage). */
+/** The Independent's inbox; the Team Builder's is the same page (MessagesPage). */
 export default function Messages() {
   const { applications, canChat } = useApplications();
   const { contracts } = useIndependentContracts();

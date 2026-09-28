@@ -19,7 +19,7 @@ const GROUPS: { title: string; description: string; rows: [label: string, key: K
 ];
 
 /**
- * Figma "Profile / Personal profile", on the shared profile editor: the photo with its camera
+ * The personal profile, on the shared profile editor: the photo with its camera
  * button, the fields in two groups that each edit in place and save on their own (TB-121 / TB-122),
  * and the work style — the company's trait badges, which independents see, retaken from the company
  * profile (TB-096).

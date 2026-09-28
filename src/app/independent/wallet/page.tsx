@@ -23,13 +23,12 @@ const SetDefault = ICONS.checkCircleOutline;
 const History = ICONS.history;
 const Trash = ICONS.trash;
 
-/** Figma "payout cards": brand wordmarks are 26 tall — Maya 90 wide, GCash 110. Bank has no mark. */
+/** The payout cards' brand wordmarks. Bank has no mark. */
 const BRAND: Partial<Record<PayoutMethod["brand"], { src: string; w: number; cls: string }>> = {
   Maya: { src: "/brands/maya.png", w: 90, cls: "h-[26px] w-[90px]" },
   GCash: { src: "/brands/gcash.png", w: 110, cls: "h-[26px] w-[110px]" },
 };
 
-/** Figma table columns: Date 110 · Contract flex · Company 150 · Type 150 · Amount 110 · Status 120 · Actions 80. */
 const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[150px]", "w-[110px]", "w-[120px]", "w-[80px]"];
 /** IN-078 date ranges, measured from the newest row rather than the wall clock. */
 const RANGES = { "All time": Infinity, "Last 30 days": 30, "Last 90 days": 90 } as const;
@@ -46,7 +45,6 @@ const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigi
 
 type ContractName = (t: Transaction) => string;
 
-/** Figma "Wallet / Independent": DM Sans 24 header; balances; payout cards (190 tall, radius 16) with ⋮ menu; transactions table. */
 export default function Wallet() {
   const { payouts, setDefaultPayout, removePayout, available, withdrawFunds, transactions } = useWallet();
   const allDisputes = useDisputes();

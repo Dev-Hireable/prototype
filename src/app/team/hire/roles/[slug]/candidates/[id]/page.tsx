@@ -29,11 +29,11 @@ type Dialog = null | "invite" | "complete" | "drop" | "flag" | "request" | "prop
 type CandidateView = { cand: Candidate; role: Role; person: Independent; first: string; live: Deal | null; booked: Interview | undefined };
 
 /**
- * Figma "Candidate tracker / Candidate profile · matched … Hired": the role's header with its tabs and
- * "Back to pipeline", then the candidate as the same Contra-style profile Discover and the talent
- * themselves read (TeamProfile). The Figma frame's two CTAs are the hero's actions, with what they're
- * waiting on under them; the interview, the notes, the pipeline tracker and Flag / Drop run down the
- * column under the intro, beside About / History / Portfolio.
+ * A candidate's profile, from matched to hired: the role's header with its tabs and "Back to
+ * pipeline", then the candidate as the same Contra-style profile Discover and the talent themselves
+ * read (TeamProfile). The two CTAs are the hero's actions, with what they're waiting on under them;
+ * the interview, the notes, the pipeline tracker and Flag / Drop run down the column under the
+ * intro, beside About / History / Portfolio.
  */
 export default function CandidateTracker({ params }: { params: Promise<{ slug: string; id: string }> }) {
   const { slug, id } = use(params);
@@ -174,7 +174,7 @@ function CandidateDialogs({ view, dialog, onClose, onToast }: { view: CandidateV
 
 type ActionProps = { cand: Candidate; role: Role; person: Independent; live: Deal | null; onOpen: (d: Dialog) => void };
 
-/** The Figma frame's CTA pair (primary, secondary): the hero's actions, as Invite to apply is on Discover. */
+/** The CTA pair (primary, secondary): the hero's actions, as Invite to apply is on Discover. */
 function NextAction({ cand, role, person, live, onOpen }: ActionProps) {
   const withReturn = useWithReturn();
   /**

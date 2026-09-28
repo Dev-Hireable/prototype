@@ -21,7 +21,7 @@ export { KebabMenu, Select } from "@/components/portal/controls";
 
 /* ---------------------------------------------------------------- page ---- */
 
-/** Figma "Header": p 16, Inter 16 SemiBold, bottom stroke #c3c3c3. Optional close (wizard/offer screens). */
+/** A page with its header strip; the close is optional (wizard/offer screens). */
 export function Page({
   title,
   onClose,
@@ -169,13 +169,12 @@ const BTN: Record<Variant, string> = {
 };
 
 /**
- * Figma "Buttons": 36 / 40 / 44 / 48 tall, Inter Medium 12 / 14 / 14 / 16.
  * Radius, weight and gap live here rather than on the shared base so a size can differ without
  * `!important` — Tailwind can't resolve two same-property utilities by class order.
  *
- * There was an `xs` (28px, 10px regular, pill) for the Figma "Join" chip. It was the only text
- * on the dashboards under 12px and its target was well below 44px, so the two Join buttons moved
- * up to 40px and it has no callers left.
+ * There was an `xs` (28px, 10px regular, pill) for the "Join" chip. It was the only text on the
+ * dashboards under 12px and its target was well below 44px, so the two Join buttons moved up to
+ * 40px and it has no callers left.
  */
 const BTN_SIZE = {
   sm: "h-9 gap-2 rounded-lg px-3 text-[12px] font-medium",
@@ -321,7 +320,7 @@ export function JobBadge({ type }: { type: JobType }) {
 }
 
 /**
- * Figma "Match pill": one gradient for every score; 0 = grey placeholder.
+ * Match pill: one gradient for every score; 0 = grey placeholder.
  * `coded` switches to the TB-012 traffic light — yellow (medium), grey (low) — used on the
  * Discover talent cards where the AC asks for it. The high band keeps the gradient so a strong
  * score looks the same here as on the profile sheet. `title` carries the tooltip explaining
@@ -473,7 +472,7 @@ export function Checkbox({ checked, onChange, children, disabled, className = ""
 }
 
 /**
- * Rounded pill tabs — Figma "Upcoming (2) / Past (3)", "All / Unread / …", List / Board. One is
+ * Rounded pill tabs — "Upcoming (2) / Past (3)", "All / Unread / …", List / Board. One is
  * always chosen: shadcn's ToggleGroup underneath (arrow keys move between them), drawn as pills.
  */
 export function Pills<T extends string>({ value, onChange, options, "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[]; "aria-label"?: string }) {
@@ -794,8 +793,8 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
   return (
     <ol className="relative flex h-14 w-full items-start">
       {steps.map((s, i) => {
-        // Figma "Header" stepper colours — done blue, current grey, upcoming an empty ring — as solid
-        // discs. A ring with a dot inside read as half-filled, and its inner gap never looked even.
+        // Stepper colours — done blue, current grey, upcoming an empty ring — as solid discs. A ring
+        // with a dot inside read as half-filled, and its inner gap never looked even.
         const done = i < current;
         return (
           <li key={s} aria-current={i === current ? "step" : undefined} className="relative flex h-14 min-w-0 flex-1 flex-col items-center gap-2">
@@ -875,11 +874,9 @@ function railProgress(stage: Stage) {
 }
 
 /**
- * Figma "Pipeline Tracker": a 16px rail (8px circles, 4px connectors) beside a label column —
- * majors 12px semibold / 16 tall, sub-statuses 10px indented 12, gap 16 (12 inside a sub group).
- * Rail colours: past majors #616161, current #007acc, connector below current #007acc, reached
- * sub-statuses above the current major #ff8112, everything else #f2f2f2. Milestone mode uses
- * the Figma palette: green, yellow, purple, orange, blue, then gray.
+ * Pipeline tracker: a rail beside a label column. Rail colours: past majors #616161, current
+ * #007acc, connector below current #007acc, reached sub-statuses above the current major #ff8112,
+ * everything else #f2f2f2. Milestone mode uses green, yellow, purple, orange, blue, then gray.
  */
 export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { stage: Stage; labels?: Partial<Record<Stage, string>>; mode?: "progress" | "milestone" }) {
   const progress = railProgress(stage);

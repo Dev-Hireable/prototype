@@ -4,7 +4,7 @@ import type { JobType } from "@/lib/demo/job-types";
 import type { PlannedTask, Task } from "@/lib/demo/tasks";
 import { storedWorkStyle } from "@/lib/demo/work-style";
 
-/** Seed data for the Team Builder portal — every string is lifted from the Figma "Team Builder" canvas. */
+/** Seed data for the Team Builder portal. */
 
 const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", company: "Nairobi Solutions Inc.", avatar: "/team/alex.jpg" };
 
@@ -54,7 +54,7 @@ export type Independent = {
   location: string;
   skills: string[];
   bio: string;
-  /** Intro video still (Figma asset); others fall back to their photo. */
+  /** Intro video still; others fall back to their photo. */
   intro?: string;
   /** Website, LinkedIn and portfolio as the talent typed them (IN-060 lists website and LinkedIn). */
   links?: { linkedin: string; portfolio: string; website: string };
@@ -327,7 +327,7 @@ export type Transaction = {
   status: { label: string; tone: Tone };
   /** The contract's tracker, where a problem with this payment is disputed. */
   contractHref?: string;
-  /** Figma "Payments / Transaction · detail drawer" */
+  /** What the transaction's detail drawer shows. */
   detail: { time: string; drawerStatus: string; rows: [string, string][]; breakdown: [string, string][]; total: string; timeline: { title: string; date: string; done: boolean }[] };
 };
 

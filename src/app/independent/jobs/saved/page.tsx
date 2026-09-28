@@ -8,7 +8,6 @@ import { usePostings } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
 import { useSavedRoles } from "@/lib/independent/saved";
 
-/** Figma "Job Board / Saved roles · list / · empty": toolbar 522 wide (search + 150 type), list gap 12. */
 export default function SavedRoles() {
   const { saved } = useSavedRoles();
   const [q, setQ] = useState("");

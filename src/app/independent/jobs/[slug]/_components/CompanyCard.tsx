@@ -18,7 +18,7 @@ const bare = (url: string) => url.replace(/^https?:\/\//i, "").replace(/\/$/, ""
 const siteLink = (site: string | undefined) => (site ? (/^https?:\/\//.test(site) ? site : `https://${site}`) : null);
 
 /**
- * Figma "Company", with the actions: who's hiring, then applying — or the application already on
+ * The company card, with the actions: who's hiring, then applying — or the application already on
  * file — and saving the role, with a note on why it can't be applied to when it can't.
  */
 export function CompanyCard({ role, site, standing, isSaved, onApply, onToggleSaved }: { role: Role; site: string | undefined; standing: Standing; isSaved: boolean; onApply: () => void; onToggleSaved: () => void }) {

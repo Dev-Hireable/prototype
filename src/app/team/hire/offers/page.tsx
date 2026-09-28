@@ -30,7 +30,7 @@ const dayMonth = (d: string) => d.replace(/\s\d{4}$/, "");
 /** What the pay covers: a trial's dates, or when an ongoing role starts and — part-time — its hours. */
 const termsOf = (o: Offer) => (o.type === "trial" ? (o.end ? `${dayMonth(o.start)} – ${o.end}` : `From ${o.start}`) : `From ${dayMonth(o.start)}${o.hours ? ` · ${hoursLabel(o.hours)}` : ""}`);
 
-/** Figma "Hire / Offers sent · list / Withdraw sent offer · confirm"; Edit opens the full-page "Edit sent offer". */
+/** Offers sent; Edit opens the full-page "Edit sent offer". */
 export default function OffersSent() {
   const { offers, withdrawOffer } = useOffers();
   const filters = useOfferFilters(offers);

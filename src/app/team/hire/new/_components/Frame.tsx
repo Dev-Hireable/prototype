@@ -25,7 +25,6 @@ export function WizardHeader({ t, kind, step }: { t: PathCopy; kind: string; ste
   );
 }
 
-/** Figma step "container": 720 wide, p 40, gap 40, radius 16, header 20/600 + 14 (or 16) secondary. */
 export function StepCard({ title, body, bodySize = 14, action, children }: { title: string; body: string; bodySize?: 14 | 16; /** A button beside the heading, e.g. Use a template. */ action?: ReactNode; children: ReactNode }) {
   return (
     <Card className="flex w-[720px] flex-col gap-10 rounded-2xl p-10">

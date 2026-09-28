@@ -9,7 +9,7 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-// Page titles in the Figma spec are "DM Sans SemiBold, opsz 14".
+// Page titles are DM Sans SemiBold at opsz 14, so the optical-size axis is loaded.
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],

@@ -1,8 +1,6 @@
 import type { Tone } from "@/components/portal/Badge";
 import type { Stat } from "@/lib/admin/data/users";
 
-/** Content transcribed from the "Billing" section in Figma. */
-
 export type BreakdownLine = { line: string; amount: string; total?: boolean };
 export type LinkedRecord = { record: string; reference: string; href?: string };
 

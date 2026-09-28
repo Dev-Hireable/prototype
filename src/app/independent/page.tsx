@@ -42,7 +42,6 @@ function workOnHold(deal: Deal | null, working: Contract | undefined) {
   return { lead, frozen };
 }
 
-/** Figma "Home / Dashboard": p 40, gap 40; greeting DM Sans 40; three #f2f2f2 summary cards. */
 export default function Dashboard() {
   const { profile, workStyle } = useIndependentAccount();
   const { contracts } = useIndependentContracts();

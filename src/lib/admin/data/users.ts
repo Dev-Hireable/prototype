@@ -1,7 +1,5 @@
 import type { Tone } from "@/components/portal/Badge";
 
-/** Content transcribed from the "User management" section in Figma. */
-
 export type ActivityEvent = { event: string; actor: string; when: string };
 export type Stat = { label: string; value: string; sub: string };
 

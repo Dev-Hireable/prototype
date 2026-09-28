@@ -9,7 +9,6 @@ import type { PayoutMethod } from "@/lib/independent/data";
 import { payoutTitle, useWallet } from "@/lib/independent/wallet";
 import { useToast } from "@/lib/portal/toast";
 
-/** Figma "Settings / Payout methods" (+ add modal): 720 card, p 24, gap 16; method rows p 16, gap 16. */
 export default function PayoutSettings() {
   const { payouts, setDefaultPayout, removePayout } = useWallet();
   const [adding, setAdding] = useState(false);

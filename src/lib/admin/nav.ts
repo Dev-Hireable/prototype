@@ -1,6 +1,6 @@
 import type { Section } from "@/lib/portal/nav";
 
-/** Mirrors the section list of the "[DRAFT] Admin Portal" Figma canvas. */
+/** The Admin portal's nav sections. */
 export const SECTIONS: Section[] = [
   {
     href: "/admin",

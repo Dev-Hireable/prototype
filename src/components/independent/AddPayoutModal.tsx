@@ -24,7 +24,7 @@ function payoutFrom({ type, bank, name, number, isDefault }: { type: string; ban
   };
 }
 
-/** Figma "Settings / Add payout method · independent · draft" — shared by Wallet and Settings. */
+/** Shared by Wallet and Settings. */
 export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: (m: PayoutMethod) => void }) {
   const { addPayout } = useWallet();
   const [type, setType] = useState(TYPES[0]);

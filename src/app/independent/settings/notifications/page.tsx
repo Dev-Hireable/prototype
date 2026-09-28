@@ -13,7 +13,6 @@ const EVENTS = [
   { key: "product", title: "Product updates", body: "New features and tips", app: false, email: false },
 ] satisfies readonly NotificationPreference[];
 
-/** Figma "Settings / Notification preferences": DM Sans 24 header; 760 card, p 24, gap 16; rows py 10 with 80px check columns. */
 export default function NotificationPrefs() {
   return (
     <Page title="Settings">

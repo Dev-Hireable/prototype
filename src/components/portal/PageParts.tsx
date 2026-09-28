@@ -1,12 +1,11 @@
 import type { ReactNode } from "react";
 
-/** Figma "Text-S-B" titles. */
 const TITLE = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink";
 const DM = { fontVariationSettings: '"opsz" 14' };
 
 /**
  * A titled block of a detail page — the talent profile's Bio, Workplace Tags and Skills, the job
- * page's About the role and Work style — kept to the frame's 768 column so the copy stays readable.
+ * page's About the role and Work style — kept to a 768px column so the copy stays readable.
  */
 export function Section({
   title,
@@ -40,7 +39,7 @@ export function Section({
 }
 
 /**
- * Contra's stat strip in the Figma face: the facts read at a glance before the detail — a profile's
+ * Contra's stat strip: the facts read at a glance before the detail — a profile's
  * rate, experience and rating, a job's pay, length, hours, level and seats. Each cell is its value
  * over a small label. Where they don't fit on one line the cells wrap onto another rather than cut
  * the values short; the 1px gaps over the rule colour draw the dividers either way. `sm` is the

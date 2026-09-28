@@ -40,9 +40,9 @@ export type Snapshot = {
 export type ReviewSection = "title" | "budget" | "description" | "skills" | "duration" | "experience" | "hires" | "weekly" | "expectations" | "benefits";
 
 /**
- * Copy per path — Figma "Path A · Test Independents (trial)" and "Path B · Build Team (full-time)",
- * with Build Team's part-time twin: a monthly rate for set hours a week, and no exclusive benefits
- * (those are full-time only).
+ * Copy per path — Test Independents (trial) and Build Team (full-time), with Build Team's
+ * part-time twin: a monthly rate for set hours a week, and no exclusive benefits (those are
+ * full-time only).
  */
 export const PATH = {
   trial: {

@@ -13,7 +13,6 @@ export default function AdminDashboard() {
         ))}
       </StatGrid>
 
-      {/* Figma "charts": gap 16; sign-ups card flex 1 (p 18, gap 14); trial outcomes 380×276 (p 18, gap 25) */}
       <div className="flex w-full items-start gap-4 overflow-clip">
         <Card className="flex min-w-0 flex-1 flex-col gap-[14px] overflow-clip p-[18px]">
           <div className="flex w-full items-center gap-4 overflow-clip">

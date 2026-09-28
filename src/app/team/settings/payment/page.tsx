@@ -9,7 +9,6 @@ import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { PaymentMethod } from "@/lib/team/data";
 import { useCards } from "@/lib/team/account";
 
-/** Figma "Settings / Payment methods list / , empty / Add payment method · card". */
 export default function PaymentMethods() {
   const { cards, setDefaultCard } = useCards();
   const [adding, setAdding] = useState(false);

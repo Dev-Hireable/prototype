@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 
 /**
  * Shared desktop content width used by both portal shells and dashboard frames.
- * 1280 rather than the Figma canvas' 1200: the frames were drawn at 1512 wide, where the cap
- * never binds, so this only changes what happens on a larger monitor. 1440 left the dashboard
- * feeling loose — cards stretched and body copy ran long — so it is capped tighter, which still
- * clears the widest fixed layout on the page (the 420px tracker sidebar beside its main column).
+ * 1280: at 1512 wide the cap never binds, so this only changes what happens on a larger monitor.
+ * 1440 left the dashboard feeling loose — cards stretched and body copy ran long — so it is capped
+ * tighter, which still clears the widest fixed layout on the page (the 420px tracker sidebar beside
+ * its main column).
  */
 export const PORTAL_CONTENT_CLASS = "mx-auto w-full max-w-[1280px]";
 

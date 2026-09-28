@@ -12,11 +12,10 @@ import { introLine, pageTitle } from "./_lib/proposal";
 import { useProposalWizard } from "./_lib/wizard";
 
 /**
- * Figma "Proposals and offers / Propose rate → Cover letter → Review and send → Proposal sent · confirm"
- * (+ Revise), IN-072. The Team Builder sets the work — a trial's tasks are in its job post, and every
- * role's go into the offer — so the proposal is the talent's terms and pitch for it: the trial's
- * tasks are shown alongside, read-only, to price against. Frame: px 140, pt 40, pb 80, gap 40; every
- * block 720 wide; the step card is p 40 / gap 40 / radius 16.
+ * IN-072 — the proposal: rate, cover letter, review and send (or revise). The Team Builder sets the
+ * work — a trial's tasks are in its job post, and every role's go into the offer — so the proposal
+ * is the talent's terms and pitch for it: the trial's tasks are shown alongside, read-only, to price
+ * against.
  */
 export default function ProposalWizard({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);

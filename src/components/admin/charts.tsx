@@ -1,10 +1,10 @@
 import { Tip } from "@/components/portal/Tip";
 /*
- * Both charts reproduce the Figma plot geometry exactly and are driven by data:
- *   BarChart  — Figma "plot" 640×206: gridlines every 45px from y 180 up to 0
+ * Both charts are fixed geometry, driven by data:
+ *   BarChart  — a 640×206 plot: gridlines every 45px from y 180 up to 0
  *               (320 units ⇒ 0.5625 px/unit), 20px bars at x 18+80i / 42+80i, radius 3 top,
  *               y-labels at (−2, line−14) 10px, x-labels at (28+80i, 186) 10.5px.
- *   Donut     — Figma "segments" 144×144: three arcs r 62, stroke 16, butt caps,
+ *   Donut     — 144×144: three arcs r 62, stroke 16, butt caps,
  *               a 6° gap between segments starting 3° past 12 o'clock.
  */
 

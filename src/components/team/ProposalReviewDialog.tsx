@@ -75,7 +75,7 @@ export function ProposalReviewDialog({ candidate, role, open, onClose, onToast }
 
   return (
     <>
-      {/* Review proposal — Figma node 11338-10867: the dialog owns its header, panes and action bar. */}
+      {/* Review proposal: the dialog owns its header, panes and action bar. */}
       <ReviewModal
         open={open && step === null}
         candidate={candidate}

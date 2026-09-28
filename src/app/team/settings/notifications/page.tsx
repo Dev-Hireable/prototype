@@ -13,7 +13,6 @@ const EVENTS = [
   { key: "product", title: "Product updates", body: "New features and tips", app: false, email: false },
 ] satisfies readonly NotificationPreference[];
 
-/** Figma "Settings / Notification preferences" (Team Builder). */
 export default function NotificationPrefs() {
   return (
     <Page title="Settings">

@@ -114,7 +114,7 @@ import {
 } from "react-icons/md";
 import type { IconType } from "react-icons";
 
-/** Google Material Design icons, matched glyph-for-glyph against the Figma exports. */
+/** Google Material Design icons. */
 export const ICONS = {
   // rail — admin
   home: MdOutlineHome,

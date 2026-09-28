@@ -1,7 +1,5 @@
 import type { Tone } from "@/components/portal/Badge";
 
-/** Content transcribed from "Content / Marketing banners" in Figma. */
-
 export type Banner = {
   banner: string;
   audience: string;

@@ -29,7 +29,6 @@ const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" |
  */
 const COLS = ["min-w-[220px] flex-1", "w-[180px]", "w-[150px]", "w-[120px]", "w-[130px]", "w-[200px]"];
 
-/** Figma "Interviews / My interviews · list": pill tabs, table (header #f2f2f2, px 16 / py 12), 12px footnote. */
 export default function Interviews() {
   const [tab, setTab] = useQueryState("tab", "upcoming", ["upcoming", "past"] as const);
   /** IN-070 — the interviews the Team Builder has actually booked, not a copy in page state. */

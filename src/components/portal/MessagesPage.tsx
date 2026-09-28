@@ -47,11 +47,9 @@ type MessagesPageProps<K extends string, C extends Thread<K>> = {
 };
 
 /**
- * Figma "Home / Messages", both portals: one #e3e8ed-stroked panel; 384px conversation list (search
- * 44, 12.5px tabs, rows p 12 / gap 12) and the thread (head px 18 / py 12, body p 20 / gap 12, 420px
- * bubbles, composer px 18 / py 14). The thread is the shared one from @/lib/demo/live, so what one
- * side sends lands in the other's portal (TB-006 / IN-006 send, TB-007 / IN-007 receive, TB-008 /
- * IN-008 unread).
+ * Messages, in both portals: the conversation list and the thread. The thread is the shared one
+ * from @/lib/demo/live, so what one side sends lands in the other's portal (TB-006 / IN-006 send,
+ * TB-007 / IN-007 receive, TB-008 / IN-008 unread).
  */
 export function MessagesPage<K extends string, C extends Thread<K>>({ side, conversations, tabs, emptyTab, emptyThread, face, badge, video = false }: MessagesPageProps<K, C>) {
   const other: Side = side === "team" ? "independent" : "team";

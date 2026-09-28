@@ -1,6 +1,6 @@
 import type { Section } from "@/lib/portal/nav";
 
-/** Mirrors "Nav / Independent" in the Figma draft: rail + each section's submenu. */
+/** The Independent portal's nav: rail + each section's submenu. */
 export const SECTIONS: Section[] = [
   {
     href: "/independent",

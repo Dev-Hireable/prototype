@@ -182,7 +182,6 @@ function ReviewStep({ job, author, proposal, revise, onBack, onSubmit }: { job: 
   );
 }
 
-/** Figma "container": p 40, gap 40, radius 16, 1px #c3c3c3. */
 function StepCard({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
     <Card className="flex flex-col gap-10 rounded-2xl p-10">

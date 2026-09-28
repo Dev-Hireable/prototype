@@ -28,9 +28,8 @@ const Business = ICONS.business;
 const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-deep";
 
 /**
- * Figma "Interviews / Invited · Awaiting confirm · Invitation accepted · Incoming · Completed · Declined"
- * and "Proposals and offers / Proposal requested · Revision requested · Offer …": 576px role column + 385px
- * action column (gap 24), cards p 16 / gap 24; the action card changes with the pipeline stage.
+ * An application: the role beside an action card that changes with the pipeline stage, from the
+ * interview invite through the proposal to the offer.
  */
 export default function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);

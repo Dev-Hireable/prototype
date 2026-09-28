@@ -61,7 +61,7 @@ function contractFocus(deal: Deal | null, active: Contract[]) {
 }
 
 /**
- * Figma "Home / Dashboard" (Team Builder), built to TB-001: dismissible marketing banner,
+ * The Team Builder's dashboard, built to TB-001: dismissible marketing banner,
  * 5-step setup checklist with per-step shortcuts, active contracts widget with a + Hire button
  * and an empty state, and two always-visible quick action cards.
  */

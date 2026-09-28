@@ -1,4 +1,4 @@
-/** Seed content transcribed from the "[DRAFT] Independent Portal" Figma canvas. */
+/** Seed content for the Independent portal. */
 
 import type { Stage } from "@/components/independent/ui";
 import type { DealEvaluation, Posting } from "@/lib/demo/deal";
@@ -95,7 +95,7 @@ export type Application = {
 
 export const applications: Application[] = [];
 
-/** Kanban column headers — colours lifted from the Figma "My Applications" frame. */
+/** My Applications' kanban columns and their header colours. */
 export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; text: string; count: string }[] = [
   { key: "applications", label: "Applications", stages: ["applied"], bg: "#e5e5e5", text: "#616161", count: "#d8d8d8" },
   { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", text: "#004675", count: "#c9eeff" },
@@ -326,7 +326,7 @@ export const pastEvaluations: PastEvaluation[] = [];
 export const BIO_MAX = 500;
 
 /**
- * IN-064 — the fit every role shows: Figma's 80% for this company and this talent. The demo doesn't
+ * IN-064 — the fit every role shows: 80% for this company and this talent. The demo doesn't
  * score it from the two sides' quiz answers (the real app's matching works differently), so taking
  * or retaking the quiz leaves it, and the Team Builder's tracker, where they were.
  */

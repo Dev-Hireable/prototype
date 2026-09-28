@@ -4,25 +4,25 @@ import { Tip } from "@/components/portal/Tip";
 import { StatusDot } from "@/components/independent/ui";
 import { PanelCard } from "@/components/portal/PanelCard";
 
-/** Figma "Activity": grey nothing logged, light green worked on tasks, green sent a task for review. */
+/** Grey: nothing logged; light green: worked on tasks; green: sent a task for review. */
 const TILE = ["bg-[#eeeeee]", "bg-[#a3dfb5]", "bg-ok"];
 const TILE_LABEL = ["nothing logged", "worked on tasks", "sent a task for review"];
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
-/** One column per week across the quarter — the grid is always this wide, per the design. */
+/** One column per week across the quarter — the grid is always this wide. */
 const WEEKS = 14;
 
 /** IN-076 — the status label beside the count: Thriving, Idle or Unresponsive. */
 const streakLabel = (streak: number) => (streak === 0 ? "No streak · Unresponsive" : `${streak}-day streak · ${streak >= 5 ? "Thriving" : "Idle"}`);
 
 /**
- * Figma "Activity" (node 11196-11763), TB-058. Mon–Fri with weekends left out entirely, so a gap
+ * TB-058 — Mon–Fri with weekends left out entirely, so a gap
  * always means a missed working day; one column per week across the quarter, whether or not the
  * engagement has run that long yet, and the weeks that haven't happened sit there as empty boxes.
  *
  * `activity` is one entry per elapsed weekday, oldest first, read down each column.
  *
  * Shared by both portals: the Team tracker used to draw its own version with different greens,
- * different tile sizes and a legend the design doesn't have, so the two sides of the same trial
+ * different tile sizes and an extra legend, so the two sides of the same trial
  * disagreed about what was logged.
  *
  * TB-109 — `closed` says why the tracker has stopped (a trial that is over, a contract that has
@@ -51,7 +51,7 @@ export function ActivityLog({ activity, streak, feeding, closed, starts }: { act
             })}
           </div>
         ))}
-        {/* Week numbers every fourth column, matching the design's 1 / 5 / 9 / 13. */}
+        {/* Week numbers every fourth column: 1 / 5 / 9 / 13. */}
         <div className="flex gap-[3px] text-[9px] text-ink-2">
           <span className="w-7" />
           {Array.from({ length: WEEKS }, (_, i) => (

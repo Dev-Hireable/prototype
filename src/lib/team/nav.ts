@@ -1,6 +1,6 @@
 import type { Section } from "@/lib/portal/nav";
 
-/** Mirrors "Nav / Team Builder" in the Figma draft: rail + each section's submenu. */
+/** The Team Builder portal's nav: rail + each section's submenu. */
 export const SECTIONS: Section[] = [
   {
     href: "/team",

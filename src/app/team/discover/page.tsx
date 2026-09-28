@@ -11,7 +11,6 @@ import { TalentBrowser } from "./_components/TalentBrowser";
 import { TalentOverlays } from "./_components/TalentOverlays";
 import { useTalentFilters } from "./_lib/filters";
 
-/** Figma "Discover / Discover independents · browse / · no results / Invite to apply · modal / · sent toast". */
 export default function Discover() {
   const filters = useTalentFilters(liveIndependents());
   const [target, setTarget] = useState<Independent | null>(null);

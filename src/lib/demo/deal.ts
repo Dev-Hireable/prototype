@@ -51,7 +51,7 @@ import { isCompleted } from "@/lib/work/model";
 export type DealProposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; hours?: number; start?: string; tasks?: PlannedTask[]; suggestions?: TaskSuggestion[] };
 
 /**
- * TB-106 — one entry in a proposal's history, oldest first (Figma "Review proposal" Activity pane):
+ * TB-106 — one entry in a proposal's history, oldest first (the Review proposal Activity pane):
  * every version as it was submitted, each revision request with its note, a decline, and the notes
  * the Team Builder left on it. `at` is a momentLabel ("23 Sep 2026, 3:04 PM").
  */

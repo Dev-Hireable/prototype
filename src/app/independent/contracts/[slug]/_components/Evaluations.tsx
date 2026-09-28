@@ -81,9 +81,7 @@ function OngoingEvaluations({ entries, trial, contract, score, ended }: { entrie
   );
 }
 
-/**
- * Figma "Contracts / Evaluation received · view" — the evaluation the Team Builder actually sent.
- */
+/** The evaluation the Team Builder actually sent. */
 function Evaluation({ evaluation, company, contract, thread, due }: { evaluation?: DealEvaluation; company: string; contract: Contract; thread: string; due?: string }) {
   if (!evaluation) return <NoEvaluationYet company={company} contract={contract} due={due} />;
   const scores = evaluation.scores ?? [];

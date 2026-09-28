@@ -12,9 +12,9 @@ import { TalentOverlays } from "../_components/TalentOverlays";
 import { useTalentFilters } from "../_lib/filters";
 
 /**
- * Figma "Discover / Saved independents · list / · empty" — built to TB-019: the same search,
- * filter panel and pagination as Discover, plus TB-022 (confirm before removing) and TB-023
- * (invite straight from this list, choosing which job post).
+ * Saved independents, built to TB-019: the same search, filter panel and pagination as Discover,
+ * plus TB-022 (confirm before removing) and TB-023 (invite straight from this list, choosing which
+ * job post).
  */
 export default function SavedIndependents() {
   const { saved, toggleSaved } = useSavedTalent();

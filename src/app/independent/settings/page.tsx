@@ -5,7 +5,6 @@ import { Page } from "@/components/independent/ui";
 import { AccountSettingsCard } from "@/components/portal/settings";
 import { useIndependentAccount } from "@/lib/independent/account";
 
-/** Figma "Settings / Account": DM Sans 24 header; 720 card, p 24, gap 16; 64px avatar row; paired fields gap 16. */
 export default function AccountSettings() {
   const { profile, setProfile } = useIndependentAccount();
   const [first = "", ...rest] = profile.name.split(" ");

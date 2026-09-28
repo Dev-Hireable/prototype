@@ -1,7 +1,5 @@
 import type { Tone } from "@/components/portal/Badge";
 
-/** Content transcribed from "Admin settings / Accounts" and "Admin settings / Audit logs" in Figma. */
-
 export type AdminAccount = {
   name: string;
   email: string;

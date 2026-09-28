@@ -9,8 +9,8 @@ import type { Dispute } from "@/lib/demo/disputes";
 
 /**
  * AD-032 — every dispute on the platform, newest first, with both parties, the amount, the
- * reason and the status, filterable by status and reason. It used to be five rows transcribed
- * from Figma, so a dispute filed in either portal never reached it and its filters did nothing.
+ * reason and the status, filterable by status and reason. It used to be five hardcoded rows, so
+ * a dispute filed in either portal never reached it and its filters did nothing.
  */
 export default function AllDisputes() {
   const all = useDisputes();

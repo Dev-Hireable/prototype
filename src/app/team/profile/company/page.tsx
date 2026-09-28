@@ -17,7 +17,7 @@ type Row = { key: keyof CompanyProfile; label: string; kind: "text" | "long" | "
 /** TB-126 — the rows that are a pick from a known list rather than free text. */
 const OPTIONS: Partial<Record<Row["kind"], string[]>> = { industry: INDUSTRIES, size: COMPANY_SIZES };
 
-/** The order the Figma card lists them in. */
+/** In the order the card lists them. */
 const LABELS: Record<(typeof COMPANY_FIELDS)[number], { label: string; kind: Row["kind"] }> = {
   name: { label: "Company name", kind: "text" },
   description: { label: "About", kind: "long" },
@@ -30,7 +30,7 @@ const LABELS: Record<(typeof COMPANY_FIELDS)[number], { label: string; kind: Row
 const ROWS: Row[] = COMPANY_FIELDS.map((key) => ({ key, ...LABELS[key] }));
 
 /**
- * Figma "Profile / Company profile", on the shared profile editor: the logo with its camera button,
+ * The company profile, on the shared profile editor: the logo with its camera button,
  * the six fields that each edit in place and save on their own (the list the dashboard checklist
  * counts, with its progress), and the work style as the trait badges independents see (TB-096/097).
  */

@@ -5,7 +5,6 @@ import { AccountSettingsCard } from "@/components/portal/settings";
 import { Avatar } from "@/components/team/ui";
 import { useTeamAccount } from "@/lib/team/account";
 
-/** Figma "Settings / Account" (Team Builder) — identical frame to the Independent one. */
 export default function AccountSettings() {
   const { profile, setProfile } = useTeamAccount();
   const [first = "", ...rest] = profile.name.split(" ");

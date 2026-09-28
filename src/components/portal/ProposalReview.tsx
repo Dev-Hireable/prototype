@@ -121,7 +121,7 @@ function Term({ label, value }: { label: string; value: string }) {
 
 /** "23 Sep 2026, 3:04 PM" → "23 Sep 2026 at 3:04 PM"; a day-only stamp from an older deal passes through. */
 const when = (at: string) => at.replace(", ", " at ");
-/** "Juan D." for Juan Dela Cruz — how the Figma names a version. */
+/** "Juan D." for Juan Dela Cruz — how a version is named. */
 const shortName = (name: string) => {
   const [first, next] = name.split(" ");
   return next ? `${first} ${next[0]}.` : first;
@@ -230,7 +230,7 @@ export function ProposalBody({
         <AuthorCard author={author} terms={terms} />
         <CoverLetter letter={proposal.letter} portfolio={proposal.portfolio} />
 
-        {/* The work the proposal prices — the Figma frame's "Objectives" card, now the task list. */}
+        {/* The work the proposal prices: the task list. */}
         <TasksCard post={post} proposal={proposal} team={team} first={first} />
 
         {/* IN-073 / TB-106 — changes to the tasks the talent suggested in this revision; the Team Builder decides. */}
@@ -362,7 +362,7 @@ export type ProposalReviewProps = {
 };
 
 /**
- * TB-104 / TB-106 — Figma "Proposals and offers / Review proposal" (node 11338-10867): a 1100px
+ * TB-104 / TB-106 — reviewing a proposal: a 1100px
  * dialog split 660 / 440, the same on both sides. The proposal (ProposalBody) scrolls on the left
  * under a banner and above its action bar. On the right, Activity: the proposal's history — each
  * version (open one to read it), every revision request and note — with a composer at the foot.
@@ -559,7 +559,7 @@ function ActivityEntry({
         </ChatBubble>
       </div>
     );
-  // A revision request (always the Team Builder's) keeps the Figma's 320px card, on the same side.
+  // A revision request (always the Team Builder's) keeps its 320px card, on the same side.
   return <RevisionEntry note={event.note} at={event.at} mine={viewer === "team"} counterpart={counterpart} />;
 }
 
@@ -578,7 +578,7 @@ function VersionEntry({ version: v, at, author, open, onOpen }: { version: DealP
         className={`flex items-center overflow-hidden rounded-lg border bg-white text-left transition ${open ? "border-primary shadow-[0_0_0_1px_var(--color-primary)]" : "border-border hover:border-ink-2"}`}
       >
         <span className="flex h-14 w-20 shrink-0 justify-center overflow-hidden pt-4">
-          {/* Figma "Proposal" tile: the 52px document glyph from 16px down, cropped by the 56px tile. */}
+          {/* The proposal tile: the 52px document glyph from 16px down, cropped by the 56px tile. */}
           <Image src="/icons/proposal/document.svg" alt="" width={52} height={52} className="size-[52px] max-w-none shrink-0" />
         </span>
         <span className="flex-1 text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">
@@ -589,7 +589,7 @@ function VersionEntry({ version: v, at, author, open, onOpen }: { version: DealP
   );
 }
 
-/** A revision request in the history: its note in the Figma's 320px card, then who asked for it and when. */
+/** A revision request in the history: its note in a 320px card, then who asked for it and when. */
 function RevisionEntry({ note, at, mine, counterpart }: { note: string; at: string; mine: boolean; counterpart: string }) {
   return (
     <div className={`flex flex-col gap-1.5 ${mine ? "items-end" : "items-start"}`}>

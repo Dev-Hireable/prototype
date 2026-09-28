@@ -51,9 +51,9 @@ export default function RolePage({ params }: { params: Promise<{ slug: string }>
 }
 
 /**
- * Figma "Candidate tracker / Trial · Full-time", built to TB-037: a seven-column Kanban
- * (Candidates → Dropped) with per-column counts, and a read-only Job Details tab alongside it.
- * Switching tabs keeps the pipeline state because both live in this one component.
+ * The candidate tracker, built to TB-037: a seven-column Kanban (Candidates → Dropped) with
+ * per-column counts, and a read-only Job Details tab alongside it. Switching tabs keeps the
+ * pipeline state because both live in this one component.
  */
 function Role({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -422,8 +422,8 @@ function InterviewButton({ c, actions }: { c: Candidate; actions: CardActions })
 }
 
 /**
- * Figma "Right column": one 640px column of role cards. Read-only (TB-037). The gutters are inside
- * this scroller too, so its bar sits at the panel's edge like the board's.
+ * One 640px column of role cards. Read-only (TB-037). The gutters are inside this scroller too, so
+ * its bar sits at the panel's edge like the board's.
  */
 function JobDetails({ role }: { role: RoleData }) {
   return (

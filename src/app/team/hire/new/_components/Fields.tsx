@@ -95,7 +95,6 @@ export function HoursChips({ value, onChange }: { value: number; onChange: (hour
   );
 }
 
-/** Figma "Duration" chip: h 44, 0.5px border, calendar (or clock) icon in the chip's colour. */
 export function DateChip({ children, tone, selected, onClick, icon = "calendar" }: { children: ReactNode; tone: string; selected?: boolean; onClick?: () => void; icon?: "calendar" | "clock" }) {
   const Icon = icon === "clock" ? MdOutlineSchedule : MdOutlineCalendarToday;
   return (

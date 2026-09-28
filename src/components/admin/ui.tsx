@@ -10,7 +10,6 @@ import { ICONS } from "./icons";
 
 /* ---------------------------------------------------------------- page ---- */
 
-/** Figma "Header": pt 16 / px 16, border-b #c3c3c3, title DM Sans 24 SemiBold, lh 1.5, opsz 14. */
 export function AdminPage({
   title,
   actions,
@@ -41,9 +40,9 @@ export function AdminPage({
         </h1>
         {actions && <div className="flex shrink-0 items-center gap-2 pb-2">{actions}</div>}
       </header>
-      {/* Gutter trimmed from the Figma 16/16/24 so the board breathes; it sits on this wrapper, not
-          on the scroller, so nothing scrolls through it. Content is capped at the shared 1200px
-          desktop width and centred so cards never stretch on ultra-wide screens. */}
+      {/* The gutter sits on this wrapper, not on the scroller, so nothing scrolls through it. Content
+          is capped at the shared 1200px desktop width and centred so cards never stretch on
+          ultra-wide screens. */}
       {/* Pinned under the header in the page gutter, like the portals' Page, so it never moves. */}
       {nav && (
         <div className="shrink-0 px-4 pt-2">
@@ -75,7 +74,6 @@ export function AdminPage({
    and @/components/portal/Badge. Admin had copies of its own, with a lighter card edge and 13px
    semibold buttons in another blue. */
 
-/** Figma stat card: p 18, gap 4, label 12.5 / value 24 SemiBold −0.48 / sub 11.5, lh 1.45. */
 export function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <Card className="flex min-w-0 flex-1 flex-col gap-1 overflow-clip p-[18px] leading-[1.45] whitespace-nowrap">
@@ -91,7 +89,6 @@ export function StatGrid({ children }: { children: ReactNode }) {
 }
 
 /* -------------------------------------------------------------- controls -- */
-/* The list-screen toolbar is measured from renders, not from design context (see summary). */
 
 export function Toolbar({ children }: { children: ReactNode }) {
   return <div className="flex flex-wrap items-center gap-4">{children}</div>;
@@ -136,18 +133,11 @@ export function Select({ label, options, value, onChange }: { label: string; opt
 export type Column<T> = {
   header: string;
   cell: (row: T) => ReactNode;
-  /** px (number) as in the Figma fixed columns, or any CSS width; omit for the flexible column. */
+  /** px (number) or any CSS width; omit for the flexible column. */
   width?: number | string;
   align?: "right";
 };
 
-/**
- * Figma "Needs attention" table:
- *   caption  px 16 / py 14, Inter SemiBold 14, #141a21
- *   head     bg #f9fafb, border-t #e3e8ed, px 16 / py 10, Inter SemiBold 11.5, #737d8a
- *   rows     border-t #e3e8ed, px 16 / py 13, Inter 13 lh 1.45; first cell #141a21, rest #737d8a;
- *            even rows #fcfdfe
- */
 /**
  * Grid rules as inset shadows (the table is border-separate, so real borders would double up):
  * a top rule on every cell, plus a left rule on every cell after the first.
@@ -180,10 +170,10 @@ export function DataTable<T>({
         </h2>
       )}
       <div className="overflow-x-auto">
-        {/* The Figma widths are taken as-is, padding included. Widening each by its 32px of padding
-            left the one flexible column 32px wide at a 1280 window, so names broke a letter per line
-            into 300px rows. The min-width keeps that column at least FLEX_MIN wide: a narrow window
-            scrolls the table sideways instead of crushing it. */}
+        {/* Column widths include their padding. Widening each by its 32px of padding left the one
+            flexible column 32px wide at a 1280 window, so names broke a letter per line into 300px
+            rows. The min-width keeps that column at least FLEX_MIN wide: a narrow window scrolls the
+            table sideways instead of crushing it. */}
         <table
           className="w-full table-fixed border-separate border-spacing-0"
           style={{ minWidth: columns.reduce((n, c) => n + (typeof c.width === "number" ? c.width : 0), 0) + (columns.some((c) => c.width === undefined) ? FLEX_MIN : 0) }}

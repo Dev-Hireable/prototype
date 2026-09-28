@@ -85,7 +85,6 @@ function useRoleFilters() {
 
 type RoleFilters = ReturnType<typeof useRoleFilters>;
 
-/** Figma "Job Board / Discover roles · browse / · no results": results (gap 16) + 280px filter column, content gap 24. */
 export default function Discover() {
   const f = useRoleFilters();
   const { draft, setDraft } = f;

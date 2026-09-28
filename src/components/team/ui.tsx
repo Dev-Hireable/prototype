@@ -20,7 +20,6 @@ import type { Independent } from "@/lib/team/data";
 import { useSavedTalent } from "@/lib/team/saved";
 import { usePipeline } from "@/lib/team/pipeline";
 
-/** Figma "Avatars": round photo, grey #d2d8db ground. */
 export function Avatar({ src, size = 40, className = "" }: { src: string; size?: number; className?: string }) {
   return <Image src={src} alt="" width={size * 2} height={size * 2} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover object-top ${className}`} style={{ width: size, height: size }} />;
 }
@@ -58,7 +57,7 @@ function minWidthOf(cols: string[]) {
   return cols.reduce((sum, c) => sum + Number(c.match(/(?:^|\s)w-\[(\d+)px\]/)?.[1] ?? c.match(/min-w-\[(\d+)px\]/)?.[1] ?? 200), 0);
 }
 
-/** Figma "Table", as a grid: #f2f2f2 header (13 medium), light #e5e5e5 row rules. `cols` are Tailwind width classes. */
+/** A table as a grid. `cols` are Tailwind width classes. */
 export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
   return (
     // It sized itself to its longest text (min-w-max), so payments and offers scrolled sideways on
@@ -83,7 +82,7 @@ export function Row({ children, className = "" }: { children: ReactNode; classNa
   return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${className}`}>{children}</div>;
 }
 
-/** Figma "Toolbar": search + dropdowns on the left, a count (14 #616161) or a button on the right. */
+/** Search + dropdowns on the left, a count or a button on the right. */
 export function Toolbar({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="flex items-center gap-3">
@@ -94,7 +93,6 @@ export function Toolbar({ children, right }: { children: ReactNode; right?: Reac
   );
 }
 
-/** Figma "Independent card" (Discover / Saved): p 20, gap 12, 48px avatar, name 14 medium primary, title 18 semibold + match pill. */
 /**
  * TB-012 — what the match score is based on. Before a job post exists it is Work Style only
  * (Phase 1); a live job post adds Profile fit (Phase 2), the trial adds Performance (Phase 3),
@@ -191,9 +189,7 @@ function IndependentCardActions({ person, variant, onInvite, onRemove }: { perso
   );
 }
 
-/** Figma "Pagination": Previous / 1 2 3 … n / Next (14px, active page primary). */
 /**
- * Figma "Pagination": Previous / 1 2 3 … n / Next (14px, active page primary).
  * TB-012 — the page numbers come from the real result count and Previous/Next actually move.
  */
 export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
@@ -229,7 +225,7 @@ export function Pagination({ page, pages, onChange }: { page: number; pages: num
   );
 }
 
-/** Figma "Frame" title used on the settings/profile cards: DM Sans 18. */
+/** The heading on the settings/profile cards. */
 export function CardHeading({ children }: { children: ReactNode }) {
   return (
     <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
@@ -239,10 +235,9 @@ export function CardHeading({ children }: { children: ReactNode }) {
 }
 
 /**
- * Figma "Drawer" (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
- * mount and unmount in a single frame. An 18px title row (px 24 / py 20) with the close, then a
- * scrolling body (p 24, gap 16). The Sheet portals, traps focus and closes on Escape or a click
- * outside.
+ * A drawer (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
+ * mount and unmount in a single frame. A title row with the close, then a scrolling body. The Sheet
+ * portals, traps focus and closes on Escape or a click outside.
  *
  * `header` swaps the visible title for other content in that row (the title stays the dialog's
  * accessible name), `actions` sit beside the close, and `footer` pins below the body — the task
@@ -310,7 +305,7 @@ export function Drawer({
 }
 
 /**
- * Figma "Discover / Independent profile · preview drawer", drawn as the same Contra-style profile as
+ * An independent's profile preview, drawn as the same Contra-style profile as
  * the full page and the talent's own view, in a sheet that slides in: the hero (Invite / Save, the
  * facts, the intro) and the tabs are all here, with the full page one click away beside the photo.
  */

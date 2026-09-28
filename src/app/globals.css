@@ -53,7 +53,7 @@
   --font-display: var(--font-dm-sans);
   --font-heading: var(--font-dm-sans); /* shadcn titles, same face as font-display headings */
 
-  /* Hireable brand — from the Figma logo vectors */
+  /* Hireable brand */
   --color-brand-pink: #fb2e6f;
   --color-brand-magenta: #ff2fc5;
   --color-brand-orange: #ff8112;
@@ -61,26 +61,26 @@
   --color-ink-muted: #616161;
   --color-ink-faint: #b0b0b0;
 
-  /* Portal tokens — values from the Figma design context (variables + literal fills) */
-  --color-ink: #212121; /* Text/Primary */
-  --color-ink-2: #616161; /* Text/Secondary, Icon/Secondary */
+  /* Portal tokens */
+  --color-ink: #212121; /* primary text */
+  --color-ink-2: #616161; /* secondary text and icons */
   --color-ink-deep: #141a21; /* card values, table primary cells */
   /* muted, border and danger read variables (same values as before) so .web-app-theme can swap in
      the real app's for the ported onboarding; the portals never set --hireable-muted. */
   --color-muted: var(--hireable-muted, #737d8a); /* card labels, table secondary cells */
   --color-muted-2: #8a8f98;
-  --color-border: var(--border); /* #c3c3c3, Border/Primary — panels, header, inputs */
+  --color-border: var(--border); /* #c3c3c3 — panels, header, inputs */
   --color-line: #e3e8ed; /* card + table hairlines */
   --color-grid: #edf0f2; /* chart gridlines */
   --color-baseline: #ccd4db; /* chart baseline */
-  --color-surface-2: #f2f2f2; /* Background/Secondary — frame + rail */
+  --color-surface-2: #f2f2f2; /* the shell's frame + rail */
   --color-surface-alt: #f9fafb; /* table head */
   --color-row-alt: #fcfdfe; /* even table rows */
   --color-accent: #1770d9;
   --color-accent-soft: #99c7f5;
   --color-accent-bg: #e6f3fc;
   --color-accent-ink: #004675;
-  --color-primary: #007acc; /* Button/Primary-enabled (Independent + Team Builder portals) */
+  --color-primary: #007acc; /* primary buttons (Independent + Team Builder portals) */
   --color-ok: #27ae60;
   --color-warn: #f7ba00;
   --color-warn-bg: #fff9e7;
@@ -230,8 +230,8 @@
   background: #7a7a7a;
 }
 
-/* Figma "Scrollbar" (20370:739 horizontal / 20370:740 vertical): 8px pill track #f2f2f2,
-   8px pill thumb #969696. Inherited from :root, so every scroll container in the app matches. */
+/* Scrollbar: 8px pill track #f2f2f2, 8px pill thumb #969696. Inherited from :root, so every
+   scroll container in the app matches. */
 /* Chromium ignores ::-webkit-scrollbar as soon as scrollbar-width/-color are set, so the standard
    properties are the Firefox-only fallback (no radius control there). scrollbar-width doesn't
    inherit — hence `*` rather than :root. */
@@ -248,9 +248,9 @@
   height: 24px;
 }
 
-/* Figma wraps the 8px bar in an 8px-padded frame. 8px of transparent border plus padding-box
-   clipping keeps the painted track 8px thick and inset 8px from the container's sides; that
-   same 8px border also caps the ends, so the pill is fully rounded top and bottom. */
+/* The 8px bar sits in an 8px-padded box. 8px of transparent border plus padding-box clipping
+   keeps the painted track 8px thick and inset 8px from the container's sides; that same 8px
+   border also caps the ends, so the pill is fully rounded top and bottom. */
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-thumb {
   border: 8px solid transparent;
@@ -273,7 +273,7 @@
   background: transparent;
 }
 
-/* The Figma scrollbar is track + thumb only — drop the platform stepper arrows. */
+/* Track + thumb only — drop the platform stepper arrows. */
 ::-webkit-scrollbar-button {
   display: none;
 }

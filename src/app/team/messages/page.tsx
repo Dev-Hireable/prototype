@@ -9,7 +9,7 @@ import { conversationsFor } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useRoles } from "@/lib/team/roles";
 
-/** Figma "Home / Messages" — the Team Builder's inbox; the Independent's is the same page (MessagesPage). */
+/** The Team Builder's inbox; the Independent's is the same page (MessagesPage). */
 export default function Messages() {
   const { roles } = useRoles();
   const { canChat, candidates } = usePipeline();

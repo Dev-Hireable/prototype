@@ -20,7 +20,7 @@ const isInactive = (c: Contract) => c.status.label === "Ended";
 const trialEnded = (c: Contract) => c.type === "trial" && c.over;
 
 /**
- * Figma "Independents / All independents", rebuilt to TB-051/054/057: a card per contract with
+ * All independents, rebuilt to TB-051/054/057: a card per contract with
  * the task summary and Trial Fit Score, an active-only default view, and a Show inactive toggle.
  * Was a table, which had nowhere to put the per-contract counts the AC asks for.
  */

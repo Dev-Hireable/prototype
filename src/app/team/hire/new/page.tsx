@@ -35,7 +35,6 @@ function CreateRoleWizard() {
   return <Wizard key={editing?.slug ?? "new"} editing={editing} type={search.get("type")} />;
 }
 
-/** Figma "Hire / Create job post · job details → trial expectations (now its tasks) → budget and duration → review → published" and the "Build team" twin. */
 function Wizard({ editing, type: param }: { editing: Role | undefined; type: string | null }) {
   const router = useRouter();
   const { cards } = useCards();

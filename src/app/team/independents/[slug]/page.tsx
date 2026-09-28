@@ -30,9 +30,9 @@ export default function TrackerPage({ params }: { params: Promise<{ slug: string
 }
 
 /**
- * Figma "Independents / Trial tracker · employer view / Full-time tracker / Send evaluation · locked /
- * form / submitted / Convert to full-time · confirm", with the objectives replaced by the contract's
- * shared task list (TB-058 / TB-061…065 / TB-109…111): the talent works it, the Team Builder reviews it.
+ * The Team Builder's contract tracker, trial or full-time, with sending the evaluation and
+ * converting to full-time. Its work is the contract's shared task list (TB-058 / TB-061…065 /
+ * TB-109…111): the talent works it, the Team Builder reviews it.
  */
 function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);

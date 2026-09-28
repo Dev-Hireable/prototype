@@ -1,7 +1,5 @@
 import type { Stat } from "@/lib/admin/data/users";
 
-/** Content transcribed from "Home / Platform stats" and "Marketing / Growth & revenue stats" in Figma. */
-
 export const platformKpis: Stat[] = [
   { label: "Sign-ups, 30 days", value: "331", sub: "248 independents · 83 employers" },
   { label: "Trials started", value: "62", sub: "+18% vs last 30 days" },

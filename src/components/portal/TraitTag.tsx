@@ -45,9 +45,9 @@ function TagMeaning({ tag, view = "self", children }: { tag: WorkStyleTag; view?
 const FOCUS = "cursor-help outline-offset-2 focus-visible:outline-2 focus-visible:outline-primary";
 
 /**
- * Figma "Worktrait Tags" (px 12 / py 8, gap 4, 16px icon, Nunito Sans Medium 14), in the real app's
- * face — one badge on the profiles and the dashboards alike. The dashboards had a smaller 12px
- * semibold one of their own, so the same tag read differently on the home screen.
+ * The work-trait tag, in the real app's face — one badge on the profiles and the dashboards alike.
+ * The dashboards had a smaller 12px semibold one of their own, so the same tag read differently on
+ * the home screen.
  */
 export function TraitTag({ tag, view }: { tag: WorkStyleTag; view?: "self" | "other" }) {
   const { icon: Icon, bg } = TRAITS[tag.trait % TRAITS.length];

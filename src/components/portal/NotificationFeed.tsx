@@ -53,10 +53,10 @@ function Sender({ item }: { item: FeedItem }) {
 }
 
 /**
- * Figma "Notifications / Independent", now in both portals: pill filters, one #e3e8ed list with
- * 10.5px group headers, unread rows #f0f5fc, and the whole row opens what it is about. Each row
- * also shows who it is from. The Team Builder's feed was a different design (separate cards, a
- * breadcrumb, an action button) for the same events.
+ * The notification feed, in both portals: pill filters, one list with group headers, unread rows
+ * tinted, and the whole row opens what it is about. Each row also shows who it is from. The Team
+ * Builder's feed was a different design (separate cards, a breadcrumb, an action button) for the
+ * same events.
  */
 export function NotificationFeed<F extends string>({
   items,

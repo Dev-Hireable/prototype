@@ -19,7 +19,7 @@ import { RoleHeader, RoleSections } from "./_components/RolePost";
 import { standingOn } from "./_lib/standing";
 
 /**
- * IN-012 / IN-017 — Figma "Job Board / Role detail" in the profile's face, + "Apply to role · confirm".
+ * IN-012 / IN-017 — a role's detail page, and the confirm before applying to it.
  * The header reads like the talent profile's: the company, the title with its type and match, and a
  * facts strip. Under it the role itself, then how the talent's work style lines up with the
  * company's (the Workplace Tags that replaced the work-style chart), the trial's tasks — shared
@@ -66,7 +66,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
           <RoleSections role={role} theirs={theirs} mine={workStyle} tasks={tasks} tasksShared={tasksShared} />
         </div>
 
-        {/* Figma "Company", with the actions: it stays in view while the role scrolls — 24px down,
+        {/* The company card, with the actions: it stays in view while the role scrolls — 24px down,
             below the scroller's top fade (ScrollFade's RAMP), so the fade never thins it. */}
         <aside className="sticky top-6 flex w-[300px] shrink-0 flex-col gap-4">
           <CompanyCard role={role} site={posting.website} standing={standing} isSaved={isSaved} onApply={() => setOpen(true)} onToggleSaved={() => toggleSaved(role.slug)} />

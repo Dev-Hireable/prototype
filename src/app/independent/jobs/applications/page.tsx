@@ -13,7 +13,6 @@ import { useApplications } from "@/lib/independent/applications";
 import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
-/** Figma "Job Board / My Applications": 360px columns in the app's kanban panels (KanbanColumn), cards p 12, gap 12. */
 export default function MyApplications() {
   const { applications, withdraw, canWithdraw, canChat } = useApplications();
   /** The postings behind the cards — this read an empty seed, so every card said Trial. */

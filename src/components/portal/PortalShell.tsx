@@ -16,7 +16,7 @@ import { menuItemFor, sectionFor } from "@/lib/portal/nav";
 import type { MenuItem, Section } from "@/lib/portal/nav";
 
 /*
- * Geometry is lifted 1:1 from the Figma frames (1512×982):
+ * The shell's geometry:
  *   frame      bg #f2f2f2, 4px padding, gap 4
  *   sidebar    336 wide = rail 96 + panel 240 (panel absolutely at x 96)
  *   rail item  68 tall, pl 8 on the column, px 8 / py 16 inside, icon 24, label 10px
@@ -116,7 +116,7 @@ function Sidebar({ sections, section, activeMenuHref, profileHref, avatar, onLog
 function useSidebarFold() {
   // Collapsed by default below 1440px — 14" laptops at 125–150% scaling (1280–1400 wide), where
   // the full 336px panel left the page ~930px and boards, tables and workspaces scrolled sideways.
-  // The Figma frame (1512, a 14" MacBook) keeps it open. The toggle overrides that for the session.
+  // A 1512-wide window (a 14" MacBook) keeps it open. The toggle overrides that for the session.
   // On a phone only the rail is left.
   const narrow = useMedia("(max-width: 1439px)");
   const tiny = useMedia("(max-width: 639px)");
@@ -389,7 +389,7 @@ const bounce = cubicBezier(0.3, 1.35, 0.5, 1);
 const SQUASH = 10;
 
 /**
- * Figma's "active-tab" vector: a white body with a 12px left radius and a 1px #c3c3c3 stroke,
+ * The active tab: a white body with a 12px left radius and a 1px #c3c3c3 stroke,
  * joined to the panel's edge by 12px concave fillets. It's drawn as one outline with that edge
  * rather than as pieces laid over it: near the panel's top or bottom (Home, Profile) a fillet and
  * the panel's own 8px corner shrink together, so the tab's edge runs straight into the panel's
