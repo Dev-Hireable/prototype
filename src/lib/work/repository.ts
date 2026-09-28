@@ -2,7 +2,7 @@ import { dayOf, isoOf, stampLabel, type Day } from "./dates";
 import { WorkError } from "./errors";
 import { datesOf, hearsComments, indexById, isArchived, isCompleted, isTagColor, PRIORITY_META, refOf, STATUS_META, TAG_COLORS, TYPE_META, type Assignee, type Side, type TagColor, type WorkItem, type WorkPriority, type WorkProject, type WorkStatus, type WorkType } from "./model";
 import { orderLast, placeBetween } from "./order";
-import { AGREED, agreedNow, canCreate, canPlanProjects, canReorder, capsFor, changeFor, lockedReason, PROJECTS_LATER, sideOf, transitionFor, VIEWER_ONLY, type Actor, type Names, type TransitionKind, type WorkAccess, type WorkField } from "./permissions";
+import { AGREED, agreedNow, canCreate, canPlanProjects, canReorder, capsFor, changeFor, lockedReason, PROJECTS_LATER, sideOf, tickRefusal, transitionFor, VIEWER_ONLY, type Actor, type Names, type TransitionKind, type WorkAccess, type WorkField } from "./permissions";
 import { checkComment, checkDates, checkDependency, checkDescription, checkEffort, checkNote, checkProjectName, checkSubtaskTitle, checkTag, checkTitle, normalizeTag, type Invalid } from "./validate";
 
 /**
@@ -740,7 +740,9 @@ function addSubtask(r: Repo, id: string, sub: { id: string; title: string }) {
 
 function toggleSubtask(r: Repo, id: string, subId: string, done: boolean) {
   return runOnItem(r, "toggleSubtask", id, (t, state, access, now) => {
-    need(r, capsFor(t, r.actor, access).tick, () => refusal(access, t.status === "review" || t.status === "done" ? "Its subtasks are locked while it's in review or done." : `Whoever does the work ticks its subtasks off.`));
+    // The reason the sheet's checkboxes give, so a refusal here reads the same.
+    const refused = tickRefusal(t, r.actor, access);
+    if (refused) throw new WorkError("forbidden", refused);
     const sub = t.subtasks.find((s) => s.id === subId);
     if (!sub) throw new WorkError("not_found", "That subtask was removed.");
     if (sub.done === done) return { result: { item: t } };

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode, type RefObject } from "react";
 import { ICONS } from "@/components/admin/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { Button, Chip, LinkButton, MatchPill, Toast } from "@/components/independent/ui";
@@ -252,7 +252,9 @@ export function CardHeading({ children }: { children: ReactNode }) {
  *
  * Opening moves the focus to the first control inside, unless one was already focused (autoFocus).
  * `initialFocus="close"` starts on the close button instead — for a header whose first control is a
- * field, which shouldn't look mid-edit every time the sheet opens.
+ * field, which shouldn't look mid-edit every time the sheet opens. A ref starts on its control, or on
+ * the close button when that control isn't there — the task sheet, opened to set dates, starts on the
+ * first date this person can change.
  */
 export function Drawer({
   open,
@@ -275,13 +277,14 @@ export function Drawer({
   actions?: ReactNode;
   footer?: ReactNode;
   testId?: string;
-  initialFocus?: "first" | "close";
+  initialFocus?: "first" | "close" | RefObject<HTMLElement | null>;
 }) {
   const Close = ICONS.close;
   const closeRef = useRef<HTMLButtonElement>(null);
+  const start = initialFocus === "first" ? true : initialFocus === "close" ? closeRef : () => initialFocus.current ?? closeRef.current;
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent side="right" showCloseButton={false} initialFocus={initialFocus === "close" ? closeRef : true} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
+      <SheetContent side="right" showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
         <SheetHeader className={`flex-row justify-between gap-3 px-6 py-5 ${header ? "items-start border-b border-border" : "items-center"}`}>
           {header ? (
             <>

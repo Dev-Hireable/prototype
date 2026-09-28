@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { taskFromOffer, type PlannedTask } from "../../src/lib/demo/tasks";
 import type { WorkStatus } from "../../src/lib/work/model";
-import { AGREED, AGREED_FIELDS, canCreate, canReorder, capsFor, changeFor, readOnlyReason, targetsFor, transitionFor, type Role, type WorkField } from "../../src/lib/work/permissions";
+import { AGREED, AGREED_FIELDS, canCreate, canReorder, capsFor, changeFor, readOnlyReason, targetsFor, tickRefusal, transitionFor, type Role, type WorkField } from "../../src/lib/work/permissions";
 import { ENDED, item, iso, OPEN, REVIEW_ONLY, TRIAL } from "./fixtures";
 
 const manager = { role: "manager" as Role };
@@ -165,6 +165,43 @@ test.describe("capabilities · dependencies and start dates", () => {
     expect(capsFor(item({ assignee: "team" }), contributor, OPEN).start).toBe(false);
     expect(capsFor(item(), contributor, REVIEW_ONLY).start).toBe(false);
     expect(capsFor(item({ status: "done", assignee: "team" }), manager, OPEN).start).toBe(false);
+  });
+});
+
+// TB-075 / IN-041 — whoever does the work ticks its subtasks off; a box anyone else sees says why,
+// in the words the repository refuses with.
+test.describe("subtasks · who ticks them off", () => {
+  const WORKER = "Whoever does the work ticks its subtasks off.";
+  const LOCKED = "Its subtasks are locked while it's in review or done.";
+
+  test("whoever does the work, while they work it; anyone else hears why", () => {
+    expect(tickRefusal(item({ status: "doing" }), contributor, OPEN)).toBeNull();
+    expect(tickRefusal(item({ status: "doing", assignee: "team" }), manager, OPEN)).toBeNull();
+    expect(tickRefusal(item({ status: "doing" }), manager, OPEN)).toBe(WORKER);
+    expect(tickRefusal(item({ assignee: "team" }), contributor, OPEN)).toBe(WORKER);
+    expect(tickRefusal(item({ assignee: null }), contributor, OPEN)).toBe(WORKER);
+    for (const status of ["review", "done"] as const) {
+      expect(tickRefusal(item({ status }), contributor, OPEN), status).toBe(LOCKED);
+      expect(tickRefusal(item({ status }), manager, OPEN), status).toBe(LOCKED);
+    }
+    expect(tickRefusal(item({ status: "done", assignee: "team" }), manager, OPEN)).toBe(LOCKED);
+  });
+
+  test("an admin, a deleted item and a closed contract say that instead", () => {
+    expect(tickRefusal(item(), viewer, OPEN)).toBe("Admins can see this workspace but can't change it.");
+    expect(tickRefusal(item({ archivedAt: 1 }), contributor, OPEN)).toBe("It's deleted. Restore it to change it.");
+    expect(tickRefusal(item(), contributor, REVIEW_ONLY)).toBe("The trial has closed.");
+    expect(tickRefusal(item(), contributor, ENDED)).toBe("This contract has ended.");
+  });
+
+  test("there's a reason exactly when capsFor won't let them tick", () => {
+    for (const actor of [manager, contributor, viewer])
+      for (const access of [OPEN, TRIAL, REVIEW_ONLY, ENDED])
+        for (const status of ["todo", "doing", "review", "done"] as const)
+          for (const assignee of ["independent", "team", null] as const) {
+            const t = item({ status, assignee });
+            expect(tickRefusal(t, actor, access) === null, `${actor.role} · ${status} · ${assignee}`).toBe(capsFor(t, actor, access).tick);
+          }
   });
 });
 

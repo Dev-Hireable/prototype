@@ -1,4 +1,5 @@
-import { card, closePanel, drag, expect, open, panel as detail, savedItem, SEED, test } from "./fixtures";
+import type { Page } from "@playwright/test";
+import { api, card, closePanel, drag, expect, open, panel as detail, savedItem, SEED, test } from "./fixtures";
 
 /**
  * #4 as work outside the signed offer: the drags below move a span, and a due date the offer agreed
@@ -134,6 +135,19 @@ test.describe("scheduling · the timeline", () => {
   });
 });
 
+test.describe("scheduling · Schedule on the timeline", () => {
+  test("Schedule on a row with no dates opens its sheet on the first date to set", async ({ page }) => {
+    await open(page, "team", "?view=timeline&scale=day");
+    // #9 has no dates yet: its row says so and offers Schedule.
+    const row = page.getByTestId("timeline").locator("div").filter({ has: page.getByRole("button", { name: "Social media templates", exact: true }) }).filter({ has: page.getByRole("button", { name: "Schedule" }) }).last();
+    await row.getByRole("button", { name: "Schedule" }).click();
+    // The sheet starts on its start date, the first one the Team Builder can change, not on its close button.
+    const start = detail(page).getByRole("button", { name: "Set start date" });
+    await expect(start).toBeFocused();
+    await expect(start).toBeInViewport();
+  });
+});
+
 test.describe("scheduling · dependencies", () => {
   test("dependencies: add one, refuse a loop, show what's blocked", async ({ page }) => {
     await open(page, "team", "?task=t-type");
@@ -165,5 +179,48 @@ test.describe("dates in another time zone", () => {
     await expect(page.getByTestId("calendar").getByRole("button", { name: /#10 Fix the icon grid, In progress, due 23 Sep/ })).toBeVisible();
     await open(page, "team", "?view=timeline&scale=day");
     await expect(page.getByTestId("timeline").getByRole("button", { name: /^#6 Kickoff call with marketing, To do, Due 29 Sep/ })).toBeVisible();
+  });
+});
+
+/** The tip showing now: hover help is the app's Tip, never a native title. */
+const tip = (page: Page) => page.locator('[data-slot="tooltip-content"]');
+
+/** #4 as it would be left overdue: the signed offer agreed its due date, 24 Sep, and it has no start. */
+const TYPE_OVERDUE = { tasks: SEED.deal.contract.tasks.map((t) => (t.id === "t-type" ? { ...t, start: undefined, due: "2026-09-24" } : t)) };
+
+// #10 was due 23 Sep and has no start: no day is left to start it, so its start reads as text that
+// says why — not a picker with every day greyed out — and a start saved some other way is refused.
+test.describe("scheduling · an overdue item's start", () => {
+  test("the Team Builder is told to move the due date first, and once it's moved the start can be set", async ({ page }) => {
+    await open(page, "team", "?task=t-icons");
+    const panel = detail(page);
+    await expect(panel.getByRole("button", { name: /start date/ })).toHaveCount(0);
+    await panel.getByText("No start date", { exact: true }).hover();
+    await expect(tip(page)).toHaveText("It's past its due date, so there's no day left to start it. Move the due date first.");
+    expect(await api(page, "patch", "t-icons", { start: "2026-09-25" })).toMatchObject({ ok: false, code: "validation", message: "The due date can't be before the start date." });
+    await panel.getByRole("button", { name: /Change due date/ }).click();
+    await page.getByRole("button", { name: /September 30th, 2026/ }).click();
+    await expect.poll(async () => (await savedItem(page, "t-icons")).due).toBe("2026-09-30");
+    await panel.getByRole("button", { name: "Set start date" }).click();
+    await page.getByRole("button", { name: /September 28th, 2026/ }).last().click();
+    await expect.poll(async () => (await savedItem(page, "t-icons")).start).toBe("2026-09-28");
+  });
+
+  test("the Independent, who doesn't set due dates, is told why", async ({ page }) => {
+    await open(page, "independent", "?task=t-icons");
+    await detail(page).getByText("No start date", { exact: true }).hover();
+    await expect(tip(page)).toHaveText("It's past its due date, so there's no day left to start it.");
+  });
+});
+
+test.describe("scheduling · an overdue agreed item's start", () => {
+  test.use({ seedOptions: TYPE_OVERDUE });
+
+  test("the signed offer's due date stays as agreed, so nobody is told to move it", async ({ page }) => {
+    await open(page, "team", "?task=t-type");
+    const panel = detail(page);
+    await expect(panel.getByRole("button", { name: "Due date: agreed in the signed offer" })).toBeVisible();
+    await panel.getByText("No start date", { exact: true }).hover();
+    await expect(tip(page)).toHaveText("It's past its due date, so there's no day left to start it.");
   });
 });

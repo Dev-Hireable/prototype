@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import type { Matcher } from "react-day-picker";
 import { ICONS } from "@/components/admin/icons";
 import { FORM_CONTROL } from "@/components/portal/styles";
@@ -19,7 +19,8 @@ import { formatDate } from "@/lib/demo/dates";
 /**
  * A date input: picking a day closes the calendar and hands back a local Date. It is a form field
  * by default; pass `children` (with `triggerClassName`) for a compact control that shows its own
- * face instead — the task list's due dates — and `clearLabel` to offer clearing the date.
+ * face instead — the task list's due dates — and `clearLabel` to offer clearing the date. `ref` is
+ * the trigger, the control that takes the focus.
  */
 export function DatePicker({
   value,
@@ -32,6 +33,7 @@ export function DatePicker({
   children,
   triggerClassName,
   clearLabel,
+  ref,
 }: {
   value: Date | undefined;
   onChange: (date: Date | undefined) => void;
@@ -46,6 +48,7 @@ export function DatePicker({
   triggerClassName?: string;
   /** Shows a clear action under the calendar, e.g. "Clear due date". */
   clearLabel?: string;
+  ref?: Ref<HTMLButtonElement>;
 }) {
   const [open, setOpen] = useState(false);
   const clear = () => {
@@ -55,7 +58,7 @@ export function DatePicker({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger id={id} aria-label={ariaLabel} className={children ? triggerClassName : `${FORM_CONTROL} flex items-center justify-between gap-2 text-left data-popup-open:border-primary`}>
+      <PopoverTrigger ref={ref} id={id} aria-label={ariaLabel} className={children ? triggerClassName : `${FORM_CONTROL} flex items-center justify-between gap-2 text-left data-popup-open:border-primary`}>
         {children ?? <FieldFace value={value} format={format} placeholder={placeholder} />}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">

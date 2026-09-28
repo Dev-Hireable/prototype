@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { Matcher } from "react-day-picker";
+import { useMemo, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { ICONS, type IconName } from "@/components/admin/icons";
 import { DatePicker } from "@/components/portal/DatePicker";
 import { PriorityMenu, PriorityPill, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
@@ -12,11 +11,11 @@ import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dat
 import { ASSIGNEE_KEYS, assigneeKey, assigneeOf, EFFORT_HELP, EFFORT_MAX, EFFORT_PRESETS, isArchived, isCompleted, refOf, STATUS_META, TAG_COLOR_KEYS, TAG_COLORS, tagColorOf, TYPE_META, WORK_TYPES, type TagColor, type WorkItem, type WorkStatus } from "@/lib/work/model";
 import { matchesSearch } from "@/lib/work/query";
 import { capsFor, changeFor, targetsFor, transitionFor, type AgreedField, type TransitionKind, type WorkField } from "@/lib/work/permissions";
-import { checkDependency, checkEffort, checkTag, normalizeTag } from "@/lib/work/validate";
+import { anyDateAllowed, checkDependency, checkEffort, checkTag, dateAllowed, normalizeTag, type DateRules } from "@/lib/work/validate";
 import { movedTo, NO_PROJECT, NO_PROJECT_NAME, projectKeyOf } from "@/lib/work/projects";
 import { LockedValue } from "./contract-lock";
 import { lockable } from "./lockable";
-import { useWorkspace } from "./context";
+import { useWorkspace, type WorkspaceEnv } from "./context";
 import { AssigneeChip, TagChip, TypeChip } from "./meta";
 import { fromISODate, isoDay } from "@/lib/demo/dates";
 import { TYPE_ICON } from "./labels";
@@ -47,9 +46,10 @@ function useCanChange(item: WorkItem, field: WorkField): boolean {
 
 /**
  * A value this person can't change, where it would be edited: behind a lock when the signed offer set
- * it, so trying it says why; as plain text when it isn't theirs to change for who they are.
+ * it, so trying it says why; as plain text when it isn't theirs to change for who they are — or, with
+ * a `reason` (no day is left to pick), as text that gives it on hover and focus.
  */
-function ReadOnly({ item, field, onLocked, children }: { item: WorkItem; field: WorkField; onLocked?: OnLocked; children: ReactNode }) {
+function ReadOnly({ item, field, onLocked, reason, children }: { item: WorkItem; field: WorkField; onLocked?: OnLocked; reason?: string; children: ReactNode }) {
   const { actor, access } = useWorkspace();
   if (lockable(item, field, actor.role, access))
     return (
@@ -57,7 +57,16 @@ function ReadOnly({ item, field, onLocked, children }: { item: WorkItem; field: 
         {children}
       </LockedValue>
     );
-  return <span className={READ_ONLY}>{children}</span>;
+  if (!reason) return <span className={READ_ONLY}>{children}</span>;
+  return (
+    <Tip label={reason}>
+      {/* react-doctor-disable-next-line react-doctor/no-noninteractive-tabindex -- focusable so a keyboard can open the tip with the reason */}
+      <span tabIndex={0} className={`${READ_ONLY} rounded-md focus-visible:outline-2 focus-visible:outline-primary`}>
+        {children}
+        <span className="sr-only">{` — ${reason}`}</span>
+      </span>
+    </Tip>
+  );
 }
 
 const KIND_LABEL = (kind: TransitionKind, to: WorkStatus, names: { team: string }) =>
@@ -249,33 +258,38 @@ export function PriorityField({ item, compact = false, onLocked }: { item: WorkI
 
 /**
  * The start or the due date, on the app's DatePicker. Days that would break a rule — a due date in
- * the past, one before the start, anything after a trial's last day — can't be picked, and the
- * same rules run again when the change is saved.
+ * the past, one before the start, anything after a trial's last day — can't be picked (checkDates
+ * decides each day), and the same rules run again when the change is saved. A start with no day
+ * left to pick, and none to clear, reads as text that says why.
  */
-export function DateField({ item, which, compact = false, onLocked }: { item: WorkItem; which: "start" | "due"; compact?: boolean; onLocked?: OnLocked }) {
-  const { access, actions, today } = useWorkspace();
+export function DateField({ item, which, compact = false, onLocked, ref }: { item: WorkItem; which: "start" | "due"; compact?: boolean; onLocked?: OnLocked; /** The picker's trigger — set only while there's a date to pick. */ ref?: Ref<HTMLButtonElement> }) {
+  const env = useWorkspace();
+  const { actions, today } = env;
+  const rules: DateRules = { today, lastDay: dayOf(env.access.lastDay) };
   // A milestone is its due date alone.
   const can = useCanChange(item, which) && !(which === "start" && item.type === "milestone");
+  const noDayLeft = can && which === "start" ? noStartReason(item, rules, env) : null;
   const value = dayOf(item[which]);
   const label = which === "start" ? "Start" : "Due";
   const late = which === "due" && value !== null && value < today && item.status !== "done";
-  const face = <DateFace text={dateText(value, today, can, compact, label)} late={late} dated={value !== null} />;
-  if (!can)
+  const face = <DateFace text={dateText(value, today, can && !noDayLeft, compact, label)} late={late} dated={value !== null} />;
+  if (!can || noDayLeft)
     return (
-      <ReadOnly item={item} field={which} onLocked={onLocked}>
+      <ReadOnly item={item} field={which} onLocked={onLocked} reason={noDayLeft ?? undefined}>
         {face}
       </ReadOnly>
     );
   return (
     <span onClick={(e) => e.stopPropagation()} className="inline-flex min-w-0">
       <DatePicker
+        ref={ref}
         value={value !== null ? fromISODate(isoOf(value)) : undefined}
         onChange={(d) => {
           const iso = d ? isoDay(d) : null;
           // Days that break a rule can't be picked; anything else the repository checks again and explains.
           void actions.patch(item, { [which]: iso }, { announce: `${label} date of ${refOf(item)} ${iso ? `set to ${longLabel(dayOf(iso) as number)}` : "cleared"}` });
         }}
-        disabled={blockedDays(item, which, today, access.lastDay)}
+        disabled={(d) => !dateAllowed(item, which, isoDay(d), rules)}
         aria-label={value !== null ? `${label} date: ${longLabel(value)}. Change ${label.toLowerCase()} date` : `Set ${label.toLowerCase()} date`}
         triggerClassName={FIELD_TRIGGER}
         clearLabel={`Clear ${label.toLowerCase()} date`}
@@ -303,16 +317,16 @@ function dateText(value: Day | null, today: Day, can: boolean, compact: boolean,
   return `${can ? "Set" : "No"} ${label.toLowerCase()} date`;
 }
 
-/** The days a date field won't offer: before today, a due date before the start, a start after the due date, anything after a trial's last day. */
-function blockedDays(item: WorkItem, which: "start" | "due", today: Day, lastDay: string | undefined): Matcher[] {
-  const other = dayOf(item[which === "start" ? "due" : "start"]);
-  const last = dayOf(lastDay);
-  const disabled: Matcher[] = [];
-  if (which === "due") disabled.push({ before: fromISODate(isoOf(Math.max(today, other ?? today))) as Date });
-  if (which === "start") disabled.push({ before: fromISODate(isoOf(today)) as Date });
-  if (which === "start" && other !== null) disabled.push({ after: fromISODate(isoOf(other)) as Date });
-  if (last !== null) disabled.push({ after: fromISODate(isoOf(last)) as Date });
-  return disabled;
+/**
+ * Why the start can't be set, when no day is left to pick for it (anyDateAllowed, from checkDates) and
+ * there's none to clear; null while one can be. With no start, only a due date that has passed shuts
+ * every day out — a trial's last day closes its work first — so that's the reason, and whoever may
+ * move the due date is told to, first.
+ */
+function noStartReason(item: WorkItem, rules: DateRules, { actor, access, names }: WorkspaceEnv): string | null {
+  if (item.start || anyDateAllowed(item, "start", rules)) return null;
+  const why = "It's past its due date, so there's no day left to start it.";
+  return changeFor(item, actor, access, "due", names).ok ? `${why} Move the due date first.` : why;
 }
 
 /** Effort: the presets, any whole number up to 999, or none. Relative — not hours. */
@@ -739,10 +753,10 @@ function Candidate({ item: t, onPick }: { item: WorkItem; onPick: () => void }) 
  * keeps its own 6px inset for its hover box, so it's pulled back by the same amount (`-mx-1.5`) and
  * the values start on one line. `flush` is for values that aren't one control (the tags).
  */
-export function Prop({ label, icon, children, hint, flush = false }: { label: string; icon: IconName; children: ReactNode; hint?: string; flush?: boolean }) {
+export function Prop({ label, icon, children, hint, flush = false, ref }: { label: string; icon: IconName; children: ReactNode; hint?: string; flush?: boolean; ref?: Ref<HTMLDivElement> }) {
   const Icon = ICONS[icon];
   return (
-    <div className="grid min-h-10 grid-cols-[128px_minmax(0,1fr)] items-center gap-3 px-4 py-1 max-sm:grid-cols-[104px_minmax(0,1fr)]">
+    <div ref={ref} className="grid min-h-10 grid-cols-[128px_minmax(0,1fr)] items-center gap-3 px-4 py-1 max-sm:grid-cols-[104px_minmax(0,1fr)]">
       <dt className="flex items-center gap-2 text-[13px] leading-none text-ink-2">
         <Icon size={16} aria-hidden className="shrink-0 text-[#8a8f98]" />
         {label}

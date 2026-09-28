@@ -8,8 +8,8 @@ import { MenuAction } from "@/components/portal/controls";
 import { CommentBox } from "@/components/portal/CommentBox";
 import { Tip } from "@/components/portal/Tip";
 import { Avatar, Drawer } from "@/components/team/ui";
-import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, type WorkItem } from "@/lib/work/model";
-import { capsFor, changeFor, sideOf, transitionFor, type AgreedField, type Caps } from "@/lib/work/permissions";
+import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, type Subtask, type WorkItem } from "@/lib/work/model";
+import { capsFor, changeFor, sideOf, tickRefusal, transitionFor, type AgreedField, type Caps } from "@/lib/work/permissions";
 import { checkComment, checkSubtaskTitle, checkTitle } from "@/lib/work/validate";
 import { keyed } from "@/lib/portal/keys";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
@@ -31,6 +31,8 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
   const step = stepFor(item, useWorkspace());
   /** The agreed part someone just tried to change on a task from the signed offer: its notice shows until they close it. */
   const [locked, setLocked] = useState<AgreedField | null>(null);
+  /** The first date this person can change (PlanDates): where the sheet starts when it's opened to set dates. */
+  const firstDate = useRef<HTMLButtonElement>(null);
   return (
     <Drawer
       open={open}
@@ -39,12 +41,14 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
       width={560}
       testId="task-panel"
       // The header's first control is the name: opening on it would put the name mid-edit every time.
-      initialFocus="close"
+      // Opened to set its dates, it starts on the first one this person can change — and on the close
+      // button still when neither is theirs.
+      initialFocus={focus === "dates" ? firstDate : "close"}
       header={<PanelHeading item={item} byId={byId} focus={focus} pending={pending} onLocked={setLocked} />}
       actions={<PanelActions item={item} />}
       footer={step && <NextStep key={step} kind={step} item={item} focus={focus} />}
     >
-      <DetailBody item={item} items={items} byId={byId} focus={focus} locked={locked} onLocked={setLocked} />
+      <DetailBody item={item} items={items} byId={byId} focus={focus} firstDate={firstDate} locked={locked} onLocked={setLocked} />
     </Drawer>
   );
 }
@@ -163,7 +167,7 @@ type FeedFilter = "all" | "comments" | "updates";
 /** How an item's creation reads in its history, whichever way it was made. */
 const CREATED = /^(Added by |Agreed in the signed offer)/;
 
-function DetailBody({ item: t, items, byId, focus, locked, onLocked }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; locked: AgreedField | null; onLocked: (field: AgreedField | null) => void }) {
+function DetailBody({ item: t, items, byId, focus, firstDate, locked, onLocked }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; firstDate: Ref<HTMLButtonElement>; locked: AgreedField | null; onLocked: (field: AgreedField | null) => void }) {
   const { actor, access, names } = useWorkspace();
   const caps = capsFor(t, actor, access);
   const canDescribe = changeFor(t, actor, access, "description", names).ok;
@@ -183,7 +187,7 @@ function DetailBody({ item: t, items, byId, focus, locked, onLocked }: { item: W
       {review && <ReviewBanner review={review} />}
 
       {/* The plan: who, when, how much. A property list, a row each, on a white card with a hairline and a whisper of shadow. */}
-      <PlanCard item={t} items={items} onLocked={onLocked} />
+      <PlanCard item={t} items={items} dates={focus === "dates"} firstDate={firstDate} onLocked={onLocked} />
 
       {/* Nothing to read and nothing to write: no empty section. */}
       {(t.description || canDescribe) && <DescriptionSection item={t} editable={canDescribe} onLocked={onLocked} />}
@@ -257,7 +261,7 @@ function ReviewBanner({ review }: { review: NonNullable<WorkItem["submitted"]> }
 }
 
 /** The plan's properties, each a field this person can change or plain text where they can't. */
-function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonly WorkItem[]; onLocked: (field: AgreedField) => void }) {
+function PlanCard({ item: t, items, dates, firstDate, onLocked }: { item: WorkItem; items: readonly WorkItem[]; dates: boolean; firstDate: Ref<HTMLButtonElement>; onLocked: (field: AgreedField) => void }) {
   const { projects } = useWorkspace();
   /** Every tag in use on the contract, the most used first, to suggest when adding one. */
   const knownTags = tagsInUse(items);
@@ -275,14 +279,7 @@ function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonl
       <Prop label="Priority" icon="flag">
         <PriorityField item={t} onLocked={onLocked} />
       </Prop>
-      {t.type !== "milestone" && (
-        <Prop label="Start" icon="calendar">
-          <DateField item={t} which="start" onLocked={onLocked} />
-        </Prop>
-      )}
-      <Prop label={t.type === "milestone" ? "Date" : "Due"} icon="schedule">
-        <DateField item={t} which="due" onLocked={onLocked} />
-      </Prop>
+      <PlanDates item={t} dates={dates} firstDate={firstDate} onLocked={onLocked} />
       {t.type !== "milestone" && (
         <Prop label="Effort" icon="effort" hint={EFFORT_HELP}>
           <EffortField item={t} onLocked={onLocked} />
@@ -296,6 +293,41 @@ function PlanCard({ item: t, items, onLocked }: { item: WorkItem; items: readonl
       </Prop>
     </dl>
   );
+}
+
+/**
+ * When it's planned: its start and due date, or a milestone's one date. `firstDate` goes on the first
+ * of them this person can change. Opened to set them (`dates`), they come into view — the due date is
+ * the last of them, so with it in view, the start above it is too.
+ */
+function PlanDates({ item: t, dates, firstDate, onLocked }: { item: WorkItem; dates: boolean; firstDate: Ref<HTMLButtonElement>; onLocked: (field: AgreedField) => void }) {
+  const first = firstDateOf(t, useWorkspace());
+  const due = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (dates) due.current?.scrollIntoView({ block: "nearest" });
+  }, [dates]);
+  return (
+    <>
+      {t.type !== "milestone" && (
+        <Prop label="Start" icon="calendar">
+          <DateField ref={first === "start" ? firstDate : undefined} item={t} which="start" onLocked={onLocked} />
+        </Prop>
+      )}
+      <Prop ref={due} label={t.type === "milestone" ? "Date" : "Due"} icon="schedule">
+        <DateField ref={first === "due" ? firstDate : undefined} item={t} which="due" onLocked={onLocked} />
+      </Prop>
+    </>
+  );
+}
+
+/**
+ * The first date this person can change, top down (changeFor): the start — a milestone has none — then
+ * the due date. A task from the signed offer keeps the due date it agreed, so its start is the one.
+ * Null when neither is theirs to change.
+ */
+function firstDateOf(t: WorkItem, { actor, access }: Pick<WorkspaceEnv, "actor" | "access">): "start" | "due" | null {
+  if (t.type !== "milestone" && changeFor(t, actor, access, "start").ok) return "start";
+  return changeFor(t, actor, access, "due").ok ? "due" : null;
 }
 
 /** What done looks like, edited in place by whoever may change the item's text. */
@@ -319,11 +351,12 @@ function DescriptionSection({ item: t, editable, onLocked }: { item: WorkItem; e
   );
 }
 
-/** The subtasks and how many are done: ticked off with `caps.tick`, added and removed with `caps.subtasks`. */
+/** The subtasks and how many are done: ticked off unless `tickRefusal` says why not, added and removed with `caps.subtasks`. */
 function SubtasksSection({ item: t, caps }: { item: WorkItem; caps: Caps }) {
-  const { actions } = useWorkspace();
+  const { actions, actor, access } = useWorkspace();
   const subs = t.subtasks;
   const done = subs.filter((s) => s.done).length;
+  const untickable = tickRefusal(t, actor, access);
   return (
     <Section
       title="Subtasks"
@@ -343,16 +376,7 @@ function SubtasksSection({ item: t, caps }: { item: WorkItem; caps: Caps }) {
       {subs.length > 0 && (
         <ul className="flex flex-col">
           {subs.map((s) => (
-            <li key={s.id} className="group flex min-h-9 items-center gap-2 border-t border-[#eeeeee] first:border-t-0">
-              <Checkbox checked={s.done} disabled={!caps.tick} onChange={(v) => void actions.toggleSubtask(t, s.id, v)} className="min-w-0 flex-1">
-                <span className={`min-w-0 flex-1 ${s.done ? "text-ink-2 line-through" : ""}`}>{s.title}</span>
-              </Checkbox>
-              {caps.subtasks && (
-                <button type="button" aria-label={`Remove subtask ${s.title}`} onClick={() => void actions.removeSubtask(t, s.id)} className="flex size-7 items-center justify-center rounded-md text-ink-2 opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger focus-visible:opacity-100">
-                  <ICONS.close size={14} aria-hidden />
-                </button>
-              )}
-            </li>
+            <SubtaskRow key={s.id} item={t} sub={s} untickable={untickable} removable={caps.subtasks} />
           ))}
         </ul>
       )}
@@ -370,6 +394,29 @@ function SubtasksSection({ item: t, caps }: { item: WorkItem; caps: Caps }) {
         />
       )}
     </Section>
+  );
+}
+
+/**
+ * One subtask: its box, and × for whoever may remove it. A box this person can't tick is greyed
+ * out, and hovering it says why (`untickable`) — a disabled box takes no pointer, so the tip hangs
+ * on the span Tip wraps it in.
+ */
+function SubtaskRow({ item: t, sub: s, untickable, removable }: { item: WorkItem; sub: Subtask; untickable: string | null; removable: boolean }) {
+  const { actions } = useWorkspace();
+  return (
+    <li className="group flex min-h-9 items-center gap-2 border-t border-[#eeeeee] first:border-t-0">
+      <Tip label={untickable} wrap wrapClassName="min-w-0 flex-1">
+        <Checkbox checked={s.done} disabled={untickable !== null} onChange={(v) => void actions.toggleSubtask(t, s.id, v)} className="min-w-0 flex-1">
+          <span className={`min-w-0 flex-1 ${s.done ? "text-ink-2 line-through" : ""}`}>{s.title}</span>
+        </Checkbox>
+      </Tip>
+      {removable && (
+        <button type="button" aria-label={`Remove subtask ${s.title}`} onClick={() => void actions.removeSubtask(t, s.id)} className="flex size-7 items-center justify-center rounded-md text-ink-2 opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger focus-visible:opacity-100">
+          <ICONS.close size={14} aria-hidden />
+        </button>
+      )}
+    </li>
   );
 }
 

@@ -176,6 +176,9 @@ export const PROJECTS_LATER = "Projects start once the trial becomes a full-time
 
 export const VIEWER_ONLY = "Admins can see this workspace but can't change it.";
 
+/** Why nothing on a deleted item changes. */
+const DELETED = "It's deleted. Restore it to change it.";
+
 /** Whether someone can change one of an item's fields now; if not, why — and whether the signed offer set it, which reads as a lock. */
 export type FieldChange = { ok: true } | { ok: false; reason: string; agreed: boolean };
 
@@ -192,7 +195,7 @@ export function changeFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkA
   if (actor.role === "viewer") return refused(VIEWER_ONLY);
   const lock = lockedReason(t, access);
   if (lock) return refused(lock);
-  if (isArchived(t)) return refused("It's deleted. Restore it to change it.");
+  if (isArchived(t)) return refused(DELETED);
   if (!access.open) return refused(access.closedReason ?? "This contract isn't taking new work.");
   if (field === "project" && access.trial) return refused(PROJECTS_LATER);
   if (isAgreed(t, access, field)) return refused(AGREED, true);
@@ -214,6 +217,23 @@ function roleReason(t: WorkItem, actor: Pick<Actor, "role">, field: WorkField, n
   if (actor.role === "contributor") return `${names.team} plans the work — the due dates, effort, work type, priority, tags and who does it.`;
   if (field === "assignee") return "It can only be reassigned while it's To do or In progress.";
   return "It's done, so its plan is final. Reopen it to change it.";
+}
+
+/* -------------------------------------------------------------- subtasks */
+
+/**
+ * TB-075 / IN-041 — why `actor` can't tick `t`'s subtasks off (or back on) right now, or null when
+ * they can (`tick` in capsFor): whoever does the work ticks them, while it's being worked. The
+ * repository refuses with this and the sheet's checkboxes say it, so both read the same.
+ */
+export function tickRefusal(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAccess): string | null {
+  if (actor.role === "viewer") return VIEWER_ONLY;
+  const lock = lockedReason(t, access);
+  if (lock) return lock;
+  if (isArchived(t)) return DELETED;
+  if (capsFor(t, actor, access).tick) return null;
+  if (!access.open) return access.closedReason ?? "This contract isn't taking new work.";
+  return t.status === "review" || t.status === "done" ? "Its subtasks are locked while it's in review or done." : "Whoever does the work ticks its subtasks off.";
 }
 
 /**

@@ -401,7 +401,7 @@ test.describe("subtasks and comments", () => {
     await juan.toggleSubtask("a", "s1", true);
     await juan.toggleSubtask("a", "s1", true); // already done — no write
     expect(store.get("a").subtasks).toEqual([{ id: "s1", title: "Sketch", done: true }]);
-    expect((await rejection(alex.toggleSubtask("a", "s1", false))).code).toBe("forbidden");
+    expect(await rejection(alex.toggleSubtask("a", "s1", false))).toMatchObject({ code: "forbidden", message: "Whoever does the work ticks its subtasks off." });
     expect((await rejection(juan.addSubtask("b", { id: "s2", title: "Not mine" }))).code).toBe("forbidden");
     expect(store.read().logs["2026-09-25"]).toEqual(["a"]);
   });

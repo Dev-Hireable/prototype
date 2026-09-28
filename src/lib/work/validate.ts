@@ -1,4 +1,4 @@
-import { dayOf, stampLabel, type Day } from "./dates";
+import { dayOf, isoOf, stampLabel, type Day } from "./dates";
 import { COMMENT_MAX, DESCRIPTION_MAX, EFFORT_MAX, isArchived, isCompleted, NOTE_MAX, PROJECT_NAME_MAX, refOf, TAG_MAX, TAGS_PER_ITEM, TITLE_MAX, type ById, type WorkItem, type WorkProject, type WorkType } from "./model";
 
 /**
@@ -63,6 +63,30 @@ export function checkDates(next: { start?: string; due?: string; type: WorkType 
     if (start !== null && startChanged && start > last) return { field: "start", message: after };
   }
   return null;
+}
+
+/** An item's dates, as checkDates reads them. */
+type Dated = { start?: string; due?: string; type: WorkType };
+
+/**
+ * Whether `t`'s `which` date can be set to `iso`: checkDates on the item with that day, against the
+ * item as it's saved. A date picker asks this of each day, so it offers exactly what a save accepts.
+ */
+export function dateAllowed(t: Dated, which: "start" | "due", iso: string, rules: DateRules): boolean {
+  const next = { start: t.start, due: t.due, type: t.type };
+  next[which] = iso;
+  return checkDates(next, t, rules) === null;
+}
+
+/**
+ * Whether any day but the one it has can be picked for `t`'s `which` date — none can for the start of
+ * work left overdue without one. checkDates compares a day only with the days it's given (today, a
+ * trial's last day, the item's start and due), so its answer can only change at one of those: trying
+ * each, and the day either side of it, tries every stretch of the calendar.
+ */
+export function anyDateAllowed(t: Dated, which: "start" | "due", rules: DateRules): boolean {
+  const marks = [rules.today, rules.lastDay, dayOf(t.start), dayOf(t.due)].filter((d): d is Day => typeof d === "number");
+  return marks.some((m) => [m, m + 1, m - 1].some((d) => isoOf(d) !== t[which] && dateAllowed(t, which, isoOf(d), rules)));
 }
 
 export function checkEffort(effort: number | undefined, type: WorkType): Invalid | null {

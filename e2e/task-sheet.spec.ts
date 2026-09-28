@@ -1,8 +1,16 @@
+import type { Locator, Page } from "@playwright/test";
 import { api, closePanel, expect, notes, open, panel, savedItem, test } from "./fixtures";
 
-// The item's sheet: its name heads it; subtasks go in one after another from the keyboard; the
-// Independent says what their own work waits on; and comments read as a thread and tell the other
-// side, whose notification opens the item on its comments.
+// The item's sheet: its name heads it; subtasks go in one after another from the keyboard, and a
+// box that can't be ticked says why; the Independent says what their own work waits on; and
+// comments read as a thread and tell the other side, whose notification opens the item on its comments.
+
+/** The tip on a disabled control: it takes no pointer, so the tip hangs on the wrapper Tip puts around it. */
+async function tipOn(page: Page, control: Locator) {
+  await control.locator('xpath=ancestor::*[@data-slot="tooltip-trigger"]').hover();
+  return page.locator('[data-slot="tooltip-content"]');
+}
+
 test.describe("task sheet · the name", () => {
   test("the name heads the sheet, edited in place; Escape leaves the field before the sheet", async ({ page }) => {
     await open(page, "team", "?task=t-kickoff");
@@ -51,6 +59,30 @@ test.describe("task sheet · subtasks", () => {
     await expect(add).toBeFocused();
     await expect(p).toBeVisible();
     expect((await savedItem(page, "t-type")).subtasks).toHaveLength(2);
+  });
+});
+
+test.describe("task sheet · ticking subtasks", () => {
+  test("a box this person can't tick says why, in the words the repository refuses with", async ({ page }) => {
+    // Alex adds and removes subtasks on Juan's work, but only Juan ticks them off.
+    await open(page, "team", "?task=t-palette");
+    const box = panel(page).getByRole("checkbox", { name: "Accessible contrast pairs" });
+    await expect(panel(page).getByRole("button", { name: "Add subtask" })).toBeVisible();
+    await expect(box).toBeDisabled();
+    await expect(await tipOn(page, box)).toHaveText("Whoever does the work ticks its subtasks off.");
+    expect(await api(page, "toggleSubtask", "t-palette", "s-2", true)).toMatchObject({ ok: false, code: "forbidden", message: "Whoever does the work ticks its subtasks off." });
+    await closePanel(page);
+
+    // Juan's boxes tick while the work is under way, and lock once it's sent for review.
+    await open(page, "independent", "?task=t-palette");
+    const mine = panel(page).getByRole("checkbox", { name: "Accessible contrast pairs" });
+    await expect(mine).toBeEnabled();
+    await panel(page).getByRole("button", { name: "Send for review" }).click();
+    await expect(mine).toBeDisabled();
+    await expect(await tipOn(page, mine)).toHaveText("Its subtasks are locked while it's in review or done.");
+    await expect.poll(async () => (await savedItem(page, "t-palette")).status).toBe("review");
+    expect(await api(page, "toggleSubtask", "t-palette", "s-2", true)).toMatchObject({ ok: false, code: "forbidden", message: "Its subtasks are locked while it's in review or done." });
+    expect(((await savedItem(page, "t-palette")).subtasks as { done: boolean }[]).map((s) => s.done)).toEqual([true, false]);
   });
 });
 

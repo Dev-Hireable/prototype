@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { dayOf } from "../../src/lib/work/dates";
-import { indexById } from "../../src/lib/work/model";
-import { checkComment, checkDates, checkDependency, checkEffort, checkNote, checkTag, checkTitle, normalizeTag } from "../../src/lib/work/validate";
+import { indexById, isOverdue } from "../../src/lib/work/model";
+import { anyDateAllowed, checkComment, checkDates, checkDependency, checkEffort, checkNote, checkTag, checkTitle, dateAllowed, normalizeTag } from "../../src/lib/work/validate";
 import { item, iso, TODAY } from "./fixtures";
 
 const rules = { today: TODAY };
@@ -63,6 +63,57 @@ test.describe("validation · dates", () => {
     expect(checkDates({ type: "milestone", start: iso(0), due: iso(2) }, null, rules)?.field).toBe("start");
     expect(checkDates({ type: "milestone", due: iso(2) }, null, rules)).toBeNull();
     expect(checkEffort(3, "milestone")?.field).toBe("effort");
+  });
+});
+
+test.describe("validation · the days a date picker offers", () => {
+  test("each day is checkDates's call: a start from today to the due date, or later than one already under way", () => {
+    const t = { type: "task" as const, due: iso(3) };
+    expect(dateAllowed(t, "start", iso(-1), rules)).toBe(false);
+    expect(dateAllowed(t, "start", iso(0), rules)).toBe(true);
+    expect(dateAllowed(t, "start", iso(3), rules)).toBe(true);
+    expect(dateAllowed(t, "start", iso(4), rules)).toBe(false);
+    expect(dateAllowed(t, "due", iso(-1), rules)).toBe(false);
+    // Started five days ago: the start can move later, even while that's still in the past — not earlier.
+    const underWay = { type: "task" as const, start: iso(-5), due: iso(3) };
+    expect(dateAllowed(underWay, "start", iso(-3), rules)).toBe(true);
+    expect(dateAllowed(underWay, "start", iso(-6), rules)).toBe(false);
+    expect(dateAllowed({ type: "milestone", due: iso(3) }, "start", iso(1), rules)).toBe(false);
+  });
+
+  test("an overdue item with no start has no day left for one, until its due date moves", () => {
+    const overdue = { type: "task" as const, due: iso(-2) };
+    expect(anyDateAllowed(overdue, "start", rules)).toBe(false);
+    // Its due date can still move, to today or later — and then there are days for a start again.
+    expect(anyDateAllowed(overdue, "due", rules)).toBe(true);
+    expect(anyDateAllowed({ ...overdue, due: iso(0) }, "start", rules)).toBe(true);
+    // The start it already has isn't a day to pick: a one-day item left overdue has no other…
+    expect(anyDateAllowed({ ...overdue, start: iso(-2) }, "start", rules)).toBe(false);
+    // …while one started before that can still move later, up to its due date.
+    expect(anyDateAllowed({ ...overdue, start: iso(-4) }, "start", rules)).toBe(true);
+  });
+
+  test("with no start, only a due date that has passed leaves no day for one", () => {
+    for (const due of [undefined, -3, -1, 0, 1, 5])
+      for (const lastDay of [null, TODAY, TODAY + 10]) {
+        const t = item({ due: due === undefined ? undefined : iso(due) });
+        expect(anyDateAllowed(t, "start", { today: TODAY, lastDay }), `due ${t.due}, last day ${lastDay}`).toBe(!isOverdue(t, TODAY));
+      }
+  });
+
+  test("it finds a day whenever trying every day would", () => {
+    const days = [undefined, -4, -3, -2, -1, 0, 1, 2, 3, 4];
+    const at = (d: number | undefined) => (d === undefined ? undefined : iso(d));
+    for (const type of ["task", "milestone"] as const)
+      for (const start of days)
+        for (const due of days)
+          for (const lastDay of [null, TODAY + 2, TODAY + 6])
+            for (const which of ["start", "due"] as const) {
+              const t = { type, start: at(start), due: at(due) };
+              const r = { today: TODAY, lastDay };
+              const tried = Array.from({ length: 41 }, (_, i) => iso(i - 20)).some((d) => d !== t[which] && dateAllowed(t, which, d, r));
+              expect(anyDateAllowed(t, which, r), JSON.stringify({ ...t, lastDay, which })).toBe(tried);
+            }
   });
 });
 
