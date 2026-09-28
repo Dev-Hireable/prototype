@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import { Button, Card, Field, Select, Textarea } from "@/components/independent/ui";
-import { Stars } from "@/components/portal/ContractParts";
-import { Meter, ScoreRing } from "@/components/portal/Meter";
+import { ContractScore, Stars } from "@/components/portal/ContractParts";
+import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/PageParts";
 import { Tip } from "@/components/portal/Tip";
-import { MatchAtHire } from "@/components/team/TrialWidgets";
 import { CardHeading } from "@/components/team/ui";
 import { usd } from "@/lib/demo/disputes";
-import type { FitScore } from "@/lib/team/data";
 import { keyed } from "@/lib/portal/keys";
 import { evaluationIntro, hireLabel } from "../_lib/copy";
 import { SCORES, type EvaluationDraft as Draft } from "../_lib/forms";
@@ -25,8 +23,8 @@ export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft;
   /** A trial's one evaluation is on file: the form shows it, read-only. */
   const sent = isTrial && submitted;
   return (
-    <div className="flex items-start gap-6">
-      <div className="flex min-w-0 flex-1 flex-col gap-5">
+    <div className={WITH_SIDE}>
+      <div className="flex w-full min-w-0 flex-1 flex-col gap-5">
         <div className="flex flex-col gap-1">
           <h2 className="font-display text-[20px] leading-[1.5] font-semibold text-ink" style={DM}>
             {sent ? `Your evaluation of ${name}` : `Evaluate ${name}`}
@@ -41,7 +39,10 @@ export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft;
         </Card>
         <EvaluationHistory t={t} />
       </div>
-      {contract.tfs ? <ScorePanel tfs={contract.tfs} final={submitted || !isTrial} /> : <MatchAtHire match={contract.match} who={`${first} was`} className="w-[320px]" />}
+      {/* The Overview's side column and score card, so the two tabs read the same. */}
+      <aside className={SIDE_COLUMN}>
+        <ContractScore contract={contract} final={submitted || !isTrial} who={`${first} was`} />
+      </aside>
     </div>
   );
 }
@@ -196,33 +197,6 @@ function EvaluationHistory({ t }: { t: Tracker }) {
           </Card>
         ))
       )}
-    </div>
-  );
-}
-
-/** The trial's score beside the form, part by part: final once the evaluation is in, or so far. */
-function ScorePanel({ tfs, final }: { tfs: FitScore; final: boolean }) {
-  return (
-    <div className="flex w-[320px] shrink-0 flex-col gap-3 rounded-lg bg-[#f3faf6] p-5 outline -outline-offset-1 outline-[#bfe3cc]">
-      <p className="text-[14px] leading-[1.4] font-medium text-ink-2">Trial fit score · {final ? "final" : "so far"}</p>
-      <div className="flex items-center gap-4">
-        <ScoreRing value={tfs.overall} />
-        <p className="text-[13px] leading-[1.4] text-ink-2">{final ? "Locked at phase 4 after the trial's evaluation." : "Locks after your evaluation. Performance moves as you approve the trial's tasks."}</p>
-      </div>
-      {(
-        [
-          ["Performance", tfs.performance, "Trial tasks done"],
-          ["Profile", tfs.profile, "Profile vs role alignment"],
-          ["Work style", tfs.workStyle, "From the work-style quiz"],
-          ...(tfs.evaluation !== undefined ? ([["Evaluation", tfs.evaluation, "From your evaluation"]] as const) : []),
-        ] as const
-      ).map(([k, v, s]) => (
-        <div key={k} className="flex flex-col gap-1.5 rounded-md bg-white p-3">
-          <p className="text-[13px] leading-[1.4] font-medium text-ink">{k}</p>
-          <Meter parts={[{ value: v, color: "#2e9e5b", label: k }]} pill={`${v}%`} label={`${k}: ${v}%`} />
-          <p className="text-[12px] leading-[1.4] text-ink-2">{s}</p>
-        </div>
-      ))}
     </div>
   );
 }
