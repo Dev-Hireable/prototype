@@ -107,7 +107,7 @@ function Evaluation({ evaluation, company, contract, thread, due }: { evaluation
       </div>
       {/* IN-034 — the finalised score, from the contract. Same widget the Team Builder reads. */}
       <aside className={SIDE_COLUMN}>
-        {contract.tfs && <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} final />}
+        {contract.tfs && <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} viewer="independent" final />}
         <p className="text-[12.5px] leading-[1.4] text-ink-2">Locked at phase 4 on {evaluation.date}, after the employer evaluation. It does not move again.</p>
       </aside>
     </div>

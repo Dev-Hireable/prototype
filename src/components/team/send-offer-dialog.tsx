@@ -3,7 +3,7 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { Avatar, Button, Checkbox, Chip, Field, InfoBanner, Input, KeyValue, MatchPill, Modal, Steps } from "@/components/portal/ui";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
-import { MATCH_TOOLTIP } from "@/components/team/ui";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import { addWorkingDays, dayLabel, durationDays, trialMonths, fromISODate, startOfToday, isoDay } from "@/lib/portal/dates";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount, usd } from "@/lib/demo/disputes";
@@ -302,7 +302,7 @@ function LetterStep({ person, role, proposal, trial, start, payable, first }: { 
             {person.level} · {person.location}
           </p>
         </div>
-        <MatchPill pct={person.match} coded title={MATCH_TOOLTIP} />
+        <MatchPill pct={person.match} coded title={MATCH_TOOLTIP.team} />
       </div>
       <div className="flex gap-2">
         <KeyValue label={role.type === "full-time" ? "Proposed salary" : "Rate"} value={proposal.rate} />

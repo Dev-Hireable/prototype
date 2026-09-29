@@ -5,6 +5,7 @@ import { MatchAtHire, TrialFitScore } from "@/components/portal/trial-widgets";
 import { FT_BENEFITS, type JobType } from "@/lib/contract/job-types";
 import { trackerClosed, type Task } from "@/lib/demo/tasks";
 import type { FitScore } from "@/lib/contract/fit-score";
+import type { Side } from "@/lib/work/model";
 
 /**
  * Pieces the talent's contract page and the Team Builder's tracker both show, the same on each side.
@@ -43,8 +44,8 @@ export function ContractActivity({ contract, ended }: { contract: Tracked; ended
 }
 
 /** The trial's score — final once it's evaluated or became a role — or, on a direct hire, the match it started on. */
-export function ContractScore({ contract, final, who }: { contract: { tfs: FitScore | null; phase: 3 | 4; match: number }; final: boolean; who: string }) {
-  return contract.tfs ? <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} final={final} /> : <MatchAtHire match={contract.match} who={who} />;
+export function ContractScore({ contract, final, who, viewer }: { contract: { tfs: FitScore | null; phase: 3 | 4; match: number }; final: boolean; who: string; viewer: Side }) {
+  return contract.tfs ? <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} viewer={viewer} final={final} /> : <MatchAtHire match={contract.match} who={who} />;
 }
 
 /** IN-046 / TB-058 — each full-time benefit, and whether the signed offer includes it. `size` is its text size. */

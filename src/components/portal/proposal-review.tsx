@@ -13,7 +13,7 @@ import { CommentBox } from "@/components/portal/comment-box";
 import { ScrollFade } from "@/components/portal/scroll-fade";
 import { Tip } from "@/components/portal/tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MATCH_TOOLTIP } from "@/components/team/ui";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import { addWorkingDays, dayLabel, durationDays, fromISODate } from "@/lib/portal/dates";
 import type { DealProposal, ProposalEvent } from "@/lib/demo/deal";
 import { hoursLabel, JOB_TYPE_LABEL, startLabel } from "@/lib/contract/job-types";
@@ -227,7 +227,7 @@ export function ProposalBody({
       </div>
 
       <div className="flex flex-col gap-4">
-        <AuthorCard author={author} terms={terms} />
+        <AuthorCard author={author} terms={terms} viewer={viewer} />
         <CoverLetter letter={proposal.letter} portfolio={proposal.portfolio} />
 
         {/* The work the proposal prices: the task list. */}
@@ -244,7 +244,7 @@ export function ProposalBody({
 }
 
 /** Who sent it — their photo, name, role and match — over the terms they propose. */
-function AuthorCard({ author, terms }: { author: ProposalAuthor; terms: [string, string][] }) {
+function AuthorCard({ author, terms, viewer }: { author: ProposalAuthor; terms: [string, string][]; viewer: ProposalViewer }) {
   return (
     <Card className="!gap-2">
       <div className="flex items-start justify-between gap-3">
@@ -255,7 +255,7 @@ function AuthorCard({ author, terms }: { author: ProposalAuthor; terms: [string,
             <span className="truncate text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{author.role}</span>
           </div>
         </div>
-        <MatchPill pct={author.match} coded title={MATCH_TOOLTIP} />
+        <MatchPill pct={author.match} coded title={MATCH_TOOLTIP[viewer]} />
       </div>
       <span className="my-2 h-px w-full bg-border" />
       <div className="flex gap-2">

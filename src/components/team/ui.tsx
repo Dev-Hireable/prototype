@@ -10,18 +10,12 @@ import { contractTypeOf, evaluationsOf, pastEvaluations, useDeal, type Deal, typ
 import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
 import { traitTagsFor } from "@/lib/demo/work-style";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import { useToast } from "@/lib/portal/toast";
 import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useSavedTalent } from "@/lib/team/saved";
 import { usePipeline } from "@/lib/team/pipeline";
-
-/**
- * TB-012 — what the match score is based on. Before a job post exists it is Work Style only
- * (Phase 1); a live job post adds Profile fit (Phase 2), the trial adds Performance (Phase 3),
- * and the post-trial evaluation finalises it (Phase 4).
- */
-export const MATCH_TOOLTIP = "Work Style fit against your quiz answers, plus profile fit once you have a live job post. Trial performance and your evaluation fold in later.";
 
 export function IndependentCard({
   person,
@@ -53,7 +47,7 @@ export function IndependentCard({
           )}
           <div className="flex items-center gap-2">
             <span className="text-[18px] leading-[1.4] font-semibold text-ink">{person.role}</span>
-            <MatchPill pct={person.match} coded title={MATCH_TOOLTIP} />
+            <MatchPill pct={person.match} coded title={MATCH_TOOLTIP.team} />
           </div>
         </div>
         <IndependentCardActions person={person} variant={variant} onInvite={onInvite} onRemove={onRemove} />
@@ -225,7 +219,7 @@ export function TeamProfile({
       viewer="team"
       person={profileData(person, pair ? (introVideo ?? undefined) : undefined, history)}
       // The same gradient match pill as the Discover cards, at the header's size.
-      badge={<MatchPill pct={person.match} title={MATCH_TOOLTIP} size="lg" />}
+      badge={<MatchPill pct={person.match} title={MATCH_TOOLTIP.team} size="lg" />}
       actions={actions ?? <TeamProfileActions person={person} onInvite={onInvite} />}
       note={note}
       onPlayIntro={onPlayIntro}

@@ -7,7 +7,7 @@ import { durationDays } from "@/lib/portal/dates";
 import { JOB_TYPE_LABEL, jobFacts } from "@/lib/contract/job-types";
 import type { JobType } from "@/lib/contract/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
-import { MATCH_TOOLTIP } from "@/lib/independent/data";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Role } from "@/lib/independent/data";
 
 const DM = { fontVariationSettings: '"opsz" 14' };
@@ -30,7 +30,7 @@ export function RoleHeader({ role }: { role: Role }) {
           <span className="flex items-center gap-2">
             <JobBadge type={role.type} />
             {/* IN-012 — colour coded by band, with the tooltip that explains the score. */}
-            <MatchPill pct={role.match} coded title={MATCH_TOOLTIP} />
+            <MatchPill pct={role.match} coded title={MATCH_TOOLTIP.independent} />
           </span>
         </div>
       </div>

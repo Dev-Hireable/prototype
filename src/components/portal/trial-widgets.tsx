@@ -4,6 +4,7 @@ import { Meter, ScoreRing } from "@/components/portal/meter";
 import { Tip } from "@/components/portal/tip";
 import { PanelCard } from "@/components/portal/panel-card";
 import { TFP_TOOLTIP, TFP_WEIGHTS, type FitScore } from "@/lib/contract/fit-score";
+import type { Side } from "@/lib/work/model";
 
 /**
  * Both portals show the same score for the same trial, so the widget takes the numbers, not a
@@ -15,9 +16,9 @@ type Scored = { tfs: FitScore; phase: 3 | 4 };
 /**
  * TB-058 Trial Fit Score. The three live components each get a bar, and the weight beside each
  * one comes from the contract's phase — On Trial excludes Evaluation entirely, Post Trial folds
- * it in at 25%. The tooltip says when the final score lands.
+ * it in at 25%. The tooltip says when the final score lands, in the words of whoever is reading.
  */
-export function TrialFitScore({ contract, final = false }: { contract: Scored; final?: boolean }) {
+export function TrialFitScore({ contract, viewer, final = false }: { contract: Scored; viewer: Side; final?: boolean }) {
   const w = TFP_WEIGHTS[contract.phase];
   /** Once an evaluation is in, it is scored like the rest instead of "Added once the evaluation is in". */
   const evaluated = w.evaluation > 0 && contract.tfs.evaluation !== undefined;
@@ -34,7 +35,7 @@ export function TrialFitScore({ contract, final = false }: { contract: Scored; f
       /* TB-074: on a full-time contract this is the trial's final score and stops moving. */
       sub={final ? "Final score from the completed trial · read-only" : `${w.label} · Phase ${contract.phase}`}
       aside={
-        <Tip label={TFP_TOOLTIP}>
+        <Tip label={TFP_TOOLTIP[viewer]}>
           <span className="cursor-help rounded-full">
             <ScoreRing value={contract.tfs.overall} />
           </span>

@@ -7,7 +7,8 @@ import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/scroll-fade";
 import { usePostings } from "@/lib/demo/deal";
-import { COLUMNS, MATCH_TOOLTIP, roleFromPosting } from "@/lib/independent/data";
+import { COLUMNS, roleFromPosting } from "@/lib/independent/data";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Application, Role } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
 import { useToast } from "@/lib/portal/toast";
@@ -112,7 +113,7 @@ function ApplicationCard({ app: a, role, menu }: { app: Application; role: Role 
       <div className="flex items-center justify-between text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
         <span className="flex items-center gap-1">
           <JobBadge type={role?.type ?? "trial"} />
-          <MatchPill pct={a.match} coded title={MATCH_TOOLTIP} />
+          <MatchPill pct={a.match} coded title={MATCH_TOOLTIP.independent} />
         </span>
         <span>{a.submitted}</span>
       </div>

@@ -19,9 +19,6 @@ export const MARKETING_BANNER = {
   cta: { label: "Browse roles", href: "/independent/jobs" },
 };
 
-/** IN-012 — what the match score is based on, and what moves it. */
-export const MATCH_TOOLTIP = "Work Style fit against your quiz answers. Once your profile is complete it also weighs your skills and rate against the role; trial performance and the Team Builder's evaluation fold in later.";
-
 export type Role = {
   slug: string;
   title: string;

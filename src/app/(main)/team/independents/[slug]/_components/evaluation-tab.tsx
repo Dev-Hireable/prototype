@@ -40,7 +40,7 @@ export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft;
       </div>
       {/* The Overview's side column and score card, so the two tabs read the same. */}
       <aside className={SIDE_COLUMN}>
-        <ContractScore contract={contract} final={submitted || !isTrial} who={`${first} was`} />
+        <ContractScore contract={contract} final={submitted || !isTrial} who={`${first} was`} viewer="team" />
       </aside>
     </div>
   );

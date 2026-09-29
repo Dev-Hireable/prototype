@@ -53,8 +53,9 @@ These are the real app's, so the two stay easy to compare:
 And the prototype's own boundaries, so each part can move on its own:
 
 - A portal imports nothing from another portal's folders (`app/(main)/<portal>/`,
-  `components/<portal>/`, `lib/<portal>/`), and shared code imports nothing from any portal's. Two
-  shared files still read a portal; the test names them, each with its reason.
+  `components/<portal>/`, `lib/<portal>/`), and shared code imports nothing from any portal's. One
+  shared file still reads the portals, the chat line that opens a proposal in each side's own
+  dialog; the test names it, with its reason.
 - The pure rules import only each other, by relative path, never `lib/demo/`: the work domain in
   `lib/work/`, the contract's lifecycle, job types, agreement and fit score in `lib/contract/`,
   `lib/disputes/case.ts` and `lib/portal/dates.ts`.

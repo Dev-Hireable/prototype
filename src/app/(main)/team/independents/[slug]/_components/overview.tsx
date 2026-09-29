@@ -134,7 +134,7 @@ export function OverviewAside({ t, onEvaluate, disputeButton }: { t: Tracker; on
     <>
       {/* TB-058 live during a trial; TB-074 keeps it visible once it converts, as the final
           score from the trial. A direct hire had no trial, so it shows the match instead. */}
-      <ContractScore contract={contract} final={!isTrial || submitted} who={`${first} was`} />
+      <ContractScore contract={contract} final={!isTrial || submitted} who={`${first} was`} viewer="team" />
       <ContractActivity contract={contract} ended={ended} />
       <PanelCard title={isTrial ? "Trial evaluation" : "Evaluations"}>
         <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">{evaluationsNote(t)}</p>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ICONS } from "@/components/icons";
 import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "@/components/portal/ui";
 import { hoursLabel } from "@/lib/contract/job-types";
-import { MATCH_TOOLTIP } from "@/lib/independent/data";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Application, Role } from "@/lib/independent/data";
 import { useSavedRoles } from "@/lib/independent/saved";
 import { useApplications } from "@/lib/independent/applications";
@@ -39,7 +39,7 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
             <JobBadge type={role.type} />
             {/* IN-012 — colour coded by band with the tooltip that explains the score. It was the
                 plain gradient, which looked identical at 88% and 58%. */}
-            <MatchPill pct={role.match} coded title={MATCH_TOOLTIP} />
+            <MatchPill pct={role.match} coded title={MATCH_TOOLTIP.independent} />
           </div>
           <p className="text-[14px] leading-[1.4] text-ink-2">
             {role.company} · {role.location}

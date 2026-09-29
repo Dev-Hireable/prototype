@@ -163,8 +163,6 @@ const READS_A_PORTAL: Record<string, string[]> = {
     "src/lib/team/pipeline.ts",
     "src/lib/team/roles.ts",
   ],
-  // The proposal's match pill carries the Team Builder's tooltip, on both sides.
-  "src/components/portal/proposal-review.tsx": ["src/components/team/ui.tsx"],
 };
 
 test("shared code imports nothing from a portal's folders", () => {

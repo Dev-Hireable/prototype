@@ -60,7 +60,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const view = useContractView(contract, contract.title, "independent");
   const t = trackerOf(contract, view, profile, thread);
   /** The trial's score, final once it converted — or the match, on a direct hire. */
-  const score = <ContractScore contract={contract} final={t.scoreFinal} who="You were" />;
+  const score = <ContractScore contract={contract} final={t.scoreFinal} who="You were" viewer="independent" />;
   const company = <CompanyCard contract={contract} tags={t.companyTags} onOpen={() => dialogs.setCompanyOpen(true)} />;
   /** IN-091 — the talent takes back the notice they gave. */
   const withdraw = () => {

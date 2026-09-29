@@ -15,7 +15,7 @@ import { DropDialog } from "@/components/team/drop-dialog";
 import { InterviewDialog } from "@/components/team/interview-dialog";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/interview-steps";
-import { MATCH_TOOLTIP } from "@/components/team/ui";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import { awaitsApplication, byName, columnOf, needsNewSlot, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate, Role as RoleData } from "@/lib/team/data";
 import { jobFacts } from "@/lib/contract/job-types";
@@ -303,7 +303,7 @@ function CandidateCard({ c, column, role, unread, actions }: { c: Candidate; col
         {p.rate} · {p.level}
       </p>
       <div className="flex flex-wrap items-center gap-2">
-        <MatchPill pct={p.match} coded title={MATCH_TOOLTIP} />
+        <MatchPill pct={p.match} coded title={MATCH_TOOLTIP.team} />
         {c.dropped ? <StatusDot tone="danger">Dropped</StatusDot> : c.status && <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>}
       </div>
       <p className="text-[11.5px] leading-[1.2] text-ink-2">{c.status?.meta ?? c.submitted}</p>
