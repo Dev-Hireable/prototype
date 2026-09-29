@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/portal/Badge";
+import type { Tone } from "@/lib/portal/tone";
 
 export const platformStats = [
   { label: "Team Builders", value: "248", sub: "+12 this month" },

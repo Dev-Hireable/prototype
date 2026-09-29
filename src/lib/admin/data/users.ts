@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/portal/Badge";
+import type { Tone } from "@/lib/portal/tone";
 
 export type ActivityEvent = { event: string; actor: string; when: string };
 export type Stat = { label: string; value: string; sub: string };

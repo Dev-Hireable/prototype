@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/portal/Badge";
+import type { Tone } from "@/lib/portal/tone";
 import type { Stat } from "@/lib/admin/data/users";
 
 export type Check = { check: string; result: string; pass: boolean; checked: string };

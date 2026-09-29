@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Stage } from "@/components/independent/ui";
+import type { Stage } from "@/lib/portal/stages";
 import { trialClosed } from "@/lib/contract/lifecycle";
 import { dayLabel, isoDay, momentLabel, today } from "@/lib/demo/dates";
 import { canMessage, clearDeal, consumeInvite, contractTypeOf, fillPosting, getInvites, lifecycleOfDeal, proposalSource, readDeal, stageOf, startDeal, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";

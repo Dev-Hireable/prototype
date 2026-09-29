@@ -2,7 +2,7 @@
 
 import type { SuggestionDecision, TaskSuggestion } from "@/lib/demo/suggestions";
 import { useSyncExternalStore } from "react";
-import type { Stage } from "@/components/independent/ui";
+import type { Stage } from "@/lib/portal/stages";
 import { TFP_WEIGHTS } from "@/lib/team/data";
 import { dayLabel, isoDay, isWeekday, parseDay, today, trialClock } from "@/lib/demo/dates";
 import type { JobType, OngoingType } from "@/lib/demo/job-types";

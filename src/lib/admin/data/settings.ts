@@ -1,4 +1,4 @@
-import type { Tone } from "@/components/portal/Badge";
+import type { Tone } from "@/lib/portal/tone";
 
 export type AdminAccount = {
   name: string;

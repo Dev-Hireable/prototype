@@ -7,7 +7,7 @@ import { ICONS } from "@/components/admin/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { Button, Chip, LinkButton, MatchPill, Toast } from "@/components/independent/ui";
 import { useWithReturn } from "@/components/portal/return";
-import { TalentProfile, type TalentProfileData } from "@/components/portal/TalentProfile";
+import { TalentProfile, type TalentProfileData } from "@/components/portal/talent-profile";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { contractTypeOf, evaluationsOf, useDeal, type Deal } from "@/lib/demo/deal";
 import { useIntroVideo } from "@/lib/demo/intro";

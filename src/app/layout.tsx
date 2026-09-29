@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Inter } from "next/font/google";
 import "./globals.css";
-import { DemoReset } from "@/components/portal/DemoReset";
+import { DemoReset } from "@/components/portal/demo-reset";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({

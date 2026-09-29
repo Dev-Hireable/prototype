@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, EmptyState, Field, Input, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Tabs, Textarea } from "@/components/independent/ui";
-import { AttachmentPicker } from "@/components/portal/DisputeCase";
+import { AttachmentPicker } from "@/components/portal/dispute-case";
 import { Person, Row, Table, Toolbar } from "@/components/team/ui";
 import { caseHref, checkAmount, contractName, dateOf, DISPUTE_REASONS, DISPUTE_STATUSES, leftLabel, otherParty, outcomeOf, partyName, partyTurn, SLA_DAYS, STATUS_TONE, TURN_DAYS, usd, useDisputes, waitingOn } from "@/lib/demo/disputes";
 import type { Attachment, Dispute, DisputeParty } from "@/lib/demo/disputes";

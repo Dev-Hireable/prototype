@@ -1,14 +1,16 @@
 "use client";
 
-import { Tip } from "@/components/portal/Tip";
+import { Tip } from "@/components/portal/tip";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ICONS } from "@/components/admin/icons";
-import { Badge, type Tone } from "@/components/portal/Badge";
+import { Badge } from "@/components/portal/badge";
+import type { Tone } from "@/lib/portal/tone";
+import { PIPELINE, type Stage } from "@/lib/portal/stages";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
-import { ScrollFade } from "@/components/portal/ScrollFade";
+import { ScrollFade } from "@/components/portal/scroll-fade";
 import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses } from "@/components/portal/styles";
 import { Checkbox as CheckboxControl } from "@/components/ui/checkbox";
 import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -811,19 +813,6 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
 
 /* ------------------------------------------------------ pipeline tracker --- */
 
-const PIPELINE = [
-  { key: "applied", label: "Applied", major: true },
-  { key: "matched", label: "Matched", major: true },
-  { key: "invited", label: "Interview invitation received", major: false },
-  { key: "invite_accepted", label: "Invitation accepted", major: false },
-  { key: "interviewed", label: "Interview completed", major: true },
-  { key: "proposal_requested", label: "Proposal requested", major: false },
-  { key: "proposal_sent", label: "Proposal sent", major: true },
-  { key: "offer_received", label: "Offer received", major: false },
-  { key: "offer_accepted", label: "Offer accepted", major: true },
-  { key: "hired", label: "Hired", major: true },
-] as const;
-export type Stage = (typeof PIPELINE)[number]["key"];
 type MajorStage = "applied" | "matched" | "interviewed" | "proposal_sent" | "offer_accepted" | "hired";
 
 const MILESTONE_COLORS: Record<MajorStage, string> = {

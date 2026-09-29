@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join, sep } from "node:path";
 
 /**
  * The lines the workspace's design depends on, checked on the source:
@@ -9,6 +9,11 @@ import { join } from "node:path";
  *   - work items change through the repository only: nothing outside src/lib/work writes the
  *     task list through the deal's general-purpose updater;
  *   - the domain layer is pure: no React, no browser, no app aliases, so it runs in these tests.
+ *
+ * And the layout the real app (Web-App apps/web) keeps, so code moves there as a copy:
+ *   - lib/ imports nothing from components/ or app/;
+ *   - a route folder holds only Next's own files, and a route's parts sit in private _folders;
+ *   - file names are kebab-case.
  */
 const ROOT = join(__dirname, "..", "..");
 const files = (dir: string): string[] =>
@@ -51,4 +56,28 @@ test("the domain layer is pure", () => {
     const src = read(join("src", "lib", "work", `${name}.ts`));
     expect(src, name).not.toMatch(/from "react"|from "@\/|"use client"|window\.|localStorage|document\./);
   }
+});
+
+test("lib imports nothing from components or app", () => {
+  for (const f of files(join("src", "lib"))) {
+    const reached = [...read(f).matchAll(/from ["'](@\/(?:components|app)\/[^"']+)["']/g)].map((m) => m[1]);
+    // The one exception: the demo backend reads the real app's quiz script where the ported
+    // onboarding keeps it, so that folder stays the real app's, file for file.
+    const allowed = f.endsWith(join("lib", "demo", "work-style.ts")) ? ["@/app/(main)/onboarding/_data/quiz-config"] : [];
+    expect(reached, f).toEqual(allowed);
+  }
+});
+
+/** Next's own file names: all a route folder holds outside a private _folder. */
+const NEXT_FILE = /^(page|layout|template|default|loading|error|global-error|not-found|route|icon|apple-icon|opengraph-image|twitter-image|sitemap|robots|manifest)\.tsx?$/;
+
+test("route folders hold only Next's own files; a route's parts sit in private _folders", () => {
+  for (const f of files(join("src", "app"))) {
+    const inPrivateFolder = f.split(sep).some((part) => part.startsWith("_"));
+    if (!inPrivateFolder) expect(basename(f), f).toMatch(NEXT_FILE);
+  }
+});
+
+test("file names are kebab-case", () => {
+  for (const f of files("src")) expect(basename(f), f).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+)+$/);
 });

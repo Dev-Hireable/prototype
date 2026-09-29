@@ -107,7 +107,7 @@
 /* ------------------------------------------------- ported onboarding quiz -- */
 
 /*
- * The real app's work-style onboarding runs here unchanged (src/app/onboarding, src/web-app). Its
+ * The real app's work-style onboarding runs here unchanged (src/app/(main)/onboarding, src/web-app). Its
  * components are written against the real app's theme (Web-App apps/web/app/globals.css), so the
  * tokens it has that the portals don't are registered here with the real values...
  */

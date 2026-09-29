@@ -2,8 +2,8 @@
 
 import { ICONS } from "@/components/admin/icons";
 import { StatusDot } from "@/components/independent/ui";
-import type { Tone } from "@/components/portal/Badge";
-import { Tip } from "@/components/portal/Tip";
+import type { Tone } from "@/lib/portal/tone";
+import { Tip } from "@/components/portal/tip";
 import { Avatar } from "@/components/team/ui";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { firstName } from "@/components/workspace/labels";

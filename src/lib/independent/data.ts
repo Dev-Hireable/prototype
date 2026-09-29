@@ -1,6 +1,6 @@
 /** Seed content for the Independent portal. */
 
-import type { Stage } from "@/components/independent/ui";
+import type { Stage } from "@/lib/portal/stages";
 import type { DealEvaluation, Posting } from "@/lib/demo/deal";
 import type { JobType } from "@/lib/demo/job-types";
 import type { Task } from "@/lib/demo/tasks";

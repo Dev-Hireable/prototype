@@ -21,7 +21,7 @@ const Close = ICONS.close;
 export type DashboardChecklistItem = { label: string; done: boolean; href?: string; hint?: string; requires?: string[] };
 
 // Lives in its own module purely to keep this file focused on layout primitives.
-export { DashboardSetupCard } from "@/components/portal/SetupCard";
+export { DashboardSetupCard } from "@/components/portal/setup-card";
 
 export function DashboardFrame({ children }: { children: ReactNode }) {
   return <div className={`${PORTAL_CONTENT_CLASS} flex flex-col gap-10 p-10`}>{children}</div>;

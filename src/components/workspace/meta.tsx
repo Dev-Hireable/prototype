@@ -2,7 +2,7 @@
 
 import { lockedReason } from "@/lib/work/permissions";
 import { projectKeyOf } from "@/lib/work/projects";
-import { Tip } from "@/components/portal/Tip";
+import { Tip } from "@/components/portal/tip";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/admin/icons";
 import type { ColumnColors } from "@/components/portal/board";

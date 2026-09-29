@@ -1,5 +1,5 @@
-import type { Stage } from "@/components/independent/ui";
-import type { Tone } from "@/components/portal/Badge";
+import type { Stage } from "@/lib/portal/stages";
+import type { Tone } from "@/lib/portal/tone";
 import type { JobType } from "@/lib/demo/job-types";
 import type { PlannedTask, Task } from "@/lib/demo/tasks";
 import { storedWorkStyle } from "@/lib/demo/work-style";

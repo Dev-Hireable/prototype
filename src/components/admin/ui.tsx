@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Card } from "@/components/independent/ui";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
-import { ScrollFade } from "@/components/portal/ScrollFade";
+import { ScrollFade } from "@/components/portal/scroll-fade";
 import { CLEAR_DEMO_RESET } from "@/components/portal/styles";
 import { keyed } from "@/lib/portal/keys";
 import { ICONS } from "./icons";

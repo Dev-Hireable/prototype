@@ -1,6 +1,6 @@
 "use client";
 
-import { Tip } from "@/components/portal/Tip";
+import { Tip } from "@/components/portal/tip";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useEffectEvent, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from "react";
