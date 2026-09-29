@@ -203,12 +203,8 @@
   --radius-2xl: 1.125rem;
 }
 
-/* The real app's base rules, for the quiz's own subtree. */
-.web-app-theme img {
-  -webkit-user-drag: none;
-  user-select: none;
-}
-
+/* The real app's base rules, for the quiz's own subtree. (Its rule for images holds app-wide: see
+   the image base styles below.) */
 .web-app-theme ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -369,6 +365,20 @@ summary {
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* The real app's rule for images, for every screen: they can't be dragged off the page as a file,
+   or picked up by a text selection. A link that shows an image doesn't drag either (the rail's
+   logo and avatar, the Hire cards): pressing on the image would still have dragged the link.
+   Chromium and Safari read it; Firefox has no CSS for dragging. */
+@layer base {
+  img {
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+  a:has(img) {
+    -webkit-user-drag: none;
   }
 }
 

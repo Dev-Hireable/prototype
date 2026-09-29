@@ -27,7 +27,14 @@ export default function SignUp() {
   const detailLabel = role === "team" ? "Company name" : "Job title";
   const ready = name.trim() !== "" && emailOk(email) && passwordOk(password) && detail.trim() !== "";
 
-  if (step === "verify") return <VerifyEmailStep email={email} role={role} />;
+  // Both steps are the one AuthShell, so going on to the next changes the heading and what's under
+  // it, and the mark above them stays as it is.
+  if (step === "verify")
+    return (
+      <AuthShell title="Check your email" subtitle={`We sent a verification link to ${email}. Confirm it to secure the account — in this demo it is already confirmed for you.`}>
+        <VerifyEmailStep email={email} role={role} />
+      </AuthShell>
+    );
 
   return (
     <AuthShell
@@ -124,7 +131,7 @@ function VerifyEmailStep({ email, role }: { email: string; role: SignUpRole }) {
   const router = useRouter();
 
   return (
-    <AuthShell title="Check your email" subtitle={`We sent a verification link to ${email}. Confirm it to secure the account — in this demo it is already confirmed for you.`}>
+    <>
       <div className="flex items-center gap-2 rounded-lg bg-[#f3faf6] px-4 py-3">
         <StatusDot tone="ok">Email verified</StatusDot>
         <span className="text-[13px] leading-[1.4] text-ink-2">{email}</span>
@@ -135,6 +142,6 @@ function VerifyEmailStep({ email, role }: { email: string; role: SignUpRole }) {
         Start the Work Style Quiz
       </Button>
       <p className="text-[12.5px] leading-[1.45] text-ink-2">One step left. The quiz takes about two minutes and generates the workplace tags on your profile.</p>
-    </AuthShell>
+    </>
   );
 }
