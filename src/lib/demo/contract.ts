@@ -3,13 +3,13 @@
 import { useEffect } from "react";
 import { nextPay, noticeLastDay, type Notice, type PayPeriod, payPeriods } from "@/lib/contract/lifecycle";
 import type { Dispute } from "@/lib/disputes/case";
-import { dayLabel, isoDay, parseDay, today } from "@/lib/demo/dates";
+import { dayLabel, isoDay, parseDay, today } from "@/lib/portal/dates";
 import { contractTypeOf, type Deal, type DealEvaluation, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, type RoleHold, settleEscrow, startedAsTrial, trialEvaluationOf, updateDeal } from "@/lib/demo/deal";
 // disputes.ts reaches back only through a lazy import() of sweepContract, so neither module needs the
 // other while it loads: a cycle on paper, not at runtime.
 // fallow-ignore-next-line circular-dependency
 import { dealContract, escrowOf, getDisputes, holds, rateAmount, usd } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL, type OngoingType } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL, type OngoingType } from "@/lib/contract/job-types";
 import { move, notify, PAIR, recordLedger, recordPayment } from "@/lib/demo/live";
 
 /**

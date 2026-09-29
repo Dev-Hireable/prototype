@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Stage } from "@/components/independent/ui";
+import type { Stage } from "@/lib/portal/stages";
 import { trialClosed } from "@/lib/contract/lifecycle";
-import { dayLabel, isoDay, momentLabel, today } from "@/lib/demo/dates";
-import { canMessage, clearDeal, consumeInvite, contractTypeOf, fillPosting, getInvites, lifecycleOfDeal, proposalSource, readDeal, stageOf, startDeal, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
+import { dayLabel, isoDay, momentLabel, today } from "@/lib/portal/dates";
+import { canMessage, clearDeal, consumeInvite, contractTypeOf, fillPosting, getInvites, lifecycleOfDeal, readDeal, stageOf, startDeal, updateDeal, useDeal, useInvites, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal, DealProposal } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import { move, PAIR, persisted, sendChat, sendFile, useStored } from "@/lib/demo/live";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import { move, PAIR, persisted, proposalSource, sendChat, sendFile, useStored } from "@/lib/demo/live";
 import type { MoveKind } from "@/lib/demo/live";
 import { taskFromOffer } from "@/lib/demo/tasks";
 import { applications as seedApps, interviews as seedInterviews } from "./data";

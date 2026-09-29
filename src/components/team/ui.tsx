@@ -1,104 +1,21 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { useRef, useState, type ReactNode, type RefObject } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { ICON_BUTTON } from "@/components/portal/styles";
-import { Button, Chip, LinkButton, MatchPill, Toast } from "@/components/independent/ui";
+import { useState, type ReactNode } from "react";
+import { ICONS } from "@/components/icons";
+import { Avatar, Button, Chip, Drawer, LinkButton, MatchPill, Toast } from "@/components/portal/ui";
 import { useWithReturn } from "@/components/portal/return";
-import { TalentProfile, type TalentProfileData } from "@/components/portal/TalentProfile";
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { contractTypeOf, evaluationsOf, useDeal, type Deal } from "@/lib/demo/deal";
+import { TalentProfile, type TalentProfileData } from "@/components/portal/talent-profile";
+import { contractTypeOf, evaluationsOf, pastEvaluations, useDeal, type Deal, type PastEvaluation } from "@/lib/demo/deal";
 import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
 import { traitTagsFor } from "@/lib/demo/work-style";
-import { pastEvaluations, type PastEvaluation } from "@/lib/independent/data";
+import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import { useToast } from "@/lib/portal/toast";
 import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useSavedTalent } from "@/lib/team/saved";
 import { usePipeline } from "@/lib/team/pipeline";
-
-export function Avatar({ src, size = 40, className = "" }: { src: string; size?: number; className?: string }) {
-  return <Image src={src} alt="" width={size * 2} height={size * 2} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover object-top ${className}`} style={{ width: size, height: size }} />;
-}
-
-/** Table cell "Independent": 40px avatar + name (14 medium primary) + role (13 #616161). */
-export function Person({ name, role, avatar, href }: { name: string; role: string; avatar: string; href?: string }) {
-  const title = <p className="truncate text-[14px] leading-[1.4] font-medium text-primary">{name}</p>;
-  return (
-    <span className="flex min-w-0 flex-1 items-center gap-3">
-      <Avatar src={avatar} />
-      <span className="flex min-w-0 flex-1 flex-col whitespace-nowrap">
-        {href ? <Link href={href} className="hover:underline">{title}</Link> : title}
-        <p className="truncate text-[13px] leading-[1.4] text-ink-2">{role}</p>
-      </span>
-    </span>
-  );
-}
-
-/**
- * Grid cells: every direct child of a header or row is a cell. Each one stretches to the full row
- * height, and `content-center` centres it vertically while keeping it a block, so `truncate` and
- * `text-right` still work inside. `items-center` only affects cells that are themselves flex rows
- * (a stacked cell asks for `!items-start`). Rows are split by a light rule and columns by space
- * alone: a rule between every cell read as a spreadsheet. A cell that wants to fill edge to edge (a
- * coloured stat) opts out of the padding with `!p-0`.
- */
-const CELLS = "[&>*]:self-stretch [&>*]:content-center [&>*]:items-center [&>*]:px-3 [&>*]:py-3";
-
-/**
- * The narrowest a table can be before its columns crowd: its fixed widths (`w-[Npx]`), plus each
- * flexible column's floor (`min-w-[Npx]`, or 200px without one). Wider than that the flexible
- * columns take the room; narrower, the table scrolls sideways.
- */
-function minWidthOf(cols: string[]) {
-  return cols.reduce((sum, c) => sum + Number(c.match(/(?:^|\s)w-\[(\d+)px\]/)?.[1] ?? c.match(/min-w-\[(\d+)px\]/)?.[1] ?? 200), 0);
-}
-
-/** A table as a grid. `cols` are Tailwind width classes. */
-export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
-  return (
-    // It sized itself to its longest text (min-w-max), so payments and offers scrolled sideways on
-    // a laptop whatever room they had. It fills the page now, and only scrolls once the page is
-    // narrower than its columns need — which still keeps a narrow pane from crushing them together.
-    <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
-      <div style={{ minWidth: minWidthOf(cols) }}>
-        <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 ${CELLS}`}>
-          {head.map((h, i) => (
-            <span key={h} className={cols[i]}>
-              {h}
-            </span>
-          ))}
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-export function Row({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${className}`}>{children}</div>;
-}
-
-/** Search + dropdowns on the left, a count or a button on the right. */
-export function Toolbar({ children, right }: { children: ReactNode; right?: ReactNode }) {
-  return (
-    <div className="flex items-center gap-3">
-      {children}
-      <span className="flex-1" />
-      {right}
-    </div>
-  );
-}
-
-/**
- * TB-012 — what the match score is based on. Before a job post exists it is Work Style only
- * (Phase 1); a live job post adds Profile fit (Phase 2), the trial adds Performance (Phase 3),
- * and the post-trial evaluation finalises it (Phase 4).
- */
-export const MATCH_TOOLTIP = "Work Style fit against your quiz answers, plus profile fit once you have a live job post. Trial performance and your evaluation fold in later.";
 
 export function IndependentCard({
   person,
@@ -130,7 +47,7 @@ export function IndependentCard({
           )}
           <div className="flex items-center gap-2">
             <span className="text-[18px] leading-[1.4] font-semibold text-ink">{person.role}</span>
-            <MatchPill pct={person.match} coded title={MATCH_TOOLTIP} />
+            <MatchPill pct={person.match} coded title={MATCH_TOOLTIP.team} />
           </div>
         </div>
         <IndependentCardActions person={person} variant={variant} onInvite={onInvite} onRemove={onRemove} />
@@ -186,121 +103,6 @@ function IndependentCardActions({ person, variant, onInvite, onRemove }: { perso
         </Button>
       )}
     </div>
-  );
-}
-
-/**
- * TB-012 — the page numbers come from the real result count and Previous/Next actually move.
- */
-export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
-  const Prev = ICONS.chevronLeft;
-  const Next = ICONS.chevronRight;
-  if (pages <= 1) return null;
-
-  // Up to 3 numbers around the current page, with an ellipsis before the last when they don't meet.
-  const start = Math.max(1, Math.min(page - 1, pages - 2));
-  const window = [start, start + 1, start + 2].filter((p) => p >= 1 && p <= pages);
-  const items: (number | "…")[] = window.includes(pages) ? window : [...window, ...(window.at(-1)! < pages - 1 ? (["…"] as const) : []), pages];
-
-  return (
-    <nav aria-label="Pagination" className="flex items-center justify-center gap-2 text-[14px] leading-[1.4] font-medium text-ink">
-      <button type="button" onClick={() => onChange(page - 1)} disabled={page === 1} className="flex items-center gap-1 font-normal text-ink-2 disabled:text-[#c3c3c3]">
-        <Prev size={18} aria-hidden /> Previous
-      </button>
-      {items.map((p, i) =>
-        p === "…" ? (
-          <span key={`gap${i}`} className="px-1 text-ink-2">
-            …
-          </span>
-        ) : (
-          <button key={p} type="button" onClick={() => onChange(p)} aria-current={p === page ? "page" : undefined} className={`rounded-md px-2.5 py-1.5 ${p === page ? "bg-primary text-white" : "hover:bg-surface-alt"}`}>
-            {p}
-          </button>
-        ),
-      )}
-      <button type="button" onClick={() => onChange(page + 1)} disabled={page === pages} className="flex items-center gap-1 font-normal text-ink-2 disabled:text-[#c3c3c3]">
-        Next <Next size={18} aria-hidden />
-      </button>
-    </nav>
-  );
-}
-
-/** The heading on the settings/profile cards. */
-export function CardHeading({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-      {children}
-    </h2>
-  );
-}
-
-/**
- * A drawer (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
- * mount and unmount in a single frame. A title row with the close, then a scrolling body. The Sheet
- * portals, traps focus and closes on Escape or a click outside.
- *
- * `header` swaps the visible title for other content in that row (the title stays the dialog's
- * accessible name), `actions` sit beside the close, and `footer` pins below the body — the task
- * panel uses all three. A `header` may run to several lines (an eyebrow such as "#4", a name that
- * wraps), so its row aligns to the top, with the actions and the close centred on its first 20px
- * line, and a hairline under it: the body scrolls beneath it.
- *
- * Opening moves the focus to the first control inside, unless one was already focused (autoFocus).
- * `initialFocus="close"` starts on the close button instead — for a header whose first control is a
- * field, which shouldn't look mid-edit every time the sheet opens. A ref starts on its control, or on
- * the close button when that control isn't there — the task sheet, opened to set dates, starts on the
- * first date this person can change.
- */
-export function Drawer({
-  open,
-  onClose,
-  title,
-  children,
-  width = 800,
-  header,
-  actions,
-  footer,
-  testId,
-  initialFocus = "first",
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  children: ReactNode;
-  width?: number;
-  header?: ReactNode;
-  actions?: ReactNode;
-  footer?: ReactNode;
-  testId?: string;
-  initialFocus?: "first" | "close" | RefObject<HTMLElement | null>;
-}) {
-  const Close = ICONS.close;
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const start = initialFocus === "first" ? true : initialFocus === "close" ? closeRef : () => initialFocus.current ?? closeRef.current;
-  return (
-    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent side="right" showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
-        <SheetHeader className={`flex-row justify-between gap-3 px-6 py-5 ${header ? "items-start border-b border-border" : "items-center"}`}>
-          {header ? (
-            <>
-              <SheetTitle className="sr-only">{title}</SheetTitle>
-              <div className="flex min-w-0 flex-1 items-center gap-2">{header}</div>
-            </>
-          ) : (
-            <SheetTitle className="font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
-          )}
-          <div className={`flex shrink-0 items-center gap-1 ${header ? "h-5" : ""}`}>
-            {actions}
-            {/* The negative margin gives the icon a hover box without making the row taller. */}
-            <SheetClose ref={closeRef} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
-              <Close size={20} aria-hidden />
-            </SheetClose>
-          </div>
-        </SheetHeader>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
-        {footer && <div className="shrink-0 border-t border-border px-6 py-4">{footer}</div>}
-      </SheetContent>
-    </Sheet>
   );
 }
 
@@ -417,7 +219,7 @@ export function TeamProfile({
       viewer="team"
       person={profileData(person, pair ? (introVideo ?? undefined) : undefined, history)}
       // The same gradient match pill as the Discover cards, at the header's size.
-      badge={<MatchPill pct={person.match} title={MATCH_TOOLTIP} size="lg" />}
+      badge={<MatchPill pct={person.match} title={MATCH_TOOLTIP.team} size="lg" />}
       actions={actions ?? <TeamProfileActions person={person} onInvite={onInvite} />}
       note={note}
       onPlayIntro={onPlayIntro}

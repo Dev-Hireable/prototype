@@ -1,14 +1,13 @@
 "use client";
 
 import { payScheduleOf } from "@/lib/demo/contract";
-import { dayLabel, sinceOrFrom } from "@/lib/demo/dates";
+import { dayLabel, sinceOrFrom } from "@/lib/portal/dates";
 import { lifecycleOfDeal, trialEvaluationOf, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { dealContract, disputeCap, escrowInPlay, escrowOf, fileBlock, fileBlockHint, liveChapter, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef, Dispute } from "@/lib/demo/disputes";
-import { hoursLabel, JOB_TYPE_LABEL, payLabel } from "@/lib/demo/job-types";
-import type { JobType } from "@/lib/demo/job-types";
-import { FT_BENEFITS } from "@/lib/team/data";
+import { FT_BENEFITS, hoursLabel, JOB_TYPE_LABEL, payLabel } from "./job-types";
+import type { JobType } from "./job-types";
 import type { Side } from "@/lib/work/model";
 import { trialClosed } from "./lifecycle";
 import type { Phase } from "./lifecycle";

@@ -3,7 +3,7 @@ import { refOf, type WorkItem } from "@/lib/work/model";
 import type { Group } from "@/lib/work/query";
 import type { WorkActions } from "@/lib/work/store";
 import type { WorkspaceEnv } from "./context";
-import type { MenuModel, MenuMove } from "./ItemMenu";
+import type { MenuModel, MenuMove } from "./item-menu";
 import { dropPlan, newItemPlace, runPlan, takesWork, type DropPlan } from "./moves";
 import { focusItem } from "./util";
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button } from "@/components/portal/ui";
 import { BACKUP_KEY, resetUnreadableDeal } from "@/lib/demo/deal";
 import type { Role } from "@/lib/work/permissions";
 import type { ViewKey } from "@/lib/work/query";

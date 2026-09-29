@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { InfoBanner } from "@/components/independent/ui";
-import { Tip } from "@/components/portal/Tip";
+import { ICONS } from "@/components/icons";
+import { InfoBanner } from "@/components/portal/ui";
+import { Tip } from "@/components/portal/tip";
 import type { AgreedField } from "@/lib/work/permissions";
 import { explain } from "@/lib/work/store";
 import { agreedReason, lockLabel } from "./lockable";

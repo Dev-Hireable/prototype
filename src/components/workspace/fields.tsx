@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
-import { ICONS, type IconName } from "@/components/admin/icons";
-import { DatePicker } from "@/components/portal/DatePicker";
+import { ICONS, type IconName } from "@/components/icons";
+import { DatePicker } from "@/components/portal/date-picker";
 import { PriorityMenu, PriorityPill, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
-import { Tip } from "@/components/portal/Tip";
+import { Tip } from "@/components/portal/tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
@@ -17,7 +17,7 @@ import { LockedValue } from "./contract-lock";
 import { lockable } from "./lockable";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { AssigneeChip, TagChip, TypeChip } from "./meta";
-import { fromISODate, isoDay } from "@/lib/demo/dates";
+import { fromISODate, isoDay } from "@/lib/portal/dates";
 import { TYPE_ICON } from "./labels";
 
 /**

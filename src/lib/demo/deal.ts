@@ -2,14 +2,13 @@
 
 import type { SuggestionDecision, TaskSuggestion } from "@/lib/demo/suggestions";
 import { useSyncExternalStore } from "react";
-import type { Stage } from "@/components/independent/ui";
-import { TFP_WEIGHTS } from "@/lib/team/data";
-import { dayLabel, isoDay, isWeekday, parseDay, today, trialClock } from "@/lib/demo/dates";
-import type { JobType, OngoingType } from "@/lib/demo/job-types";
+import type { Stage } from "@/lib/portal/stages";
+import { TFP_WEIGHTS } from "@/lib/contract/fit-score";
+import { dayLabel, isoDay, isWeekday, parseDay, today, trialClock } from "@/lib/portal/dates";
+import type { JobType, OngoingType } from "@/lib/contract/job-types";
 import { lifecycleOf, type ContractFacts, type Lifecycle, type Notice } from "@/lib/contract/lifecycle";
 import { dayLevel, trialTasks } from "@/lib/demo/tasks";
 import type { OfferTask, PlannedTask, Task, TaskComment } from "@/lib/demo/tasks";
-import type { ChatSource } from "@/lib/demo/live";
 import { STORAGE_MESSAGE, WorkError } from "@/lib/work/errors";
 import { migrateItems } from "@/lib/work/migrate";
 import type { WorkProject } from "@/lib/work/model";
@@ -73,9 +72,6 @@ export function proposalHistory(deal: Deal): ProposalEvent[] {
   if (deal.proposalDeclined) events.push({ kind: "declined", at: deal.proposalDeclined.date, reason: deal.proposalDeclined.reason });
   return events;
 }
-
-/** Where a note written on the proposal came from, so both inboxes can link back to it. */
-export const proposalSource = (deal: Deal | null): ChatSource | undefined => (deal?.proposal ? { kind: "proposal", version: deal.proposal.version, roleSlug: deal.roleSlug, title: deal.title } : undefined);
 
 /** The deal with one more entry on its proposal history. */
 export const withProposalEvent = (deal: Deal, event: ProposalEvent): Deal => ({ ...deal, proposalHistory: [...proposalHistory(deal), event] });
@@ -752,6 +748,14 @@ export const evaluationsOf = (contract: Deal["contract"]): DealEvaluation[] => c
  * sent later are the full-time or part-time role's reviews (TB-117), not the trial's.
  */
 export const trialEvaluationOf = (deal: Deal | null): DealEvaluation | undefined => (startedAsTrial(deal) ? evaluationsOf(deal?.contract).at(-1) : undefined);
+
+/**
+ * IN-066 — evaluations from engagements that have already closed. Live contracts add their own
+ * on top of these (each contract's own evaluations), so the section is the whole record, not a seed list.
+ */
+export type PastEvaluation = { company: string; role: string; type: JobType; date: string; stars: number; feedback: string };
+
+export const pastEvaluations: PastEvaluation[] = [];
 
 /** The deal's facts, as the lifecycle reads them (@/lib/contract/lifecycle). */
 function factsOf(deal: Deal): ContractFacts | null {

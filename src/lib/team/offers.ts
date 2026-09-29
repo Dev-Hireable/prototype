@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { dayLabel, isoDay, today } from "@/lib/demo/dates";
+import { dayLabel, isoDay, today } from "@/lib/portal/dates";
 import { lifecycleOfDeal, readDeal, updateDeal, useDeal } from "@/lib/demo/deal";
 import type { ConversionStatus, Deal, DealOffer } from "@/lib/demo/deal";
-import type { OngoingType } from "@/lib/demo/job-types";
+import type { OngoingType } from "@/lib/contract/job-types";
 import { move, PAIR, persisted, useStored } from "@/lib/demo/live";
 import { offers as seedOffers } from "./data";
 import type { Offer } from "./data";

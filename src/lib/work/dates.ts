@@ -125,7 +125,7 @@ export function longLabel(day: Day): string {
   return `${WEEKDAY_SHORT[weekdayOf(day)]} ${d} ${MONTH_SHORT[m - 1]} ${y}`;
 }
 
-/** "25 Sep 2026" — the stamp the rest of the demo writes (see @/lib/demo/dates). */
+/** "25 Sep 2026" — the stamp the rest of the demo writes (see @/lib/portal/dates). */
 export function stampLabel(day: Day): string {
   const { y, m, d } = partsOf(day);
   return `${pad(d)} ${MONTH_SHORT[m - 1]} ${y}`;

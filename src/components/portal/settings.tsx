@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, type ChangeEvent, type ReactNode } from "react";
-import { Button, Card, Checkbox, Field, Input, Select, Toast } from "@/components/independent/ui";
+import { Button, Card, Checkbox, Field, Input, Select, Toast } from "@/components/portal/ui";
 import { DEMO_PASSWORD, PASSWORD_RULES as AUTH_RULES } from "@/lib/demo/auth";
-import { ImagePicker } from "@/components/portal/ProfileEditor";
-import { TimeZonePicker } from "@/components/portal/TimeZonePicker";
+import { ImagePicker } from "@/components/portal/profile-editor";
+import { TimeZonePicker } from "@/components/portal/time-zone-picker";
 import { useToast, type SetToast } from "@/lib/portal/toast";
-import { checkImage, IMAGE_MAX_MB, readImage } from "@/lib/team/data";
+import { checkImage, IMAGE_MAX_MB, readImage } from "@/lib/portal/profile-fields";
 
 function SettingsHeading({ children }: { children: ReactNode }) {
   return (

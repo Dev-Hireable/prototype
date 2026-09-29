@@ -1,14 +1,13 @@
 "use client";
 
-import { ICONS } from "@/components/admin/icons";
-import { StatusDot } from "@/components/independent/ui";
-import type { Tone } from "@/components/portal/Badge";
-import { Tip } from "@/components/portal/Tip";
-import { Avatar } from "@/components/team/ui";
+import { ICONS } from "@/components/icons";
+import { Avatar, StatusDot } from "@/components/portal/ui";
+import type { Tone } from "@/lib/portal/tone";
+import { Tip } from "@/components/portal/tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { firstName } from "@/components/workspace/labels";
 import { PRIORITY_LABEL, TASK_STATUS_LABEL, weekLabel } from "@/lib/demo/tasks";
-import type { TaskPriority, TaskSide, TaskStatus } from "@/lib/demo/tasks";
+import type { TaskPriority, TaskStatus } from "@/lib/demo/tasks";
 import { PRIORITIES } from "@/lib/work/model";
 
 /**
@@ -16,9 +15,6 @@ import { PRIORITIES } from "@/lib/work/model";
  * and the job post / offer task editor (TaskPlan). They are the app's own pieces (StatusDot, Avatar,
  * Tip) and shadcn's DropdownMenu, so a task looks like everything else in the portals.
  */
-
-/** Who is on each side of the contract, for "Added by" and the activity feed. */
-export type TaskPeople = Record<TaskSide, { name: string; avatar: string }>;
 
 const STATUS_TONE: Record<TaskStatus, Tone> = { todo: "neutral", doing: "info", review: "warn", done: "ok" };
 const PRIORITY_TONE: Record<TaskPriority, Tone> = { high: "danger", medium: "warn", low: "info" };

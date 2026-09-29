@@ -1,10 +1,10 @@
-import { quizConfig } from "@/app/onboarding/_data/quiz-config";
+import { quizConfig } from "@/app/(main)/onboarding/_data/quiz-config";
 import { WORKSTYLE_DIMENSIONS } from "@/web-app/lib/workstyle/dimensions";
 import { workstyleResultsContent } from "@/web-app/lib/workstyle/results-content";
 
 /**
  * The work-style quiz is the real app's own onboarding, ported as-is to /onboarding/<role> (see
- * src/app/onboarding). Its script (_data/quiz-config.json) and its results copy
+ * src/app/(main)/onboarding). Its script (_data/quiz-config.json) and its results copy
  * (src/web-app/lib/workstyle/results-content.json) are the one source for the questions, the tag
  * each answer earns and what that tag means; this module reads them for everything outside the
  * quiz — badges and their tooltips, and how two sides line up trait by trait (traitFit).

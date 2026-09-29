@@ -1,4 +1,4 @@
-import { Tip } from "@/components/portal/Tip";
+import { Tip } from "@/components/portal/tip";
 /*
  * Both charts are fixed geometry, driven by data:
  *   BarChart  — a 640×206 plot: gridlines every 45px from y 180 up to 0

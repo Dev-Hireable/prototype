@@ -26,7 +26,7 @@ export default function PortalSelection() {
           alt="Hireable"
           width={701}
           height={140}
-          priority
+          preload
           unoptimized
           className="h-8 w-auto"
         />

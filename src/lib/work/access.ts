@@ -1,5 +1,5 @@
 import { trialClosed } from "@/lib/contract/lifecycle";
-import { dayLabel, isoDay, parseDay } from "@/lib/demo/dates";
+import { dayLabel, isoDay, parseDay } from "@/lib/portal/dates";
 import { lifecycleOfDeal, type Deal } from "@/lib/demo/deal";
 import { migrateProjects } from "./migrate";
 import { CLOSED, type WorkAccess } from "./permissions";

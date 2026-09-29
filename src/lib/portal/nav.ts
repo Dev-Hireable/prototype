@@ -1,9 +1,16 @@
-import type { IconName } from "@/components/admin/icons";
+/**
+ * The glyphs the rails and menus use. PortalShell draws each one from the icon set
+ * (src/components/icons.ts), so a name it has no glyph for fails to compile there.
+ */
+export type NavIcon =
+  | "home" | "dashboard" | "messages" | "bell" | "explore" | "search" | "saved" | "edit" | "roles" | "contracts" | "document" | "interviews"
+  | "people" | "person" | "users" | "applications" | "payment" | "billing" | "wallet" | "card" | "disputes" | "history" | "chart"
+  | "content" | "marketing" | "subscriptions" | "business" | "settings" | "account" | "security" | "logout";
 
 export type MenuItem = {
   href: string;
   label: string;
-  icon: IconName;
+  icon: NavIcon;
   /** Confirm before following the link — logout is the only one so far. */
   action?: "logout";
   /** Other paths that belong to this item — a detail route that lives elsewhere. */
@@ -17,7 +24,7 @@ export type Section = {
   label: string;
   title: string;
   /** Material glyph, or "logo" for the Hireable mark (Job Board in the Independent portal). */
-  icon: IconName | "logo";
+  icon: NavIcon | "logo";
   menu: MenuItem[];
   /** Not shown in the rail — reached from the avatar (Profile). */
   hidden?: boolean;

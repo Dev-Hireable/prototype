@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button, Checkbox, Input, Select } from "@/components/independent/ui";
+import { Button, Checkbox, Input, Select } from "@/components/portal/ui";
 
 export function MarketplaceFilterPanel({
   levels,

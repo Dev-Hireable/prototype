@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { dayLabel, momentLabel, today } from "@/lib/demo/dates";
-import { canMessage, contractTypeOf, lifecycleOfDeal, proposalSource, readDeal, recordInvite, stageOf, startDeal, trialStateOf, updateDeal, useDeal, withProposalEvent } from "@/lib/demo/deal";
+import { dayLabel, momentLabel, today } from "@/lib/portal/dates";
+import { canMessage, contractTypeOf, lifecycleOfDeal, readDeal, recordInvite, stageOf, startDeal, trialStateOf, updateDeal, useDeal, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import { move, PAIR, persisted, sendChat, sendFile, useStored } from "@/lib/demo/live";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import { move, PAIR, persisted, proposalSource, sendChat, sendFile, useStored } from "@/lib/demo/live";
 import type { SuggestionDecision } from "@/lib/demo/suggestions";
 import { awaitsApplication, byName, INTERVIEW_CANCELLED, INTERVIEW_DECLINED, candidates as seedCandidates, interviews as seedInterviews } from "./data";
 import type { Candidate, Interview } from "./data";

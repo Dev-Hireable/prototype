@@ -12,7 +12,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 // Hireable: the app's Material icon set rather than Lucide.
-import { ICONS } from "@/components/admin/icons"
+import { ICONS } from "@/components/icons"
 
 const ChevronDownIcon = ICONS.chevron
 const XIcon = ICONS.close

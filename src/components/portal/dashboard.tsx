@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Children, isValidElement, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { PORTAL_CONTENT_CLASS } from "@/components/portal/layout";
-import { dayLabel } from "@/lib/demo/dates";
+import { dayLabel } from "@/lib/portal/dates";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -11,17 +11,8 @@ const Forward = ICONS.arrowForward;
 const NorthEast = ICONS.northEast;
 const Close = ICONS.close;
 
-/**
- * `href` is the shortcut link an incomplete step exposes (TB-001 / IN-002).
- * `hint` is the one line explaining what the step actually asks for.
- * `requires` names the steps that must be done first — until they are, this step is locked:
- * not a link, and it says what is still missing. Applying to a role with no profile and no
- * payout method is the case this exists for.
- */
-export type DashboardChecklistItem = { label: string; done: boolean; href?: string; hint?: string; requires?: string[] };
-
 // Lives in its own module purely to keep this file focused on layout primitives.
-export { DashboardSetupCard } from "@/components/portal/SetupCard";
+export { DashboardSetupCard, type DashboardChecklistItem } from "@/components/portal/setup-card";
 
 export function DashboardFrame({ children }: { children: ReactNode }) {
   return <div className={`${PORTAL_CONTENT_CLASS} flex flex-col gap-10 p-10`}>{children}</div>;

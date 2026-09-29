@@ -6,8 +6,9 @@
     "overrides": [
       {
         // Every portal page renders inside PortalShell, whose one <Suspense> covers them all (see its
-        // comment), so no page reads the URL outside a boundary.
-        "files": ["src/app/team/**", "src/app/independent/**", "src/app/admin/**"],
+        // comment), so no page reads the URL outside a boundary. `*` stands for the (main) route
+        // group: parentheses in a glob pattern are a group, not the folder's name.
+        "files": ["src/app/*/team/**", "src/app/*/independent/**", "src/app/*/admin/**"],
         "rules": ["react-doctor/nextjs-no-use-search-params-without-suspense"]
       }
     ]

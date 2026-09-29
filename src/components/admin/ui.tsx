@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Card } from "@/components/independent/ui";
+import { Card } from "@/components/portal/ui";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
-import { ScrollFade } from "@/components/portal/ScrollFade";
+import { ScrollFade } from "@/components/portal/scroll-fade";
 import { CLEAR_DEMO_RESET } from "@/components/portal/styles";
 import { keyed } from "@/lib/portal/keys";
-import { ICONS } from "./icons";
+import { ICONS } from "@/components/icons";
 
 /* ---------------------------------------------------------------- page ---- */
 
@@ -70,7 +70,7 @@ export function AdminPage({
    (@/components/portal/nav), shared with the portals. */
 
 /* -------------------------------------------------------------- surfaces -- */
-/* Card, Badge (and its Tone) and Button are the portals' own — one kit: @/components/independent/ui
+/* Card, Badge (and its Tone) and Button are the portals' own — one kit: @/components/portal/ui
    and @/components/portal/Badge. Admin had copies of its own, with a lighter card edge and 13px
    semibold buttons in another blue. */
 

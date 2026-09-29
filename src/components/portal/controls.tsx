@@ -1,10 +1,10 @@
 "use client";
 
-import { Tip } from "@/components/portal/Tip";
+import { Tip } from "@/components/portal/tip";
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useEffect, useEffectEvent, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { FORM_CONTROL, ICON_BUTTON } from "@/components/portal/styles";
 import { uiZoom } from "@/lib/portal/zoom";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";

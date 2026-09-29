@@ -1,6 +1,7 @@
-import type { Stage } from "@/components/independent/ui";
-import type { Tone } from "@/components/portal/Badge";
-import type { JobType } from "@/lib/demo/job-types";
+import type { Stage } from "@/lib/portal/stages";
+import type { Tone } from "@/lib/portal/tone";
+import type { JobType } from "@/lib/contract/job-types";
+import type { FitScore } from "@/lib/contract/fit-score";
 import type { PlannedTask, Task } from "@/lib/demo/tasks";
 import { storedWorkStyle } from "@/lib/demo/work-style";
 
@@ -240,15 +241,6 @@ export const offers: Offer[] = [];
 
 /* -------------------------------------------------------------- contracts */
 
-/** TB-024 / TB-072 / IN-046 — the benefits every full-time engagement includes, on top of salary. */
-export const FT_BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"];
-
-/** TB-058 Trial Fit Score — the weights differ by phase, so the breakdown states which is live. */
-export const TFP_WEIGHTS = {
-  3: { label: "On Trial", workStyle: 20, profile: 30, performance: 50, evaluation: 0 },
-  4: { label: "Post Trial", workStyle: 15, profile: 20, performance: 40, evaluation: 25 },
-} as const;
-
 /** TB-067/081/117 — one submitted evaluation; a contract keeps a list of them. */
 export type Evaluation = {
   stars: number;
@@ -260,11 +252,6 @@ export type Evaluation = {
   /** TB-068 — the Trial Fit Score as it stood when this was submitted; none on a direct hire. */
   tfp?: number;
 };
-
-export const TFP_TOOLTIP = "Work Style, Profile and Performance are scored continuously during the trial. Your evaluation is added once the trial ends, and the final score is available after you submit it.";
-
-/** TB-058 Trial Fit Score breakdown. `evaluation` is the latest evaluation's stars as a percentage, once one is in. */
-export type FitScore = { overall: number; performance: number; profile: number; workStyle: number; evaluation?: number };
 
 export type Contract = {
   slug: string;
@@ -417,31 +404,6 @@ export const COMPANY_FIELDS = ["name", "description", "url", "industry", "locati
 
 /** TB-125 — the description is public on every job post, so it is capped. */
 export const COMPANY_DESC_MAX = 600;
-
-/** TB-120 / TB-123 — what an upload has to be before it is allowed to replace a photo or logo. */
-const IMAGE_TYPES = ["image/jpeg", "image/png"];
-export const IMAGE_MAX_MB = 5;
-/**
- * Reads the file as a data URL rather than an object URL: the profile is persisted to
- * localStorage, and a `blob:` URL is dead the moment the page reloads.
- */
-export const readImage = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-
-/** Returns the reason an upload was rejected, or null when it is fine. */
-export function checkImage(file: File) {
-  if (!IMAGE_TYPES.includes(file.type)) return "That file has to be a JPG or a PNG.";
-  if (file.size > IMAGE_MAX_MB * 1024 * 1024) return `That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is ${IMAGE_MAX_MB}MB.`;
-  return null;
-}
-
-/** TB-128 — accepts a bare domain as well as a full URL, rejects anything that isn't one. */
-export const isUrl = (v: string) => /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(\/\S*)?$/i.test(v.trim());
 
 /** TB-094 / TB-097 — the editable profile, seeded here and persisted in the store from then on. */
 export type TeamProfile = { name: string; title: string; photo: string; memberSince: string; email: string; phone: string; timezone: string; about: string };

@@ -3,12 +3,12 @@
 import { useMemo } from "react";
 import { statusOf } from "@/lib/contract/lifecycle";
 import { endContract as endLiveContract, sendEvaluation, withdrawNotice, type EndResult, type EvaluationResult } from "@/lib/demo/contract";
-import { dayLabel, parseDay, reviewQuarter, today } from "@/lib/demo/dates";
+import { dayLabel, parseDay, reviewQuarter, today } from "@/lib/portal/dates";
 import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, startedAsTrial, trialStateOf, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { dealContract as contractRefOf, escrowOf, rateAmount, usd } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import type { JobType } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import { PAIR, persisted, useLive, useStored, type LivePayment } from "@/lib/demo/live";
 import { donePercent } from "@/lib/demo/tasks";
 import { profileStore } from "./account";

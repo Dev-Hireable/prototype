@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo } from "react";
 import type { ProjectCtx, ProjectSummary, Scope } from "@/lib/work/projects";
 import { useSearchParams } from "next/navigation";
-import type { TaskPeople } from "@/components/portal/tasks/task-bits";
+import type { TaskPeople } from "@/components/workspace/labels";
 import type { Day } from "@/lib/work/dates";
 import type { AssigneeKey } from "@/lib/work/model";
 import type { Actor, Names, WorkAccess } from "@/lib/work/permissions";

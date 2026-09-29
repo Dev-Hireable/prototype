@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
-import { dayLabel, momentLabel } from "@/lib/demo/dates";
+import { dayLabel, momentLabel } from "@/lib/portal/dates";
 import { getDeal, transactDeal, useDeal, useDealStatus } from "@/lib/demo/deal";
 import { move as notifyMove, noteComment } from "@/lib/demo/live";
 import type { ToastTone } from "@/lib/portal/toast";

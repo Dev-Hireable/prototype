@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button, EmptyState, Field, Input, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Tabs, Textarea } from "@/components/independent/ui";
-import { AttachmentPicker } from "@/components/portal/DisputeCase";
-import { Person, Row, Table, Toolbar } from "@/components/team/ui";
+import { Button, EmptyState, Field, Input, LinkButton, Modal, Page, Person, Row, SearchBox, Select, StatusDot, Table, Tabs, Textarea, Toolbar } from "@/components/portal/ui";
+import { AttachmentPicker } from "@/components/portal/dispute-case";
 import { caseHref, checkAmount, contractName, dateOf, DISPUTE_REASONS, DISPUTE_STATUSES, leftLabel, otherParty, outcomeOf, partyName, partyTurn, SLA_DAYS, STATUS_TONE, TURN_DAYS, usd, useDisputes, waitingOn } from "@/lib/demo/disputes";
 import type { Attachment, Dispute, DisputeParty } from "@/lib/demo/disputes";
 import { keepFile } from "@/lib/demo/files";

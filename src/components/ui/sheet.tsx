@@ -6,7 +6,7 @@ import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
 // Hireable: the app's Material icon set rather than Lucide.
-import { ICONS } from "@/components/admin/icons"
+import { ICONS } from "@/components/icons"
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />

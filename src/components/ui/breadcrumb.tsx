@@ -2,7 +2,7 @@ import * as React from "react"
 import { mergeProps } from "@base-ui/react/merge-props"
 import { useRender } from "@base-ui/react/use-render"
 import { cn } from "cn"
-import { ICONS } from "@/components/admin/icons"
+import { ICONS } from "@/components/icons"
 
 // Hireable: the design system's Material icons in place of Lucide's.
 const ChevronRightIcon = ICONS.chevronRight
