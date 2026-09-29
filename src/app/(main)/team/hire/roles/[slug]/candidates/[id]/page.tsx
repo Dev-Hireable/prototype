@@ -2,8 +2,8 @@
 
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Card, CardTitle, Field, JobBadge, LinkButton, MessageButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button, Card, CardTitle, Field, JobBadge, LinkButton, MessageButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { Tip } from "@/components/portal/tip";
 import { SaveButton, TeamProfile } from "@/components/team/ui";

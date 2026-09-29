@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Field, InfoBanner, Modal, Textarea } from "@/components/independent/ui";
-import { isUpcoming } from "@/lib/demo/dates";
+import { ICONS } from "@/components/icons";
+import { Button, Field, InfoBanner, Modal, Textarea } from "@/components/portal/ui";
+import { isUpcoming } from "@/lib/portal/dates";
 
 const Calendar = ICONS.calendar;
 

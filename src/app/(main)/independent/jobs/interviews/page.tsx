@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, LinkButton, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
-import { canJoin } from "@/lib/demo/dates";
-import { Row, Table } from "@/components/team/ui";
+import { Button, LinkButton, Modal, Page, Row, StatusDot, Table, Toast } from "@/components/portal/ui";
+import { canJoin } from "@/lib/portal/dates";
 import type { Interview } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
 import { useQueryState } from "@/lib/portal/query-state";

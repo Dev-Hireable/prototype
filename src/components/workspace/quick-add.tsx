@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { checkTitle, type Invalid } from "@/lib/work/validate";

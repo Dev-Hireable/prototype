@@ -2,7 +2,7 @@
 
 import { notFound } from "next/navigation";
 import { use, useState } from "react";
-import { Page, Toast } from "@/components/independent/ui";
+import { Page, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { InviteModal } from "@/components/team/invite-modal";
 import { TeamProfile } from "@/components/team/ui";

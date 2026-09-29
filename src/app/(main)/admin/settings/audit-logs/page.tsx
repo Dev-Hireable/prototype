@@ -1,5 +1,5 @@
 import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
-import { Button } from "@/components/independent/ui";
+import { Button } from "@/components/portal/ui";
 import { auditLog } from "@/lib/admin/data/settings";
 import type { AuditEntry } from "@/lib/admin/data/settings";
 

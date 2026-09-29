@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Modal } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Modal } from "@/components/portal/ui";
 
 const Mic = ICONS.call;
 const Close = ICONS.close;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Input, Select, Textarea } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button, Input, Select, Textarea } from "@/components/portal/ui";
 import { PriorityPill, StatusCircle } from "@/components/portal/tasks/task-bits";
 import { checkSuggestion, describeSuggestion, SUGGESTION_NOTE_MAX, type TaskSuggestion } from "@/lib/demo/suggestions";
 import { weekLabel, type PlannedTask } from "@/lib/demo/tasks";

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { formatDate, fromISODate } from "@/lib/demo/dates";
+import { formatDate, fromISODate } from "@/lib/portal/dates";
 import type { ConversionOffer } from "@/lib/demo/deal";
-import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Contract } from "@/lib/independent/data";
 
 export const pretty = (iso: string) => {

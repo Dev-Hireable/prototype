@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, Person, Row, SearchBox, Select, StatusDot, Table, Toast, Toolbar } from "@/components/portal/ui";
 import { KebabMenu, MenuAction } from "@/components/portal/controls";
 import { Tip } from "@/components/portal/tip";
-import { Person, Row, Table, Toolbar } from "@/components/team/ui";
-import { hoursLabel } from "@/lib/demo/job-types";
+import { hoursLabel } from "@/lib/contract/job-types";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { byName } from "@/lib/team/data";
 import type { Offer } from "@/lib/team/data";

@@ -10,7 +10,7 @@ import {
 } from "react-day-picker"
 
 import { Button, buttonVariants } from "@/components/ui/button"
-import { ICONS } from "@/components/admin/icons"
+import { ICONS } from "@/components/icons"
 
 // Hireable: the design system's Material chevrons in place of Lucide's.
 const ChevronLeftIcon = ICONS.chevronLeft

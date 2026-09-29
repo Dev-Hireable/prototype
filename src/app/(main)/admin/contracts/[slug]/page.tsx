@@ -6,9 +6,9 @@ import { BreadcrumbBack } from "@/components/portal/nav";
 import { ReturnNav } from "@/components/portal/return";
 import { ProjectWorkspace } from "@/components/workspace/project-workspace";
 import { CorruptWork, MissingContract } from "@/components/workspace/states";
-import { dayLabel } from "@/lib/demo/dates";
+import { dayLabel } from "@/lib/portal/dates";
 import { contractTypeOf, useDeal, useDealStatus } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 
 const ADMIN = { role: "viewer" as const, name: "Admin Lead" };

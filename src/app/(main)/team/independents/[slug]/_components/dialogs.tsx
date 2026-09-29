@@ -2,7 +2,7 @@ import { useRouter } from "next/navigation";
 import { DisputeForm } from "@/components/portal/disputes";
 import { disputeLimit } from "@/lib/contract/view";
 import { caseHref, fileDispute } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { SetToast } from "@/lib/portal/toast";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { useOffers } from "@/lib/team/offers";

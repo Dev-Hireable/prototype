@@ -1,6 +1,6 @@
 "use client";
 
-import { Page } from "@/components/independent/ui";
+import { Page } from "@/components/portal/ui";
 import { PasswordSettingsCard } from "@/components/portal/settings";
 
 export default function Security() {

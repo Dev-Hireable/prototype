@@ -1,11 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button } from "@/components/portal/ui";
 import { FactStrip, SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { PanelCard } from "@/components/portal/panel-card";
-import { StatusCircle, type TaskPeople } from "@/components/portal/tasks/task-bits";
+import { StatusCircle } from "@/components/portal/tasks/task-bits";
+import type { TaskPeople } from "@/components/workspace/labels";
 import { WorkLegend, WorkMeter } from "@/components/portal/work-progress";
 import { AssigneeChip } from "@/components/workspace/meta";
 import { ago } from "@/components/workspace/util";

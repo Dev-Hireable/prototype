@@ -1,6 +1,6 @@
 "use client";
 
-import { StatusDot } from "@/components/independent/ui";
+import { StatusDot } from "@/components/portal/ui";
 import type { Tone } from "@/lib/portal/tone";
 import { TraitTag } from "@/components/portal/trait-tag";
 import { traitFit, traitTagsFor, WORK_STYLE_TRAITS } from "@/lib/demo/work-style";

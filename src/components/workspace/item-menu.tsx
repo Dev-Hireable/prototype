@@ -2,7 +2,7 @@
 
 import { Menu } from "@base-ui/react/menu";
 import { useState, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { isArchived, refOf, type WorkItem } from "@/lib/work/model";

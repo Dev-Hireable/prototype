@@ -1,7 +1,7 @@
-import { addWorkingDays, isoDay, MONTHS, parseDay } from "@/lib/demo/dates";
+import { addWorkingDays, isoDay, MONTHS, parseDay } from "@/lib/portal/dates";
 import { todayDay } from "@/lib/work/dates";
 import { countsOf, isArchived, isCompleted, PRIORITIES as WORK_PRIORITIES, PRIORITY_META, scoredItems, STATUS_META, STATUSES } from "@/lib/work/model";
-import type { Side, WorkComment, WorkItem, WorkPriority, WorkStatus } from "@/lib/work/model";
+import type { WorkComment, WorkItem, WorkPriority, WorkStatus } from "@/lib/work/model";
 import { ORDER_STEP } from "@/lib/work/order";
 
 /**
@@ -16,7 +16,6 @@ import { ORDER_STEP } from "@/lib/work/order";
  * effort and priority — and approves each or asks for changes.
  */
 
-export type TaskSide = Side;
 export type TaskStatus = WorkStatus;
 export type TaskPriority = WorkPriority;
 export type Task = WorkItem;

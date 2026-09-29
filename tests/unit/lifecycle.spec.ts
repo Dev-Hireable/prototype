@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { lifecycleOf, nextPay, NOTICE_DAYS, noticeLastDay, payPeriods, statusOf, trialClosed, type ContractFacts } from "../../src/lib/contract/lifecycle";
-import { trialClock } from "../../src/lib/demo/dates";
+import { trialClock } from "../../src/lib/portal/dates";
 
 /** Friday 25 Sep 2026, 9 AM — the tests' today. */
 const NOW = new Date(2026, 8, 25, 9);

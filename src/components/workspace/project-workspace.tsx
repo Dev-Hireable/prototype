@@ -2,9 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ICONS, type IconName } from "@/components/admin/icons";
-import { Button, InfoBanner, Toast } from "@/components/independent/ui";
-import type { TaskPeople } from "@/components/portal/tasks/task-bits";
+import { ICONS, type IconName } from "@/components/icons";
+import { Button, InfoBanner, Toast } from "@/components/portal/ui";
 import { ViewTabsList } from "@/components/portal/view-switch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { writeParams } from "@/lib/portal/query-state";
@@ -27,7 +26,7 @@ import { TimelineView } from "./timeline-view";
 import { FilterChips, Toolbar } from "./toolbar";
 import { focusItem, useWidth } from "./util";
 import { WorkloadView } from "./workload-view";
-import { firstName, assigneeLabel as labelOf } from "@/components/workspace/labels";
+import { firstName, assigneeLabel as labelOf, type TaskPeople } from "@/components/workspace/labels";
 
 const VIEW_ICON: Record<ViewKey, IconName> = { board: "viewBoard", list: "viewList", calendar: "viewCalendar", timeline: "viewTimeline", workload: "viewWorkload" };
 const VIEW_OPTIONS = VIEWS.map((v) => ({ value: v, label: VIEW_LABEL[v], icon: VIEW_ICON[v] }));

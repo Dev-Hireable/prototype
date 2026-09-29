@@ -1,6 +1,6 @@
 /**
  * The glyphs the rails and menus use. PortalShell draws each one from the icon set
- * (src/components/admin/icons.ts), so a name it has no glyph for fails to compile there.
+ * (src/components/icons.ts), so a name it has no glyph for fails to compile there.
  */
 export type NavIcon =
   | "home" | "dashboard" | "messages" | "bell" | "explore" | "search" | "saved" | "edit" | "roles" | "contracts" | "document" | "interviews"

@@ -2,8 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Highlight, SearchBox } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Highlight, SearchBox } from "@/components/portal/ui";
 import { CallDialog } from "@/components/portal/call-dialog";
 import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { ChatSourceLink } from "@/components/portal/chat-source-link";

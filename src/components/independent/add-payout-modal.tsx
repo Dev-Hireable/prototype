@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Checkbox, Field, InfoBanner, Input, Modal, Select } from "./ui";
+import { Button, Checkbox, Field, InfoBanner, Input, Modal, Select } from "@/components/portal/ui";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { useWallet } from "@/lib/independent/wallet";
 

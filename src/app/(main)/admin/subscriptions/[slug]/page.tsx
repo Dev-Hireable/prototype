@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
-import { Button, Card } from "@/components/independent/ui";
+import { Button, Card } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { subscriptions } from "@/lib/admin/data/subscriptions";
 import type { PlanChange } from "@/lib/admin/data/subscriptions";

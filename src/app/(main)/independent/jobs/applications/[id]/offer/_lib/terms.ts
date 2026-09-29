@@ -1,7 +1,7 @@
-import { formatDate, fromISODate, parseDay } from "@/lib/demo/dates";
+import { formatDate, fromISODate, parseDay } from "@/lib/portal/dates";
 import type { DealOffer } from "@/lib/demo/deal";
 import { usd } from "@/lib/demo/disputes";
-import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { JobView } from "@/lib/independent/job-view";
 
 /** Offer dates are stored yyyy-mm-dd; show them the way every other date reads. */

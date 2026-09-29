@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MdOutlineThumbDown } from "react-icons/md";
-import { Button, Field, Modal, Select, Textarea } from "@/components/independent/ui";
+import { Button, Field, Modal, Select, Textarea } from "@/components/portal/ui";
 import { ProposalReview } from "@/components/portal/proposal-review";
 import { SendOfferDialog } from "@/components/team/send-offer-dialog";
 import { proposalHistory, useDeal, type Deal, type DealProposal } from "@/lib/demo/deal";

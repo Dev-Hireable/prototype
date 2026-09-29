@@ -1,4 +1,4 @@
-import type { JobType } from "../demo/job-types";
+import type { JobType } from "../contract/job-types";
 
 /**
  * A dispute as a case both parties work through in turns — the way Contra runs them.

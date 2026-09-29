@@ -2,8 +2,8 @@
 
 import { useDeal, usePostings } from "@/lib/demo/deal";
 import type { Deal, Posting } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import type { JobType } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
 import type { Application } from "./data";
 

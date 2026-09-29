@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 
 /** The shell's panel: white, 8px corners, the 1px #c3c3c3 stroke inside — the same as the section panel and the page panel. */
 const PANEL = "flex min-h-0 flex-col overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]";

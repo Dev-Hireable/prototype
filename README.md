@@ -26,19 +26,18 @@ src/
     page.tsx                the portal picker
     error.tsx, global-error.tsx, not-found.tsx
   components/               UI shared by several routes
-    portal/                 the portals' shell, cards, dialogs and pickers
+    portal/                 what every portal draws: the UI kit (ui.tsx), shell, cards, dialogs, pickers
     workspace/              a contract's Work tab
-    team/, independent/, admin/
+    team/, independent/, admin/   one portal's own parts
     ui/                     shadcn components, owned by the CLI
+    icons.ts                the icon set
   lib/                      logic, types and data: no components
-    work/, contract/, disputes/   the pure rules, covered by tests/unit
-    portal/, team/, independent/, admin/
+    work/, contract/, disputes/   the rules, the pure ones covered by tests/unit
+    portal/                 what the portals share: dates, money, toasts, profile fields
+    team/, independent/, admin/   one portal's own data and stores
     demo/                   the stand-in backend: localStorage stores and seed data
   web-app/                  code ported unchanged from the real app's lib/ and components/ui/
 ```
-
-Two folders are wider than their names: `components/independent/ui.tsx` is the UI kit all three
-portals use, and `components/admin/icons.ts` is the icon set all three use.
 
 ## Conventions
 
@@ -50,6 +49,16 @@ These are the real app's, so the two stay easy to compare:
 - `lib/` never imports from `components/` or `app/`. The one exception is `lib/demo/work-style.ts`,
   which reads the onboarding quiz script where the real app keeps it.
 - Imports across layers use `@/`; inside a route folder, relative paths.
+
+And the prototype's own boundaries, so each part can move on its own:
+
+- A portal imports nothing from another portal's folders (`app/(main)/<portal>/`,
+  `components/<portal>/`, `lib/<portal>/`), and shared code imports nothing from any portal's. Two
+  shared files still read a portal; the test names them, each with its reason.
+- The pure rules import only each other, by relative path, never `lib/demo/`: the work domain in
+  `lib/work/`, the contract's lifecycle, job types, agreement and fit score in `lib/contract/`,
+  `lib/disputes/case.ts` and `lib/portal/dates.ts`.
+- No two files import each other in a loop, type imports included.
 
 `tests/unit/architecture.spec.ts` checks these rules.
 

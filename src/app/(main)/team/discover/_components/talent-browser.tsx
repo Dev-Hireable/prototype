@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { Button, EmptyState, SearchBox } from "@/components/independent/ui";
+import { Button, EmptyState, Pagination, SearchBox } from "@/components/portal/ui";
 import { MarketplaceFilterPanel } from "@/components/portal/filters";
-import { Pagination } from "@/components/team/ui";
-import { EXPERIENCE_LEVELS, SKILL_OPTIONS } from "@/lib/demo/job-types";
+import { EXPERIENCE_LEVELS, SKILL_OPTIONS } from "@/lib/contract/job-types";
 import type { Independent } from "@/lib/team/data";
 import type { TalentFilters } from "../_lib/filters";
 

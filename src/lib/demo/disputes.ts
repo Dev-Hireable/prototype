@@ -3,12 +3,12 @@
 import { useEffect, useSyncExternalStore } from "react";
 import * as Case from "@/lib/disputes/case";
 import type { Attachment, Ctx, Dispute, DisputeFacts, DisputeNotice, DisputeParty, DisputeStatus, Money, Refusal, Say, Step } from "@/lib/disputes/case";
-import { dayLabel, momentLabel, parseDay } from "@/lib/demo/dates";
+import { dayLabel, momentLabel, parseDay } from "@/lib/portal/dates";
 import { contractTypeOf, converted, evaluationsOf, lifecycleOfDeal, readDeal, settleEscrow, startedAsTrial } from "@/lib/demo/deal";
 import type { Phase } from "@/lib/contract/lifecycle";
 import type { Deal } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import type { JobType } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import { notify, PAIR, recordLedger } from "@/lib/demo/live";
 import { trialTasks } from "@/lib/demo/tasks";
 import { isArchived, isCompleted } from "@/lib/work/model";

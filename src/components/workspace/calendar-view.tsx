@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

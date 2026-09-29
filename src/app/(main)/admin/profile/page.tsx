@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { AdminPage } from "@/components/admin/ui";
 import { Badge } from "@/components/portal/badge";
-import { Button, Card } from "@/components/independent/ui";
+import { Button, Card } from "@/components/portal/ui";
 import { adminAccounts } from "@/lib/admin/data/settings";
 
 /** The signed-in admin — the owner row of the same list "Admin accounts" renders. */

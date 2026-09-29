@@ -1,7 +1,7 @@
 import { getImageProps } from "next/image";
 import { preload } from "react-dom";
-import { durationDays, today } from "@/lib/demo/dates";
-import type { JobType } from "@/lib/demo/job-types";
+import { durationDays, today } from "@/lib/portal/dates";
+import type { JobType } from "@/lib/contract/job-types";
 import { blankDraft, fromDrafts, planWeeks, toDrafts, type DraftTask, type PlannedTask } from "@/lib/demo/tasks";
 import { settleMoney } from "@/lib/portal/money";
 import type { Role } from "@/lib/team/data";

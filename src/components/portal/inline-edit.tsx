@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
 
 /*

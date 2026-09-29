@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import { Button, Card, Field, InfoBanner, Input, Steps, Textarea } from "@/components/independent/ui";
+import { Button, Card, Field, InfoBanner, Input, Steps, Textarea } from "@/components/portal/ui";
 import { DatePicker } from "@/components/portal/date-picker";
 import { SuggestTasks } from "@/components/independent/suggest-tasks";
 import { ProposalBody, type ProposalAuthor } from "@/components/portal/proposal-review";
-import { addWorkingDays, dayLabel, durationDays, fromISODate, isoDay, startOfToday, today } from "@/lib/demo/dates";
+import { addWorkingDays, dayLabel, durationDays, fromISODate, isoDay, startOfToday, today } from "@/lib/portal/dates";
 import type { DealProposal } from "@/lib/demo/deal";
-import { hoursLabel } from "@/lib/demo/job-types";
-import type { JobType } from "@/lib/demo/job-types";
+import { hoursLabel } from "@/lib/contract/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import { planWeeks } from "@/lib/demo/tasks";
 import type { JobView } from "@/lib/independent/job-view";
 import { proposalTerms, type ProposalFields } from "../_lib/proposal";

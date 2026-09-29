@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { today } from "@/lib/demo/dates";
+import { today } from "@/lib/portal/dates";
 import { closePosting, publishPosting, usePostings } from "@/lib/demo/deal";
 import { persisted, useStored } from "@/lib/demo/live";
 import { canPublishNow, companyStore, useCanPublish } from "./account";

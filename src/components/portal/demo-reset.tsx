@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { MdRestartAlt } from "react-icons/md";
-import { Button, Modal } from "@/components/independent/ui";
+import { Button, Modal } from "@/components/portal/ui";
 import { resetDemo } from "@/lib/demo/live";
 
 const PORTALS = ["/team", "/independent", "/admin"];

@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { MdOutlineEdit, MdOutlinePhotoCamera } from "react-icons/md";
-import { Button, Input, Select, Textarea } from "@/components/independent/ui";
+import { Button, Input, Select, Textarea } from "@/components/portal/ui";
 import { TimeZonePicker } from "@/components/portal/time-zone-picker";
 
 /**

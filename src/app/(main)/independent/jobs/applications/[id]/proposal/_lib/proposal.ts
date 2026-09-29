@@ -1,4 +1,4 @@
-import { durationDays, isoDay } from "@/lib/demo/dates";
+import { durationDays, isoDay } from "@/lib/portal/dates";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount } from "@/lib/demo/disputes";
 import type { TaskSuggestion } from "@/lib/demo/suggestions";

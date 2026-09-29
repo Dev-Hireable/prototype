@@ -1,4 +1,4 @@
-import { durationDays, isoDay } from "@/lib/demo/dates";
+import { durationDays, isoDay } from "../portal/dates";
 
 /**
  * The three kinds of role a Team Builder posts, and the contract each one turns into.
@@ -16,6 +16,9 @@ export const JOB_TYPE_LABEL: Record<JobType, string> = { trial: "Trial", "full-t
 
 /** What the pay is called on each kind of contract. */
 export const payLabel = (type: JobType) => (type === "full-time" ? "Salary" : type === "trial" ? "Budget" : "Rate");
+
+/** TB-024 / TB-072 / IN-046 — the benefits every full-time engagement includes, on top of salary. */
+export const FT_BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"];
 
 /** How experienced a role wants someone, or a talent says they are — one list for roles, profiles and filters. */
 export const EXPERIENCE_LEVELS = ["Beginner (0–2 years)", "Intermediate (2–5 years)", "Advanced (5–8 years)", "Expert (8+ years)"];

@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { BioEditor, HeroEditor, LinksEditor, SkillsEditor } from "@/components/independent/profile-editors";
-import { Button, Modal, Page, Toast } from "@/components/independent/ui";
+import { Button, Modal, Page, Toast } from "@/components/portal/ui";
 import { EditButton } from "@/components/portal/inline-edit";
 import { FlatBadge, TalentProfile } from "@/components/portal/talent-profile";
 import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
-import { ME, pastEvaluations } from "@/lib/independent/data";
+import { ME } from "@/lib/independent/data";
+import { pastEvaluations } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";
 import { useIndependentAccount, type Profile as ProfileData } from "@/lib/independent/account";
 import { useIndependentContracts } from "@/lib/independent/contracts";

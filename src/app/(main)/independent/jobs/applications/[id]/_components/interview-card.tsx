@@ -1,5 +1,5 @@
-import { ICONS } from "@/components/admin/icons";
-import { Button, Card, StatusDot } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button, Card, StatusDot } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
 import type { SetToast } from "@/lib/portal/toast";
 import type { InterviewActions, StepProps } from "../_lib/steps";

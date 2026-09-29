@@ -1,10 +1,10 @@
 "use client";
 
-import { ICONS } from "@/components/admin/icons";
-import type { TaskPeople } from "@/components/portal/tasks/task-bits";
+import { ICONS } from "@/components/icons";
+import type { TaskPeople } from "./labels";
 import type { Lifecycle, Notice } from "@/lib/contract/lifecycle";
-import { dayLabel } from "@/lib/demo/dates";
-import { JOB_TYPE_LABEL, type JobType } from "@/lib/demo/job-types";
+import { dayLabel } from "@/lib/portal/dates";
+import { JOB_TYPE_LABEL, type JobType } from "@/lib/contract/job-types";
 import type { Actor } from "@/lib/work/permissions";
 import { SummaryStat } from "./meta";
 import { ProjectWorkspace } from "./project-workspace";

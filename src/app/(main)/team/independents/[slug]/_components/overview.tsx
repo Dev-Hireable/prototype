@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
-import { Button } from "@/components/independent/ui";
+import { Button } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
 import { ContractActivity, ContractScore, SummaryRows } from "@/components/portal/contract-parts";
 import { PanelCard } from "@/components/portal/panel-card";
 import { Tip } from "@/components/portal/tip";
-import { dayLabel } from "@/lib/demo/dates";
-import { hoursLabel } from "@/lib/demo/job-types";
+import { dayLabel } from "@/lib/portal/dates";
+import { hoursLabel } from "@/lib/contract/job-types";
 import { refOf } from "@/lib/work/model";
 import { decisionNote, evaluationDueNote, evaluationsNote, summaryRows } from "../_lib/copy";
 import type { Tracker } from "../_lib/tracker";

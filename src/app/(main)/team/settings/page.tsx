@@ -1,8 +1,7 @@
 "use client";
 
-import { Page } from "@/components/independent/ui";
+import { Avatar, Page } from "@/components/portal/ui";
 import { AccountSettingsCard } from "@/components/portal/settings";
-import { Avatar } from "@/components/team/ui";
 import { useTeamAccount } from "@/lib/team/account";
 
 export default function AccountSettings() {

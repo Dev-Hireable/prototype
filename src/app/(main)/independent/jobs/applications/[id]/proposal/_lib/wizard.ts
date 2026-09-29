@@ -1,10 +1,10 @@
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { isoDay } from "@/lib/demo/dates";
+import { isoDay } from "@/lib/portal/dates";
 import { useDeal } from "@/lib/demo/deal";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount } from "@/lib/demo/disputes";
-import { postedStart } from "@/lib/demo/job-types";
+import { postedStart } from "@/lib/contract/job-types";
 import type { TaskSuggestion } from "@/lib/demo/suggestions";
 import { useIndependentAccount } from "@/lib/independent/account";
 import { useApplications } from "@/lib/independent/applications";

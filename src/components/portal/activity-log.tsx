@@ -1,7 +1,7 @@
 "use client";
 
 import { Tip } from "@/components/portal/tip";
-import { StatusDot } from "@/components/independent/ui";
+import { StatusDot } from "@/components/portal/ui";
 import { PanelCard } from "@/components/portal/panel-card";
 
 /** Grey: nothing logged; light green: worked on tasks; green: sent a task for review. */

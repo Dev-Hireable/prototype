@@ -2,8 +2,8 @@
 
 import { Badge } from "@/components/portal/badge";
 import { MessagesPage } from "@/components/portal/messages-page";
-import { Avatar } from "@/components/team/ui";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { Avatar } from "@/components/portal/ui";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { conversationsFor } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";

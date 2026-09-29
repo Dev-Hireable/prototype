@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Card, LinkButton } from "@/components/independent/ui";
+import { Button, Card, LinkButton } from "@/components/portal/ui";
 import { OfferFrom, Signature } from "@/components/portal/offer-parts";
 import type { ConversionOffer } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";

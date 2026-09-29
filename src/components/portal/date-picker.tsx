@@ -2,11 +2,11 @@
 
 import { useState, type ReactNode, type Ref } from "react";
 import type { Matcher } from "react-day-picker";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { FORM_CONTROL } from "@/components/portal/styles";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { formatDate } from "@/lib/demo/dates";
+import { formatDate } from "@/lib/portal/dates";
 
 /**
  * The design system's date field: shadcn/ui's date picker recipe — its Popover holding its
@@ -14,7 +14,7 @@ import { formatDate } from "@/lib/demo/dates";
  * every other form field rather than shadcn's outline Button.
  */
 
-/* Its date helpers — formatDate, isoDay, fromISODate, startOfToday — live in @/lib/demo/dates. */
+/* Its date helpers — formatDate, isoDay, fromISODate, startOfToday — live in @/lib/portal/dates. */
 
 /**
  * A date input: picking a day closes the calendar and hands back a local Date. It is a form field

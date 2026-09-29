@@ -1,11 +1,11 @@
-import { ICONS } from "@/components/admin/icons";
-import { Chip, JobBadge, MatchPill } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Chip, JobBadge, MatchPill } from "@/components/portal/ui";
 import { FactStrip, Section } from "@/components/portal/page-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { WorkStyleMatch } from "@/components/portal/work-style-match";
-import { durationDays } from "@/lib/demo/dates";
-import { JOB_TYPE_LABEL, jobFacts } from "@/lib/demo/job-types";
-import type { JobType } from "@/lib/demo/job-types";
+import { durationDays } from "@/lib/portal/dates";
+import { JOB_TYPE_LABEL, jobFacts } from "@/lib/contract/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
 import { MATCH_TOOLTIP } from "@/lib/independent/data";
 import type { Role } from "@/lib/independent/data";

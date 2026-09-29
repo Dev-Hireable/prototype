@@ -1,4 +1,4 @@
-import { Button, Modal } from "@/components/independent/ui";
+import { Button, Modal } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
 import { endNote } from "../_lib/copy";
 import type { Tracker } from "../_lib/tracker";

@@ -2,11 +2,11 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Page } from "@/components/independent/ui";
+import { Page } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { useRoles } from "@/lib/team/roles";
 import { useCards } from "@/lib/team/account";
-import type { JobType } from "@/lib/demo/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import type { Role } from "@/lib/team/data";
 import { Cta, WizardHeader } from "./_components/frame";
 import { Published } from "./_components/published";

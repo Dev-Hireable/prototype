@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ICONS } from "@/components/admin/icons";
-import { JobBadge, Page } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Avatar, JobBadge, Page } from "@/components/portal/ui";
 import {
   DashboardBanner,
   DashboardBarChart,
@@ -16,14 +16,13 @@ import {
   DashboardSummaryGrid,
 } from "@/components/portal/dashboard";
 import { DashboardTasks } from "@/components/portal/dashboard-tasks";
-import { Avatar } from "@/components/team/ui";
 import { useTeamAccount, useCards, useTeamBanner } from "@/lib/team/account";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useRoles } from "@/lib/team/roles";
-import { dayLabel } from "@/lib/demo/dates";
+import { dayLabel } from "@/lib/portal/dates";
 import { lifecycleOfDeal, useDeal, type Deal } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { CONTRACT_NAMES, liveIndependents, MARKETING_BANNER, setupSteps } from "@/lib/team/data";
 import type { Candidate, Contract, Interview } from "@/lib/team/data";

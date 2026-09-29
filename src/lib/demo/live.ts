@@ -1,9 +1,10 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { dayStamp, today } from "@/lib/demo/dates";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
-import type { JobType } from "@/lib/demo/job-types";
+import { dayStamp, today } from "@/lib/portal/dates";
+import type { Deal } from "@/lib/demo/deal";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import { notifications as indSeed } from "@/lib/independent/data";
 import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
@@ -43,6 +44,9 @@ export type ChatMsg = {
 
 /** TB-106 — a note left on a proposal's Activity pane, which both inboxes link back to. */
 export type ChatSource = { kind: "proposal"; version: number; roleSlug: string; title: string };
+
+/** Where a note written on the proposal came from, so both inboxes can link back to it. */
+export const proposalSource = (deal: Deal | null): ChatSource | undefined => (deal?.proposal ? { kind: "proposal", version: deal.proposal.version, roleSlug: deal.roleSlug, title: deal.title } : undefined);
 
 /* ----------------------------------------------------------- attachments */
 

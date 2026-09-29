@@ -1,6 +1,6 @@
 import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
 import { Badge } from "@/components/portal/badge";
-import { Button } from "@/components/independent/ui";
+import { Button } from "@/components/portal/ui";
 import { banners } from "@/lib/admin/data/content";
 import type { Banner } from "@/lib/admin/data/content";
 

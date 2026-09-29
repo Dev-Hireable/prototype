@@ -1,8 +1,8 @@
-import { Card, StatusDot } from "@/components/independent/ui";
+import { Card, StatusDot } from "@/components/portal/ui";
 import { Agreement, OfferTerms } from "@/components/portal/offer-parts";
 import type { ConversionOffer } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";
-import { FT_BENEFITS } from "@/lib/team/data";
+import { FT_BENEFITS } from "@/lib/contract/job-types";
 import { offerRows } from "../_lib/terms";
 
 /** The offer itself: its terms, a full-time role's benefits, and the services agreement it's signed under. */

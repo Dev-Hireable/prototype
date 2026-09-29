@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button, LinkButton, Modal, Page, Toast } from "@/components/independent/ui";
+import { Button, LinkButton, Modal, Page, Toast } from "@/components/portal/ui";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/profile-editor";
 import { useToast, type SetToast } from "@/lib/portal/toast";
-import { COMPANY_DESC_MAX, COMPANY_FIELDS, COMPANY_SIZES, INDUSTRIES, isUrl } from "@/lib/team/data";
+import { COMPANY_DESC_MAX, COMPANY_FIELDS, COMPANY_SIZES, INDUSTRIES } from "@/lib/team/data";
+import { isUrl } from "@/lib/portal/profile-fields";
 import { useTeamAccount } from "@/lib/team/account";
 import { useRoles } from "@/lib/team/roles";
 import type { CompanyProfile } from "@/lib/team/data";

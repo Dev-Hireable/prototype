@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Checkbox, Field, LinkButton, Modal, Page, Select, StatusDot, Toast } from "@/components/independent/ui";
+import { Avatar, Button, Checkbox, Field, LinkButton, Modal, Page, Row, Select, StatusDot, Table, Toast } from "@/components/portal/ui";
 import { DatePicker } from "@/components/portal/date-picker";
-import { canJoin, formatDate, startOfToday } from "@/lib/demo/dates";
-import { ICONS } from "@/components/admin/icons";
+import { canJoin, formatDate, startOfToday } from "@/lib/portal/dates";
+import { ICONS } from "@/components/icons";
 import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
 import { ViewSwitch } from "@/components/portal/view-switch";
-import { Avatar, Row, Table } from "@/components/team/ui";
 import { byName, INTERVIEW_TIMES } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useQueryState } from "@/lib/portal/query-state";

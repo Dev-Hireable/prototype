@@ -1,7 +1,6 @@
-import type { IconName } from "@/components/admin/icons";
+import type { IconName } from "@/components/icons";
 import type { ColumnColors } from "@/components/portal/board";
-import type { TaskPeople } from "@/components/portal/tasks/task-bits";
-import type { AssigneeKey, WorkStatus, WorkType } from "@/lib/work/model";
+import type { AssigneeKey, Side, WorkStatus, WorkType } from "@/lib/work/model";
 import type { Group } from "@/lib/work/query";
 
 /*
@@ -38,6 +37,9 @@ const PLAIN_COLUMN: ColumnColors = { bg: "#f2f2f2", text: "#212121", count: "#e3
 
 /** A group's colours, wherever it's drawn: a Board column, a List heading, a Timeline band. */
 export const groupColors = (g: Group): ColumnColors => (g.value.field === "status" ? STATUS_COLUMN[g.value.value] : PLAIN_COLUMN);
+
+/** Who is on each side of the contract, for "Added by" and the activity feed. */
+export type TaskPeople = Record<Side, { name: string; avatar: string }>;
 
 export const firstName = (name: string) => name.split(" ")[0];
 

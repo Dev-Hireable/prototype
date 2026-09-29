@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { KebabMenu, Textarea } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { KebabMenu, Textarea } from "@/components/portal/ui";
 import { MenuAction } from "@/components/portal/controls";
 import { Tip } from "@/components/portal/tip";
 import { blankDraft, dueFromWeek, dueLabel, weekLabel } from "@/lib/demo/tasks";

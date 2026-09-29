@@ -1,9 +1,9 @@
 import { NOTICE_DAYS } from "@/lib/contract/lifecycle";
 import { nextPaymentLine, termLine, trialStartOf, type ContractView } from "@/lib/contract/view";
 import type { EndResult } from "@/lib/demo/contract";
-import { dayLabel } from "@/lib/demo/dates";
+import { dayLabel } from "@/lib/portal/dates";
 import { escrowLine, rateAmount, usd } from "@/lib/demo/disputes";
-import { hoursLabel, JOB_TYPE_LABEL, type OngoingType } from "@/lib/demo/job-types";
+import { hoursLabel, JOB_TYPE_LABEL, type OngoingType } from "@/lib/contract/job-types";
 import type { Contract, PayoutMethod } from "@/lib/independent/data";
 
 /**

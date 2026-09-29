@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Card, LinkButton } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button, Card, LinkButton } from "@/components/portal/ui";
 import { useWithReturn } from "@/components/portal/return";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Application } from "@/lib/independent/data";
 import type { JobView } from "@/lib/independent/job-view";
 import type { InterviewActions, StepProps } from "../_lib/steps";

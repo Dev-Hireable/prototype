@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { Button } from "@/components/independent/ui";
-import { hoursLabel, startLabel } from "@/lib/demo/job-types";
+import { Button } from "@/components/portal/ui";
+import { hoursLabel, startLabel } from "@/lib/contract/job-types";
 import type { JobView } from "@/lib/independent/job-view";
 
 /** The job post the proposal answers: the trial's brief or the role's description, any attachment, and its terms. */

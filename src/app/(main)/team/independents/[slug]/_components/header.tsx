@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, LinkButton } from "@/components/independent/ui";
+import { Button, LinkButton } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import type { ContractView } from "@/lib/contract/view";

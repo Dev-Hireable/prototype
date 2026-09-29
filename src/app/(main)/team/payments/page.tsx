@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Chip, EmptyState, LinkButton, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
-import { Drawer, Row, Table, Toolbar } from "@/components/team/ui";
+import { Button, Card, Chip, Drawer, EmptyState, LinkButton, Page, Row, SearchBox, Select, StatusDot, Table, Toast, Toolbar } from "@/components/portal/ui";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { Transaction } from "@/lib/team/data";
 import { useLedger } from "@/lib/team/contracts";

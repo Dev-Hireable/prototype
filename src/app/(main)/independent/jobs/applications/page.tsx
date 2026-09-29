@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Button, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
+import { Button, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/scroll-fade";

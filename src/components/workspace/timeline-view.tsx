@@ -2,7 +2,7 @@
 
 import { uiZoom } from "@/lib/portal/zoom";
 import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/tip";
 import { dayOf, isWeekend, MONTH_SHORT, partsOf, rangeLabel, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";

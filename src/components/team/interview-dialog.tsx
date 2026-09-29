@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Input, Modal, Select, Textarea } from "@/components/independent/ui";
+import { Button, Field, Input, Modal, Select, Textarea } from "@/components/portal/ui";
 import { DatePicker } from "@/components/portal/date-picker";
 import { byName, INTERVIEW_TIMES } from "@/lib/team/data";
 import type { Candidate } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
-import { formatDate, startOfToday } from "@/lib/demo/dates";
+import { formatDate, startOfToday } from "@/lib/portal/dates";
 
 /**
  * TB-037 / TB-040 — "Invite to interview", shared by the candidate profile and the pipeline board,

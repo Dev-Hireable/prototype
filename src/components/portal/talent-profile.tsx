@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Chip, EmptyState, JobBadge, Modal, Tabs } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Chip, EmptyState, JobBadge, Modal, Tabs } from "@/components/portal/ui";
 import { FactStrip, Section } from "@/components/portal/page-parts";
 import { Tip } from "@/components/portal/tip";
 import { TraitTag } from "@/components/portal/trait-tag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";
-import type { PastEvaluation } from "@/lib/independent/data";
+import type { PastEvaluation } from "@/lib/demo/deal";
 import { keyed } from "@/lib/portal/keys";
 import { useQueryState } from "@/lib/portal/query-state";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Initials } from "@/components/independent/ui";
+import { Initials } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { MessagesPage } from "@/components/portal/messages-page";
 import { useApplications } from "@/lib/independent/applications";

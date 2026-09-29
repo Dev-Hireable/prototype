@@ -1,10 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { MdOutlineLibraryBooks } from "react-icons/md";
-import { Button, InfoBanner, Input, Modal, Pills, Select, Textarea } from "@/components/independent/ui";
+import { Button, InfoBanner, Input, Modal, Pills, Select, Textarea } from "@/components/portal/ui";
 import { SkillPicker } from "@/components/portal/controls";
 import { TaskPlanEditor } from "@/components/portal/tasks/task-plan";
 import { RateSourceModal, TemplateBrowser, TemplateSuggestions } from "@/components/team/role-templates";
-import type { JobType, OngoingType } from "@/lib/demo/job-types";
+import type { JobType, OngoingType } from "@/lib/contract/job-types";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { LEVELS, levelName, suggestRange } from "@/lib/team/role-templates";
 import type { RoleTemplate } from "@/lib/team/role-templates";

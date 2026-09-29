@@ -1,6 +1,6 @@
 "use client";
 
-import { ICONS, type IconName } from "@/components/admin/icons";
+import { ICONS, type IconName } from "@/components/icons";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type ViewOption<T extends string> = { value: T; label: string; icon: IconName };

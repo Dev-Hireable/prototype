@@ -1,7 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
 import { MdAdd, MdAttachMoney, MdOutlineCalendarToday, MdOutlineSchedule, MdRemove } from "react-icons/md";
-import { Checkbox, Chip, Input, Textarea } from "@/components/independent/ui";
-import { hoursLabel, PART_TIME_HOURS } from "@/lib/demo/job-types";
+import { Checkbox, Chip, Input, Textarea } from "@/components/portal/ui";
+import { hoursLabel, PART_TIME_HOURS } from "@/lib/contract/job-types";
 import { formatMoney, settleMoney } from "@/lib/portal/money";
 import { BENEFITS, CHIP_TONES } from "../_lib/wizard";
 

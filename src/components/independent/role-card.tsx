@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "./ui";
-import { hoursLabel } from "@/lib/demo/job-types";
+import { ICONS } from "@/components/icons";
+import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "@/components/portal/ui";
+import { hoursLabel } from "@/lib/contract/job-types";
 import { MATCH_TOOLTIP } from "@/lib/independent/data";
 import type { Application, Role } from "@/lib/independent/data";
 import { useSavedRoles } from "@/lib/independent/saved";

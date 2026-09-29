@@ -1,15 +1,14 @@
 "use client";
 
 import { useState, type Dispatch, type SetStateAction } from "react";
-import { Button, Checkbox, Chip, Field, InfoBanner, Input, KeyValue, MatchPill, Modal, Steps } from "@/components/independent/ui";
+import { Avatar, Button, Checkbox, Chip, Field, InfoBanner, Input, KeyValue, MatchPill, Modal, Steps } from "@/components/portal/ui";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
-import { Avatar, MATCH_TOOLTIP } from "@/components/team/ui";
-import { addWorkingDays, dayLabel, durationDays, trialMonths, fromISODate, startOfToday, isoDay } from "@/lib/demo/dates";
+import { MATCH_TOOLTIP } from "@/components/team/ui";
+import { addWorkingDays, dayLabel, durationDays, trialMonths, fromISODate, startOfToday, isoDay } from "@/lib/portal/dates";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount, usd } from "@/lib/demo/disputes";
-import { hoursLabel, JOB_TYPE_LABEL, proposedStart } from "@/lib/demo/job-types";
+import { FT_BENEFITS, hoursLabel, JOB_TYPE_LABEL, proposedStart } from "@/lib/contract/job-types";
 import type { OfferTask, PlannedTask } from "@/lib/demo/tasks";
-import { FT_BENEFITS } from "@/lib/team/data";
 import type { Independent, PaymentMethod, Role } from "@/lib/team/data";
 
 /** Hireable's platform fee, charged on top of a trial's escrow rather than out of it. */

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { MdArrowForward, MdCheckCircle, MdClose } from "react-icons/md";
 import { ICON_BUTTON } from "@/components/portal/styles";
-import { Button, Chip, Modal, Pills, SearchBox } from "@/components/independent/ui";
+import { Button, Chip, Modal, Pills, SearchBox } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { levelName, ROLE_TEMPLATES, searchTemplates, TEMPLATE_CATEGORIES, templateRange } from "@/lib/team/role-templates";
 import type { RateSuggestion, RoleTemplate, TemplateCategory } from "@/lib/team/role-templates";

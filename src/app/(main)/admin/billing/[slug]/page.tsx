@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
-import { Button } from "@/components/independent/ui";
+import { Button } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { transactions } from "@/lib/admin/data/billing";
 import type { BreakdownLine, LinkedRecord } from "@/lib/admin/data/billing";

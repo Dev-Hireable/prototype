@@ -2,12 +2,11 @@
 
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { RoleCard } from "@/components/independent/role-card";
-import { Pagination } from "@/components/team/ui";
-import { Button, Checkbox, EmptyState, Page, SearchBox } from "@/components/independent/ui";
+import { Button, Checkbox, EmptyState, Page, Pagination, SearchBox } from "@/components/portal/ui";
 import { MarketplaceFilterPanel } from "@/components/portal/filters";
 import { roleFromPosting, type Role } from "@/lib/independent/data";
 import { isPostingOpen, usePostings } from "@/lib/demo/deal";
-import { EXPERIENCE_LEVELS } from "@/lib/demo/job-types";
+import { EXPERIENCE_LEVELS } from "@/lib/contract/job-types";
 
 const PER_PAGE = 8;
 

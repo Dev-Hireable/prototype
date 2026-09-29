@@ -1,7 +1,7 @@
-import { isPast } from "@/lib/demo/dates";
+import { isPast } from "@/lib/portal/dates";
 import { ageOf, dateOf, daysOpen, holds, leftLabel, partyName, rateAmount, SLA_DAYS, usd } from "@/lib/demo/disputes";
 import type { Dispute, DisputeFacts, DisputeParty } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { PartyTurn } from "@/lib/disputes/case";
 
 /**

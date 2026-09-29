@@ -1,9 +1,9 @@
-import { Button, LinkButton } from "@/components/independent/ui";
+import { Button, LinkButton } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
 import type { ContractView } from "@/lib/contract/view";
-import { dayLabel } from "@/lib/demo/dates";
+import { dayLabel } from "@/lib/portal/dates";
 import { usd } from "@/lib/demo/disputes";
-import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Contract } from "@/lib/independent/data";
 import { isArchived } from "@/lib/work/model";
 import { decisionNote } from "../_lib/copy";

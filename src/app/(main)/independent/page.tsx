@@ -1,15 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ICONS } from "@/components/admin/icons";
-import { Initials, JobBadge, Page } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Initials, JobBadge, Page } from "@/components/portal/ui";
 import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardStat, DashboardSummaryCard, DashboardSummaryGrid, type DashboardChecklistItem } from "@/components/portal/dashboard";
 import { DashboardTasks } from "@/components/portal/dashboard-tasks";
 import { trialClosed } from "@/lib/contract/lifecycle";
-import { dayLabel, daysLeftLabel, sinceOrFrom } from "@/lib/demo/dates";
+import { dayLabel, daysLeftLabel, sinceOrFrom } from "@/lib/portal/dates";
 import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
 import type { Application, Contract, Interview } from "@/lib/independent/data";
 import { traitTagsFor } from "@/lib/demo/work-style";

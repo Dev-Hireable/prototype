@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, AuthLink, AuthShell, PasswordInput, PasswordRules } from "@/components/portal/auth-shell";
-import { Button, Field, Input, StatusDot } from "@/components/independent/ui";
+import { Button, Field, Input, StatusDot } from "@/components/portal/ui";
 import { emailOk, PASSWORD_RULES, passwordOk, signUp, type Role } from "@/lib/demo/auth";
 
 type Step = "details" | "verify";

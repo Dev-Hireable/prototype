@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "@/components/independent/ui";
-import { CardHeading } from "@/components/team/ui";
+import { Card, CardHeading } from "@/components/portal/ui";
 
 /**
  * The one shell every tracker sidebar card uses. They were each written by hand and drifted —

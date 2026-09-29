@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { Button, Card, Field, Select, Textarea } from "@/components/independent/ui";
+import { Button, Card, CardHeading, Field, Select, Textarea } from "@/components/portal/ui";
 import { ContractScore, Stars } from "@/components/portal/contract-parts";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { Tip } from "@/components/portal/tip";
-import { CardHeading } from "@/components/team/ui";
 import { usd } from "@/lib/demo/disputes";
 import { keyed } from "@/lib/portal/keys";
 import { evaluationIntro, hireLabel } from "../_lib/copy";

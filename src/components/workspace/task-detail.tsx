@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Checkbox, InfoBanner, KebabMenu, Pills, Textarea } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Avatar, Button, Checkbox, Drawer, InfoBanner, KebabMenu, Pills, Textarea } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { MenuAction } from "@/components/portal/controls";
 import { CommentBox } from "@/components/portal/comment-box";
 import { Tip } from "@/components/portal/tip";
-import { Avatar, Drawer } from "@/components/team/ui";
 import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, type Subtask, type WorkItem } from "@/lib/work/model";
 import { capsFor, changeFor, sideOf, tickRefusal, transitionFor, type AgreedField, type Caps } from "@/lib/work/permissions";
 import { checkComment, checkSubtaskTitle, checkTitle } from "@/lib/work/validate";

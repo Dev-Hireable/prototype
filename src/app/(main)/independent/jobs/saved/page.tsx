@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { RoleCard } from "@/components/independent/role-card";
-import { EmptyState, LinkButton, Page, SearchBox, Select } from "@/components/independent/ui";
+import { EmptyState, LinkButton, Page, SearchBox, Select } from "@/components/portal/ui";
 import { roleFromPosting } from "@/lib/independent/data";
 import { usePostings } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useSavedRoles } from "@/lib/independent/saved";
 
 export default function SavedRoles() {

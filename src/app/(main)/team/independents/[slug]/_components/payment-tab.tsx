@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import { Card, StatusDot } from "@/components/independent/ui";
+import { Card, CardHeading, StatusDot } from "@/components/portal/ui";
 import { BenefitList } from "@/components/portal/contract-parts";
 import { DisputeRows } from "@/components/portal/disputes";
-import { CardHeading } from "@/components/team/ui";
 import { benefitsOf } from "@/lib/contract/view";
-import { dayLabel } from "@/lib/demo/dates";
+import { dayLabel } from "@/lib/portal/dates";
 import { usd } from "@/lib/demo/disputes";
 import type { Transaction } from "@/lib/team/data";
 import { contractTerms, paymentTerms, trialTerms } from "../_lib/copy";

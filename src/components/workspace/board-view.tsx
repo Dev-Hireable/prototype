@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useRef, useState, type DragEvent, type KeyboardEvent, type RefObject } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { KanbanColumn, KanbanEmpty, KanbanList, type ColumnFrame } from "@/components/portal/board";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/tip";

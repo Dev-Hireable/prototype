@@ -1,7 +1,6 @@
 "use client";
 
-import { Button, Card, Chip, Page, StatusDot, Toast } from "@/components/independent/ui";
-import { CardHeading } from "@/components/team/ui";
+import { Button, Card, CardHeading, Chip, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { PLAN, PLANS } from "@/lib/team/data";
 

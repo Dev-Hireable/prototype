@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { DashboardSummaryCard } from "@/components/portal/dashboard";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { ChangesChip, DueChip } from "@/components/workspace/meta";

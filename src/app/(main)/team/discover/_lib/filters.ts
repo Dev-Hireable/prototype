@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EXPERIENCE_LEVELS, SKILL_OPTIONS } from "@/lib/demo/job-types";
+import { EXPERIENCE_LEVELS, SKILL_OPTIONS } from "@/lib/contract/job-types";
 import type { Independent } from "@/lib/team/data";
 
 /**

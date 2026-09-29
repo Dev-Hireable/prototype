@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { Tip } from "@/components/portal/tip";
 
 const Check = ICONS.check;

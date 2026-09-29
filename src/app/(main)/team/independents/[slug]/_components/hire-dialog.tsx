@@ -1,10 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Button, Checkbox, Field, Input, Modal, Pills } from "@/components/independent/ui";
+import { Button, Checkbox, Field, Input, Modal, Pills } from "@/components/portal/ui";
 import { DatePicker } from "@/components/portal/date-picker";
-import { fromISODate, isoDay, startOfToday } from "@/lib/demo/dates";
+import { fromISODate, isoDay, startOfToday } from "@/lib/portal/dates";
 import { rateAmount } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL, type OngoingType } from "@/lib/demo/job-types";
-import { FT_BENEFITS } from "@/lib/team/data";
+import { FT_BENEFITS, JOB_TYPE_LABEL, type OngoingType } from "@/lib/contract/job-types";
 import type { HireForm } from "../_lib/forms";
 
 type Offer = { type: OngoingType; salary: string; start: string; benefits: string[]; hours?: number };

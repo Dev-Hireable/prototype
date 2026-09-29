@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Input } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Input } from "@/components/portal/ui";
 
 const Visible = ICONS.visibility;
 const Hidden = ICONS.visibilityOff;

@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
-import { Button, Chip, StatusDot } from "@/components/independent/ui";
+import { Button, Chip, StatusDot } from "@/components/portal/ui";
 import { BenefitList, SummaryRows } from "@/components/portal/contract-parts";
 import { DisputeRows } from "@/components/portal/disputes";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { PanelCard } from "@/components/portal/panel-card";
 import { Tip } from "@/components/portal/tip";
 import { benefitsOf, type ContractView } from "@/lib/contract/view";
-import { dayLabel } from "@/lib/demo/dates";
+import { dayLabel } from "@/lib/portal/dates";
 import { escrowLine, STATUS_TONE, usd } from "@/lib/demo/disputes";
 import type { Contract, Transaction } from "@/lib/independent/data";
 import { keyed } from "@/lib/portal/keys";

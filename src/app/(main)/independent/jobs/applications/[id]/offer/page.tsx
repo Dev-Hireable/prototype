@@ -2,8 +2,8 @@
 
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { InfoBanner, Page } from "@/components/independent/ui";
-import { durationDays, trialMonths } from "@/lib/demo/dates";
+import { InfoBanner, Page } from "@/components/portal/ui";
+import { durationDays, trialMonths } from "@/lib/portal/dates";
 import { useDeal } from "@/lib/demo/deal";
 import type { DealOffer } from "@/lib/demo/deal";
 import { rateAmount } from "@/lib/demo/disputes";

@@ -1,6 +1,6 @@
 "use client";
 
-import { LinkButton, Modal } from "@/components/independent/ui";
+import { LinkButton, Modal } from "@/components/portal/ui";
 import { ProposalReview } from "@/components/portal/proposal-review";
 import { proposalHistory, useDeal } from "@/lib/demo/deal";
 import type { Application } from "@/lib/independent/data";

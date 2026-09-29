@@ -2,10 +2,10 @@
 
 import Image from "next/image";
 import { useId, useState, type ReactNode } from "react";
-import { Button, Checkbox, Field, Modal, Textarea } from "@/components/independent/ui";
-import type { JobType } from "@/lib/demo/job-types";
+import { Button, Checkbox, Field, Modal, Textarea } from "@/components/portal/ui";
+import type { JobType } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
-import { agreementFor } from "@/lib/independent/data";
+import { agreementFor } from "@/lib/contract/agreement";
 
 /*
  * The pieces every offer page is built from — the talent's offer, the post-trial offer and the Team

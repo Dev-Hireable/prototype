@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { JobType, OngoingType } from "@/lib/demo/job-types";
+import type { JobType, OngoingType } from "@/lib/contract/job-types";
 import { blankDraft, toDrafts, type DraftTask } from "@/lib/demo/tasks";
 import type { Role } from "@/lib/team/data";
 import { LEVELS, type RoleTemplate } from "@/lib/team/role-templates";

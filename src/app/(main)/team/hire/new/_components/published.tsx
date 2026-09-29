@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { useState } from "react";
-import { LinkButton, Page } from "@/components/independent/ui";
+import { LinkButton, Page } from "@/components/portal/ui";
 import { BADGE, type PathCopy } from "../_lib/wizard";
 
 /** The last step: the post is live, with the way on to its applicants. */

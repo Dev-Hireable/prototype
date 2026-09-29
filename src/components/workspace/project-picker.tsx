@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Input, KebabMenu, Modal } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button, Input, KebabMenu, Modal } from "@/components/portal/ui";
 import { MenuAction } from "@/components/portal/controls";
 import { TOOLBAR_BUTTON } from "@/components/portal/toolbar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";

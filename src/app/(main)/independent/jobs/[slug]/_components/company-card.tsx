@@ -1,6 +1,6 @@
-import { ICONS } from "@/components/admin/icons";
-import { Button, Card, LinkButton } from "@/components/independent/ui";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { ICONS } from "@/components/icons";
+import { Button, Card, LinkButton } from "@/components/portal/ui";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Role } from "@/lib/independent/data";
 import type { Standing } from "../_lib/standing";
 

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
-import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
+import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { payoutTitle, useWallet } from "@/lib/independent/wallet";

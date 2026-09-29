@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, EmptyState, LinkButton, Modal, Page, Toast } from "@/components/independent/ui";
+import { Button, EmptyState, LinkButton, Modal, Page, Toast } from "@/components/portal/ui";
 import { IndependentCard } from "@/components/team/ui";
 import { useToast } from "@/lib/portal/toast";
 import type { Independent } from "@/lib/team/data";

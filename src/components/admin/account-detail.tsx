@@ -1,8 +1,8 @@
 import { DisputeHistory } from "./dispute-history";
 import { LiveContractCard } from "./live-contract";
 import { BreadcrumbBack } from "@/components/portal/nav";
-import { ICONS } from "./icons";
-import { Button, Card } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Button, Card } from "@/components/portal/ui";
 import { AdminPage, DataTable, StatCard, StatGrid } from "./ui";
 import type { ActivityEvent, Stat } from "@/lib/admin/data/users";
 

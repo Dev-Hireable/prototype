@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Checkbox, Field, Modal, Textarea } from "@/components/independent/ui";
+import { Button, Checkbox, Field, Modal, Textarea } from "@/components/portal/ui";
 
 /** IN-017 — "Apply to role · confirm": the profile goes with the application, with a note and the quiz results if the talent likes. */
 export function ApplyDialog({ open, title, company, onClose, onSend }: { open: boolean; title: string; company: string; onClose: () => void; onSend: (extras: { note: string; quiz: boolean }) => void }) {

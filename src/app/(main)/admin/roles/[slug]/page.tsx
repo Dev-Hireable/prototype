@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
 import { Badge } from "@/components/portal/badge";
-import { Button } from "@/components/independent/ui";
+import { Button } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { roles } from "@/lib/admin/data/roles";
 import type { Check } from "@/lib/admin/data/roles";

@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
-import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/independent/ui";
+import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/portal/ui";
 import { MenuAction } from "@/components/portal/controls";
 import { useDeal } from "@/lib/demo/deal";
 import { escrowOf, useDisputes, type Dispute } from "@/lib/demo/disputes";

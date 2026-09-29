@@ -2,15 +2,15 @@
 
 import Image from "next/image";
 import { useState, type ChangeEvent } from "react";
-import { Chip, Field, Input, Select, Textarea } from "@/components/independent/ui";
+import { Chip, Field, Input, Select, Textarea } from "@/components/portal/ui";
 import { SkillPicker } from "@/components/portal/controls";
 import { EditPanel } from "@/components/portal/inline-edit";
-import { EXPERIENCE_LEVELS } from "@/lib/demo/job-types";
+import { EXPERIENCE_LEVELS } from "@/lib/contract/job-types";
 import { BIO_MAX, SKILL_SUGGESTIONS } from "@/lib/independent/data";
 import type { Profile } from "@/lib/independent/account";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import type { SetToast } from "@/lib/portal/toast";
-import { checkImage, IMAGE_MAX_MB, isUrl, readImage } from "@/lib/team/data";
+import { checkImage, IMAGE_MAX_MB, isUrl, readImage } from "@/lib/portal/profile-fields";
 import { ImagePicker } from "@/components/portal/profile-editor";
 
 /*

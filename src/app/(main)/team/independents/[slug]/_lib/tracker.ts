@@ -1,7 +1,7 @@
 import { trialStartOf, type ContractView } from "@/lib/contract/view";
 import { endOptions, type EndOption } from "@/lib/demo/contract";
 import { escrowLine, holds } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Contract, Evaluation } from "@/lib/team/data";
 import { isArchived } from "@/lib/work/model";
 

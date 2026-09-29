@@ -1,4 +1,4 @@
-import { EXPERIENCE_LEVELS } from "@/lib/demo/job-types";
+import { EXPERIENCE_LEVELS } from "@/lib/contract/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
 import type { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { independents } from "@/lib/team/data";

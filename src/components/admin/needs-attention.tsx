@@ -5,7 +5,7 @@ import { Badge } from "@/components/portal/badge";
 import type { Tone } from "@/lib/portal/tone";
 import type { AttentionItem } from "@/lib/admin/data/home";
 import { ageOf, holds, partyName, useDisputes, waitingOn } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 
 /**
  * AD-001 "Needs attention" — every dispute still waiting on Hireable (pending, or ruled for the

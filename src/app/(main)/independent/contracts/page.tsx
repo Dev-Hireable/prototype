@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button, EmptyState, Initials, LinkButton, Page, StatusDot } from "@/components/independent/ui";
+import { Button, EmptyState, Initials, LinkButton, Page, StatusDot } from "@/components/portal/ui";
 import { ContractList, ContractListToolbar, type ContractSummary, type ContractTypeFilter } from "@/components/portal/contract-card";
 import { useWithReturn } from "@/components/portal/return";
 import { useQueryState } from "@/lib/portal/query-state";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import type { Contract } from "@/lib/independent/data";

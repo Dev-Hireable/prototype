@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useMemo, useState, type KeyboardEvent } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
 import { transitionFor } from "@/lib/work/permissions";

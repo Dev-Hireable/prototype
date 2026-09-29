@@ -3,8 +3,7 @@
 import { Meter, ScoreRing } from "@/components/portal/meter";
 import { Tip } from "@/components/portal/tip";
 import { PanelCard } from "@/components/portal/panel-card";
-import { TFP_TOOLTIP, TFP_WEIGHTS } from "@/lib/team/data";
-import type { FitScore } from "@/lib/team/data";
+import { TFP_TOOLTIP, TFP_WEIGHTS, type FitScore } from "@/lib/contract/fit-score";
 
 /**
  * Both portals show the same score for the same trial, so the widget takes the numbers, not a

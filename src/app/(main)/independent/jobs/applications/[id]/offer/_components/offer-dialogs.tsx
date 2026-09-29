@@ -1,8 +1,8 @@
-import { Button, Modal } from "@/components/independent/ui";
+import { Button, Modal } from "@/components/portal/ui";
 import { DeclineOfferDialog } from "@/components/portal/offer-parts";
 import type { DealOffer } from "@/lib/demo/deal";
 import { usd } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { pretty } from "../_lib/terms";
 
 /** "Offer accepted · confirm": the acceptance is already saved; this says what happens next and opens the contract. */

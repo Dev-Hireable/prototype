@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Button, Card, InfoBanner, Input, JobBadge, Select, Textarea } from "@/components/independent/ui";
+import { Button, Card, InfoBanner, Input, JobBadge, Select, Textarea } from "@/components/portal/ui";
 import { SkillPicker } from "@/components/portal/controls";
 import { TaskPlanEditor, TaskPlanList } from "@/components/portal/tasks/task-plan";
-import { hoursLabel, type JobType } from "@/lib/demo/job-types";
+import { hoursLabel, type JobType } from "@/lib/contract/job-types";
 import { fromDrafts } from "@/lib/demo/tasks";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { LEVELS } from "@/lib/team/role-templates";

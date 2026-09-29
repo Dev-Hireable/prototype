@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Pills } from "@/components/independent/ui";
+import { Pills } from "@/components/portal/ui";
 import { useWithReturn } from "@/components/portal/return";
-import { MONTHS } from "@/lib/demo/dates";
+import { MONTHS } from "@/lib/portal/dates";
 
 /** One notification as the feed shows it, whichever portal it came from. */
 export type FeedItem = {

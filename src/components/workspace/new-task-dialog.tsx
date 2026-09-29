@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Input, Modal, Select, Textarea } from "@/components/independent/ui";
+import { Button, Field, Input, Modal, Select, Textarea } from "@/components/portal/ui";
 import { DatePicker } from "@/components/portal/date-picker";
 import { dayOf, isoOf } from "@/lib/work/dates";
 import { ASSIGNEE_KEYS, assigneeOf, EFFORT_HELP, TYPE_META, WORK_TYPES, type AssigneeKey, type WorkType } from "@/lib/work/model";
 import { checkDates, checkEffort, checkTitle } from "@/lib/work/validate";
 import { useWorkspace } from "./context";
 import { newItemPlace } from "./moves";
-import { fromISODate, isoDay } from "@/lib/demo/dates";
+import { fromISODate, isoDay } from "@/lib/portal/dates";
 
 /**
  * "Add task" with everything at once — name, who does it, what kind of work, when it's due and how

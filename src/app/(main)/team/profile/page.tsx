@@ -1,12 +1,11 @@
 "use client";
 
-import { LinkButton, Page, Toast } from "@/components/independent/ui";
+import { Avatar, LinkButton, Page, Toast } from "@/components/portal/ui";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/profile-editor";
 import { TraitTag } from "@/components/portal/trait-tag";
-import { Avatar } from "@/components/team/ui";
 import { traitTagsFor } from "@/lib/demo/work-style";
 import { useToast, type SetToast } from "@/lib/portal/toast";
-import { IMAGE_MAX_MB } from "@/lib/team/data";
+import { IMAGE_MAX_MB } from "@/lib/portal/profile-fields";
 import { useTeamAccount } from "@/lib/team/account";
 import { usePickedImage } from "./_lib/image";
 

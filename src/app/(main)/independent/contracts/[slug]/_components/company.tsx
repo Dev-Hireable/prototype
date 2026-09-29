@@ -1,4 +1,4 @@
-import { Button, Initials, Modal } from "@/components/independent/ui";
+import { Button, Initials, Modal } from "@/components/portal/ui";
 import { PanelCard } from "@/components/portal/panel-card";
 import { TraitTag } from "@/components/portal/trait-tag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";

@@ -1,9 +1,9 @@
-import { Button, Modal } from "@/components/independent/ui";
+import { Button, Modal } from "@/components/portal/ui";
 import { PanelCard } from "@/components/portal/panel-card";
 import { NOTICE_DAYS } from "@/lib/contract/lifecycle";
 import type { ContractView } from "@/lib/contract/view";
-import { dayLabel } from "@/lib/demo/dates";
-import type { OngoingType } from "@/lib/demo/job-types";
+import { dayLabel } from "@/lib/portal/dates";
+import type { OngoingType } from "@/lib/contract/job-types";
 import type { Contract } from "@/lib/independent/data";
 import { endingNote } from "../_lib/copy";
 

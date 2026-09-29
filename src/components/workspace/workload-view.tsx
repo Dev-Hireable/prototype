@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Checkbox } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Checkbox } from "@/components/portal/ui";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { addDays, dayOf, isoOf, isWeekend, longLabel, weekStartOf, partsOf, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";

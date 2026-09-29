@@ -4,14 +4,13 @@ import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { Avatar, Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
 import { Meter } from "@/components/portal/meter";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { PanelCard } from "@/components/portal/panel-card";
 import { ReturnNav } from "@/components/portal/return";
-import { Avatar } from "@/components/team/ui";
 import { useDeal, useHydrated } from "@/lib/demo/deal";
 import {
   addToDispute,

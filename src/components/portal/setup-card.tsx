@@ -1,9 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { TraitTag } from "@/components/portal/trait-tag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";
-import type { DashboardChecklistItem } from "@/components/portal/dashboard";
+
+/**
+ * `href` is the shortcut link an incomplete step exposes (TB-001 / IN-002).
+ * `hint` is the one line explaining what the step actually asks for.
+ * `requires` names the steps that must be done first — until they are, this step is locked:
+ * not a link, and it says what is still missing. Applying to a role with no profile and no
+ * payout method is the case this exists for.
+ */
+export type DashboardChecklistItem = { label: string; done: boolean; href?: string; hint?: string; requires?: string[] };
 
 const Check = ICONS.check;
 const Lock = ICONS.lock;

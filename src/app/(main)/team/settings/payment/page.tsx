@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { Button, Card, Checkbox, EmptyState, Field, InfoBanner, Input, Modal, Page, StatusDot, Toast } from "@/components/independent/ui";
+import { Button, Card, CardHeading, Checkbox, EmptyState, Field, InfoBanner, Input, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
-import { CardHeading } from "@/components/team/ui";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { PaymentMethod } from "@/lib/team/data";
 import { useCards } from "@/lib/team/account";

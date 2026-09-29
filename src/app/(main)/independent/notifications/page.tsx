@@ -1,6 +1,6 @@
 "use client";
 
-import { Page } from "@/components/independent/ui";
+import { Page } from "@/components/portal/ui";
 import { NotificationFeed } from "@/components/portal/notification-feed";
 import { useNotifications } from "@/lib/demo/live";
 import { useQueryState } from "@/lib/portal/query-state";

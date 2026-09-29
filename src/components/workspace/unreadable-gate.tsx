@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Page } from "@/components/independent/ui";
+import { Page } from "@/components/portal/ui";
 import { useDealStatus } from "@/lib/demo/deal";
 import { CorruptWork } from "./states";
 

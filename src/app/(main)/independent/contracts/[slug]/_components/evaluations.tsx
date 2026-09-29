@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Card, MessageButton, StatusDot } from "@/components/independent/ui";
+import { Card, MessageButton, StatusDot } from "@/components/portal/ui";
 import { Stars } from "@/components/portal/contract-parts";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
-import { TrialFitScore } from "@/components/team/trial-widgets";
+import { TrialFitScore } from "@/components/portal/trial-widgets";
 import type { ContractView } from "@/lib/contract/view";
 import type { DealEvaluation } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";

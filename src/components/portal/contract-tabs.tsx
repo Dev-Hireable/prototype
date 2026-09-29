@@ -1,6 +1,6 @@
 "use client";
 
-import { Tabs } from "@/components/independent/ui";
+import { Tabs } from "@/components/portal/ui";
 import type { CONTRACT_TABS } from "@/lib/contract/view";
 
 type Section = (typeof CONTRACT_TABS)[number];

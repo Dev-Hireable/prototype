@@ -1,7 +1,7 @@
 "use client";
 
 import { use } from "react";
-import { Button, InfoBanner, LinkButton, Modal, Page, Toast } from "@/components/independent/ui";
+import { Button, InfoBanner, LinkButton, Modal, Page, Toast } from "@/components/portal/ui";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import type { Deal } from "@/lib/demo/deal";
 import type { JobView } from "@/lib/independent/job-view";

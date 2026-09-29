@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import { StatusDot } from "@/components/independent/ui";
+import { StatusDot } from "@/components/portal/ui";
 import { ActivityLog } from "@/components/portal/activity-log";
-import { MatchAtHire, TrialFitScore } from "@/components/team/trial-widgets";
-import type { JobType } from "@/lib/demo/job-types";
+import { MatchAtHire, TrialFitScore } from "@/components/portal/trial-widgets";
+import { FT_BENEFITS, type JobType } from "@/lib/contract/job-types";
 import { trackerClosed, type Task } from "@/lib/demo/tasks";
-import { FT_BENEFITS, type FitScore } from "@/lib/team/data";
+import type { FitScore } from "@/lib/contract/fit-score";
 
 /**
  * Pieces the talent's contract page and the Team Builder's tracker both show, the same on each side.

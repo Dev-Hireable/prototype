@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SetToast } from "@/lib/portal/toast";
-import { checkImage, readImage } from "@/lib/team/data";
+import { checkImage, readImage } from "@/lib/portal/profile-fields";
 
 /**
  * A photo or logo picked on a profile page: checked, then read for the preview. Nothing is written

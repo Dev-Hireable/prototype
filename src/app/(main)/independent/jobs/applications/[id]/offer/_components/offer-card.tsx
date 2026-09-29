@@ -1,4 +1,4 @@
-import { Card } from "@/components/independent/ui";
+import { Card } from "@/components/portal/ui";
 import { Agreement, OfferDivider, OfferTerms } from "@/components/portal/offer-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import type { DealOffer } from "@/lib/demo/deal";

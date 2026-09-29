@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { useWithReturn } from "@/components/portal/return";
 import { contractTypeOf, useDeal } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { countsOf } from "@/lib/work/model";
 import { todayDay } from "@/lib/work/dates";
-import { Card } from "@/components/independent/ui";
+import { Card } from "@/components/portal/ui";
 
 /** The Team Builder's account slug under User management (see @/lib/demo/disputes TEAM). */
 const TEAM_SLUG = "nairobi-solutions";

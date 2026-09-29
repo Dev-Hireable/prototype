@@ -1,10 +1,11 @@
 "use client";
 
 import { Tip } from "@/components/portal/tip";
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { Badge } from "@/components/portal/badge";
 import type { Tone } from "@/lib/portal/tone";
 import { PIPELINE, type Stage } from "@/lib/portal/stages";
@@ -13,9 +14,10 @@ import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
 import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses } from "@/components/portal/styles";
 import { Checkbox as CheckboxControl } from "@/components/ui/checkbox";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import type { JobType } from "@/lib/demo/job-types";
+import type { JobType } from "@/lib/contract/job-types";
 import { keyed } from "@/lib/portal/keys";
 import type { PageToast } from "@/lib/portal/toast";
 
@@ -268,6 +270,15 @@ export function CardTitle({ children, className = "" }: { children: ReactNode; c
   return <h2 className={`text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink ${className}`}>{children}</h2>;
 }
 
+/** The heading on the settings/profile cards. */
+export function CardHeading({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+      {children}
+    </h2>
+  );
+}
+
 export function KeyValue({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-3 rounded bg-surface-2 p-2 leading-[1.2] tracking-[0.2px]">
@@ -376,6 +387,26 @@ export function Chip({ children, onRemove, size = "md" }: { children: ReactNode;
 
 export function Initials({ text, className = "size-11 text-[14px]" }: { text: string; className?: string }) {
   return <span className={`inline-flex shrink-0 items-center justify-center rounded-lg bg-[#e8f1fa] leading-[1.4] font-semibold text-primary ${className}`}>{text}</span>;
+}
+
+/* --------------------------------------------------------------- people --- */
+
+export function Avatar({ src, size = 40, className = "" }: { src: string; size?: number; className?: string }) {
+  return <Image src={src} alt="" width={size * 2} height={size * 2} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover object-top ${className}`} style={{ width: size, height: size }} />;
+}
+
+/** Table cell "Independent": 40px avatar + name (14 medium primary) + role (13 #616161). */
+export function Person({ name, role, avatar, href }: { name: string; role: string; avatar: string; href?: string }) {
+  const title = <p className="truncate text-[14px] leading-[1.4] font-medium text-primary">{name}</p>;
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-3">
+      <Avatar src={avatar} />
+      <span className="flex min-w-0 flex-1 flex-col whitespace-nowrap">
+        {href ? <Link href={href} className="hover:underline">{title}</Link> : title}
+        <p className="truncate text-[13px] leading-[1.4] text-ink-2">{role}</p>
+      </span>
+    </span>
+  );
 }
 
 /* ------------------------------------------------------------- controls --- */
@@ -518,6 +549,99 @@ export function Tabs<T extends string>({ value, onChange, options, className = "
 /** The look of an underlined tab on shadcn's TabsTrigger: 2px #00a7f8 rule under the open one. */
 const UNDERLINE_TAB =
   "h-9 flex-none rounded-none border-0 border-b-2 border-transparent px-0 py-2 text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink-2 shadow-none after:hidden hover:text-ink focus-visible:border-transparent focus-visible:ring-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary data-active:border-[#00a7f8] data-active:text-ink";
+
+/* --------------------------------------------------------------- tables --- */
+
+/**
+ * Grid cells: every direct child of a header or row is a cell. Each one stretches to the full row
+ * height, and `content-center` centres it vertically while keeping it a block, so `truncate` and
+ * `text-right` still work inside. `items-center` only affects cells that are themselves flex rows
+ * (a stacked cell asks for `!items-start`). Rows are split by a light rule and columns by space
+ * alone: a rule between every cell read as a spreadsheet. A cell that wants to fill edge to edge (a
+ * coloured stat) opts out of the padding with `!p-0`.
+ */
+const CELLS = "[&>*]:self-stretch [&>*]:content-center [&>*]:items-center [&>*]:px-3 [&>*]:py-3";
+
+/**
+ * The narrowest a table can be before its columns crowd: its fixed widths (`w-[Npx]`), plus each
+ * flexible column's floor (`min-w-[Npx]`, or 200px without one). Wider than that the flexible
+ * columns take the room; narrower, the table scrolls sideways.
+ */
+function minWidthOf(cols: string[]) {
+  return cols.reduce((sum, c) => sum + Number(c.match(/(?:^|\s)w-\[(\d+)px\]/)?.[1] ?? c.match(/min-w-\[(\d+)px\]/)?.[1] ?? 200), 0);
+}
+
+/** A table as a grid. `cols` are Tailwind width classes. */
+export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
+  return (
+    // It sized itself to its longest text (min-w-max), so payments and offers scrolled sideways on
+    // a laptop whatever room they had. It fills the page now, and only scrolls once the page is
+    // narrower than its columns need — which still keeps a narrow pane from crushing them together.
+    <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
+      <div style={{ minWidth: minWidthOf(cols) }}>
+        <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 ${CELLS}`}>
+          {head.map((h, i) => (
+            <span key={h} className={cols[i]}>
+              {h}
+            </span>
+          ))}
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function Row({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${className}`}>{children}</div>;
+}
+
+/** Search + dropdowns on the left, a count or a button on the right. */
+export function Toolbar({ children, right }: { children: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      {children}
+      <span className="flex-1" />
+      {right}
+    </div>
+  );
+}
+
+/**
+ * TB-012 — the page numbers come from the real result count and Previous/Next actually move.
+ */
+export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (p: number) => void }) {
+  const Prev = ICONS.chevronLeft;
+  const Next = ICONS.chevronRight;
+  if (pages <= 1) return null;
+
+  // Up to 3 numbers around the current page, with an ellipsis before the last when they don't meet.
+  const start = Math.max(1, Math.min(page - 1, pages - 2));
+  const window = [start, start + 1, start + 2].filter((p) => p >= 1 && p <= pages);
+  const items: (number | "…")[] = window.includes(pages) ? window : [...window, ...(window.at(-1)! < pages - 1 ? (["…"] as const) : []), pages];
+
+  return (
+    <nav aria-label="Pagination" className="flex items-center justify-center gap-2 text-[14px] leading-[1.4] font-medium text-ink">
+      <button type="button" onClick={() => onChange(page - 1)} disabled={page === 1} className="flex items-center gap-1 font-normal text-ink-2 disabled:text-[#c3c3c3]">
+        <Prev size={18} aria-hidden /> Previous
+      </button>
+      {items.map((p, i) =>
+        p === "…" ? (
+          <span key={`gap${i}`} className="px-1 text-ink-2">
+            …
+          </span>
+        ) : (
+          <button key={p} type="button" onClick={() => onChange(p)} aria-current={p === page ? "page" : undefined} className={`rounded-md px-2.5 py-1.5 ${p === page ? "bg-primary text-white" : "hover:bg-surface-alt"}`}>
+            {p}
+          </button>
+        ),
+      )}
+      <button type="button" onClick={() => onChange(page + 1)} disabled={page === pages} className="flex items-center gap-1 font-normal text-ink-2 disabled:text-[#c3c3c3]">
+        Next <Next size={18} aria-hidden />
+      </button>
+    </nav>
+  );
+}
 
 /* ---------------------------------------------------------------- modal --- */
 
@@ -731,6 +855,78 @@ function ModalHeading({ id, title, description, danger }: { id: string; title: s
         {description && <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">{description}</p>}
       </div>
     </>
+  );
+}
+
+/* --------------------------------------------------------------- drawer --- */
+
+/**
+ * A drawer (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
+ * mount and unmount in a single frame. A title row with the close, then a scrolling body. The Sheet
+ * portals, traps focus and closes on Escape or a click outside.
+ *
+ * `header` swaps the visible title for other content in that row (the title stays the dialog's
+ * accessible name), `actions` sit beside the close, and `footer` pins below the body — the task
+ * panel uses all three. A `header` may run to several lines (an eyebrow such as "#4", a name that
+ * wraps), so its row aligns to the top, with the actions and the close centred on its first 20px
+ * line, and a hairline under it: the body scrolls beneath it.
+ *
+ * Opening moves the focus to the first control inside, unless one was already focused (autoFocus).
+ * `initialFocus="close"` starts on the close button instead — for a header whose first control is a
+ * field, which shouldn't look mid-edit every time the sheet opens. A ref starts on its control, or on
+ * the close button when that control isn't there — the task sheet, opened to set dates, starts on the
+ * first date this person can change.
+ */
+export function Drawer({
+  open,
+  onClose,
+  title,
+  children,
+  width = 800,
+  header,
+  actions,
+  footer,
+  testId,
+  initialFocus = "first",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+  width?: number;
+  header?: ReactNode;
+  actions?: ReactNode;
+  footer?: ReactNode;
+  testId?: string;
+  initialFocus?: "first" | "close" | RefObject<HTMLElement | null>;
+}) {
+  const Close = ICONS.close;
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const start = initialFocus === "first" ? true : initialFocus === "close" ? closeRef : () => initialFocus.current ?? closeRef.current;
+  return (
+    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent side="right" showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
+        <SheetHeader className={`flex-row justify-between gap-3 px-6 py-5 ${header ? "items-start border-b border-border" : "items-center"}`}>
+          {header ? (
+            <>
+              <SheetTitle className="sr-only">{title}</SheetTitle>
+              <div className="flex min-w-0 flex-1 items-center gap-2">{header}</div>
+            </>
+          ) : (
+            <SheetTitle className="font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
+          )}
+          <div className={`flex shrink-0 items-center gap-1 ${header ? "h-5" : ""}`}>
+            {actions}
+            {/* The negative margin gives the icon a hover box without making the row taller. */}
+            <SheetClose ref={closeRef} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
+              <Close size={20} aria-hidden />
+            </SheetClose>
+          </div>
+        </SheetHeader>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
+        {footer && <div className="shrink-0 border-t border-border px-6 py-4">{footer}</div>}
+      </SheetContent>
+    </Sheet>
   );
 }
 

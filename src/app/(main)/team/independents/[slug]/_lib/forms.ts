@@ -1,9 +1,8 @@
 import { useState } from "react";
 import type { ContractView } from "@/lib/contract/view";
-import { isoDay, startOfToday } from "@/lib/demo/dates";
+import { isoDay, startOfToday } from "@/lib/portal/dates";
 import { rateAmount } from "@/lib/demo/disputes";
-import type { OngoingType } from "@/lib/demo/job-types";
-import { FT_BENEFITS } from "@/lib/team/data";
+import { FT_BENEFITS, type OngoingType } from "@/lib/contract/job-types";
 
 /** The five criteria an evaluation scores, 1 to 5 each. */
 export const SCORES = ["Quality of work", "Communication", "Reliability", "Initiative", "Collaboration"];

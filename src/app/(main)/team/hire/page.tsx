@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { Page } from "@/components/independent/ui";
+import { Page } from "@/components/portal/ui";
 
 /**
  * The job-type cards' illustrations, each with a hover twin. The twins are drawn 1.05× (a 298.2-wide

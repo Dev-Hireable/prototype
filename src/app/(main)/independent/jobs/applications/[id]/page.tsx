@@ -2,15 +2,15 @@
 
 import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { ApplicationProposalDialog } from "@/components/independent/application-proposal-dialog";
-import { Button, Card, Chip, JobBadge, Modal, Page, PipelineTracker, Toast } from "@/components/independent/ui";
+import { Button, Card, Chip, JobBadge, Modal, Page, PipelineTracker, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { FactStrip } from "@/components/portal/page-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { WorkStyleMatch } from "@/components/portal/work-style-match";
 import { useDeal } from "@/lib/demo/deal";
-import { jobFacts } from "@/lib/demo/job-types";
+import { jobFacts } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { storedWorkStyle } from "@/lib/demo/work-style";
 import { useJobView, type JobView } from "@/lib/independent/job-view";

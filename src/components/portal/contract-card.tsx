@@ -1,17 +1,16 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ICONS } from "@/components/admin/icons";
-import { JobBadge } from "@/components/independent/ui";
+import { ICONS } from "@/components/icons";
+import { JobBadge, Row, Table } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { Tip } from "@/components/portal/tip";
 import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
 import { ViewSwitch } from "@/components/portal/view-switch";
 import { WorkLegend, WorkMeter } from "@/components/portal/work-progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Row, Table } from "@/components/team/ui";
 import type { CONTRACT_LAYOUTS } from "@/lib/contract/view";
-import { daysLeftLabel } from "@/lib/demo/dates";
-import type { JobType } from "@/lib/demo/job-types";
+import { daysLeftLabel } from "@/lib/portal/dates";
+import type { JobType } from "@/lib/contract/job-types";
 import { taskCounts } from "@/lib/demo/tasks";
 import type { Task } from "@/lib/demo/tasks";
 

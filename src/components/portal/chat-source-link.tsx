@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ICONS } from "@/components/admin/icons";
+import { ICONS } from "@/components/icons";
 import { ApplicationProposalDialog } from "@/components/independent/application-proposal-dialog";
-import { Toast } from "@/components/independent/ui";
+import { Toast } from "@/components/portal/ui";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import type { ChatSource } from "@/lib/demo/live";
 import { useApplications } from "@/lib/independent/applications";

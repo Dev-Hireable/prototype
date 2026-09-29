@@ -1,5 +1,5 @@
-import { dayLabel, parseDay, trialClock } from "../demo/dates";
-import type { JobType, OngoingType } from "../demo/job-types";
+import { dayLabel, parseDay, trialClock } from "../portal/dates";
+import type { JobType, OngoingType } from "./job-types";
 
 /**
  * A contract's lifecycle — one record that moves through phases, read the same way by every tab on

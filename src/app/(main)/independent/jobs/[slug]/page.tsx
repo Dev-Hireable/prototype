@@ -2,7 +2,7 @@
 
 import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { Page, Toast } from "@/components/independent/ui";
+import { Page, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ReturnNav } from "@/components/portal/return";
 import { usePostings } from "@/lib/demo/deal";

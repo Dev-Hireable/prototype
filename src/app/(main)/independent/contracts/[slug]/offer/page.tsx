@@ -2,11 +2,11 @@
 
 import { notFound, useRouter } from "next/navigation";
 import { use, useState } from "react";
-import { InfoBanner, Page, Toast } from "@/components/independent/ui";
+import { InfoBanner, Page, Toast } from "@/components/portal/ui";
 import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
 import type { ConversionOffer } from "@/lib/demo/deal";
 import { escrowOf, usd, useDisputes } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/demo/job-types";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { useToast } from "@/lib/portal/toast";
 import { DeclineDialog } from "./_components/decline-dialog";

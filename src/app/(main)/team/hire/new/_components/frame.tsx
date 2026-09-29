@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button, Card, Steps } from "@/components/independent/ui";
+import { Button, Card, Steps } from "@/components/portal/ui";
 import { EditButton, EditPanel } from "@/components/portal/inline-edit";
 import type { PathCopy } from "../_lib/wizard";
 
