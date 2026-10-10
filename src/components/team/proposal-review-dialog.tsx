@@ -7,6 +7,7 @@ import { ProposalReview } from "@/components/portal/proposal-review";
 import { SendOfferDialog } from "@/components/team/send-offer-dialog";
 import { proposalHistory, useDeal, type Deal, type DealProposal } from "@/lib/demo/deal";
 import { applySuggestions, type SuggestionDecision } from "@/lib/demo/suggestions";
+import { shortName } from "@/lib/portal/names";
 import type { SetToast } from "@/lib/portal/toast";
 import { byName } from "@/lib/team/data";
 import type { Candidate, Independent, PaymentMethod, Role } from "@/lib/team/data";
@@ -43,7 +44,9 @@ function useCandidateProposal(candidate: Candidate) {
   const live = candidate.id === DEAL_ID ? deal : null;
   /** IN-072 — only the shared engagement has a talent who can write one. */
   const proposal = live?.proposal ?? null;
-  const person = byName(candidate.independent);
+  const full = byName(candidate.independent);
+  // Not hired yet, so the proposal and the offer name them "Juan D.": the surname stays an initial.
+  const person = { ...full, name: shortName(full.name) };
   return { live, proposal, person, first: person.name.split(" ")[0] };
 }
 

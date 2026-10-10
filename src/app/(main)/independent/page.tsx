@@ -10,10 +10,9 @@ import { dayLabel, daysLeftLabel, sinceOrFrom } from "@/lib/portal/dates";
 import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
-import { MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
+import { KYC_NOTE, MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
 import type { Application, Contract, Interview } from "@/lib/independent/data";
 import { traitTagsFor } from "@/lib/demo/work-style";
-import { useWallet } from "@/lib/independent/wallet";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { useIndependentAccount, useIndependentBanner } from "@/lib/independent/account";
@@ -34,7 +33,7 @@ function workOnHold(deal: Deal | null, working: Contract | undefined) {
   const frozen =
     life && working && trialClosed(life)
       ? life.phase === "evaluation"
-        ? `Your trial ended — your work is with ${working.managerFirst} for the evaluation${life.trial ? `, due ${dayLabel(life.trial.evaluationDue)}` : ""}.`
+        ? `Your trial ended. Your work is with ${working.managerFirst} for the evaluation${life.trial ? `, due ${dayLabel(life.trial.evaluationDue)}` : ""}.`
         : life.phase === "offer"
           ? "Your work reopens when you accept the offer."
           : `Your trial is complete and ${working.managerFirst} has sent your evaluation.`
@@ -46,7 +45,6 @@ export default function Dashboard() {
   const { profile, workStyle } = useIndependentAccount();
   const { contracts } = useIndependentContracts();
   const { applications, interviews } = useApplications();
-  const { payouts } = useWallet();
   const banner = useIndependentBanner();
   /** IN-004 — every ongoing engagement, not a hardcoded card. */
   const active = contracts.filter((c) => c.status.label !== "Ended" && c.status.label !== "Contract complete");
@@ -63,7 +61,7 @@ export default function Dashboard() {
         {/* IN-002 — dismissible, and the whole strip disappears when there is no active banner. */}
         <DashboardBanner banner={MARKETING_BANNER} dismissed={banner.dismissed} onDismiss={banner.dismiss} />
 
-        <Hero photo={profile.photo} workStyle={workStyle} steps={setupSteps({ payouts, applications, workStyle, bio: profile.bio })} />
+        <Hero photo={profile.photo} workStyle={workStyle} steps={setupSteps({ applications, workStyle, profile })} tasks={working && { href: `/independent/contracts/${working.slug}?assignee=independent`, about: working.title }} />
 
         <DashboardSummaryGrid
           main={[
@@ -96,12 +94,18 @@ export default function Dashboard() {
 }
 
 /** The greeting with its two quick actions, beside the card that walks through setting up the profile. */
-function Hero({ photo, workStyle, steps }: { photo: string; workStyle: readonly number[]; steps: readonly DashboardChecklistItem[] }) {
+function Hero({ photo, workStyle, steps, tasks }: { photo: string; workStyle: readonly number[]; steps: readonly DashboardChecklistItem[]; tasks?: { href: string; about: string } }) {
+  const setUp = steps.every((s) => s.done);
   return (
     <DashboardHero>
       <DashboardGreeting name={ME.first}>
-        <DashboardQuickAction title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
-        <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile?edit=profile" icon={<Account size={20} aria-hidden />} />
+        <DashboardQuickAction tour="find-role" title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
+        {/* Profile help only while setup is open; once it's done, the trial's work, if there is one. */}
+        {!setUp ? (
+          <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile" icon={<Account size={20} aria-hidden />} />
+        ) : (
+          tasks && <DashboardQuickAction title="Go to my tasks" body={`Your open work on ${tasks.about}.`} href={tasks.href} icon={<Work size={20} aria-hidden />} />
+        )}
       </DashboardGreeting>
 
       <DashboardSetupCard
@@ -110,6 +114,7 @@ function Hero({ photo, workStyle, steps }: { photo: string; workStyle: readonly 
         description="Complete your profile to boost role matches."
         completionHref="/independent/profile?edit=profile"
         items={steps}
+        note={KYC_NOTE}
         profileHref="/independent/profile"
         traits={traitTagsFor(workStyle, "independent")}
         completeDescription="Your profile is live. These are the work-style traits companies match you on."

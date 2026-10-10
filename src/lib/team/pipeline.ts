@@ -7,7 +7,7 @@ import type { Deal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { move, PAIR, persisted, proposalSource, sendChat, sendFile, useStored } from "@/lib/demo/live";
 import type { SuggestionDecision } from "@/lib/demo/suggestions";
-import { awaitsApplication, byName, INTERVIEW_CANCELLED, INTERVIEW_DECLINED, candidates as seedCandidates, interviews as seedInterviews } from "./data";
+import { awaitsApplication, byName, INTERVIEW_CANCELLED, INTERVIEW_DECLINED, NEW_TIME_REQUESTED, needsNewSlot, candidates as seedCandidates, interviews as seedInterviews } from "./data";
 import type { Candidate, Interview } from "./data";
 import { DEAL_ID } from "./deal-view";
 import { roleOf } from "./roles";
@@ -51,18 +51,20 @@ function dealStatus(deal: Deal): Candidate["status"] {
   if (deal.stage === "interviewed") return { label: "Interview completed", tone: "ok", meta: deal.interview?.when };
   if (deal.interview?.outcome === "declined") return { label: INTERVIEW_DECLINED, tone: "danger", meta: deal.interview.when };
   if (deal.interview?.outcome === "cancelled") return { label: INTERVIEW_CANCELLED, tone: "neutral", meta: deal.interview.when };
+  if (deal.interview?.outcome === "reschedule") return { label: NEW_TIME_REQUESTED, tone: "warn", meta: deal.interview.requested?.when };
   if (deal.interview?.accepted) return { label: "Interview confirmed", tone: "ok", meta: deal.interview.when };
   if (deal.interview) return { label: "Awaiting reply", tone: "neutral", meta: deal.interview.when };
   return { label: "New application", tone: "info" };
 }
 
 /** An interview's status pill in the Team Builder's lists, from where it has got to. */
-const INTERVIEW_STATUS: Record<"awaiting" | "accepted" | "done" | "declined" | "cancelled", Interview["status"]> = {
+const INTERVIEW_STATUS: Record<"awaiting" | "accepted" | "done" | "declined" | "cancelled" | "reschedule", Interview["status"]> = {
   awaiting: { label: "Awaiting reply", tone: "neutral" },
   accepted: { label: "Confirmed", tone: "ok" },
   done: { label: "Completed", tone: "ok" },
   declined: { label: "Declined", tone: "danger" },
   cancelled: { label: "Cancelled", tone: "neutral" },
+  reschedule: { label: "New time asked", tone: "warn" },
 };
 
 /** The live application, as deleteCandidate keys it: this application, not the pair for good. */
@@ -117,7 +119,8 @@ const livePair = (c: Candidate) => c.independent === PAIR.independent.slug;
 /** TB-103 — the request, with the note the talent reads beside it. */
 function requestProposal(id: string, note?: string) {
   const c = cardsNow().find((x) => x.id === id);
-  if (!c) return;
+  // Only after an interview that was held — never on one declined, cancelled or still to happen.
+  if (!c || c.stage !== "interviewed") return;
   if (livePair(c)) move("proposal_requested", roleOf(c.role));
   if (id === DEAL_ID) return updateDeal((d) => ({ ...d, stage: "proposal_requested", proposalRequest: { note: note?.trim() || undefined, date: today() } }));
   candidatesStore.set((cs) => cs.map((x) => (x.id === id ? { ...x, stage: "proposal_requested", status: { label: "Awaiting proposal", tone: "warn", meta: "Sent today" } } : x)));
@@ -176,7 +179,7 @@ function deleteCandidate(id: string) {
     return;
   }
   candidatesStore.set((cs) => cs.filter((x) => x.id !== id));
-  // Their past interviews stay on the Interviews page, no longer pointing at a card that's gone.
+  // Their past interviews stay on record, no longer pointing at a card that's gone.
   interviewsStore.set((is) => is.map((i) => (i.candidate === id ? { ...i, candidate: undefined } : i)));
 }
 
@@ -205,8 +208,11 @@ function inviteToInterview(candidateId: string, slot: { when: string; format: st
   const role = roleOf(c.role);
   const interview = { when: slot.when, format: slot.format, link: slot.link, note: slot.note?.trim() || undefined };
   if (candidateId === DEAL_ID) {
-    if (livePair(c)) move("interview_invited", role);
-    return updateDeal((d) => ({ ...d, stage: "invited", interview }));
+    // IN-071 — the very slot the talent asked for needs no second yes from them: it's confirmed.
+    const deal = readDeal();
+    const asked = deal?.interview?.outcome === "reschedule" && deal.interview.requested?.when === slot.when;
+    if (livePair(c)) move(asked ? "interview_moved" : "interview_invited", role);
+    return updateDeal((d) => ({ ...d, stage: asked ? "invite_accepted" : "invited", interview: { ...interview, accepted: asked || undefined } }));
   }
   // The pair without an engagement: start it at the interview, so the invitation has an
   // application to land on in their pipeline. (One engagement at a time — a second role for
@@ -254,7 +260,8 @@ function cancelInterview(id: string) {
  */
 function completeInterview(id: string) {
   const c = cardsNow().find((x) => x.id === id);
-  if (!c) return;
+  // Only a confirmed interview that's still on: a declined, cancelled or moved one never took place.
+  if (!c || c.stage !== "invite_accepted" || needsNewSlot(c)) return;
   if (id === DEAL_ID) return updateDeal((d) => ({ ...d, stage: "interviewed", interview: d.interview && { ...d.interview, past: true, outcome: "done" } }));
   candidatesStore.set((cs) => cs.map((x) => (x.id === id ? { ...x, stage: "interviewed", status: { label: "Interview completed", tone: "ok" } } : x)));
   interviewsStore.set((is) => is.map((i) => (i.candidate === c.id && !i.past ? { ...i, status: INTERVIEW_STATUS.done, past: true } : i)));
@@ -287,8 +294,8 @@ export function usePipeline() {
     commentOnProposal,
     decideSuggestion,
     /**
-     * TB-040 — scheduling an interview from a candidate's profile has to produce a row on the
-     * Interviews page and the dashboard widget, and a reschedule or cancel has to stick.
+     * TB-040 — scheduling an interview from a candidate's profile has to show on their card and
+     * the dashboard widget, and a reschedule or cancel has to stick.
      */
     interviews,
     inviteToInterview,

@@ -16,13 +16,14 @@ import { InterviewDialog } from "@/components/team/interview-dialog";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/interview-steps";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
-import { awaitsApplication, byName, columnOf, needsNewSlot, TRACKER_COLUMNS } from "@/lib/team/data";
+import { awaitsApplication, byName, columnOf, needsNewSlot, NEW_TIME_REQUESTED, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate, Role as RoleData } from "@/lib/team/data";
 import { jobFacts } from "@/lib/contract/job-types";
 import { PAIR, unreadChat, useLive } from "@/lib/demo/live";
 import { useRoles } from "@/lib/team/roles";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useQueryState } from "@/lib/portal/query-state";
+import { shortName } from "@/lib/portal/names";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { stageCanMessage } from "@/lib/demo/deal";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
@@ -164,7 +165,7 @@ function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: Car
           role={role.title}
           onClose={() => dialogs.setDeleting(null)}
           onDelete={() => {
-            const name = byName(deleting.independent).name;
+            const name = shortName(byName(deleting.independent).name);
             deleteCandidate(deleting.id);
             dialogs.setDeleting(null);
             onToast(`Deleted ${name} from ${role.title}`);
@@ -287,6 +288,8 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
 /** One candidate on the board: who they are, where they stand, and the step their column offers. */
 function CandidateCard({ c, column, role, unread, actions }: { c: Candidate; column: string; role: string; unread: number; actions: CardActions }) {
   const p = byName(c.independent);
+  // The surname stays an initial ("Juan D.") until they're hired.
+  const name = c.stage === "hired" ? p.name : shortName(p.name);
   // Hired cards go to the trial dashboard; everyone else to their profile.
   const href = c.stage === "hired" ? `/team/independents/${c.independent}` : `/team/hire/roles/${role}/candidates/${c.id}`;
   return (
@@ -294,10 +297,10 @@ function CandidateCard({ c, column, role, unread, actions }: { c: Candidate; col
       <div className="flex items-start gap-2.5">
         <Avatar src={p.avatar} size={36} />
         <Link href={href} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25]">
-          <span className="truncate text-[14px] font-semibold tracking-[0.2px] text-ink hover:text-primary">{p.name}</span>
+          <span className="truncate text-[14px] font-semibold tracking-[0.2px] text-ink hover:text-primary">{name}</span>
           <span className="truncate text-[12px] text-ink-2">{p.role}</span>
         </Link>
-        <MessageLink c={c} name={p.name} unread={unread} />
+        <MessageLink c={c} name={name} unread={unread} />
       </div>
       <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">
         {p.rate} · {p.level}
@@ -358,7 +361,6 @@ function MessageLink({ c, name, unread }: { c: Candidate; name: string; unread: 
 
 /** The step a card's column offers: invite, mark the interview done, request or review the proposal, or review the offer. */
 function StageButtons({ c, column, actions }: { c: Candidate; column: string; actions: CardActions }) {
-  const withReturn = useWithReturn();
   if (c.dropped) return null;
   const waiting = awaitsApplication(c);
   return (
@@ -381,9 +383,9 @@ function StageButtons({ c, column, actions }: { c: Candidate; column: string; ac
           Review Proposal
         </button>
       )}
-      {/* TB-037: the sent offer is reviewable but not editable. */}
+      {/* TB-037: the sent offer is reviewable but not editable: its card on the candidate's page reads it and withdraws it. */}
       {column === "offer" && (
-        <LinkButton size="sm" href={withReturn("/team/hire/offers")} className="justify-center">
+        <LinkButton size="sm" href={`/team/hire/roles/${c.role}/candidates/${c.id}`} className="justify-center">
           Review Sent Offer
         </LinkButton>
       )}
@@ -404,11 +406,11 @@ function InterviewButton({ c, actions }: { c: Candidate; actions: CardActions })
       </button>
     );
   }
-  // They declined it, or it was cancelled: a new slot is the way on.
+  // They declined it, asked for another time, or it was cancelled: a new slot is the way on.
   if (needsNewSlot(c)) {
     return (
       <button type="button" onClick={() => actions.invite(c)} className={PRIMARY}>
-        Offer a new time
+        {c.status?.label === NEW_TIME_REQUESTED ? "Review new time" : "Offer a new time"}
       </button>
     );
   }
@@ -493,8 +495,8 @@ function DeleteDialog({ candidate, role, onClose, onDelete }: { candidate: Candi
       open
       tone="danger"
       onClose={onClose}
-      title={`Delete ${byName(candidate.independent).name} from this role?`}
-      description={`Their card comes off ${role}'s tracker for good, so it can't be undropped. Nothing is sent to ${firstOf(candidate)}, and any past interview stays on the Interviews page.`}
+      title={`Delete ${shortName(byName(candidate.independent).name)} from this role?`}
+      description={`Their card comes off ${role}'s tracker for good, so it can't be undropped. Nothing is sent to ${firstOf(candidate)}.`}
       footer={
         <>
           <Button size="lg" onClick={onClose}>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Button, Card, LinkButton } from "@/components/portal/ui";
 import { useWithReturn } from "@/components/portal/return";
@@ -35,12 +36,13 @@ export function NextStep({ app, job, live, ...actions }: StepProps & InterviewAc
   );
 }
 
-/** A short card: what happened, and what it means for the application. */
-function Status({ title, children }: { title: string; children: string }) {
+/** A short card: what happened, what it means for the application, and the one thing to do about it. */
+function Status({ title, children, action }: { title: string; children: string; action?: ReactNode }) {
   return (
     <Card className="flex flex-col gap-2 p-4">
       <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{title}</p>
       <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">{children}</p>
+      {action && <div className="mt-2 flex flex-col">{action}</div>}
     </Card>
   );
 }
@@ -52,10 +54,18 @@ function InterviewStep({ app, job, live, ...actions }: StepProps & InterviewActi
   const declined = app.status?.label === "Interview declined";
   /** TB-037 — the Team Builder called it off; the application stays open for a new slot. */
   const cancelled = app.status?.label === "Interview cancelled";
+  /** IN-071 — waiting on the Team Builder to confirm the time they asked for. */
+  const requested = live?.interview?.outcome === "reschedule" ? live.interview.requested : undefined;
+  if (requested)
+    return (
+      <Status title="New time requested" action={<Button size="lg" onClick={actions.onReschedule}>Ask for a different time</Button>}>
+        {`You asked ${job.company} for ${requested.when}. Once they confirm it, the meeting link shows up here.`}
+      </Status>
+    );
   if (!declined && !cancelled) return <InterviewCard app={app} job={job} live={live} {...actions} />;
   return (
-    <Status title={declined ? "You declined this interview" : "Interview cancelled"}>
-      {declined ? `${job.company} was told, and your application stays open. If they offer another time, it shows up here.` : `${job.company} cancelled the ${job.interview.date} slot. Your application stays open — a new time shows up here.`}
+    <Status title={declined ? "You declined this interview" : "Interview cancelled"} action={declined ? <Button size="lg" onClick={actions.onReschedule}>Ask for a new time</Button> : undefined}>
+      {declined ? `${job.company} was told, and your application stays open. Ask for a time that works, or wait for them to offer one.` : `${job.company} cancelled the ${job.interview.date} slot. Your application stays open — a new time shows up here.`}
     </Status>
   );
 }

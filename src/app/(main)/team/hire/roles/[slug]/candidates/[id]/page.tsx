@@ -1,7 +1,7 @@
 "use client";
 
 import { notFound, useRouter, useSearchParams } from "next/navigation";
-import { use, useState } from "react";
+import { use, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Button, Card, CardTitle, Field, JobBadge, LinkButton, MessageButton, Modal, Page, PipelineTracker, Select, Tabs, Textarea, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
@@ -9,21 +9,25 @@ import { Tip } from "@/components/portal/tip";
 import { SaveButton, TeamProfile } from "@/components/team/ui";
 import { DropDialog } from "@/components/team/drop-dialog";
 import { InterviewDialog } from "@/components/team/interview-dialog";
+import { CancelInterviewDialog, InterviewButtons, RescheduleDialog } from "@/components/team/interview-actions";
+import { OfferCard } from "@/components/team/offer-card";
 import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/interview-steps";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import { useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
+import { shortName } from "@/lib/portal/names";
 import { useToast, type SetToast } from "@/lib/portal/toast";
-import { EMPLOYER_STAGE_LABELS, INTERVIEW_DECLINED, awaitsApplication, byName, needsNewSlot } from "@/lib/team/data";
+import { EMPLOYER_STAGE_LABELS, INTERVIEW_DECLINED, NEW_TIME_REQUESTED, awaitsApplication, byName, needsNewSlot } from "@/lib/team/data";
 import type { Candidate, Independent, Interview, Role } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { useRoles } from "@/lib/team/roles";
+import { useOffers } from "@/lib/team/offers";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useWithReturn } from "@/components/portal/return";
 
 const Flag = ICONS.flag;
 
-type Dialog = null | "invite" | "complete" | "drop" | "flag" | "request" | "proposal";
+type Dialog = null | "invite" | "complete" | "drop" | "flag" | "request" | "proposal" | "reschedule" | "cancel";
 
 /** The candidate as the page's parts read them: the application, the role, who they are, the live engagement when it's theirs, and the interview booked with them. */
 type CandidateView = { cand: Candidate; role: Role; person: Independent; first: string; live: Deal | null; booked: Interview | undefined };
@@ -47,7 +51,9 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
   const [dialog, setDialog] = useState<Dialog>(() => (search.get("proposal") === "1" ? "proposal" : null));
   const [toast, setToast] = useToast();
   if (!role || !cand) notFound();
-  const p = byName(cand.independent);
+  const full = byName(cand.independent);
+  // The surname stays an initial ("Juan D.") until they're hired; the contract shows it in full.
+  const p = { ...full, name: shortName(full.name) };
   const live = cand.id === DEAL_ID ? deal : null;
   const first = p.name.split(" ")[0];
   // Date, time and link all come off the booking itself, so they survive a reload together.
@@ -99,14 +105,22 @@ function RoleTabs({ pipeline }: { pipeline: string }) {
   );
 }
 
-/** The column under the intro: the booked interview, the notes, the pipeline tracker, and Flag / Drop. */
+/** The column under the intro: the booked interview, the offer sent, the notes, the pipeline tracker, and Flag / Drop. */
 function ProfileAside({ view, onOpen, onToast }: { view: CandidateView; onOpen: (d: Dialog) => void; onToast: SetToast }) {
-  const { cand, live, first, booked } = view;
+  const { cand, role, person, live, first, booked } = view;
+  const { offers, withdrawOffer } = useOffers();
   /** Booked and not declined or cancelled: when it is, and the link to join. */
   const interviewSet = (cand.stage === "invited" || cand.stage === "invite_accepted") && !cand.dropped && !needsNewSlot(cand);
+  // TB-037 — the offer sent from this card: it's read and withdrawn here, in the pipeline.
+  const offer = offers.find((o) => !o.conversion && o.href === `/team/hire/roles/${role.slug}/candidates/${cand.id}`);
   return (
     <>
-      {interviewSet && <InterviewCard when={booked?.when} link={booked?.link} onCopied={() => onToast("Meeting link copied")} />}
+      {interviewSet && (
+        <InterviewCard when={booked?.when} link={booked?.link} onCopied={() => onToast("Meeting link copied")}>
+          {booked && !booked.past && <InterviewButtons iv={booked} onReschedule={() => onOpen("reschedule")} onCancel={() => onOpen("cancel")} />}
+        </InterviewCard>
+      )}
+      {offer && <OfferCard offer={offer} name={person.name} onWithdraw={withdrawOffer} onToast={onToast} />}
       <NotesCard live={live} first={first} />
       <PipelineTracker stage={cand.stage} labels={EMPLOYER_STAGE_LABELS} mode="milestone" />
       <div className="flex items-center gap-4 text-[14px] leading-[1.2] font-medium tracking-[0.2px]">
@@ -126,9 +140,11 @@ function ProfileAside({ view, onOpen, onToast }: { view: CandidateView; onOpen: 
 /** The page's dialogs, one open at a time: invite to interview, drop, flag, mark the interview done, request and review the proposal. */
 function CandidateDialogs({ view, dialog, onClose, onToast }: { view: CandidateView; dialog: Dialog; onClose: () => void; onToast: SetToast }) {
   const { cand, role, person, first, booked } = view;
-  const { completeInterview, requestProposal } = usePipeline();
+  const { completeInterview, requestProposal, rescheduleInterview, cancelInterview } = usePipeline();
   return (
     <>
+      <RescheduleDialog interview={dialog === "reschedule" ? (booked ?? null) : null} onClose={onClose} onSend={rescheduleInterview} onToast={onToast} />
+      <CancelInterviewDialog interview={dialog === "cancel" ? (booked ?? null) : null} onClose={onClose} onCancel={cancelInterview} onToast={onToast} />
       <InterviewDialog candidate={dialog === "invite" ? cand : null} onClose={onClose} onSent={(name) => onToast(`Interview invitation sent to ${name}`)} />
 
       {/* TB-044 — the same Drop / Undrop decision the board's card opens. */}
@@ -239,7 +255,7 @@ function StageAction({ cand, role, person, hasProposal, onOpen }: { cand: Candid
       if (needsNewSlot(cand))
         return (
           <Button variant="primary" onClick={() => onOpen("invite")}>
-            Offer a new time
+            {cand.status?.label === NEW_TIME_REQUESTED ? "Review new time" : "Offer a new time"}
           </Button>
         );
       return (
@@ -268,13 +284,10 @@ function StageAction({ cand, role, person, hasProposal, onOpen }: { cand: Candid
           Review proposal
         </Button>
       );
+    // The offer is read, and withdrawn, on its card in the column beside the intro.
     case "offer_received":
     case "offer_accepted":
-      return (
-        <LinkButton variant="primary" href={withReturn("/team/hire/offers")}>
-          Track offer
-        </LinkButton>
-      );
+      return null;
     default:
       return (
         <LinkButton variant="primary" href={withReturn(`/team/independents/${person.slug}`)}>
@@ -289,15 +302,17 @@ function StageNote({ cand, first }: { cand: Candidate; first: string }) {
   if (cand.dropped || (cand.stage !== "invited" && cand.stage !== "invite_accepted")) return null;
   return (
     <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">
-      {needsNewSlot(cand)
+      {cand.status?.label === NEW_TIME_REQUESTED
+        ? `${first} can't make the slot and asked for ${cand.status.meta ?? "another time"}. Confirm it or offer another to keep going.`
+        : needsNewSlot(cand)
         ? `${cand.status?.label === INTERVIEW_DECLINED ? `${first} declined the interview` : "The interview was cancelled"}. Offer a new time to keep going.`
         : `${cand.stage === "invited" ? `Waiting for ${first} to confirm the interview. ` : ""}You can request a proposal once the interview is done.`}
     </p>
   );
 }
 
-/** The booked interview: its date and time, and the meeting link with a copy button. */
-function InterviewCard({ when: booked, link, onCopied }: { when: string | undefined; link: string | undefined; onCopied: () => void }) {
+/** The booked interview: its date and time, the meeting link with a copy button, and its buttons (`children`). */
+function InterviewCard({ when: booked, link, onCopied, children }: { when: string | undefined; link: string | undefined; onCopied: () => void; children?: ReactNode }) {
   const [when = "—", at = "—"] = booked?.split(", ") ?? [];
   return (
     <Card className="flex flex-col gap-4 p-4">
@@ -330,6 +345,7 @@ function InterviewCard({ when: booked, link, onCopied }: { when: string | undefi
           Copy link
         </button>
       )}
+      {children}
     </Card>
   );
 }

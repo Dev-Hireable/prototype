@@ -28,19 +28,13 @@ export default function Messages() {
     <MessagesPage
       side="team"
       conversations={conversations}
-      tabs={["conversations", "candidates"] as const}
+      // Candidates first: a thread starts there, and moves to Conversations once they're hired.
+      tabs={["candidates", "conversations"] as const}
       // TB-009 — the tabs split the list the way the sheet defines them: Conversations is talent under
       // an active contract, Candidates anyone with an offer sent or an interview scheduled.
-      emptyTab={(tab) =>
-        tab === "candidates"
-          ? conversations.length > 0
-            ? "This thread moved to Conversations when they were hired."
-            : "No candidate threads yet — one opens when you invite someone to interview."
-          : conversations.length > 0
-            ? "No contract threads yet — the candidate thread is under Candidates."
-            : "No active contracts yet."
-      }
-      emptyThread="Invite a candidate to interview, or start a trial, and your thread with them opens here."
+      // With no thread at all, the thread pane says so once; the list stays quiet.
+      emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "candidates" ? "This thread moved to Conversations when they were hired." : "No contract threads yet. The thread is under Candidates.")}
+      emptyThread="A thread opens when you invite someone to interview."
       face={(c, size) => <Avatar src={c.avatar} size={size} />}
       badge={trial && (
         <Badge variant="solid" tone="trial">

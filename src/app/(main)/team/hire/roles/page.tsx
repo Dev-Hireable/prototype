@@ -214,7 +214,7 @@ function useRoleActions(setToast: SetToast) {
   const publishDraft = (r: Role) => {
     setMenu(null);
     if (!canPublish) {
-      setToast("Finish your company profile and add a payment method before publishing", "danger");
+      setToast("Finish your company profile before publishing", "danger");
       router.push("/team/profile/company");
       return;
     }
@@ -237,7 +237,7 @@ function useRoleActions(setToast: SetToast) {
     const { role, action } = confirm;
     if (action === "reopen" && !canPublish) {
       setConfirm(null);
-      setToast("Finish your company profile and add a payment method before reopening a role", "danger");
+      setToast("Finish your company profile before reopening a role", "danger");
       return;
     }
     if (action === "delete") removeRole(role.slug);

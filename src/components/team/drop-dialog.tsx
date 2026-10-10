@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Modal } from "@/components/portal/ui";
+import { shortName } from "@/lib/portal/names";
 import { byName, type Candidate } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 
@@ -12,7 +13,8 @@ import { usePipeline } from "@/lib/team/pipeline";
 export function DropDialog({ candidate, role, onClose, onDone }: { candidate: Candidate | null; role: string; onClose: () => void; onDone: (message: string) => void }) {
   const { setDropped } = usePipeline();
   if (!candidate) return null;
-  const name = byName(candidate.independent).name;
+  // Not hired, so the surname stays an initial ("Juan D.").
+  const name = shortName(byName(candidate.independent).name);
   const first = name.split(" ")[0];
   const undrop = !!candidate.dropped;
   return (

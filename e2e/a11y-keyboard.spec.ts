@@ -73,28 +73,6 @@ test.describe("keyboard and accessibility · menus", () => {
     await expect(page).toHaveURL(/status=todo%2Cdoing|status=todo,doing/);
   });
 
-  test("a Select's list takes the focus the first time it opens from the keyboard", async ({ page }) => {
-    await page.goto("/team/hire/interviews");
-    await page.getByRole("button", { name: "Set availability" }).click();
-    const dialog = page.getByRole("dialog", { name: "Interview availability" });
-    const from = dialog.getByRole("button", { name: "From" });
-    await from.focus();
-    await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("option", { name: "9:00 AM", exact: true })).toBeFocused();
-    await page.keyboard.press("ArrowDown");
-    await expect(page.getByRole("option", { name: "10:00 AM", exact: true })).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(from).toHaveText("10:00 AM");
-    await expect(from).toBeFocused();
-    // Escape closes the list, not the dialog under it.
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("option", { name: "10:00 AM", exact: true })).toBeFocused();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("listbox")).toBeHidden();
-    await expect(dialog).toBeVisible();
-    await expect(from).toBeFocused();
-  });
-
   test("Escape closes the skill suggestions first, then the skills editor", async ({ page }) => {
     await page.goto("/independent/profile");
     await page.getByRole("button", { name: "Edit Skills" }).click();
@@ -107,6 +85,33 @@ test.describe("keyboard and accessibility · menus", () => {
     await page.keyboard.press("Escape");
     await expect(search).toBeHidden();
     await expect(page.getByRole("button", { name: "Edit Skills" })).toBeVisible();
+  });
+});
+
+test.describe("keyboard and accessibility · a Select in a dialog", () => {
+  const ROLE_SEED = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00 /mo", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
+  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600 /month", letter: "Happy to help." } }, stores: { "team.roles": [ROLE_SEED] } } });
+
+  test("a Select's list takes the focus the first time it opens from the keyboard", async ({ page }) => {
+    await page.goto("/team/hire/roles/brand-designer/candidates/deal");
+    await page.getByRole("button", { name: "Flag candidate" }).click();
+    const dialog = page.getByRole("dialog", { name: "Flag Juan D." });
+    const reason = dialog.getByRole("button", { name: "Reason" });
+    await reason.focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option", { name: "Misrepresented experience", exact: true })).toBeFocused();
+    await page.keyboard.press("ArrowDown");
+    await expect(page.getByRole("option", { name: "No-show to interview", exact: true })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(reason).toHaveText("No-show to interview");
+    await expect(reason).toBeFocused();
+    // Escape closes the list, not the dialog under it.
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("option", { name: "No-show to interview", exact: true })).toBeFocused();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+    await expect(dialog).toBeVisible();
+    await expect(reason).toBeFocused();
   });
 });
 

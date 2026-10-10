@@ -4,7 +4,9 @@ import { useState, type ChangeEvent, type ReactNode } from "react";
 import { Button, Card, Checkbox, Field, Input, Select, Toast } from "@/components/portal/ui";
 import { DEMO_PASSWORD, PASSWORD_RULES as AUTH_RULES } from "@/lib/demo/auth";
 import { ImagePicker } from "@/components/portal/profile-editor";
-import { TimeZonePicker } from "@/components/portal/time-zone-picker";
+import { TimeZonePicker, useDeviceTimeZone } from "@/components/portal/time-zone-picker";
+import { ICONS } from "@/components/icons";
+import { Tip } from "@/components/portal/tip";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { checkImage, IMAGE_MAX_MB, readImage } from "@/lib/portal/profile-fields";
 
@@ -59,27 +61,17 @@ function AccountForm({ initial, avatar, emailLabel, languageOptions, accountType
       <SettingsHeading>Account</SettingsHeading>
       {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
       <PhotoField avatar={avatar} onPhoto={onPhoto} onToast={onToast} />
-      <div className="flex gap-4">
-        <Field label="First name" className="flex-1">
-          <Input value={form.first} onChange={set("first")} />
-        </Field>
-        <Field label="Last name" className="flex-1">
-          <Input value={form.last} onChange={set("last")} />
-        </Field>
-      </div>
-      {accountType && (
-        <Field label="Account type">
-          <p className="flex h-11 items-center rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">{accountType}</p>
-        </Field>
-      )}
+      {/* TB-099 / IN-067 — the name is the account's legal name: shown here, changed only through support. */}
+      <ReadOnlyField label="Full name" hint="Contact support to change your name." locked>
+        {`${form.first} ${form.last}`.trim()}
+      </ReadOnlyField>
+      {accountType && <ReadOnlyField label="Account type">{accountType}</ReadOnlyField>}
       <EmailChange label={emailLabel} value={form.email} saved={initial.email} onChange={(email) => setForm((current) => ({ ...current, email }))} pending={pending} onPending={setPending} onToast={onToast} />
       <Field label="Phone">
         <Input value={form.phone} onChange={set("phone")} />
       </Field>
-      <div className="flex gap-4">
-        <Field label="Time zone" className="flex-1">
-          <TimeZonePicker value={form.tz} onChange={(tz) => setForm((current) => ({ ...current, tz }))} />
-        </Field>
+      <div className="flex gap-4 max-sm:flex-col">
+        <TimeZoneField value={form.tz} onChange={(tz) => setForm((current) => ({ ...current, tz }))} />
         <Field label="Language" className="flex-1">
           <Select options={languageOptions} value={form.lang} onChange={set("lang")} />
         </Field>
@@ -94,6 +86,37 @@ function AccountForm({ initial, avatar, emailLabel, languageOptions, accountType
         }}
       />
     </Card>
+  );
+}
+
+/** A value the account shows but this form doesn't change: the name (locked, with how to change it) and the account type. */
+function ReadOnlyField({ label, hint, locked = false, children }: { label: string; hint?: string; locked?: boolean; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>
+      <p className="flex h-11 items-center gap-2 rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">
+        <span className="min-w-0 flex-1 truncate">{children}</span>
+        {locked && <ICONS.lock size={16} aria-label="Locked" className="shrink-0" />}
+      </p>
+      {hint && <span className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{hint}</span>}
+    </div>
+  );
+}
+
+/**
+ * TB-099 / IN-067 — the time zone follows this device unless it's set by hand. A saved "" is
+ * automatic, so interview times read in the viewer's local time without anyone picking one.
+ */
+function TimeZoneField({ value, onChange }: { value: string; onChange: (tz: string) => void }) {
+  const device = useDeviceTimeZone();
+  const auto = value === "";
+  return (
+    <div className="flex flex-1 flex-col gap-2">
+      <Field label="Time zone">{auto ? <p className="flex h-11 items-center rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">{device}</p> : <TimeZonePicker value={value} onChange={onChange} />}</Field>
+      <Checkbox checked={auto} onChange={(on) => onChange(on ? "" : device)}>
+        Set automatically from this device
+      </Checkbox>
+    </div>
   );
 }
 
@@ -137,10 +160,17 @@ function EmailChange({ label, value, saved, onChange, pending, onPending, onToas
   onToast: SetToast;
 }) {
   const [code, setCode] = useState("");
+  /** When the code now in force was sent: it lasts CODE_MINUTES. */
+  const [sentAt, setSentAt] = useState(0);
+  const send = (address: string) => {
+    setCode("");
+    setSentAt(Date.now());
+    onToast(`Verification code sent to ${address}`);
+  };
   return (
     <>
-      <div className="flex items-center gap-3">
-        <Field label={label} hint="A 6-digit code goes to the new address first." className="flex-1">
+      <div className="flex items-end gap-3">
+        <Field label={label} hint="Type a new email, then select Change email. We'll send a 6-digit code to it." className="flex-1">
           <Input value={value} onChange={(event) => onChange(event.target.value)} type="email" />
         </Field>
         <Button
@@ -149,8 +179,7 @@ function EmailChange({ label, value, saved, onChange, pending, onPending, onToas
           disabled={value === saved || !value.includes("@")}
           onClick={() => {
             onPending(value);
-            setCode("");
-            onToast(`Verification code sent to ${value}`);
+            send(value);
           }}
         >
           Change email
@@ -161,7 +190,9 @@ function EmailChange({ label, value, saved, onChange, pending, onPending, onToas
         <VerifyEmail
           address={pending}
           code={code}
+          sentAt={sentAt}
           onCode={setCode}
+          onResend={() => send(pending)}
           onVerify={() => {
             onPending(null);
             onToast("Email verified and updated");
@@ -176,19 +207,61 @@ function EmailChange({ label, value, saved, onChange, pending, onPending, onToas
   );
 }
 
-/** Under the email while a new address waits: the code sent to it, Verify, and Cancel. */
-function VerifyEmail({ address, code, onCode, onVerify, onCancel }: { address: string; code: string; onCode: (code: string) => void; onVerify: () => void; onCancel: () => void }) {
+/** How long an emailed code lasts. */
+const CODE_MINUTES = 10;
+
+/**
+ * Why a code can't be used: it's past CODE_MINUTES, or it's wrong. With no mail server, every code is
+ * accepted but 000000, which stands in for a mistyped one.
+ */
+function codeProblem(code: string, sentAt: number): string | null {
+  if (Date.now() - sentAt > CODE_MINUTES * 60_000) return "That code has expired. Resend code to get a new one.";
+  if (code === "000000") return "That code isn't right. Check the email and try again.";
+  return null;
+}
+
+/** Under the email while a new address waits: the code sent to it, Verify, Cancel, Resend, and why a code was turned down. */
+function VerifyEmail({ address, code, sentAt, onCode, onResend, onVerify, onCancel }: {
+  address: string;
+  code: string;
+  sentAt: number;
+  onCode: (code: string) => void;
+  onResend: () => void;
+  onVerify: () => void;
+  onCancel: () => void;
+}) {
+  const [problem, setProblem] = useState<string | null>(null);
   return (
-    <div className="flex items-end gap-3 rounded-lg bg-surface-2 p-4">
-      <Field label={`Enter the code sent to ${address}`} hint="Any 6 digits work in this demo." className="flex-1">
-        <Input value={code} inputMode="numeric" onChange={(event) => onCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} placeholder="123456" />
-      </Field>
-      <Button size="lg" variant="primary" disabled={code.length !== 6} onClick={onVerify}>
-        Verify
-      </Button>
-      <Button size="lg" onClick={onCancel}>
-        Cancel
-      </Button>
+    <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-4">
+      <div className="flex items-end gap-3">
+        <Field label={`Enter the code sent to ${address}`} error={problem ?? undefined} className="flex-1">
+          <Input
+            value={code}
+            inputMode="numeric"
+            onChange={(event) => {
+              setProblem(null);
+              onCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6));
+            }}
+          />
+        </Field>
+        <Button size="lg" variant="primary" disabled={code.length !== 6} onClick={() => {
+            const turnedDown = codeProblem(code, sentAt);
+            setProblem(turnedDown);
+            if (!turnedDown) onVerify();
+          }}
+        >
+          Verify
+        </Button>
+        <Button size="lg" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+      <p className="text-[13px] leading-[1.4] text-ink-2">
+        Enter the 6-digit code. Didn&apos;t get it?{" "}
+        <button type="button" onClick={() => (setProblem(null), onResend())} className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+          Resend code
+        </button>
+      </p>
     </div>
   );
 }
@@ -222,8 +295,7 @@ export function PasswordSettingsCard() {
     <>
       <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
         <SettingsHeading>Change password</SettingsHeading>
-        <p className="max-w-[660px] text-[13px] leading-[1.4] text-ink-2">Use at least 8 characters with one uppercase letter, one number and one symbol. This is the same rule as sign-up.</p>
-        <Field label="Current password" hint={`This demo account uses ${DEMO_PASSWORD}`}>
+        <Field label="Current password">
           <Input
             type="password"
             value={current}
@@ -288,7 +360,7 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
     <>
       <Card className="mx-auto flex w-full max-w-[760px] flex-col gap-4 p-6">
         <SettingsHeading>Notification preferences</SettingsHeading>
-        <p className="max-w-[700px] text-[13px] leading-[1.4] text-ink-2">Choose where you hear about each event. In-app notifications for offers and payments cannot be turned off.</p>
+        <p className="max-w-[700px] text-[13px] leading-[1.4] text-ink-2">Choose how you hear about each event. Some offer and payment alerts are always on.</p>
         <div className="flex items-center gap-4 border-b border-border py-2 text-[12px] leading-[1.4] font-medium text-ink-2">
           <span className="flex-1">Event</span>
           <span className="w-20 text-center">In-app</span>
@@ -300,12 +372,8 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
               <p className="text-[14px] font-medium text-ink">{event.title}</p>
               <p className="text-[12px] text-ink-2">{event.body}</p>
             </div>
-            <span className="flex h-6 w-20 items-center justify-center">
-              <Checkbox checked={event.app} disabled={event.appDisabled} onChange={(value) => toggle(event.key, "app", value)} />
-            </span>
-            <span className="flex h-6 w-20 items-center justify-center">
-              <Checkbox checked={event.email} disabled={event.emailDisabled} onChange={(value) => toggle(event.key, "email", value)} />
-            </span>
+            <PreferenceBox checked={event.app} locked={event.appDisabled} label={`${event.title} in-app`} onChange={(value) => toggle(event.key, "app", value)} />
+            <PreferenceBox checked={event.email} locked={event.emailDisabled} label={`${event.title} by email`} onChange={(value) => toggle(event.key, "email", value)} />
           </div>
         ))}
         <div className="flex justify-end">
@@ -316,6 +384,25 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
       </Card>
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
+  );
+}
+
+/** One box in the preferences table; one that's always on shows a lock and says so on hover. */
+function PreferenceBox({ checked, locked, label, onChange }: { checked: boolean; locked?: boolean; label: string; onChange: (on: boolean) => void }) {
+  if (locked)
+    return (
+      <Tip label="Always on">
+        <span role="img" aria-label={`${label}: always on`} className="flex h-6 w-20 items-center justify-center text-ink-2">
+          <ICONS.lock size={18} aria-hidden />
+        </span>
+      </Tip>
+    );
+  return (
+    <span className="flex h-6 w-20 items-center justify-center">
+      <Checkbox checked={checked} onChange={onChange}>
+        <span className="sr-only">{label}</span>
+      </Checkbox>
+    </span>
   );
 }
 

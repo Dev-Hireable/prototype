@@ -16,11 +16,12 @@ import {
   DashboardSummaryGrid,
 } from "@/components/portal/dashboard";
 import { DashboardTasks } from "@/components/portal/dashboard-tasks";
-import { useTeamAccount, useCards, useTeamBanner } from "@/lib/team/account";
+import { useTeamAccount, useTeamBanner } from "@/lib/team/account";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useRoles } from "@/lib/team/roles";
 import { dayLabel } from "@/lib/portal/dates";
+import { shortName } from "@/lib/portal/names";
 import { lifecycleOfDeal, useDeal, type Deal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
@@ -94,7 +95,7 @@ export default function Dashboard() {
             <ApplicantsCard key="Applicants" candidates={candidates} active={active} />,
           ]}
           side={[
-            <DashboardSummaryCard key="Interviews" title="Interviews" href="/team/hire/interviews">
+            <DashboardSummaryCard key="Interviews" title="Interviews" href="/team/hire/roles">
               <UpcomingInterviews upcoming={upcoming} />
             </DashboardSummaryCard>,
 
@@ -114,14 +115,13 @@ export default function Dashboard() {
 function SetupHero() {
   /* TB-120/121 — the greeting and the avatar follow whatever the profile page saved. */
   const { roles } = useRoles();
-  const { cards } = useCards();
   const { profile, company, workStyle } = useTeamAccount();
   /* TB-001 — computed from what is actually set up, so finishing a step moves the bar. */
-  const steps = setupSteps({ company, cards, roles, workStyle });
+  const steps = setupSteps({ company, roles, workStyle });
   return (
     <DashboardHero>
       <DashboardGreeting name={profile.name.split(" ")[0]} dateClassName="text-[15px] leading-[1.2] tracking-[0.2px] text-ink-2">
-        <DashboardQuickAction title="Create a Role" body="Post a job and start collecting applications." href="/team/hire" icon={<Add size={20} aria-hidden />} />
+        <DashboardQuickAction tour="create-role" title="Create a Role" body="Post a job and start collecting applications." href="/team/hire" icon={<Add size={20} aria-hidden />} />
         <DashboardQuickAction title="Discover Independents" body="Browse matched talent and invite them to apply." href="/team/discover" icon={<Search size={20} aria-hidden />} />
       </DashboardGreeting>
 
@@ -173,22 +173,23 @@ function UpcomingInterviews({ upcoming }: { upcoming: Interview[] }) {
     <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[13px] leading-[1.4] text-ink-2">Nothing scheduled. Invite a candidate to interview to see it here.</p>
   ) : (
     <ul className="flex flex-col gap-2">
-      {upcoming.map((iv) => (
-        <li key={iv.id} className="flex items-center gap-3 rounded-lg bg-white p-3">
-          <Avatar src={avatarOf(iv.independent)} size={32} />
-          {/* The candidate's card in the pipeline, as on the Interviews page. */}
-          <Link
-            href={iv.roleSlug && iv.candidate ? `/team/hire/roles/${iv.roleSlug}/candidates/${iv.candidate}` : "/team/hire/interviews"}
-            className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] tracking-[0.2px]"
-          >
-            <span className="truncate text-[14px] font-semibold text-ink hover:text-primary">{nameOf(iv.independent, iv.independent)}</span>
-            <span className="truncate text-[12px] text-ink-2">{iv.when.replace(/^\w{3} /, "")}</span>
-          </Link>
-          <Link href="/team/hire/interviews" className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
-            Join
-          </Link>
-        </li>
-      ))}
+      {upcoming.map((iv) => {
+        // The candidate's card in the pipeline, where the interview is joined, moved or cancelled; else the role's Interview column.
+        const href = iv.roleSlug && iv.candidate ? `/team/hire/roles/${iv.roleSlug}/candidates/${iv.candidate}` : iv.roleSlug ? `/team/hire/roles/${iv.roleSlug}?stage=interview` : "/team/hire/roles";
+        return (
+          <li key={iv.id} className="flex items-center gap-3 rounded-lg bg-white p-3">
+            <Avatar src={avatarOf(iv.independent)} size={32} />
+            <Link href={href} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] tracking-[0.2px]">
+              {/* Not hired yet, so the surname stays an initial. */}
+              <span className="truncate text-[14px] font-semibold text-ink hover:text-primary">{shortName(nameOf(iv.independent, iv.independent))}</span>
+              <span className="truncate text-[12px] text-ink-2">{iv.when.replace(/^\w{3} /, "")}</span>
+            </Link>
+            <Link href={href} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
+              Join
+            </Link>
+          </li>
+        );
+      })}
     </ul>
   );
 }

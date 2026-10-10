@@ -492,7 +492,7 @@ function SkillOption({ id, skill, custom, highlighted, onHover, onPick }: { id: 
     >
       {custom ? (
         <span>
-          Add &ldquo;<span className="font-semibold">{skill}</span>&rdquo;
+          <span className="text-ink-2">Can&apos;t find it?</span> Add &ldquo;<span className="font-semibold">{skill}</span>&rdquo;
         </span>
       ) : (
         skill

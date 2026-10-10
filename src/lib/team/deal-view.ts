@@ -1,5 +1,5 @@
 import type { Posting } from "@/lib/demo/deal";
-import type { CompanyProfile, Role } from "@/lib/team/data";
+import { companyLocation, type CompanyProfile, type Role } from "@/lib/team/data";
 
 /** The id both portals use for the one shared engagement. */
 export const DEAL_ID = "deal";
@@ -13,7 +13,7 @@ export function postingFrom(role: Role, company: CompanyProfile): Posting {
     hours: role.type === "part-time" ? role.hours : undefined,
     company: company.name,
     companyBlurb: company.description,
-    location: company.location,
+    location: companyLocation(company),
     industry: company.industry,
     size: company.size,
     website: company.url || undefined,

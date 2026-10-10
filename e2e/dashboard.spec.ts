@@ -69,7 +69,7 @@ test.describe("the dashboards after the trial's last day", () => {
   test("the talent's work is with Alex; Alex is asked for the evaluation first", async ({ page, secondPage }) => {
     await page.goto("/independent");
     const card = page.getByRole("region", { name: "My tasks" });
-    await expect(card).toContainText("Your trial ended — your work is with Alex for the evaluation, due 29 Sep 2026.");
+    await expect(card).toContainText("Your trial ended. Your work is with Alex for the evaluation, due 29 Sep 2026.");
     await expect(card.getByRole("list")).toHaveCount(0);
 
     const alex = await secondPage();

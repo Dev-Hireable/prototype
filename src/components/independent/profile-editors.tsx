@@ -12,6 +12,9 @@ import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import type { SetToast } from "@/lib/portal/toast";
 import { checkImage, IMAGE_MAX_MB, isUrl, readImage } from "@/lib/portal/profile-fields";
 import { ImagePicker } from "@/components/portal/profile-editor";
+import { ICONS } from "@/components/icons";
+
+const Lock = ICONS.lock;
 
 /*
  * The profile edited where it's read: the pencil beside a part turns it into one of these — the same
@@ -19,9 +22,8 @@ import { ImagePicker } from "@/components/portal/profile-editor";
  * page and the bio modal (IN-061, IN-062, IN-065).
  */
 
-
 /**
- * What the skill picker suggests: the sales skills the talent side has always offered (IN-065), then
+ * What the skill picker suggests: the brand-design skills the talent side offers (IN-065), then
  * the catalogue roles are posted with, so a talent's skills read the same as the roles asking for them.
  */
 const SKILL_OPTIONS = [...SKILL_SUGGESTIONS, ...GENERAL_SKILLS].filter((s, i, all) => all.findIndex((x) => x.toLowerCase() === s.toLowerCase()) === i);
@@ -59,11 +61,10 @@ type HeroForm = ReturnType<typeof heroForm>;
 /** Each header field's problem, or "" when it's fine: the required ones, the rate as a number, and the two links. */
 function heroErrors(form: HeroForm) {
   return {
-    name: form.name.trim() ? "" : "Your name is what Team Builders search for.",
     headline: form.headline.trim() ? "" : "Add the role you are hiring out for.",
     // The rate is written "1,600" on the profile, so thousands separators count as numbers here.
     rate: /^\d[\d,]*(\.\d+)?$/.test(form.rate.trim()) ? "" : "A monthly rate in USD, numbers only.",
-    location: form.location.trim() ? "" : "Where you work from — it sets the time zone expectation.",
+    location: form.location.trim() ? "" : "Where you work from. It sets the time zone expectation.",
     website: linkError(form.website),
     linkedin: linkError(form.linkedin),
   };
@@ -88,7 +89,6 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
       onCancel={onCancel}
       onSave={() =>
         onSave({
-          name: form.name.trim(),
           headline: form.headline.trim(),
           rate: form.rate.trim(),
           level: form.level,
@@ -101,11 +101,15 @@ export function HeroEditor({ profile, onSave, onCancel, onMessage }: { profile: 
       <div className="@container/edit flex flex-col gap-5">
         <PhotoField photo={photo} saved={profile.photo} onPhoto={setPhoto} onMessage={onMessage} />
         <div className="grid gap-4 @md/edit:grid-cols-2">
-          <Field label="Full name" error={errors.name}>
-            <Input autoFocus value={form.name} onChange={set("name")} />
+          {/* The name is the verified one payouts go to, so support changes it, not the talent. */}
+          <Field label="Full name" hint="Contact support to change your name.">
+            <span className="relative block">
+              <Input readOnly value={form.name} className="cursor-default !bg-surface-alt pr-11 !text-ink-2" />
+              <Lock size={18} aria-hidden className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-ink-2" />
+            </span>
           </Field>
           <Field label="Headline" error={errors.headline}>
-            <Input value={form.headline} onChange={set("headline")} />
+            <Input autoFocus value={form.headline} onChange={set("headline")} />
           </Field>
           <Field label="Monthly rate (USD)" error={errors.rate}>
             <Input value={form.rate} onChange={set("rate")} inputMode="decimal" />
@@ -175,7 +179,7 @@ export function SkillsEditor({ skills, onSave, onCancel }: { skills: string[]; o
     <EditPanel label="Skills" canSave={draft.length > 0} saveTip="Add at least one skill" onCancel={onCancel} onSave={() => onSave(draft)}>
       <span className="flex flex-col gap-2">
         <SkillPicker options={SKILL_OPTIONS} value={draft} onChange={setDraft} max={MAX_SKILLS} />
-        <Helper left={`Select up to ${MAX_SKILLS} skills`} right={`${draft.length} / ${MAX_SKILLS}`} />
+        <Helper left="" right={`${draft.length} / ${MAX_SKILLS}`} />
       </span>
       {draft.length > 0 && (
         <div className="flex flex-wrap gap-2">

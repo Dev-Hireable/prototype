@@ -1,15 +1,18 @@
 import type { Locator, Page } from "@playwright/test";
-import { card, EVALUATED, expect, notes, savedDeal, test, toast } from "./fixtures";
+import { card, entryOf, EVALUATED, expect, notes, savedDeal, test, toast } from "./fixtures";
 
 // Offers, on both sides: the trial offer the Team Builder sends from the proposal — carrying what the
 // proposal settled, nothing edited (TB-105) — and the talent signs or declines on their application
 // (IN-074 / IN-075), the full-time or part-time offer that follows an evaluated trial (TB-072 /
-// IN-084), and a sent offer's one action, withdrawing it. Today is Fri 25 Sep 2026. A post-trial offer
-// left to run past its start date is after-trial.spec's.
+// IN-084), and a sent offer's one action, withdrawing it, on the candidate's card in the pipeline. Today
+// is Fri 25 Sep 2026. A post-trial offer left to run past its start date is after-trial.spec's.
 
 const APPLICATION_OFFER = "/independent/jobs/applications/deal/offer";
 const CONTRACT_OFFER = "/independent/contracts/brand-designer/offer";
-const OFFERS_SENT = "/team/hire/offers";
+/** Juan's card in the Brand Designer pipeline: a sent offer is read, and withdrawn, there. */
+const CANDIDATE = "/team/hire/roles/brand-designer/candidates/deal";
+/** The post-trial offer is withdrawn from the contract it follows. */
+const CONTRACT = "/team/independents/juan-dela-cruz?tab=overview";
 const REASON = "The start date is too soon.";
 
 /** The tasks the trial offer sets, as the Team Builder wrote them. */
@@ -84,11 +87,12 @@ const ongoingTerms = (type: string, pay: [string, string], hours?: string): [str
   ["Review", "Quarterly, with evaluations as the work goes on"],
 ];
 
-/* The signature every offer is signed with, Accept, and a row's menu on Offers sent. */
+/* The signature every offer is signed with, Accept, and the Offer card on the candidate's page. */
 const nameField = (page: Page) => page.getByRole("textbox", { name: /^Type your full name to sign/ });
 const agreement = (page: Page) => page.getByRole("checkbox", { name: "I agree to the platform contract and terms of service." });
 const acceptButton = (page: Page) => page.getByRole("button", { name: "Accept", exact: true });
-const offerActions = (page: Page) => page.getByRole("button", { name: "Actions for the offer to Juan Dela Cruz" });
+const offerCard = (page: Page) => page.getByRole("region", { name: "Offer" });
+const withdrawButton = (page: Page) => offerCard(page).getByRole("button", { name: "Withdraw offer" });
 
 /** The offer's terms, a row each: every label, then every value, in order. */
 async function expectTerms(page: Page, rows: [string, string][]) {
@@ -136,21 +140,18 @@ async function declineAfterBackingOut(page: Page, d: { title: string; descriptio
   await expect(dialog).toBeHidden();
 }
 
-/** Offers sent reads the declined offer with the talent's reason and nothing left to do. */
+/** Juan's card reads the declined offer with nothing left to do on it, and the talent's reason in its notes. */
 async function teamSeesTheDecline(alex: Page) {
-  await alex.goto(OFFERS_SENT);
-  await expect(alex.getByText("1 offer · 0 pending")).toBeVisible();
-  await expect(alex.getByText("Declined", { exact: true })).toBeVisible();
-  await expect(alex.getByText(`“${REASON}”`)).toBeVisible();
-  await expect(offerActions(alex)).toHaveCount(0);
+  await alex.goto(CANDIDATE);
+  await expect(offerCard(alex).getByText("Declined", { exact: true })).toBeVisible();
+  await expect(alex.getByText(REASON)).toBeVisible();
+  await expect(withdrawButton(alex)).toHaveCount(0);
 }
 
 /** A sent offer's one action is withdrawing it: what it carries was settled in the proposal, so it isn't edited (TB-105). */
 async function expectOnlyWithdraw(alex: Page) {
-  await offerActions(alex).click();
-  await expect(alex.getByRole("menuitem")).toHaveText(["Withdraw offer"]);
-  await alex.keyboard.press("Escape");
-  await expect(alex.getByRole("menu")).toBeHidden();
+  await expect(offerCard(alex).getByText("Pending", { exact: true })).toBeVisible();
+  await expect(offerCard(alex).getByRole("button")).toHaveText(["Withdraw offer"]);
 }
 
 /** From the role's pipeline, Alex opens Juan's proposal and starts the offer from it. Returns the offer dialog. */
@@ -175,26 +176,33 @@ async function settledTermsRead(offer: Locator) {
   await expect(offer.getByRole("button", { name: /start date/i })).toHaveCount(0);
 }
 
-/** Deposits the escrow and signs: the offer goes out as the proposal settled it. */
+/**
+ * Deposit & Sign, the last of four steps: the offer's summary, the deposit and the signature together,
+ * with no separate Review & Sign repeating them. The offer goes out as the proposal settled it.
+ */
 async function depositAndSign(alex: Page, offer: Locator) {
   await offer.getByRole("button", { name: "Continue" }).click();
-  await offer.getByRole("checkbox", { name: /^Charge \$1,760\.00/ }).check();
-  await offer.getByRole("button", { name: "Deposit & continue" }).click();
+  await expect(offer.getByRole("list").first().getByRole("listitem")).toHaveText(["Offer Letter", "Tasks", "Start & End Dates", "Deposit & Sign"]);
+  for (const row of ["Role", "Candidate", "Contract", "Rate", "Trial", "In escrow", "Platform fee", "Tasks"]) await expect(offer).toContainText(row);
+  await expect(offer).toContainText("Juan D.");
+  const send = offer.getByRole("button", { name: "Sign & send offer" });
   await offer.getByRole("textbox", { name: "Type your full name to sign" }).fill("Alex Rivera");
-  await offer.getByRole("button", { name: "Sign & send offer" }).click();
+  // Signed but not deposited: it can't go out until escrow is funded.
+  await expect(send).toBeDisabled();
+  await offer.getByRole("checkbox", { name: /^Charge \$1,760\.00/ }).check();
+  await send.click();
   await expect(toast(alex, "Offer sent to candidate")).toBeVisible();
 }
 
-/** Withdraws the one pending offer from its menu, once the confirmation has said what that does. */
+/** Withdraws the pending offer from its card, once the confirmation has said what that does. */
 async function withdrawTheOffer(alex: Page, description: string) {
-  await offerActions(alex).click();
-  await alex.getByRole("menuitem", { name: "Withdraw offer" }).click();
+  await withdrawButton(alex).click();
   const confirm = alex.getByRole("dialog", { name: "Withdraw this offer?" });
   await expect(confirm).toContainText(description);
   await confirm.getByRole("button", { name: "Withdraw offer" }).click();
   await expect(toast(alex, "Offer withdrawn")).toBeVisible();
-  await expect(alex.getByText("Withdrawn", { exact: true })).toBeVisible();
-  await expect(offerActions(alex)).toHaveCount(0);
+  await expect(offerCard(alex).getByText("Withdrawn", { exact: true })).toBeVisible();
+  await expect(withdrawButton(alex)).toHaveCount(0);
 }
 
 test.describe("offers · signing a trial offer", () => {
@@ -245,7 +253,9 @@ test.describe("offers · declining a trial offer", () => {
     await expect(acceptButton(page)).toHaveCount(0);
     await expect(nameField(page)).toBeDisabled();
     expect((await savedDeal(page)).offer).toMatchObject({ status: "declined", declineReason: REASON });
-    expect((await notes(page, "team")).find((n) => n.title === "Juan Dela Cruz declined your offer")).toMatchObject({ href: OFFERS_SENT });
+    // The notification opens the step in the thread, whose View details opens the candidate.
+    const declined = (await notes(page, "team")).find((n) => n.title === "Juan Dela Cruz declined your offer");
+    expect((await entryOf(page, declined?.href ?? ""))?.event?.href.team).toBe(CANDIDATE);
 
     await teamSeesTheDecline(await secondPage());
   });
@@ -301,11 +311,9 @@ test.describe("offers · withdrawing a post-trial offer", () => {
     await expect(acceptButton(page)).toBeVisible();
 
     const alex = await secondPage();
-    await alex.goto(OFFERS_SENT);
-    await expect(alex.getByText("After the trial", { exact: true })).toBeVisible();
-    await expectOnlyWithdraw(alex);
-    await withdrawTheOffer(alex, "Juan Dela Cruz is told the offer was withdrawn and can no longer accept it. Their contract is unchanged.");
-    await expect(alex.getByText("2 offers · 0 pending")).toBeVisible();
+    await alex.goto(CONTRACT);
+    await alex.getByRole("button", { name: "Withdraw offer" }).click();
+    await expect(toast(alex, "Offer withdrawn — Juan has been told")).toBeVisible();
     expect((await savedDeal(alex)).conversion.status).toBe("withdrawn");
     expect((await notes(alex, "independent")).map((n) => n.title)).toContain("Offer withdrawn");
 
@@ -358,12 +366,34 @@ test.describe("offers · a proposed start that has passed", () => {
   });
 });
 
+test.describe("offers · no card on file yet", () => {
+  test.use({ seedOptions: { ...PROPOSAL_IN("2026-10-05"), stores: { "team.roles": [ROLE], "team.cards": [] } } });
+
+  test("the deposit asks for a card there and then, and the charge opens once it's added", async ({ page }) => {
+    const offer = await startTheOffer(page);
+    for (let i = 0; i < 3; i++) await offer.getByRole("button", { name: "Continue" }).click();
+    const charge = offer.getByRole("checkbox", { name: /^Charge \$1,760\.00/ });
+    await expect(charge).toBeDisabled();
+    await offer.getByRole("button", { name: "Add a card" }).click();
+    const add = page.getByRole("dialog", { name: "Add a card" });
+    await add.getByRole("textbox", { name: "Card number" }).fill("4242 4242 4242 4242");
+    await add.getByRole("button", { name: "Add card" }).click();
+    await expect(add).toBeHidden();
+    await expect(offer).toContainText("Visa ending 4242");
+    await expect(charge).toBeEnabled();
+  });
+});
+
 test.describe("offers · a sent offer", () => {
   test.use({ seedOptions: OFFER_OUT_SEED });
 
-  test("its one action is withdrawing it — a sent offer isn't edited", async ({ page }) => {
-    await page.goto(OFFERS_SENT);
-    await expect(page.getByText("1 offer · 1 pending")).toBeVisible();
+  test("Juan's card in the pipeline reads it, and its one action is withdrawing it — a sent offer isn't edited", async ({ page }) => {
+    await page.goto("/team/hire/roles/brand-designer?stage=offer");
+    await page.getByRole("link", { name: "Review Sent Offer" }).click();
+    await expect(page).toHaveURL(CANDIDATE);
+    await expect(offerCard(page)).toContainText("$1,600 /month");
     await expectOnlyWithdraw(page);
+    await withdrawTheOffer(page, "Juan D. is told the offer was withdrawn and can no longer accept it. Their proposal stays on file, so you can send a new offer from it.");
+    expect((await savedDeal(page)).offer.status).toBe("withdrawn");
   });
 });

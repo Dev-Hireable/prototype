@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { Avatar, Button, Checkbox, Chip, Field, InfoBanner, Input, KeyValue, MatchPill, Modal, Steps } from "@/components/portal/ui";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
+import { AddCardDialog, ADD_CARD } from "@/components/team/add-card-dialog";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
+import { shortName } from "@/lib/portal/names";
 import { addWorkingDays, dayLabel, durationDays, trialMonths, fromISODate, startOfToday, isoDay } from "@/lib/portal/dates";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount, usd } from "@/lib/demo/disputes";
@@ -23,24 +25,25 @@ const pretty = (s: string) => (fromISODate(s) ? dayLabel(fromISODate(s)) : "—"
 /** The terms a sent offer carries, for the type of role it is, and the tasks it sets. */
 export type OfferTerms = { rate: string; start: string; end?: string; deposit?: { escrow: number; fee: number }; hours?: number; benefits?: string[]; tasks: OfferTask[] };
 
-type StepKey = "letter" | "tasks" | "dates" | "deposit" | "terms" | "sign";
+type StepKey = "letter" | "tasks" | "dates" | "deposit" | "terms";
 
-/** The steps in order: a trial funds its escrow before it's signed; an ongoing role sets its terms instead. */
+/**
+ * The steps in order. The last one is signed where it's filled in: a trial funds its escrow and signs
+ * on one step, an ongoing role reads its terms and signs. A separate Review & Sign step only repeated
+ * what the earlier steps had confirmed.
+ */
 function stepKeys(trial: boolean): StepKey[] {
-  return trial ? ["letter", "tasks", "dates", "deposit", "sign"] : ["letter", "tasks", "terms", "sign"];
+  return trial ? ["letter", "tasks", "dates", "deposit"] : ["letter", "tasks", "terms"];
 }
 
 /** What each step is called, in the stepper and under the dialog's title. */
-function stepLabels(type: Role["type"]): Record<StepKey, string> {
-  return {
-    letter: "Offer Letter",
-    tasks: "Tasks",
-    dates: "Start & End Dates",
-    deposit: "Deposit Payment",
-    terms: type === "full-time" ? "Start & Salary" : "Start & Hours",
-    sign: "Review & Sign",
-  };
-}
+const STEP_LABELS: Record<StepKey, string> = {
+  letter: "Offer Letter",
+  tasks: "Tasks",
+  dates: "Start & End Dates",
+  deposit: "Deposit & Sign",
+  terms: "Terms & Sign",
+};
 
 /**
  * The job post's tasks with the talent's accepted suggestions applied (`startTasks`) — or, on a
@@ -86,22 +89,24 @@ function canLeave(kind: StepKey, { trial, tasks, figures, deposited }: { trial: 
   return kind === "letter" ? payable : kind === "tasks" ? !trial || tasks.length > 0 : kind === "dates" ? !startPassed : kind === "terms" ? !startPassed && payable && hoursOk : kind === "deposit" ? deposited : true;
 }
 
-/** Review & Sign's summary: the role and pay, then the trial's dates and escrow or the ongoing role's start and terms, then the tasks. */
+/** The summary signed on the last step: the role and pay, then the trial's dates and escrow or the ongoing role's start and terms, then the tasks. */
 function reviewRows({ role, person, proposal, trial, figures, start, benefits, tasks }: { role: Role; person: Independent; proposal: DealProposal; trial: boolean; figures: Figures; start: string; benefits: string[]; tasks: PlannedTask[] }) {
-  const { end, escrow, fee, weekly, payLabel } = figures;
+  const { end, escrow, fee, weekly, payLabel, rate, months } = figures;
   return [
     ["Role", role.title],
-    ["Candidate", person.name],
+    // Not hired yet, so the surname stays an initial ("Juan D.").
+    ["Candidate", shortName(person.name)],
     ["Contract", JOB_TYPE_LABEL[role.type]],
     [role.type === "full-time" ? "Salary" : "Rate", trial ? proposal.rate : payLabel],
     ...(trial
       ? ([
           ["Trial", `${pretty(start)} → ${pretty(end)}`],
-          ["In escrow", usd(escrow)],
+          // The trial is funded in full: a month's rate for each month of it.
+          ["In escrow", months > 1 ? `${usd(escrow)} (${usd(rate)} × ${months} months)` : usd(escrow)],
           ["Platform fee", usd(fee)],
         ] as [string, string][])
       : ([["Starts", pretty(start)], ...(role.type === "part-time" ? [["Hours", hoursLabel(weekly)]] : [["Benefits", benefits.length ? `${benefits.length} included` : "None"]])] as [string, string][])),
-    ["Tasks", tasks.length ? `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}` : "None yet — add them once it starts"],
+    ["Tasks", tasks.length ? `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}` : "None yet. Add them once it starts"],
   ] as [string, string][];
 }
 
@@ -145,8 +150,7 @@ type OfferDraft = ReturnType<typeof useOfferDraft>;
 function useOfferDialog({ role, proposal, startTasks, onClose, onSend }: { role: Role; proposal: DealProposal; startTasks?: PlannedTask[]; onClose: () => void; onSend: (terms: OfferTerms) => void }) {
   const trial = role.type === "trial";
   const keys = stepKeys(trial);
-  const label = stepLabels(role.type);
-  const steps = keys.map((k) => label[k]);
+  const steps = keys.map((k) => STEP_LABELS[k]);
   const [step, setStep] = useState(0);
   const kind = keys[step];
   const draft = useOfferDraft(role, proposal, startTasks);
@@ -170,10 +174,11 @@ function useOfferDialog({ role, proposal, startTasks, onClose, onSend }: { role:
  * TB-105 Send Offer. The offer carries what the proposal settled, and nothing here changes it: the
  * tasks (the job post's, with the talent's accepted suggestions), the start the talent proposed with
  * the end it comes to, and the pay and hours. Changing any of it is a proposal revision (TB-106),
- * before an offer. A trial runs Start & End Dates → Deposit Payment → Review & Sign, and the deposit
- * gates the send: it can't go out until escrow is funded. A full-time or part-time role hires
- * straight onto the contract, with no trial and no escrow — Start & Salary or Start & Hours, then
- * Review & Sign; a full-time offer's benefits are the one thing chosen here.
+ * before an offer. A trial runs Start & End Dates → Deposit & Sign, and the deposit gates the send:
+ * it can't go out until escrow is funded. With no card on file, the deposit asks for one there and
+ * then: a card is asked for when it's first needed, not at sign-up. A full-time or part-time role
+ * hires straight onto the contract, with no trial and no escrow: Terms & Sign reads its start, pay
+ * and hours, and a full-time offer's benefits are the one thing chosen here.
  */
 export function SendOfferDialog({
   open,
@@ -209,7 +214,6 @@ export function SendOfferDialog({
         <OfferFooter
           step={step}
           last={last}
-          kind={kind}
           canAdvance={canAdvance}
           signature={draft.signature}
           payable={draft.figures.payable}
@@ -232,6 +236,11 @@ function OfferStep({ kind, person, role, proposal, card, draft }: { kind: StepKe
   const trial = role.type === "trial";
   const first = person.name.split(" ")[0];
   const { figures, tasks } = draft;
+  /** The last step's summary of the offer, and the typed name that signs it. */
+  const sign: SignParts = {
+    summary: <OfferSummary rows={reviewRows({ role, person, proposal, trial, figures, start: draft.start, benefits: draft.benefits, tasks })} />,
+    signature: <SignatureField signature={draft.signature} onSignature={draft.setSignature} />,
+  };
   return (
     <>
       {kind === "letter" && <LetterStep person={person} role={role} proposal={proposal} trial={trial} start={draft.start} payable={figures.payable} first={first} />}
@@ -241,20 +250,17 @@ function OfferStep({ kind, person, role, proposal, card, draft }: { kind: StepKe
 
       {kind === "dates" && <DatesStep role={role} proposal={proposal} figures={figures} start={draft.start} first={first} />}
 
-      {kind === "terms" && <TermsStep type={role.type} proposal={proposal} figures={figures} start={draft.start} benefits={draft.benefits} onBenefits={draft.setBenefits} first={first} />}
+      {kind === "terms" && <TermsStep type={role.type} figures={figures} start={draft.start} benefits={draft.benefits} onBenefits={draft.setBenefits} first={first} sign={sign} />}
 
-      {kind === "deposit" && <DepositStep figures={figures} card={card} deposited={draft.deposited} onDeposited={draft.setDeposited} />}
-
-      {kind === "sign" && <SignStep rows={reviewRows({ role, person, proposal, trial, figures, start: draft.start, benefits: draft.benefits, tasks })} signature={draft.signature} onSignature={draft.setSignature} />}
+      {kind === "deposit" && <DepositStep figures={figures} card={card} deposited={draft.deposited} onDeposited={draft.setDeposited} sign={sign} />}
     </>
   );
 }
 
-/** The action bar: Cancel or Back, then Continue — Deposit & continue on the deposit — and, on the last step, Sign & send. */
+/** The action bar: Cancel or Back, then Continue and, on the last step, Sign & send. */
 function OfferFooter({
   step,
   last,
-  kind,
   canAdvance,
   signature,
   payable,
@@ -264,7 +270,6 @@ function OfferFooter({
 }: {
   step: number;
   last: number;
-  kind: StepKey;
   canAdvance: boolean;
   signature: string;
   payable: boolean;
@@ -279,10 +284,11 @@ function OfferFooter({
       </Button>
       {step < last ? (
         <Button size="lg" variant="primary" disabled={!canAdvance} onClick={onNext}>
-          {kind === "deposit" ? "Deposit & continue" : "Continue"}
+          Continue
         </Button>
       ) : (
-        <Button size="lg" variant="primary" disabled={!signature.trim() || !payable} onClick={onSend}>
+        // The last step is signed where it's filled in: a trial's deposit, or an ongoing role's terms, gate it too.
+        <Button size="lg" variant="primary" disabled={!canAdvance || !signature.trim() || !payable} onClick={onSend}>
           Sign &amp; send offer
         </Button>
       )}
@@ -297,7 +303,7 @@ function LetterStep({ person, role, proposal, trial, start, payable, first }: { 
       <div className="flex items-center gap-3">
         <Avatar src={person.avatar} size={48} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.3]">
-          <p className="text-[15px] font-semibold text-ink">{person.name}</p>
+          <p className="text-[15px] font-semibold text-ink">{shortName(person.name)}</p>
           <p className="text-[13px] text-ink-2">
             {person.level} · {person.location}
           </p>
@@ -333,7 +339,7 @@ function TasksStep({ trial, first, tasks, start, end }: { trial: boolean; first:
     <div className="flex flex-col gap-3">
       <p className="text-[13px] leading-[1.45] text-ink-2">
         {trial
-          ? `The trial's tasks as ${first}'s proposal settled them: your job post's, with the changes you accepted. They become the trial's task list when ${first} signs. To change them, ask ${first} for a revision.`
+          ? `These are the agreed trial tasks. To change them, ask ${first} for a revision.`
           : `The first tasks, as ${first}'s proposal settled them. You add the rest once the contract starts.`}
       </p>
       <TaskPlanList tasks={tasks} start={start} lastDay={trial ? end : undefined} empty={trial ? "No trial tasks." : `None — you add work once ${first} starts.`} />
@@ -370,20 +376,19 @@ function DatesStep({ role, proposal, figures, start, first }: { role: Role; prop
   );
 }
 
+/** The last step's two signing parts: the summary of the offer, and the typed name that signs it. */
+type SignParts = { summary: ReactNode; signature: ReactNode };
+
 /**
- * Start & Salary or Start & Hours: an ongoing role's start, pay and part-time hours as the proposal
- * settled them — read, not entered — then a full-time role's benefits, which are the offer's to choose.
+ * Terms & Sign: an ongoing role's start, pay and part-time hours as the proposal settled them, read
+ * and not entered, then a full-time role's benefits, which are the offer's to choose, and the
+ * signature. It's the last step: there's no separate review that repeats it.
  */
-function TermsStep({ type, proposal, figures, start, benefits, onBenefits, first }: { type: Role["type"]; proposal: DealProposal; figures: Figures; start: string; benefits: string[]; onBenefits: Dispatch<SetStateAction<string[]>>; first: string }) {
-  const { payLabel, weekly, startPassed } = figures;
+function TermsStep({ type, figures, start, benefits, onBenefits, first, sign }: { type: Role["type"]; figures: Figures; start: string; benefits: string[]; onBenefits: Dispatch<SetStateAction<string[]>>; first: string; sign: SignParts }) {
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex gap-2">
-        <KeyValue label="Start date" value={pretty(start)} />
-        <KeyValue label={type === "full-time" ? "Salary" : "Rate"} value={proposal.rate ? payLabel : "—"} />
-        {type === "part-time" && <KeyValue label="Hours a week" value={hoursLabel(weekly)} />}
-      </div>
-      {startPassed ? <PassedStart start={start} first={first} /> : <InfoBanner>As {first}&apos;s proposal settled them. To change them, ask {first} for a revision.</InfoBanner>}
+      {sign.summary}
+      {figures.startPassed ? <PassedStart start={start} first={first} /> : <InfoBanner>As {first}&apos;s proposal settled them. To change them, ask {first} for a revision.</InfoBanner>}
       {type === "part-time" ? null : (
         <Field label="Exclusive benefits">
           <div className="flex flex-col gap-2">
@@ -396,57 +401,61 @@ function TermsStep({ type, proposal, figures, start, benefits, onBenefits, first
         </Field>
       )}
       <InfoBanner>No trial and no escrow: {first} starts on the {JOB_TYPE_LABEL[type].toLowerCase()} contract, paid at the end of each month.</InfoBanner>
+      {sign.signature}
     </div>
   );
 }
 
-/** Deposit Payment: the escrow and fee charged to the card on file, which a trial's offer can't be sent without. */
-function DepositStep({ figures, card, deposited, onDeposited }: { figures: Figures; card?: PaymentMethod; deposited: boolean; onDeposited: (on: boolean) => void }) {
-  const { rate, months, escrow, fee, payable } = figures;
+/**
+ * Deposit & Sign: the offer as it'll be sent, the escrow and fee charged to the card on file, which a
+ * trial's offer can't be sent without, and the signature. With no card on file yet, Add a card opens
+ * the one card form; the card it adds comes back here as `card`.
+ */
+function DepositStep({ figures, card, deposited, onDeposited, sign }: { figures: Figures; card?: PaymentMethod; deposited: boolean; onDeposited: (on: boolean) => void; sign: SignParts }) {
+  const { escrow, fee, payable } = figures;
+  const [adding, setAdding] = useState(false);
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 rounded-lg border border-border p-4 text-[14px] leading-[1.4] text-ink">
-        <span className="flex justify-between">
-          <span className="text-ink-2">
-            Escrow — {usd(rate)} × {months} {months === 1 ? "month" : "months"}
-          </span>{" "}
-          {usd(escrow)}
-        </span>
-        <span className="flex justify-between">
-          <span className="text-ink-2">Platform fee ({Math.round(FEE_RATE * 100)}%)</span> {usd(fee)}
-        </span>
-        <span aria-hidden className="my-1 h-px w-full bg-border" />
-        <span className="flex justify-between font-semibold">
-          <span>Total charged</span> {usd(escrow + fee)}
-        </span>
-      </div>
-      <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-[14px] text-ink">
-        <span>{card ? `${card.brand} ending ${card.last4}` : "No payment method on file"}</span>
-        <span className="text-[13px] text-ink-2">{card ? `Expires ${card.expires}` : "Add one in Settings"}</span>
+      {sign.summary}
+      <div className="flex min-h-12 items-center justify-between gap-4 rounded-lg border border-border px-4 py-2 text-[14px] text-ink">
+        <span>{card ? `${card.brand} ending ${card.last4}` : `No card on file to charge ${usd(escrow + fee)} to`}</span>
+        {card ? (
+          <span className="text-[13px] text-ink-2">Expires {card.expires}</span>
+        ) : (
+          <Button size="sm" variant="primary" onClick={() => setAdding(true)}>
+            {ADD_CARD}
+          </Button>
+        )}
       </div>
       <InfoBanner>The escrow is held until the trial ends and you release it, or until a dispute ruling moves part of it. The fee is Hireable&apos;s and is not refunded.</InfoBanner>
       {/* The deposit is required before the offer can be sent (TB-105). */}
       <Checkbox checked={deposited} disabled={!card || !payable} onChange={onDeposited}>
-        Charge {usd(escrow + fee)} — {usd(escrow)} into escrow, {usd(fee)} fee
+        Charge {usd(escrow + fee)}: {usd(escrow)} into escrow, {usd(fee)} fee
       </Checkbox>
+      {sign.signature}
+      <AddCardDialog open={adding} onClose={() => setAdding(false)} />
     </div>
   );
 }
 
-/** Review & Sign: the offer's terms as they'll be sent, and the typed name that signs them. */
-function SignStep({ rows, signature, onSignature }: { rows: [string, string][]; signature: string; onSignature: (name: string) => void }) {
+/** The offer's terms as they'll be sent, a row each. */
+function OfferSummary({ rows }: { rows: [string, string][] }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 rounded-lg border border-border p-4 text-[14px] leading-[1.5] text-ink">
-        {rows.map(([k, v]) => (
-          <span key={k} className="flex justify-between gap-4">
-            <span className="text-ink-2">{k}</span> {v}
-          </span>
-        ))}
-      </div>
-      <Field label="Type your full name to sign">
-        <Input value={signature} onChange={(e) => onSignature(e.target.value)} placeholder="Alex Rivera" />
-      </Field>
+    <div className="flex flex-col gap-2 rounded-lg border border-border p-4 text-[14px] leading-[1.5] text-ink">
+      {rows.map(([k, v]) => (
+        <span key={k} className="flex justify-between gap-4">
+          <span className="text-ink-2">{k}</span> {v}
+        </span>
+      ))}
     </div>
+  );
+}
+
+/** The typed name that signs the offer. */
+function SignatureField({ signature, onSignature }: { signature: string; onSignature: (name: string) => void }) {
+  return (
+    <Field label="Type your full name to sign">
+      <Input value={signature} onChange={(e) => onSignature(e.target.value)} placeholder="Alex Rivera" />
+    </Field>
   );
 }

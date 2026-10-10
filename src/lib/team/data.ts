@@ -1,4 +1,5 @@
 import type { Stage } from "@/lib/portal/stages";
+import type { NoteCategory } from "@/lib/portal/notification-categories";
 import type { Tone } from "@/lib/portal/tone";
 import type { JobType } from "@/lib/contract/job-types";
 import type { FitScore } from "@/lib/contract/fit-score";
@@ -11,35 +12,34 @@ const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", company
 
 
 /**
- * TB-001 account setup checklist — the 5 steps named in the acceptance criteria, each with the
- * shortcut link that completes it. Flip `done` to watch the percentage and progress bar move;
+ * TB-001 account setup checklist: the 4 steps named in the acceptance criteria, each with the
+ * shortcut link that completes it. A card isn't one of them: it's asked for at the first offer (TB-105). Flip `done` to watch the percentage and progress bar move;
  * with all 5 done the whole card disappears.
  */
 /**
- * TB-001 account setup checklist — the 5 steps named in the acceptance criteria, each with the
- * shortcut link that completes it.
+ * TB-001 account setup checklist: the 4 steps named in the acceptance criteria, each with the
+ * shortcut link that completes it. A card isn't one of them: it's asked for at the first offer (TB-105).
  *
  * `done` is computed from the actual state, never stored: the checklist used to carry hardcoded
  * flags, so filling in your company profile or adding a card moved nothing, and the card sat at
  * 40% forever while the company page claimed the same step was finished.
  */
-export function setupSteps({ company, cards, roles, workStyle }: { company: CompanyProfile; cards: PaymentMethod[]; roles: Role[]; workStyle: number[] }) {
+export function setupSteps({ company, roles, workStyle }: { company: CompanyProfile; roles: Role[]; workStyle: number[] }) {
   const companyDone = COMPANY_FIELDS.every((k) => String(company[k]).trim() !== "");
   return [
     // Nothing in the demo tracks email confirmation, so this one is simply already true.
     { label: "Verify email", done: true, href: "/team/settings", hint: "Confirm the address we send hiring updates to." },
     { label: "Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/client", hint: "Generates the workplace tags we match candidates against." },
-    { label: "Company profile", done: companyDone, href: "/team/profile/company", hint: "Logo, industry and size — candidates see this on every role." },
-    { label: "Payment method", done: cards.length > 0, href: "/team/settings/payment", hint: "Funds the escrow that pays an independent at each cycle." },
-    // Can't post a role without a company to post it under or a card to fund the escrow.
-    { label: "Create your first role", done: roles.length > 0, href: "/team/hire", hint: "Post a job and start collecting applications.", requires: ["Company profile", "Payment method"] },
+    { label: "Company profile", done: companyDone, href: "/team/profile/company", hint: "Logo, industry and size. Candidates see this on every role." },
+    // Can't post a role without a company to post it under.
+    { label: "Create your first role", done: roles.length > 0, href: "/team/hire", hint: "Post a job and start collecting applications.", requires: ["Company profile"] },
   ];
 }
 
 /** TB-001 marketing banner. Set to null to exercise the "no active banner" branch. */
 export const MARKETING_BANNER = {
   id: "trial-drive-2026",
-  title: "Trial Drives now run 30 days with escrow built in",
+  title: "Trials now run 30 days with escrow built in",
   body: "Test a hire on real work before you commit. Payment is held securely and released once the tasks you agreed are done.",
   cta: { label: "Create a Role", href: "/team/hire" },
 };
@@ -70,15 +70,15 @@ export const independents: Independent[] = [
   {
     slug: "juan-dela-cruz",
     name: "Juan Dela Cruz",
-    role: "Sales Manager",
+    role: "Brand Designer",
     avatar: "/team/juan.jpg",
     intro: "/team/intro-juan.jpg",
     match: 80,
     rate: "$1,600 /month",
     level: "Advanced (5–8 years)",
     location: "Manila, Philippines",
-    skills: ["Lead generation", "Cold calling", "CRM management", "LinkedIn prospecting", "Sales outreach"],
-    bio: "Sales leader with eight years in B2B SaaS, most recently running a six-person outbound team for a US fintech. I own pipeline from first touch to signed contract, coach reps on discovery calls, and keep the CRM honest.",
+    skills: ["Brand Identity Design", "Logo design", "Typography", "Adobe Illustrator", "Figma", "Graphic Design"],
+    bio: "Brand designer with eight years shaping visual identities for startups and SaaS teams. I take a brand from mood board to logo, type and colour system, and hand over guidelines a team can actually use.",
     links: { linkedin: "linkedin.com/in/juandelacruz", portfolio: "juandelacruz.notion.site", website: "juandelacruz.ph" },
     workStyle: WS,
   },
@@ -196,17 +196,17 @@ export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
 /** `roleSlug` / `candidate` — the role and tracker card it was booked from, so a row can open them. */
 export type Interview = { id: string; independent: string; role: string; roleSlug?: string; candidate?: string; when: string; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean };
 
-/** A candidate whose interview fell through — declined by them or cancelled — and can be offered a new slot. */
-/**
- * The slots an interview can be booked or moved to, in the Team Builder's time zone — (GMT+8)
- * Manila, as the availability settings say. They were EST in booking and PHT in Reschedule, so one
- * interview could read in two zones.
- */
-export const INTERVIEW_TIMES = ["09:00 AM (PHT)", "10:00 AM (PHT)", "02:00 PM (PHT)", "04:00 PM (PHT)"];
-
 export const INTERVIEW_DECLINED = "Interview declined";
 export const INTERVIEW_CANCELLED = "Interview cancelled";
-export const needsNewSlot = (c: { stage: string; status?: { label: string } }) => c.stage === "invited" && (c.status?.label === INTERVIEW_DECLINED || c.status?.label === INTERVIEW_CANCELLED);
+/** IN-071 — the talent can't make the slot and asked for the one they named instead. */
+export const NEW_TIME_REQUESTED = "New time requested";
+/**
+ * A candidate whose interview fell through — declined or asked to move by them, or cancelled — and
+ * needs a new slot before anything else. Declining a slot they had already confirmed used to leave
+ * the card at Confirmed, so "Mark interview as done" and the proposal after it stayed open.
+ */
+export const needsNewSlot = (c: { stage: string; status?: { label: string } }) =>
+  (c.stage === "invited" || c.stage === "invite_accepted") && [INTERVIEW_DECLINED, INTERVIEW_CANCELLED, NEW_TIME_REQUESTED].includes(c.status?.label ?? "");
 
 export const interviews: Interview[] = [];
 
@@ -326,8 +326,8 @@ export const transactions: Transaction[] = [];
 export const PLAN = { name: "Growth", cycle: "Monthly", renews: "1 Oct 2026", billedTo: "Visa ending 4242" };
 
 export const PLANS = [
-  { name: "Starter", price: "$0", next: "Growth", features: ["1 active role at a time", "Trial Drives with escrow", "Standard matching"] },
-  { name: "Growth", price: "$149", next: "Scale", features: ["Up to 10 active roles", "Trial Drives with escrow", "Priority matching and Work Style fit", "Shared task lists and Trial Fit Score", "Dispute review within 5 working days"] },
+  { name: "Starter", price: "$0", next: "Growth", features: ["1 active role at a time", "30-day trials with escrow", "Standard matching"] },
+  { name: "Growth", price: "$149", next: "Scale", features: ["Up to 10 active roles", "30-day trials with escrow", "Priority work style matching", "Shared task lists and Trial Fit Score", "Dispute review within 5 working days"] },
   { name: "Scale", price: "$399", next: null as string | null, features: ["Unlimited active roles", "Everything in Growth", "Dedicated hiring support", "Custom contracts and invoicing"] },
 ];
 
@@ -347,7 +347,7 @@ export type Notification = {
   body: string;
   time: string;
   unread: boolean;
-  kind: "hiring" | "independents" | "payments";
+  kind: NoteCategory;
   avatar: string;
   /** What the row opens — the thing it is about. */
   href: string;
@@ -407,7 +407,11 @@ export const COMPANY_DESC_MAX = 600;
 
 /** TB-094 / TB-097 — the editable profile, seeded here and persisted in the store from then on. */
 export type TeamProfile = { name: string; title: string; photo: string; memberSince: string; email: string; phone: string; timezone: string; about: string };
-export type CompanyProfile = { name: string; description: string; url: string; industry: string; location: string; size: string; logo: string | null };
+/** TB-127 — `location` is a city picked from a list (@/lib/portal/cities); a remote team is said by `remote`, not in the location. */
+export type CompanyProfile = { name: string; description: string; url: string; industry: string; location: string; remote?: boolean; size: string; logo: string | null };
+
+/** Where the company is, as independents read it: "New York, USA · Remote team". */
+export const companyLocation = (c: Pick<CompanyProfile, "location" | "remote">) => [c.location, c.remote && "Remote team"].filter(Boolean).join(" · ");
 
 export const TEAM_PROFILE: TeamProfile = {
   name: ME.name,
@@ -416,7 +420,8 @@ export const TEAM_PROFILE: TeamProfile = {
   memberSince: "14 Aug 2025",
   email: "alex@nairobisolutions.com",
   phone: "+63 917 555 0142",
-  timezone: "(GMT+8) Manila",
+  /** "" = automatic: this device's time zone (TB-099 / IN-067). */
+  timezone: "",
   about: "I hire and coach outbound sales teams for US fintechs. I run 30-day trials on a shared task list with weekly check-ins.",
 };
 
@@ -425,7 +430,8 @@ export const COMPANY_PROFILE: CompanyProfile = {
   description: "B2B SaaS agency based in New York. We build outbound teams for early-stage fintechs and keep them accountable with weekly metrics.",
   url: "www.nairobisolutions.com",
   industry: "Sales and marketing services",
-  location: "New York, USA · remote team",
+  location: "New York, USA",
+  remote: true,
   size: "",
   logo: null,
 };

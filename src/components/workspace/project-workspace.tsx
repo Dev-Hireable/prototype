@@ -313,7 +313,7 @@ function SummaryLine({ context, counts, split, scope }: { context?: ReactNode; c
         </SummaryStat>
       )}
       {counts.review > 0 && (
-        <SummaryStat mark={<StatDot className="bg-warn" />}>
+        <SummaryStat mark={<StatDot className="bg-review" />}>
           <b className="font-semibold text-ink">{counts.review}</b> in review
         </SummaryStat>
       )}

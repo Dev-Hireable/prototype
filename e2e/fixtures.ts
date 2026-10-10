@@ -1,5 +1,6 @@
 import { expect, test as base, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import seedFile from "./fixtures/deal.json";
+import { TOURS } from "../src/lib/portal/tours";
 
 /**
  * The E2E harness. Every test starts from the same contract (fixtures/deal.json): a trial between
@@ -71,7 +72,10 @@ export async function seed(context: BrowserContext, opts: SeedOptions = {}) {
   if (opts.deal) Object.assign(deal.deal, opts.deal);
   const value = opts.raw ?? (opts.empty ? null : JSON.stringify(deal));
   const disputes = opts.disputes ? JSON.stringify(opts.disputes) : null;
-  const stores = Object.entries(opts.stores ?? {}).map(([key, v]) => [`hireable.demo.${key}`, JSON.stringify(v)]);
+  // Every guided tour already seen, so none starts on its own over a test; a test of the tours
+  // themselves seeds `tours` empty.
+  const tours = Object.fromEntries(TOURS.map((t) => [t.id, { status: "done", step: 0 }]));
+  const stores = Object.entries({ tours, ...opts.stores }).map(([key, v]) => [`hireable.demo.${key}`, JSON.stringify(v)]);
   await context.addInitScript(
     ({ run, value, disputes, stores }) => {
       if (localStorage.getItem("hireable.e2e.run") === run) return;
@@ -178,6 +182,15 @@ export async function savedEscrow(page: Page): Promise<{ released: number; refun
 /** The notifications a side has been sent. */
 export async function notes(page: Page, side: "team" | "independent"): Promise<{ title: string; body: string; href: string; unread: boolean }[]> {
   return page.evaluate((s) => JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}")?.[s] ?? [], side);
+}
+
+/**
+ * The thread entry a notification opens (its href is `/<side>/messages?msg=<id>`): the step logged in
+ * the shared thread, with where each side's View details goes.
+ */
+export async function entryOf(page: Page, href: string): Promise<{ id: string; event?: { text: string; href: Partial<Record<"team" | "independent", string>>; only?: string } } | undefined> {
+  const id = new URL(href, "http://x").searchParams.get("msg");
+  return page.evaluate((i) => JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}")?.chat?.find((m: { id: string }) => m.id === i), id);
 }
 
 /** A board card by its reference and name, as it's announced. */

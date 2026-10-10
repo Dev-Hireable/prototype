@@ -5,7 +5,6 @@ import { Suspense, useState } from "react";
 import { Page } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { useRoles } from "@/lib/team/roles";
-import { useCards } from "@/lib/team/account";
 import type { JobType } from "@/lib/contract/job-types";
 import type { Role } from "@/lib/team/data";
 import { Cta, WizardHeader } from "./_components/frame";
@@ -37,7 +36,6 @@ function CreateRoleWizard() {
 
 function Wizard({ editing, type: param }: { editing: Role | undefined; type: string | null }) {
   const router = useRouter();
-  const { cards } = useCards();
   const [type, setOngoing] = useRoleType(editing, param);
   const t = PATH[type];
   const f = useRoleForm(editing, t);
@@ -70,7 +68,7 @@ function Wizard({ editing, type: param }: { editing: Role | undefined; type: str
         {kind === "expectations" && <TasksStep f={f} t={t} weeks={weeks} cta={cta} />}
         {kind === "budget" && <BudgetStep f={f} t={t} type={type} template={templates.template} cta={cta} />}
         {kind === "benefits" && <BenefitsStep f={f} cta={cta} />}
-        {kind === "review" && <ReviewStep f={f} t={t} type={type} weeks={weeks} edits={edits} canPublish={canPublish} hasCard={cards.length > 0} onDraft={saveDraft} onPublish={publish} />}
+        {kind === "review" && <ReviewStep f={f} t={t} type={type} weeks={weeks} edits={edits} canPublish={canPublish} onDraft={saveDraft} onPublish={publish} />}
       </div>
     </Page>
   );

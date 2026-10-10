@@ -157,7 +157,7 @@ export function AssigneeChip({ assignee, people, size = 20 }: { assignee: Assign
 /** The same shape as Blocked: both say the item can't simply go on. */
 export function ChangesChip() {
   return (
-    <span className={`${CHIP} bg-warn-bg text-[#7a5e0a]`}>
+    <span className={`${CHIP} bg-warn-bg text-warn-ink`}>
       <ICONS.undo size={13} aria-hidden className="shrink-0" />
       Changes requested
     </span>

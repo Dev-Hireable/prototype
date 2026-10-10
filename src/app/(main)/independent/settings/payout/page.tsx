@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
+import { IdStatus } from "@/components/independent/id-verification";
 import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
@@ -33,6 +34,8 @@ export default function PayoutSettings() {
           </Button>
         </div>
         <p className="text-[13px] leading-[1.4] text-ink-2">Trial payouts and salaries go to your default method.</p>
+        {/* KYC: payouts go only to a verified name, so the methods say where the ID check stands. */}
+        <IdStatus onToast={setToast} />
         {payouts.map((m) => (
           <MethodRow key={m.id} method={m} only={only} onSetDefault={() => makeDefault(m)} onRemove={() => setRemoving(m)} />
         ))}
@@ -88,7 +91,8 @@ function MethodRow({ method: m, only, onSetDefault, onRemove }: { method: Payout
               Set as default
             </Button>
           )}
-          <Button size="sm" variant="danger" disabled={only || m.isDefault} title={only ? "Your only payout method can't be removed. Add another first." : m.isDefault ? "Make another method the default first." : undefined} onClick={onRemove}>
+          {/* Quiet here, so a list of methods isn't a column of red; the confirm dialog's Remove is the red one. */}
+          <Button size="sm" variant="secondary" disabled={only || m.isDefault} title={only ? "Your only payout method can't be removed. Add another first." : m.isDefault ? "Set another method as default to remove this one." : undefined} onClick={onRemove}>
             Remove
           </Button>
         </>

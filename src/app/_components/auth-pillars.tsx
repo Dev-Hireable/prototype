@@ -4,7 +4,7 @@ import { cn } from '@/web-app/lib/utils';
 
 /**
  * The real app's app/_components/auth-pillars.tsx, with only the corner pillars
- * the 404 page draws: the sign-in pages here draw their own sidebar (AuthShell).
+ * the 404 page draws: the sign-in pages here draw their own sidebar (AuthFrame).
  */
 const AUTH_PILLARS_IMAGE_PATH = '/auth-pillars.svg';
 

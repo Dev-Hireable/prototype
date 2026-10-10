@@ -135,13 +135,26 @@ test.describe("profile and settings · the talent profile", () => {
     await expect(page.locator('[data-slot="tooltip-content"]').filter({ hasText: "Retake the quiz to change your tags" })).toBeVisible();
     await pencil.click();
     const ask = page.getByRole("dialog", { name: "Retake the work-style quiz?" });
-    await expect(ask).toContainText("Your current tags stay on your profile until you finish the new quiz.");
+    await expect(ask).toContainText("Your current tags stay until you finish. Your tags and match scores update after. You can retake the quiz once a year.");
     await ask.getByRole("button", { name: "Cancel" }).click();
     await expect(ask).toBeHidden();
     await expect(page).not.toHaveURL(/edit=/);
     await pencil.click();
     await ask.getByRole("button", { name: "Start quiz" }).click();
     await expect(page).toHaveURL(/\/onboarding\/talent$/);
+  });
+});
+
+test.describe("profile and settings · the quiz once a year", () => {
+  // Taken five days before the pinned today (25 Sep 2026), so the next retake is a year on.
+  test.use({ seedOptions: { stores: { "ind.workStyleAt": Date.parse("2026-09-20T09:00:00Z") } } });
+
+  test("the tags pencil waits a year after the quiz, and says when it opens", async ({ page }) => {
+    await page.goto("/independent/profile");
+    const pencil = page.getByRole("button", { name: "Edit workplace tags" });
+    await expect(pencil).toBeDisabled();
+    await pencil.locator('xpath=ancestor::*[@data-slot="tooltip-trigger"]').hover();
+    await expect(page.locator('[data-slot="tooltip-content"]').filter({ hasText: "You can retake the quiz on 20 Sep 2027." })).toBeVisible();
   });
 });
 
@@ -168,6 +181,10 @@ test.describe("profile and settings · a talent profile saved before", () => {
     await page.goto("/independent/profile?edit=profile");
     await expect(page.getByText("Profile details", { exact: true })).toBeVisible();
     await expect(page.getByRole("textbox", { name: "Full name" })).toHaveValue("Juana Dela Cruz");
+    // Support changes the name; the headline takes the focus instead.
+    await expect(page.getByRole("textbox", { name: "Full name" })).not.toBeEditable();
+    await expect(page.getByText("Contact support to change your name.")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "Headline" })).toBeFocused();
     await expect(page.getByRole("textbox", { name: "Headline" })).toHaveValue("Outbound Sales Lead");
     await expect(page.getByRole("textbox", { name: "Monthly rate (USD)" })).toHaveValue("2,000");
     await expect(page.getByRole("button", { name: "Experience level" })).toHaveText("Expert (8+ years)");
@@ -175,7 +192,7 @@ test.describe("profile and settings · a talent profile saved before", () => {
     await expect(page.getByRole("textbox", { name: "Website" })).toHaveValue("juana.ph");
     await page.getByRole("button", { name: "Cancel", exact: true }).click();
     await expect(page).not.toHaveURL(/edit=/);
-    await expect(page.getByRole("heading", { name: "Juana Dela Cruz" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Juana D.", exact: true })).toBeVisible();
 
     await page.goto("/independent/profile/edit");
     await expect(page).toHaveURL(/\/independent\/profile\?edit=profile$/);
@@ -201,7 +218,7 @@ test.describe("profile and settings · photos", () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(toast(page, "Profile saved")).toBeVisible();
     // The header's first image is the photo, now the saved PNG, and so is the rail's.
-    const header = page.getByRole("banner").filter({ has: page.getByRole("heading", { name: "Juan Dela Cruz" }) });
+    const header = page.getByRole("banner").filter({ has: page.getByRole("heading", { name: "Juan D.", exact: true }) });
     await expect(header.locator("img").first()).toHaveAttribute("src", /^data:image\/png/);
     await expect(rail).toHaveAttribute("src", /^data:image\/png/);
     expect(await stored(page, "ind.profile")).toMatchObject({ photo: expect.stringMatching(/^data:image\/png/) });
@@ -246,7 +263,7 @@ test.describe("profile and settings · the company logo", () => {
 
   test("the logo turns away the wrong file, and a PNG takes the initials' place once saved", async ({ page }) => {
     await page.goto("/team/profile/company");
-    await expect(page.getByText("Independents see this on every role you post — 1 active right now.")).toBeVisible();
+    await expect(page.getByText("Shown on every role you post.")).toBeVisible();
     await expect(page.getByText("NA", { exact: true })).toBeVisible();
     await refusesWrongFiles(page, LOGO);
     await expect(page.getByText("New image — not saved yet")).toHaveCount(0);
@@ -395,7 +412,7 @@ const cardRow = (page: Page, brand: "Visa" | "Mastercard", last4: string) =>
 async function removeVisa(page: Page, visa: Locator) {
   await visa.getByRole("button", { name: "Remove" }).click();
   const confirm = page.getByRole("dialog", { name: "Remove Visa ending 4242?" });
-  await expect(confirm).toContainText("Charges already scheduled to this card complete; nothing new is charged here.");
+  await expect(confirm).toContainText("Payments already scheduled on this card will still go through. New payments will use your default card.");
   await confirm.getByRole("button", { name: "Cancel" }).click();
   await expect(confirm).toBeHidden();
   await expect(visa).toBeVisible();
@@ -446,7 +463,7 @@ test.describe("profile and settings · adding a card", () => {
   test("Add card waits for 12 digits, then adds the card as the new default, and the only-card banner goes", async ({ page }) => {
     await page.goto("/team/settings/payment");
     await expect(page.getByText(ONLY_CARD)).toBeVisible();
-    await page.getByRole("button", { name: "Add payment method" }).click();
+    await page.getByRole("button", { name: "Add a card" }).click();
     const add = page.getByRole("dialog", { name: "Add a card" });
     await fillNewCard(add);
     await add.getByRole("button", { name: "Add card" }).click();
@@ -458,5 +475,51 @@ test.describe("profile and settings · adding a card", () => {
     await expect(page.getByText(ONLY_CARD)).toHaveCount(0);
     await expect(cardRow(page, "Visa", "4242").getByRole("button", { name: "Remove" })).toBeEnabled();
     expect(await stored(page, "team.cards")).toMatchObject([{ id: "pm1", isDefault: false }, { brand: "Mastercard", last4: "1234", expires: "10/2030", isDefault: true }]);
+  });
+});
+
+/* ------------------------------------------------------------ locked name, time zone, required fields */
+
+test.describe("profile and settings · what can't be changed here", () => {
+  test("the account's name is read-only on both sides, and the time zone follows the device until it's set by hand", async ({ page }) => {
+    for (const path of ["/team/settings", "/independent/settings"]) {
+      await page.goto(path);
+      await expect(page.getByRole("textbox", { name: /First name|Last name/ })).toHaveCount(0);
+      await expect(page.getByText("Contact support to change your name.")).toBeVisible();
+      const auto = page.getByRole("checkbox", { name: "Set automatically from this device" });
+      await expect(auto).toBeChecked();
+      await expect(page.getByRole("combobox", { name: "Time zone" })).toHaveCount(0);
+      await auto.click();
+      await expect(page.getByRole("combobox", { name: "Time zone" })).toBeVisible();
+    }
+  });
+
+  test("a wrong email code is turned down, and Resend sends a new one", async ({ page }) => {
+    await page.goto("/team/settings");
+    await page.getByRole("textbox", { name: /^Work email\b/ }).fill("alex@nairobi.io");
+    await page.getByRole("button", { name: "Change email" }).click();
+    await page.getByRole("textbox", { name: /^Enter the code sent to/ }).fill("000000");
+    await page.getByRole("button", { name: "Verify" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "That code isn't right. Check the email and try again." })).toBeVisible();
+    await page.getByRole("button", { name: "Resend code" }).click();
+    await expect(toast(page, "Verification code sent to alex@nairobi.io")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: /^Enter the code sent to/ })).toHaveValue("");
+  });
+
+  test("the personal profile locks the full name and sends contact details to Settings", async ({ page }) => {
+    await page.goto("/team/profile");
+    await expect(page.getByRole("button", { name: /^Full name: .*\. Edit$/ })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Locked. Contact support to change your name." })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Bio: .*\. Edit$/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Settings › Account" })).toHaveAttribute("href", "/team/settings");
+  });
+
+  test("the company profile names the field that's left, and remote is a switch of its own", async ({ page }) => {
+    await page.goto("/team/profile/company");
+    await expect(page.getByText("1 field left: Company size")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Company size: .*\. Edit$/ })).toContainText("Required");
+    await expect(page.getByRole("button", { name: "Location: New York, USA. Edit" })).toBeVisible();
+    await page.getByRole("checkbox", { name: "Remote team" }).click();
+    await expect.poll(async () => (await stored(page, "team.company"))?.remote).toBe(false);
   });
 });

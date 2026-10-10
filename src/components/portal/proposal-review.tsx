@@ -21,6 +21,8 @@ import { readBy, useLive } from "@/lib/demo/live";
 import type { JobType } from "@/lib/contract/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
 import { keyed } from "@/lib/portal/keys";
+// "Juan D." for Juan Dela Cruz: how a version is named.
+import { shortName } from "@/lib/portal/names";
 import type { Side } from "@/lib/work/model";
 import { describeSuggestion, type SuggestionDecision, type TaskSuggestion } from "@/lib/demo/suggestions";
 
@@ -121,11 +123,6 @@ function Term({ label, value }: { label: string; value: string }) {
 
 /** "23 Sep 2026, 3:04 PM" → "23 Sep 2026 at 3:04 PM"; a day-only stamp from an older deal passes through. */
 const when = (at: string) => at.replace(", ", " at ");
-/** "Juan D." for Juan Dela Cruz — how a version is named. */
-const shortName = (name: string) => {
-  const [first, next] = name.split(" ");
-  return next ? `${first} ${next[0]}.` : first;
-};
 
 /** The Duration / Start term: how long a trial runs, or when any other role starts. */
 const durationOf = (post: ProposalPost) => (post.type === "trial" ? post.duration : startLabel(post.duration));

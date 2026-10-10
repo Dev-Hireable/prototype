@@ -4,7 +4,8 @@ import { useState } from "react";
 import { ICONS } from "@/components/icons";
 import { Modal } from "@/components/portal/ui";
 
-const Mic = ICONS.call;
+const Mic = ICONS.mic;
+const MicOff = ICONS.micOff;
 const Close = ICONS.close;
 
 /**
@@ -25,7 +26,7 @@ export function CallDialog({ open, link, withWhom, onEnd }: { open: boolean; lin
         <div className="flex flex-col items-center gap-2 bg-ink px-6 py-10 text-center">
           <span className="flex size-16 items-center justify-center rounded-full bg-white/10 text-[22px] font-semibold text-white">{withWhom.slice(0, 1)}</span>
           <p className="text-[16px] leading-[1.4] font-semibold text-white">{withWhom}</p>
-          <p className="text-[13px] leading-[1.4] text-white/70">{cameraOff ? "Camera off" : "Camera on"} · {muted ? "Microphone muted" : "Microphone live"}</p>
+          <p className="text-[13px] leading-[1.4] text-white/70">{cameraOff ? "Camera off" : "Camera on"} · {muted ? "Mic off" : "Mic on"}</p>
           <p className="mt-1 text-[11.5px] leading-[1.4] text-white/50">{link}</p>
         </div>
 
@@ -36,7 +37,7 @@ export function CallDialog({ open, link, withWhom, onEnd }: { open: boolean; lin
             onClick={() => setMuted((m) => !m)}
             className={`flex h-11 items-center gap-2 rounded-lg px-4 text-[14px] leading-[1.2] font-medium ${muted ? "bg-ink text-white" : "border border-border bg-white text-ink hover:bg-surface-alt"}`}
           >
-            <Mic size={18} aria-hidden /> {muted ? "Unmute" : "Mute"}
+            {muted ? <MicOff size={18} aria-hidden /> : <Mic size={18} aria-hidden />} {muted ? "Unmute" : "Mute"}
           </button>
           <button
             type="button"

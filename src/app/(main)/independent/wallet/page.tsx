@@ -359,7 +359,7 @@ function PayoutCard({ method: m, open, onOpenChange, removable, onSetDefault, on
         </span>
         <span className="flex flex-col items-end gap-[3px]">
           <span className="tracking-[0.8px] text-muted-2 uppercase">Status</span>
-          <span className={`flex items-center gap-1 text-[12px] ${verified ? "text-ink" : "text-warn"}`}>
+          <span className={`flex items-center gap-1 text-[12px] ${verified ? "text-ink" : "text-warn-ink"}`}>
             {verified && <Verified size={14} aria-hidden className="text-ok" />} {m.verified}
           </span>
         </span>

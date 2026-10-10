@@ -43,3 +43,20 @@ export function timeZoneOptions(at = new Date()): TimeZoneOption[] {
   return cache;
 }
 
+
+/**
+ * TB-099 / IN-067 — this device's time zone, labelled like the options ("(GMT+8) Manila"). A saved
+ * time zone of "" means "automatic": interview times and the profile follow this.
+ */
+export function deviceTimeZone(at = new Date()): string {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const off = shortOffset(zone, at);
+    return `(${off === "GMT" ? "GMT+0" : off}) ${cityOf(zone)}`;
+  } catch {
+    return "(GMT+0) UTC";
+  }
+}
+
+/** The time zone a saved value stands for: the one picked, or this device's when it's automatic (""). */
+export const effectiveTimeZone = (saved: string) => saved || deviceTimeZone();

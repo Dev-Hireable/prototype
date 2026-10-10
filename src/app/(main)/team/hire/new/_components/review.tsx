@@ -17,9 +17,9 @@ type Item = ReviewEdits["item"];
  * Step 4 — Review. Each pencil turns that section into its fields right here (one at a time), with
  * Cancel / Save, instead of sending you back through the wizard.
  */
-export function ReviewStep({ f, t, type, weeks, edits, canPublish, hasCard, onDraft, onPublish }: { f: RoleForm; t: PathCopy; type: JobType; weeks: number; edits: ReviewEdits; canPublish: boolean; hasCard: boolean; onDraft: () => void; onPublish: () => void }) {
+export function ReviewStep({ f, t, type, weeks, edits, canPublish, onDraft, onPublish }: { f: RoleForm; t: PathCopy; type: JobType; weeks: number; edits: ReviewEdits; canPublish: boolean; onDraft: () => void; onPublish: () => void }) {
   const busy = edits.editing ? "Save or cancel your edit first" : undefined;
-  const publishTip = busy ?? (!canPublish ? "Finish your company profile and add a payment method first" : undefined);
+  const publishTip = busy ?? (!canPublish ? "Finish your company profile first" : undefined);
   return (
     <div className="flex w-[720px] flex-col gap-6">
       <InfoBanner>{t.reviewNote}</InfoBanner>
@@ -28,17 +28,11 @@ export function ReviewStep({ f, t, type, weeks, edits, canPublish, hasCard, onDr
           full-time post its exclusive benefits breakdown (TB-024), a part-time post neither. */}
       {type === "trial" && <TrialExtras f={f} t={t} weeks={weeks} item={edits.item} />}
       {type === "full-time" && <BenefitExtras f={f} item={edits.item} />}
-      {/* TB-001 — the checklist locks the first role behind a company profile and a card to fund
-          escrow; publishing used to ignore the lock it advertised. Drafts are always allowed. */}
+      {/* TB-001 — publishing waits on a complete company profile; drafts are always allowed. A card
+          is asked for when it's first needed, at an offer's deposit, not before a role goes live. */}
       {!canPublish && (
         <InfoBanner tone="warn">
-          To publish, finish your <Link href="/team/profile/company" className="font-semibold underline">company profile</Link>
-          {!hasCard && (
-            <>
-              {" "}and add a <Link href="/team/settings/payment" className="font-semibold underline">payment method</Link>
-            </>
-          )}
-          . You can save this role as a draft now and publish it after.
+          To publish, finish your <Link href="/team/profile/company" className="font-semibold underline">company profile</Link>. You can save this role as a draft now and publish it after.
         </InfoBanner>
       )}
       <div className="flex justify-end gap-3">

@@ -21,17 +21,11 @@ export default function Messages() {
     <MessagesPage
       side="independent"
       conversations={conversations}
-      tabs={["conversations", "applications"] as const}
-      emptyTab={(tab) =>
-        conversations.length > 0
-          ? tab === "conversations"
-            ? "No contract threads yet — your application thread is under Applications."
-            : "Your thread moved to Conversations once you were hired."
-          : applications.length > 0
-            ? "No threads yet — one opens when a company invites you to interview."
-            : "No companies in your pipeline yet."
-      }
-      emptyThread="Your thread with a Team Builder opens once they invite you to interview."
+      // Applications first: a thread starts there, and moves to Conversations once you're hired.
+      tabs={["applications", "conversations"] as const}
+      // With no thread at all, the thread pane says so once; the list stays quiet.
+      emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "conversations" ? "No contract threads yet. Your thread is under Applications." : "Your thread moved to Conversations once you were hired.")}
+      emptyThread="A thread opens when a Team Builder invites you to interview."
       face={(c, size) => <Initials text={c.initials} className={`${FACE[size]} rounded-full`} />}
       badge={trial && (
         <Badge variant="solid" tone="trial">

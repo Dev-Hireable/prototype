@@ -802,7 +802,7 @@ function useTextDraft(value: string, onSave: (next: string, base: string) => voi
 /** Someone else changed the text mid-edit: said, with Use theirs — or keep typing, and the save checks first. */
 function TheirChange({ updatedBy, onUseTheirs }: { updatedBy?: string; onUseTheirs: () => void }) {
   return (
-    <span role="status" className="flex flex-wrap items-center gap-2 rounded-md bg-warn-bg px-2 py-1.5 text-[12.5px] text-[#7a5e0a]">
+    <span role="status" className="flex flex-wrap items-center gap-2 rounded-md bg-warn-bg px-2 py-1.5 text-[12.5px] text-warn-ink">
       {updatedBy ?? "Someone"} changed this while you were editing.
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onUseTheirs} className="font-semibold underline">
         Use theirs

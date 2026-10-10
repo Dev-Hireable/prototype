@@ -7,6 +7,8 @@ import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "rea
 import { ICONS } from "@/components/icons";
 import { Button, Modal } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
+import { TourHelp } from "@/components/portal/tour/tour-help";
+import { TourProvider } from "@/components/portal/tour/tour-provider";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
 import { useContractClock } from "@/lib/demo/contract";
@@ -58,21 +60,25 @@ export function PortalShell({
   const bare = section.menu.find((m) => m.href === activeMenuHref)?.bare;
 
   return (
-    // min-h keeps the rail (7 × 68) + avatar intact on short viewports; 560 lets a 14" laptop window
-    // (600–650 tall once the browser toolbars take theirs) fit without the whole app scrolling
-    <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink">
-      <Sidebar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} onLogout={setLogout} />
+    // The guided tours (@/lib/portal/tours) ride with every page of the portal; their Help sits in the rail.
+    <TourProvider>
+      {/* min-h keeps the rail (up to 6 sections, Help and the avatar, 8 × 68) intact on short viewports; 560
+          lets a 14" laptop window (600–650 tall once the browser toolbars take theirs) fit without the
+          whole app scrolling */}
+      <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink">
+        <Sidebar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} onLogout={setLogout} />
 
-      <div className={`flex h-full min-w-0 flex-1 flex-col ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]"}`}>
-        {/* The demo's records live in localStorage, so the page waits one paint for them rather
-            than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
-        {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
-            Suspense boundary — this one covers every portal page, so none needs its own. */}
-        <Suspense>{hydrated ? children : null}</Suspense>
+        <div className={`flex h-full min-w-0 flex-1 flex-col ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]"}`}>
+          {/* The demo's records live in localStorage, so the page waits one paint for them rather
+              than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
+          {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
+              Suspense boundary — this one covers every portal page, so none needs its own. */}
+          <Suspense>{hydrated ? children : null}</Suspense>
+        </div>
+
+        <LogoutDialog to={logout} onClose={() => setLogout(null)} />
       </div>
-
-      <LogoutDialog to={logout} onClose={() => setLogout(null)} />
-    </div>
+    </TourProvider>
   );
 }
 
@@ -127,22 +133,21 @@ function useSidebarFold() {
   return { collapsed, railOnly, toggle: () => setChosen(!collapsed) };
 }
 
-/** Log out's confirm: Log out signs out and follows the menu item's link; Cancel stays. */
+/** Log out's confirm, in neutral styling (nothing is lost but unsaved edits): Log out signs out and follows the menu item's link; Cancel stays. */
 function LogoutDialog({ to, onClose }: { to: string | null; onClose: () => void }) {
   const router = useRouter();
   return (
     <Modal
       open={!!to}
       onClose={onClose}
-      tone="danger"
       title="Log out?"
-      description="You'll be signed out of this device. Anything you haven't saved is lost, and you'll need to sign in again to get back in."
+      description="Unsaved changes will be lost."
       footer={
         <>
           <Button size="lg" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" variant="danger" onClick={() => { signOut(); if (to) router.push(to); }}>
+          <Button size="lg" variant="primary" onClick={() => { signOut(); if (to) router.push(to); }}>
             Log out
           </Button>
         </>
@@ -205,6 +210,7 @@ function SectionRail({ rail, activeIndex, badges, profileHref, avatar }: { rail:
           );
         })}
       </ul>
+      <TourHelp />
       {/* z-20: paints above the active tab when Profile is open */}
       <Tip label="My profile" side="right">
         <Link

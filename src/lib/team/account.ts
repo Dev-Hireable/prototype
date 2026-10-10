@@ -39,16 +39,16 @@ export function useCards() {
 }
 
 /**
- * TB-001 — the checklist locks "Create your first role" until the company profile is complete and a
- * card can fund the escrow; publishing honours the same lock (drafts are always fine).
+ * TB-001 — publishing waits until the company profile is complete (drafts are always fine). A card
+ * isn't part of it (#364): it's asked for when it's first needed, at a trial offer's deposit.
  */
-const publishable = (company: CompanyProfile, cards: PaymentMethod[]) => COMPANY_FIELDS.every((k) => String(company[k]).trim() !== "") && cards.length > 0;
+const publishable = (company: CompanyProfile) => COMPANY_FIELDS.every((k) => String(company[k]).trim() !== "");
 
 /** The lock as it stands now, for an action. */
-export const canPublishNow = () => publishable(companyStore.get(), cardsStore.get());
+export const canPublishNow = () => publishable(companyStore.get());
 
 export function useCanPublish() {
-  return publishable(useStored(companyStore), useStored(cardsStore));
+  return publishable(useStored(companyStore));
 }
 
 /** The id of the dashboard banner last closed; a new banner shows again. */

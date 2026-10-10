@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Button, Card, Field, InfoBanner, Input, Steps, Textarea } from "@/components/portal/ui";
 import { DatePicker } from "@/components/portal/date-picker";
 import { SuggestTasks } from "@/components/independent/suggest-tasks";
+import { ProposalReadiness } from "@/components/independent/id-verification";
 import { ProposalBody, type ProposalAuthor } from "@/components/portal/proposal-review";
 import { addWorkingDays, dayLabel, durationDays, fromISODate, isoDay, startOfToday, today } from "@/lib/portal/dates";
 import type { DealProposal } from "@/lib/demo/deal";
@@ -9,6 +10,8 @@ import { hoursLabel } from "@/lib/contract/job-types";
 import type { JobType } from "@/lib/contract/job-types";
 import { planWeeks } from "@/lib/demo/tasks";
 import type { JobView } from "@/lib/independent/job-view";
+import { proposalBlocker, useIdVerification } from "@/lib/independent/kyc";
+import { useWallet } from "@/lib/independent/wallet";
 import { proposalTerms, type ProposalFields } from "../_lib/proposal";
 import type { Wizard } from "../_lib/wizard";
 
@@ -28,6 +31,10 @@ export function ProposalSteps({ wizard: w, trialTasks }: { wizard: Wizard; trial
   const { job, step, form, revise } = w;
   const { amount, hoursOk, startOk, suggesting, terms } = proposalTerms(job, form, revise, w.suggestions);
   const canContinue = [amount > 0 && hoursOk && startOk, form.letter.trim().length > 0, true][step];
+  // A first proposal waits on a payout method and the ID check (KYC); a revision has been through them.
+  const { payouts } = useWallet();
+  const { verified } = useIdVerification();
+  const blocked = revise ? undefined : proposalBlocker(payouts, verified);
   return (
     <>
       <div className="px-4 py-10">
@@ -56,7 +63,18 @@ export function ProposalSteps({ wizard: w, trialTasks }: { wizard: Wizard; trial
 
       {/* Review & send: the proposal exactly as the Team Builder will read it — the same body their
           Review proposal dialog shows, the job post it answers included. */}
-      {step === 2 && <ReviewStep job={job} author={w.author} proposal={{ ...terms, version: (w.previous?.version ?? 0) + 1, sent: today() }} revise={revise} onBack={() => w.setStep(1)} onSubmit={() => w.submit(terms)} />}
+      {step === 2 && (
+        <ReviewStep
+          job={job}
+          author={w.author}
+          proposal={{ ...terms, version: (w.previous?.version ?? 0) + 1, sent: today() }}
+          revise={revise}
+          checks={!revise && <ProposalReadiness onToast={w.setToast} />}
+          blocked={blocked}
+          onBack={() => w.setStep(1)}
+          onSubmit={() => w.submit(terms)}
+        />
+      )}
     </>
   );
 }
@@ -92,7 +110,7 @@ function RateField({ job, rate, onRate, amount }: { job: JobView; rate: string; 
       {/* A trial is paid from escrow in monthly units — a weekly or hourly rate used to be funded as if it were monthly. */}
       <p className="text-[12px] leading-[1.4] text-ink-2">{type === "trial" ? "The whole trial is funded into escrow up front at this monthly rate, and released to you when it ends." : "Paid at the end of each month once you start. There's no escrow on an ongoing role."}</p>
       {rate.trim() !== "" && amount <= 0 && <p className="text-[12px] leading-[1.4] text-danger">Enter an amount above $0.</p>}
-      {outsideRange(amount, job.budget) && <p className="text-[12px] leading-[1.4] text-warn">Outside the posted range ({job.budget}). You can still send it — say why in your cover letter.</p>}
+      {outsideRange(amount, job.budget) && <p className="text-[12px] leading-[1.4] text-warn-ink">Outside the posted range ({job.budget}). You can still send it — say why in your cover letter.</p>}
     </div>
   );
 }
@@ -160,7 +178,27 @@ function LetterStep({ form, footer }: { form: ProposalFields; footer: ReactNode 
 }
 
 /** Step three: the proposal as the Team Builder will read it, with Previous and the button that sends it. */
-function ReviewStep({ job, author, proposal, revise, onBack, onSubmit }: { job: JobView; author: ProposalAuthor; proposal: DealProposal; revise: boolean; onBack: () => void; onSubmit: () => void }) {
+function ReviewStep({
+  job,
+  author,
+  proposal,
+  revise,
+  checks,
+  blocked,
+  onBack,
+  onSubmit,
+}: {
+  job: JobView;
+  author: ProposalAuthor;
+  proposal: DealProposal;
+  revise: boolean;
+  /** A first proposal's payout method and ID check, above the buttons. */
+  checks?: ReactNode;
+  /** Why Submit waits, as its tip. */
+  blocked?: string;
+  onBack: () => void;
+  onSubmit: () => void;
+}) {
   return (
     <div className="flex flex-col gap-6">
       <InfoBanner>This is how {job.company} will see your proposal.</InfoBanner>
@@ -170,11 +208,12 @@ function ReviewStep({ job, author, proposal, revise, onBack, onSubmit }: { job: 
         post={{ title: job.title, type: job.type, duration: job.duration, budget: job.budget, hours: job.hours, expectation: job.expectation, attachment: job.attachment, tasks: job.tasks }}
         proposal={proposal}
       />
+      {checks}
       <div className="flex justify-end gap-2">
         <Button size="xl" onClick={onBack}>
           Previous
         </Button>
-        <Button size="xl" variant="primary" onClick={onSubmit}>
+        <Button size="xl" variant="primary" disabled={!!blocked} title={blocked} onClick={onSubmit}>
           {revise ? "Send revised proposal" : "Submit proposal"}
         </Button>
       </div>

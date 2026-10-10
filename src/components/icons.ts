@@ -16,6 +16,8 @@ import {
   MdUndo,
   MdBorderColor,
   MdCall,
+  MdMicNone,
+  MdMicOff,
   MdCheck,
   MdCheckCircle,
   MdClose,
@@ -29,6 +31,7 @@ import {
   MdKeyboardArrowRight,
   MdKeyboardDoubleArrowLeft,
   MdLockOutline,
+  MdOutlineVerifiedUser,
   MdLogout,
   MdMoreHoriz,
   MdMoreVert,
@@ -111,11 +114,18 @@ import {
   MdSort,
   MdVerticalAlignBottom,
   MdVerticalAlignTop,
+  MdHelpOutline,
+  MdRestartAlt,
+  MdPlayArrow,
 } from "react-icons/md";
 import type { IconType } from "react-icons";
 
 /** Google Material Design icons. */
 export const ICONS = {
+  // guided tours: the help button, and the tour menu's resume / restart
+  help: MdHelpOutline,
+  resume: MdPlayArrow,
+  restart: MdRestartAlt,
   // rail — admin
   home: MdOutlineHome,
   users: MdOutlinePeople,
@@ -167,6 +177,8 @@ export const ICONS = {
   northEast: MdNorthEast,
   attach: MdOutlineAttachFile,
   call: MdCall,
+  mic: MdMicNone,
+  micOff: MdMicOff,
   video: MdOutlineVideocam,
   doneAll: MdDoneAll,
   copy: MdContentCopy,
@@ -180,6 +192,8 @@ export const ICONS = {
   payment: MdOutlinePayment,
   workOutline: MdOutlineWorkOutline,
   lock: MdLockOutline,
+  /** ID verification (KYC). */
+  idCheck: MdOutlineVerifiedUser,
   visibility: MdOutlineVisibility,
   visibilityOff: MdOutlineVisibilityOff,
   download: MdOutlineDownload,

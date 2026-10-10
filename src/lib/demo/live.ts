@@ -10,6 +10,7 @@ import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
 import type { Notification as TeamNote } from "@/lib/team/data";
 import type { Side } from "@/lib/work/model";
+import type { NoteCategory } from "@/lib/portal/notification-categories";
 
 /**
  * The one demo loop that crosses portals.
@@ -35,12 +36,23 @@ export type ChatMsg = {
   from: Side;
   text?: string;
   time: string;
+  /** When it was sent (epoch ms), for the thread's day dividers. Older messages carry only `time`. */
+  at?: number;
+  /** TB-007 / IN-007 — something that happened rather than something said: logged in the thread, with where to see it. */
+  event?: ChatEvent;
   file?: { name: string; meta: string };
   /** TB-011 / IN-011 — a meeting link shared in the thread. */
   call?: { link: string };
   /** Where it was written, when that wasn't the thread itself — the inbox links back to it. */
   source?: ChatSource;
 };
+
+/**
+ * A hiring, task or payment step logged in the thread, so the history of the engagement reads in
+ * one place: one line, and where each side opens it ("View details"). `only` is set when just one
+ * side is told (a payment, a reminder); the other side doesn't see it.
+ */
+export type ChatEvent = { text: string; href: Partial<Record<Side, string>>; only?: Side };
 
 /** TB-106 — a note left on a proposal's Activity pane, which both inboxes link back to. */
 export type ChatSource = { kind: "proposal"; version: number; roleSlug: string; title: string };
@@ -215,6 +227,7 @@ export type MoveKind =
   | "interview_invited" // TB-037 Candidate tracker → Interview
   | "interview_rescheduled" // TB-037 Interviews → Reschedule
   | "interview_cancelled" // TB-037 Interviews → Cancel interview
+  | "interview_moved" // TB-037 Confirm the new time the talent asked for
   | "proposal_requested" // TB-103 Request Proposal from Candidate
   | "proposal_revision" // TB-106 Request Changes to Proposal
   | "proposal_declined" // TB-107 Decline Proposal
@@ -235,12 +248,16 @@ export type MoveKind =
   | "offer_declined" // IN-075 Decline Offer
   | "task_submitted" // IN-030 Submit a Task for Review
   | "interview_declined" // IN-071 Decline an interview invitation
+  | "interview_reschedule" // IN-071 Ask for a new interview time
   | "hire_accepted" // IN-084 Accept the post-trial offer
   | "hire_declined" // IN-084 Decline the post-trial offer
   | "withdrawn"; // IN — withdraw application
 
 /** What a movement is about beyond the role: the task, the kind of role offered, the note sent with it. */
-export type MoveExtra = { task?: { id: string; title: string }; type?: JobType; note?: string };
+export type MoveExtra = { task?: { id: string; title: string }; type?: JobType; note?: string; /** A trial offer's escrow, in dollars. */ escrow?: number };
+
+const dollars = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const managerFirst = PAIR.team.name.split(" ")[0];
 
 /** "Sales Manager full-time role" — the post-trial offer names the kind of role it is. */
 const roleKind = (x?: MoveExtra) => (x?.type ? `${JOB_TYPE_LABEL[x.type].toLowerCase()} ` : "");
@@ -250,8 +267,8 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
   invite: {
     to: "independent",
     story: "TB-017",
-    title: () => `${PAIR.team.company} invited you to apply`,
-    body: (r) => `You can now see the trial's tasks for ${r}. Submit an application to be considered.`,
+    title: (r) => `${PAIR.team.company} invited you to apply for ${r}`,
+    body: () => "Send an application to be considered.",
   },
   interview_invited: {
     to: "independent",
@@ -264,6 +281,12 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     story: "TB-037",
     title: () => "Interview rescheduled",
     body: (r) => `${PAIR.team.name} moved your ${r} interview to a new time. Accept the new slot to confirm it.`,
+  },
+  interview_moved: {
+    to: "independent",
+    story: "TB-037",
+    title: () => "New interview time confirmed",
+    body: (r) => `${PAIR.team.name} agreed to the time you asked for on ${r}.`,
   },
   interview_cancelled: {
     to: "independent",
@@ -293,7 +316,11 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     to: "independent",
     story: "TB-105",
     title: (_r, x) => (x?.type ? `${JOB_TYPE_LABEL[x.type]} offer received` : "Offer received"),
-    body: (r, x) => `${PAIR.team.company} sent you ${x?.type === "trial" ? "a trial offer" : "an offer"} for ${r}. Review the terms and the tasks.`,
+    // IN-074 — a trial offer comes with its escrow already funded, and says when it's paid out.
+    body: (r, x) =>
+      x?.type === "trial" && x.escrow
+        ? `${PAIR.team.company} put ${dollars(x.escrow)} in escrow for your ${r} trial. You get paid when the trial ends and ${managerFirst} submits the evaluation.`
+        : `${PAIR.team.company} sent you an offer for ${r}. Review the terms and the tasks.`,
   },
   offer_withdrawn: {
     to: "independent",
@@ -305,7 +332,7 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     to: "independent",
     story: "TB-109",
     title: () => "Task approved",
-    body: (r, x) => `${PAIR.team.name} approved ${taskName(x)} on ${r}. It's Done.`,
+    body: (r, x) => `${PAIR.team.name} approved ${taskName(x)} on ${r}.`,
   },
   task_changes: {
     to: "independent",
@@ -349,13 +376,13 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     to: "team",
     story: "IN-017",
     title: (r) => `New application for ${r}`,
-    body: () => `${PAIR.independent.name} applied. Open the tracker to review the match.`,
+    body: () => `${PAIR.independent.name} applied.`,
   },
   interview_accepted: {
     to: "team",
     story: "IN-070",
     title: () => `${PAIR.independent.name} accepted your interview invite`,
-    body: (r) => `Interview confirmed for ${r}. The meeting link is on the candidate card.`,
+    body: (r) => `Interview confirmed for ${r}.`,
   },
   proposal_sent: {
     to: "team",
@@ -373,7 +400,7 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     to: "team",
     story: "IN-075",
     title: () => `${PAIR.independent.name} declined your offer`,
-    body: (r) => `The ${r} offer was turned down. The card stays in Sent Offers with a Declined status.`,
+    body: (r) => `The ${r} offer was turned down. Their card in the pipeline shows it as Declined.`,
   },
   task_submitted: {
     to: "team",
@@ -385,7 +412,14 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     to: "team",
     story: "IN-071",
     title: () => `${PAIR.independent.name} declined the interview`,
-    body: (r) => `They cannot make that slot for ${r}. Their application stays open — offer another time.`,
+    body: (r) => `They can't make that slot for ${r}. Their application stays open, so offer another time.`,
+  },
+  interview_reschedule: {
+    to: "team",
+    story: "IN-071",
+    title: () => `${PAIR.independent.name} asked for a new interview time`,
+    // `note` carries the slot they asked for.
+    body: (r, x) => `They cannot make the ${r} slot and asked for ${x?.note ?? "another time"}. Confirm it or offer a different one.`,
   },
   hire_accepted: {
     to: "team",
@@ -408,6 +442,50 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
 };
 
 /**
+ * TB-007 / IN-007 — each movement as the thread logs it: one line both sides read, naming who did
+ * it, so the engagement's history is in the conversation rather than only in two notification feeds.
+ */
+const LOG: Record<MoveKind, (role: string, x?: MoveExtra) => string> = {
+  invite: (r) => `${PAIR.team.company} invited ${PAIR.independent.name} to apply for ${r}`,
+  interview_invited: (r) => `${PAIR.team.name} sent an interview invite for ${r}`,
+  interview_rescheduled: (r) => `${PAIR.team.name} moved the ${r} interview to a new time`,
+  interview_moved: (r) => `${PAIR.team.name} confirmed the new interview time for ${r}`,
+  interview_cancelled: (r) => `${PAIR.team.name} cancelled the ${r} interview`,
+  proposal_requested: (r) => `${PAIR.team.name} asked for a proposal for ${r}`,
+  proposal_revision: (r) => `${PAIR.team.name} asked for changes to the ${r} proposal`,
+  proposal_declined: (r) => `${PAIR.team.company} declined the ${r} proposal`,
+  offer_sent: (r, x) => (x?.type === "trial" && x.escrow ? `Trial offer sent for ${r}, with ${dollars(x.escrow)} in escrow` : `${PAIR.team.company} sent an offer for ${r}`),
+  offer_withdrawn: (r) => `${PAIR.team.company} withdrew the ${r} offer`,
+  task_approved: (_r, x) => `${PAIR.team.name} approved ${taskName(x)}`,
+  task_changes: (_r, x) => `${PAIR.team.name} requested changes on ${taskName(x)}`,
+  task_added: (r, x) => `${PAIR.team.name} added ${taskName(x)} to ${r}`,
+  evaluation_sent: (r) => `${PAIR.team.name} sent the ${r} evaluation`,
+  contract_ended: (r) => `${PAIR.team.company} ended the ${r} contract`,
+  hire_offer: (r, x) => `${PAIR.team.company} sent a ${roleKind(x)}offer for ${r}`,
+  hire_withdrawn: (r, x) => `${PAIR.team.company} withdrew the ${roleKind(x)}offer for ${r}`,
+  applied: (r) => `${PAIR.independent.name} applied for ${r}`,
+  interview_accepted: (r) => `${PAIR.independent.name} accepted the ${r} interview`,
+  proposal_sent: (r) => `${PAIR.independent.name} sent a proposal for ${r}`,
+  offer_accepted: (r) => `${PAIR.independent.name} accepted the ${r} offer`,
+  offer_declined: (r) => `${PAIR.independent.name} declined the ${r} offer`,
+  task_submitted: (_r, x) => `${PAIR.independent.name} sent ${taskName(x)} for review`,
+  interview_declined: (r) => `${PAIR.independent.name} declined the ${r} interview`,
+  interview_reschedule: (_r, x) => `${PAIR.independent.name} asked for a new interview time${x?.note ? `: ${x.note}` : ""}`,
+  hire_accepted: (r, x) => `${PAIR.independent.name} accepted the ${roleKind(x)}offer for ${r}`,
+  hire_declined: (r, x) => `${PAIR.independent.name} declined the ${roleKind(x)}offer for ${r}`,
+  withdrawn: (r) => `${PAIR.independent.name} withdrew their application for ${r}`,
+};
+
+/** A side's inbox, opened on one entry of the thread. */
+const inboxEntry = (side: Side, id: string) => `/${side === "team" ? "team" : "independent"}/messages?msg=${id}`;
+
+/** The thread with `event` logged at the end: its id, and the new chat (written by the caller with the notification). */
+function withEvent(from: Side, event: ChatEvent): { id: string; chat: ChatMsg[] } {
+  const id = uid();
+  return { id, chat: [...snapshot.chat, { id, from, time: clock(), at: Date.now(), event }] };
+}
+
+/**
  * IN-051 — record a payment against a contract. The independent is told in-app (and, in a real
  * build, by email — the notification says so), and the row lands in their ledger immediately.
  */
@@ -415,7 +493,7 @@ export function recordPayment(p: Omit<LivePayment, "id" | "date" | "at">) {
   recordLedger(p);
   notify("independent", {
     title: "Payment recorded",
-    body: `${p.company} recorded ${p.amount} for ${p.title} — ${p.period}. A receipt has been emailed to you; the payment is in your earnings now.`,
+    body: `${p.company} recorded ${p.amount} for ${p.title}, ${p.period}. It's in your earnings now, and a receipt is in your email.`,
     href: "/independent/wallet",
     kind: "payments",
   });
@@ -427,70 +505,60 @@ export function recordLedger(p: Omit<LivePayment, "id" | "date" | "at">) {
   write({ ...snapshot, payments: [{ ...p, id: uid(), date: today(), at: dayStamp() }, ...snapshot.payments] });
 }
 
+/** A notification, before it's stamped and filed. */
+type NoteDraft = { title: string; body: string; href: string; kind: NoteCategory; avatar?: string; initials?: string };
+
+/** `draft` at the top of `side`'s feed, unread, stamped now. */
+function withNote(side: Side, draft: NoteDraft): Pick<Live, "team" | "independent"> {
+  const note = { id: uid(), group: "Today" as const, time: clock(), at: Date.now(), unread: true, ...draft };
+  if (side === "independent") return { team: snapshot.team, independent: [note satisfies IndNote, ...snapshot.independent].slice(0, MAX_NOTES) };
+  return { team: [{ ...note, avatar: note.avatar ?? PAIR.independent.avatar } satisfies TeamNote, ...snapshot.team].slice(0, MAX_NOTES), independent: snapshot.independent };
+}
+
 /**
- * A notification that isn't a pipeline movement, with its own destination — a dispute has to open
- * the dispute, not the hiring tracker that MOVES points at.
+ * A notification that isn't a pipeline movement (a payment, a dispute, a contract reminder). It's
+ * logged in the thread for `side` only and opens there; the entry's View details opens `href`.
+ * On the independent's side it comes from the company, so it carries the company's initials.
  */
-export function notify(
-  side: Side,
-  n: { title: string; body: string; href: string; avatar?: string; kind?: IndNote["kind"] & TeamNote["kind"] },
-) {
+export function notify(side: Side, n: { title: string; body: string; href: string; avatar?: string; kind?: NoteCategory }) {
   refresh();
-  const kind = n.kind ?? "payments";
-  if (side === "independent") {
-    const note: IndNote = { id: uid(), group: "Today", title: n.title, body: n.body, time: clock(), at: Date.now(), unread: true, kind, href: n.href, avatar: n.avatar ?? PAIR.team.avatar };
-    write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
-    return;
-  }
-  const note: TeamNote = {
-    id: uid(),
-    group: "Today",
-    title: n.title,
-    body: n.body,
-    time: clock(),
-    at: Date.now(),
-    unread: true,
-    kind,
-    avatar: n.avatar ?? PAIR.independent.avatar,
-    href: n.href,
-  };
-  write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
+  const other: Side = side === "team" ? "independent" : "team";
+  const { id, chat } = withEvent(other, { text: n.title, href: { [side]: n.href }, only: side });
+  const face = side === "independent" ? { initials: PAIR.team.initials } : { avatar: n.avatar };
+  write({ ...snapshot, chat, ...withNote(side, { title: n.title, body: n.body, href: inboxEntry(side, id), kind: n.kind ?? "payments", ...face }) });
 }
 
 /** The one engagement's id in both portals (DEAL_ID): its application, its tracker card. */
 const DEAL = "deal";
 
+/** What a movement is filed under in both feeds, by what the person does next. */
+function categoryOfMove(kind: MoveKind): NoteCategory {
+  if (kind.startsWith("interview")) return "interviews";
+  if (kind.startsWith("task") || kind === "evaluation_sent" || kind === "contract_ended") return "tasks";
+  return "applications";
+}
+
 /**
- * Where a movement's notification opens: the thing it is about, not one list for everything. They
- * all used to open My Applications or the role's tracker, so an approved task or a post-trial
- * offer landed on a hiring board with nothing on it to act on.
+ * Where a movement opens on each side, from its thread entry's View details: the thing it is about,
+ * not one list for everything.
  */
-function independentTarget(kind: MoveKind, slug: string, x?: MoveExtra): { href: string; kind: IndNote["kind"] } {
+function independentTarget(kind: MoveKind, slug: string, x?: MoveExtra): string {
   const application = `/independent/jobs/applications/${DEAL}`;
   switch (kind) {
     case "invite": // not an application yet — the posting is where they apply
-      return { href: `/independent/jobs/${slug}`, kind: "other" };
-    case "interview_invited":
-    case "interview_rescheduled":
-    case "interview_cancelled":
-      return { href: application, kind: "interviews" };
-    case "proposal_requested":
-    case "proposal_revision":
-    case "proposal_declined":
-      return { href: application, kind: "contracts" };
+      return `/independent/jobs/${slug}`;
     case "offer_sent":
-      return { href: `${application}/offer`, kind: "offers" };
-    case "offer_withdrawn":
-      return { href: application, kind: "offers" };
+      return `${application}/offer`;
     // The talent's contract lives under the role's slug; callers pass it (see the team store).
     case "hire_offer":
-      return { href: `/independent/contracts/${slug}/offer`, kind: "offers" };
+      return `/independent/contracts/${slug}/offer`;
     case "hire_withdrawn":
-      return { href: `/independent/contracts/${slug}`, kind: "offers" };
+      return `/independent/contracts/${slug}`;
     case "evaluation_sent": // it says to read it on the Evaluation tab, so that is where it opens
-      return { href: `/independent/contracts/${slug}?tab=evaluation`, kind: "contracts" };
-    default: // tasks, the contract ending — all on the contract, a task opened on its panel
-      return { href: `/independent/contracts/${slug}${x?.task ? `?task=${x.task.id}` : ""}`, kind: "contracts" };
+      return `/independent/contracts/${slug}?tab=evaluation`;
+    default:
+      // Interviews, proposals and offers are on the application; tasks and the contract ending on the contract.
+      return categoryOfMove(kind) === "tasks" ? `/independent/contracts/${slug}${x?.task ? `?task=${x.task.id}` : ""}` : application;
   }
 }
 
@@ -500,11 +568,11 @@ function teamTarget(kind: MoveKind, slug: string, x?: MoveExtra): string {
   switch (kind) {
     case "interview_accepted":
     case "interview_declined":
+    case "interview_reschedule":
       return `${board}?stage=interview`;
     case "proposal_sent":
+    case "offer_declined": // the offer is on the candidate's page now (#393)
       return `${board}/candidates/${DEAL}`;
-    case "offer_declined":
-      return "/team/hire/offers";
     case "task_submitted":
       return `${contract}${x?.task ? `?task=${x.task.id}` : ""}`;
     case "offer_accepted":
@@ -516,41 +584,21 @@ function teamTarget(kind: MoveKind, slug: string, x?: MoveExtra): string {
   }
 }
 
-/** Record a movement. Emits the notification the spec says the OTHER side should get. */
+/** Movements the company makes as a company, which the talent's feed shows with its initials rather than a person's photo. */
+const FROM_COMPANY = new Set<MoveKind>(["invite", "proposal_declined", "offer_sent", "offer_withdrawn", "contract_ended", "hire_offer", "hire_withdrawn"]);
+
+/**
+ * Record a movement: it's logged in the thread both sides share, with where each side opens it, and
+ * the OTHER side gets the notification the spec says, which opens that entry (TB-007 / IN-007).
+ */
 export function move(kind: MoveKind, role: { slug: string; title: string }, extra?: MoveExtra) {
   refresh();
   const m = MOVES[kind];
-  if (m.to === "independent") {
-    const target = independentTarget(kind, role.slug, extra);
-    const note: IndNote = {
-      id: uid(),
-      group: "Today",
-      title: m.title(role.title, extra),
-      body: m.body(role.title, extra),
-      time: clock(),
-      at: Date.now(),
-      unread: true,
-      kind: target.kind,
-      href: target.href,
-      avatar: PAIR.team.avatar,
-    };
-    write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
-    return;
-  }
-  const note: TeamNote = {
-    id: uid(),
-    group: "Today",
-    title: m.title(role.title, extra),
-    body: m.body(role.title, extra),
-    time: clock(),
-    at: Date.now(),
-    unread: true,
-    // A task sent for review is about the person on the contract, not the hiring pipeline.
-    kind: kind === "task_submitted" || kind === "hire_accepted" || kind === "hire_declined" ? "independents" : "hiring",
-    avatar: PAIR.independent.avatar,
-    href: teamTarget(kind, role.slug, extra),
-  };
-  write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
+  const from: Side = m.to === "team" ? "independent" : "team";
+  const href = { team: teamTarget(kind, role.slug, extra), independent: independentTarget(kind, role.slug, extra) };
+  const { id, chat } = withEvent(from, { text: LOG[kind](role.title, extra), href });
+  const face = m.to === "team" ? { avatar: PAIR.independent.avatar } : FROM_COMPANY.has(kind) ? { initials: PAIR.team.initials } : { avatar: PAIR.team.avatar };
+  write({ ...snapshot, chat, ...withNote(m.to, { title: m.title(role.title, extra), body: m.body(role.title, extra), href: inboxEntry(m.to, id), kind: categoryOfMove(kind), ...face }) });
 }
 
 /** A comment for a notification: one line, cut at a word — the item has the rest. */
@@ -572,10 +620,10 @@ export function noteComment(from: Side, role: { slug: string; title: string }, t
   const note = { id: uid(), group: "Today" as const, title: `${PAIR[from].name} commented on a task`, body: `On “${task.title}” for ${role.title}: “${excerpt(text)}”`, time: clock(), at: Date.now(), unread: true, href, avatar: PAIR[from].avatar };
   const fresh = (n: { unread: boolean; href: string }) => !(n.unread && n.href === href);
   if (to === "independent") {
-    write({ ...snapshot, independent: [{ ...note, kind: "contracts" } satisfies IndNote, ...snapshot.independent.filter(fresh)].slice(0, MAX_NOTES) });
+    write({ ...snapshot, independent: [{ ...note, kind: "tasks" } satisfies IndNote, ...snapshot.independent.filter(fresh)].slice(0, MAX_NOTES) });
     return;
   }
-  write({ ...snapshot, team: [{ ...note, kind: "independents" } satisfies TeamNote, ...snapshot.team.filter(fresh)].slice(0, MAX_NOTES) });
+  write({ ...snapshot, team: [{ ...note, kind: "tasks" } satisfies TeamNote, ...snapshot.team.filter(fresh)].slice(0, MAX_NOTES) });
 }
 
 function markRead(side: Side, noteId?: string) {
@@ -594,7 +642,7 @@ export function sendChat(from: Side, text: string, source?: ChatSource): string 
   if (!body) return;
   refresh();
   const id = uid();
-  const chat = [...snapshot.chat, { id, from, text: body, time: clock(), source }];
+  const chat = [...snapshot.chat, { id, from, text: body, time: clock(), at: Date.now(), source }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
   noteMessage(from, body);
   return id;
@@ -612,7 +660,7 @@ function noteMessage(from: Side, body: string, force = false) {
   if (!force && snapshot[to].some((n) => n.unread && n.title.startsWith("New message"))) return;
 
   if (to === "independent") {
-    const note: IndNote = { id: uid(), group: "Today", title: `New message from ${sender}`, body, time: clock(), at: Date.now(), unread: true, kind: "other", href: "/independent/messages", avatar: PAIR.team.avatar };
+    const note: IndNote = { id: uid(), group: "Today", title: `New message from ${sender}`, body, time: clock(), at: Date.now(), unread: true, kind: "messages", href: "/independent/messages", avatar: PAIR.team.avatar };
     write({ ...snapshot, independent: [note, ...snapshot.independent].slice(0, MAX_NOTES) });
     return;
   }
@@ -624,7 +672,7 @@ function noteMessage(from: Side, body: string, force = false) {
     time: clock(),
     at: Date.now(),
     unread: true,
-    kind: "independents",
+    kind: "messages",
     avatar: PAIR.independent.avatar,
     href: "/team/messages",
   };
@@ -640,7 +688,7 @@ export function sendFile(from: Side, file: File, source?: ChatSource): string {
   } catch {
     /* ignore — the bubble still renders, just without a live download */
   }
-  const chat = [...snapshot.chat, { id: msgId, from, time: clock(), file: { name: file.name, meta: `${fileMeta(file)} · ${clock()}` }, source }];
+  const chat = [...snapshot.chat, { id: msgId, from, time: clock(), at: Date.now(), file: { name: file.name, meta: `${fileMeta(file)} · ${clock()}` }, source }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
   noteMessage(from, `Sent an attachment: ${file.name}`);
   return msgId;
@@ -650,9 +698,9 @@ export function sendFile(from: Side, file: File, source?: ChatSource): string {
 export function startCall(from: Side) {
   refresh();
   const link = `https://meet.hireable.ph/${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 6)}`;
-  const chat = [...snapshot.chat, { id: uid(), from, time: clock(), call: { link } }];
+  const chat = [...snapshot.chat, { id: uid(), from, time: clock(), at: Date.now(), call: { link } }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, "Started a call — the meeting link is in your thread.", true);
+  noteMessage(from, "Started a call. The meeting link is in your thread.", true);
   return link;
 }
 
@@ -675,7 +723,7 @@ export function readBy(live: Live, other: Side, index: number) {
 
 /** Unread messages waiting for `side`. */
 export function unreadChat(live: Live, side: Side) {
-  return live.chat.slice(live.seen[side] ?? 0).filter((m) => m.from !== side).length;
+  return live.chat.slice(live.seen[side] ?? 0).filter((m) => m.from !== side && !m.event).length;
 }
 
 /**

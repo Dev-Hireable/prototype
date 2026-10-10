@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
@@ -8,8 +9,10 @@ import { CallDialog } from "@/components/portal/call-dialog";
 import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { ChatSourceLink } from "@/components/portal/chat-source-link";
 import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
-import { ReturnNav, useReturnTo } from "@/components/portal/return";
-import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, startCall, unreadChat, useLive, type ChatSource, type Live } from "@/lib/demo/live";
+import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
+import { Tip } from "@/components/portal/tip";
+import { MONTHS } from "@/lib/portal/dates";
+import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, startCall, unreadChat, useLive, type ChatMsg, type ChatSource, type Live } from "@/lib/demo/live";
 import type { Side } from "@/lib/work/model";
 
 const DoneAll = ICONS.doneAll;
@@ -64,6 +67,8 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
   const call = useCall(side);
   const conv = conversations.find((c) => c.id === view.active) ?? conversations[0];
   const chat: Chat = { live, side, other };
+  /** TB-007 / IN-007 — the thread entry a notification opened (`?msg=`). */
+  const focus = useSearchParams().get("msg");
 
   // TB-008 / IN-008: the count clears when the conversation is opened.
   useEffect(() => {
@@ -93,12 +98,13 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
         }
         thread={
           !conv ? (
-            <NoConversations text={emptyThread} />
+            <NoConversations text={emptyThread} entry={focus ? live.chat.find((m) => m.id === focus && m.event) : undefined} side={side} />
           ) : (
             <>
               <ConversationHeader avatar={face(conv, 36)} name={conv.name} sub={conv.sub} badge={badge} video={video} onCall={call.start} onBack={view.back} />
-              {call.link && <CallBanner name={conv.name} onJoin={call.enter} onDismiss={call.dismiss} />}
-              <ChatLog conv={conv} face={face} chat={chat} q={q} onJoin={call.join} />
+              {/* While the call window is open the banner would only repeat it. */}
+              {call.link && !call.inCall && <CallBanner name={conv.name} onJoin={call.enter} onDismiss={call.dismiss} />}
+              <ChatLog conv={conv} face={face} chat={chat} q={q} focus={focus} onJoin={call.join} />
               <Composer {...composer} />
             </>
           )
@@ -116,10 +122,11 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
 function useThreadView(first: string | undefined) {
   /** `?with=<id>` opens that thread — the contract page links here with its thread. The list hydrates after mount, so the id is
    *  kept even before it appears and takes effect as soon as the conversation does. */
-  const wanted = useSearchParams().get("with");
+  const params = useSearchParams();
+  const wanted = params.get("with");
   const [active, setActive] = useState(wanted ?? first ?? "");
-  /** On a phone the list and the thread take turns; a `?with=` link lands on the thread. */
-  const [opened, setOpened] = useState(!!wanted);
+  /** On a phone the list and the thread take turns; a `?with=` or `?msg=` link lands on the thread. */
+  const [opened, setOpened] = useState(!!wanted || params.has("msg"));
   const open = (id: string) => {
     setActive(id);
     setOpened(true);
@@ -181,12 +188,18 @@ function useCall(side: Side) {
   return { link, inCall, start, join, enter: () => setInCall(true), dismiss: () => setLink(null), end: () => setInCall(false) };
 }
 
-/** The thread pane before there is anyone to talk to. */
-function NoConversations({ text }: { text: string }) {
+/**
+ * The thread pane before there is anyone to talk to. A notification can still open a step logged
+ * before the thread did (an application), so that entry shows here, with its View details.
+ */
+function NoConversations({ text, entry, side }: { text: string; entry?: ChatMsg; side: Side }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
-      <p className="text-[15px] leading-[1.4] font-semibold text-ink">No conversations yet</p>
-      <p className="max-w-[360px] text-[13px] leading-[1.45] text-muted">{text}</p>
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
+      {entry?.event && <EventEntry m={entry} side={side} focused />}
+      <div className="flex flex-col gap-2">
+        <p className="text-[15px] leading-[1.4] font-semibold text-ink">No conversations yet</p>
+        <p className="max-w-[360px] text-[13px] leading-[1.45] text-muted">{text}</p>
+      </div>
     </div>
   );
 }
@@ -211,7 +224,7 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
   const { live } = chat;
   const latest = latestOf(chat);
   // TB-009 / IN-009: match the conversation's name AND the message content.
-  const hay = (c: C) => [c.name, c.sub, ...live.chat.map((m) => m.text ?? m.file?.name ?? "")].join(" ").toLowerCase();
+  const hay = (c: C) => [c.name, c.sub, ...live.chat.filter((m) => seenBy(m, chat.side)).map(previewOf)].join(" ").toLowerCase();
   const needle = q.trim().toLowerCase();
   // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- `hay(c)` is a string: a substring search, not a list lookup
   const list = conversations.filter((c) => c.kind === tab && hay(c).includes(needle));
@@ -227,7 +240,7 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
           </button>
         ))}
       </div>
-      {list.length === 0 && <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">{q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : emptyTab(tab)}</p>}
+      {list.length === 0 && (q.trim() || emptyTab(tab)) && <p className="px-4 py-10 text-center text-[12.5px] leading-[1.45] text-muted">{q.trim() ? `No conversations match “${q.trim()}”. Clear the search to see everyone.` : emptyTab(tab)}</p>}
       <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2">
         {list.map((c) => (
           <li key={c.id}>
@@ -242,13 +255,20 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
 /** The thread's latest message as the list shows it: when, what, its receipt (on one we sent), and the unread count. */
 type Latest = { time?: string; text: string; receipt?: Receipt; unread: number };
 
-/** The latest message, read once for every row — the demo has the one shared thread. */
+/** Whether `side` sees a message: everything, but a step logged for the other side only. */
+const seenBy = (m: ChatMsg, side: Side) => !m.event?.only || m.event.only === side;
+
+/** What a message says in one line: its text, its file, its logged step, or the call. */
+const previewOf = (m: ChatMsg) => m.text ?? m.file?.name ?? m.event?.text ?? (m.call ? "Call" : "");
+
+/** The latest message, read once for every row (the demo has the one shared thread). Its time is the thread's last. */
 function latestOf({ live, side, other }: Chat): Latest {
-  const last = live.chat[live.chat.length - 1];
+  const index = live.chat.findLastIndex((m) => seenBy(m, side));
+  const last = live.chat[index];
   return {
     time: last?.time,
-    text: last?.text ?? last?.file?.name ?? "",
-    receipt: last?.from === side ? (readBy(live, other, live.chat.length - 1) ? "seen" : "sent") : undefined,
+    text: last ? previewOf(last) : "",
+    receipt: last && !last.event && last.from === side ? (readBy(live, other, index) ? "seen" : "sent") : undefined,
     unread: unreadChat(live, side),
   };
 }
@@ -289,13 +309,17 @@ function ConversationHeader({ avatar, name, sub, badge, video, onCall, onBack }:
         <p className="truncate text-[11.5px] text-muted">{sub}</p>
       </div>
       {badge}
-      <button type="button" aria-label="Start call" onClick={onCall} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
-        <Call size={20} aria-hidden />
-      </button>
-      {video && (
-        <button type="button" aria-label="Start video call" onClick={onCall} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
-          <Video size={20} aria-hidden />
+      <Tip label="Voice call">
+        <button type="button" aria-label="Start call" onClick={onCall} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
+          <Call size={20} aria-hidden />
         </button>
+      </Tip>
+      {video && (
+        <Tip label="Video call">
+          <button type="button" aria-label="Start video call" onClick={onCall} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
+            <Video size={20} aria-hidden />
+          </button>
+        </Tip>
       )}
     </ThreadHeader>
   );
@@ -305,7 +329,7 @@ function ConversationHeader({ avatar, name, sub, badge, video, onCall, onBack }:
 function CallBanner({ name, onJoin, onDismiss }: { name: string; onJoin: () => void; onDismiss: () => void }) {
   return (
     <p className="flex items-center gap-2 border-b border-line bg-[#f0f7ff] px-[18px] py-2.5 text-[12.5px] leading-[1.45] text-ink-deep">
-      Call started — {name} has been notified.
+      Call started. {name} has been notified.
       {/* IN-011 / TB-011 — opens the in-call surface with mute, camera and end call. */}
       <button type="button" onClick={onJoin} className="font-semibold text-primary underline underline-offset-2">
         Join call
@@ -317,38 +341,92 @@ function CallBanner({ name, onJoin, onDismiss }: { name: string; onJoin: () => v
   );
 }
 
-/** The thread's messages, oldest first: calls to join, files to download, and bubbles with their receipts. */
-function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, onJoin }: { conv: C; face: Face<C>; chat: Chat; q: string; onJoin: (link: string) => void }) {
+/** The thread, oldest first, under a divider for each day: logged steps, calls to join, files to download, and bubbles with their receipts. */
+function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, focus, onJoin }: { conv: C; face: Face<C>; chat: Chat; q: string; focus: string | null; onJoin: (link: string) => void }) {
+  const rows = live.chat.map((m, i) => ({ m, i })).filter(({ m }) => seenBy(m, side));
+  // The thread scrolls to its end as it opens; a notification's entry is then brought into view.
+  useEffect(() => {
+    if (focus) document.getElementById(`msg-${focus}`)?.scrollIntoView({ block: "center" });
+  }, [focus, rows.length]);
   return (
     <ThreadBody latest={`${conv.id}:${live.chat.length}`}>
-      {/* When the thread started — it read "Today · 10:02 AM" whatever the time, even with nothing in it. */}
-      {live.chat.length === 0 ? (
-        <p className="py-6 text-center text-[12.5px] leading-[1.45] text-muted">No messages yet. Say hello — {conv.name} is notified.</p>
-      ) : (
-        <p className="flex items-center justify-center gap-2 text-[10.5px] leading-[1.45] text-muted">
-          <span className="font-semibold">Started</span>
-          <span className="h-3 w-px bg-line" />
-          {live.chat[0].time}
-        </p>
-      )}
-      {live.chat.map((m, i) => {
+      {rows.length === 0 && <p className="py-6 text-center text-[12.5px] leading-[1.45] text-muted">No messages yet. Say hello. {conv.name} is notified.</p>}
+      {rows.map(({ m, i }, n) => {
         const me = m.from === side;
+        const day = dayOf(m.at);
+        // A divider wherever the day changes, so a thread that runs over weeks can be followed.
+        const divider = day && day !== dayOf(rows[n - 1]?.m.at) ? <DayDivider label={day} /> : null;
+        if (m.event)
+          return (
+            <div key={m.id} className="flex flex-col gap-3">
+              {divider}
+              <EventEntry m={m} side={side} focused={m.id === focus} />
+            </div>
+          );
         return (
-          <div key={m.id} className={`flex items-end gap-2 ${me ? "justify-end" : ""}`}>
-            {!me && face(conv, 30)}
-            {m.call ? (
-              <CallCard mine={me} name={conv.name} link={m.call.link} onJoin={onJoin} />
-            ) : m.file ? (
-              <FileCard id={m.id} file={m.file} source={m.source} side={side} />
-            ) : (
-              <ChatBubble mine={me} time={m.time} receipt={readBy(live, other, i) ? "seen" : "sent"} className="max-w-[420px]" /* hugs its text; a note from a proposal says so, and opens it */ header={m.source && <ChatSourceLink source={m.source} side={side} mine={me} />}>
-                <Highlight text={m.text ?? ""} query={q} />
-              </ChatBubble>
-            )}
+          <div key={m.id} className="flex flex-col gap-3">
+            {divider}
+            <div className={`flex items-end gap-2 ${me ? "justify-end" : ""}`}>
+              {!me && face(conv, 30)}
+              {m.call ? (
+                <CallCard mine={me} name={conv.name} link={m.call.link} onJoin={onJoin} />
+              ) : m.file ? (
+                <FileCard id={m.id} file={m.file} source={m.source} side={side} />
+              ) : (
+                <ChatBubble mine={me} time={m.time} receipt={readBy(live, other, i) ? "seen" : "sent"} className="max-w-[420px]" /* hugs its text; a note from a proposal says so, and opens it */ header={m.source && <ChatSourceLink source={m.source} side={side} mine={me} />}>
+                  <Highlight text={m.text ?? ""} query={q} />
+                </ChatBubble>
+              )}
+            </div>
           </div>
         );
       })}
     </ThreadBody>
+  );
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** "Today", "Yesterday" or "Mon 21 Sep" for a message sent at `at`; nothing for one saved before messages were dated. */
+function dayOf(at: number | undefined, now = new Date()): string | undefined {
+  if (at === undefined) return undefined;
+  const d = new Date(at);
+  const days = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+
+/** Between two days of the thread. */
+function DayDivider({ label }: { label: string }) {
+  return (
+    <p className="flex items-center gap-3 text-[11px] leading-[1.45] font-semibold text-muted">
+      <span className="h-px flex-1 bg-line" />
+      {label}
+      <span className="h-px flex-1 bg-line" />
+    </p>
+  );
+}
+
+/**
+ * TB-007 / IN-007 — a step logged in the thread (an application, an interview, an offer, a payment):
+ * what happened and when, and View details, which opens it on this side. A notification opens the
+ * thread on its entry, which is then highlighted.
+ */
+function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boolean }) {
+  const withReturn = useWithReturn();
+  const href = m.event?.href[side];
+  return (
+    <p id={`msg-${m.id}`} className={`mx-auto flex max-w-[480px] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-lg px-3 py-2 text-center text-[12.5px] leading-[1.45] ${focused ? "bg-accent-bg outline outline-accent" : "bg-surface-alt"}`}>
+      <span className="font-medium text-ink-deep">{m.event?.text}</span>
+      <span className="text-muted">{m.time}</span>
+      {href && (
+        <Link href={withReturn(href)} className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+          View details
+        </Link>
+      )}
+    </p>
   );
 }
 

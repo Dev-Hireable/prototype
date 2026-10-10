@@ -1,13 +1,14 @@
 /** Seed content for the Independent portal. */
 
 import type { Stage } from "@/lib/portal/stages";
+import type { NoteCategory } from "@/lib/portal/notification-categories";
 import type { DealEvaluation, Posting } from "@/lib/demo/deal";
 import type { JobType } from "@/lib/contract/job-types";
 import type { Task } from "@/lib/demo/tasks";
 import type { FitScore } from "@/lib/contract/fit-score";
 
 /** `intro` is the intro-video still Team Builders see on the profile — the same file as on their side. */
-export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Sales Manager", avatar: "/independent/avatar.jpg", intro: "/team/intro-juan.jpg" };
+export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Brand Designer", avatar: "/independent/avatar.jpg", intro: "/team/intro-juan.jpg" };
 
 /* --------------------------------------------------------------- roles ---- */
 
@@ -15,7 +16,7 @@ export const ME = { name: "Juan Dela Cruz", first: "Juan", headline: "Sales Mana
 export const MARKETING_BANNER = {
   id: "work-style-2026",
   title: "Roles matched to how you actually work",
-  body: "Your Work Style answers rank every open role, so the ones at the top are the ones you are most likely to land — and to enjoy.",
+  body: "Your Work Style answers rank every open role, so the best fits show first.",
   cta: { label: "Browse roles", href: "/independent/jobs" },
 };
 
@@ -105,7 +106,7 @@ export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string;
 /* ---------------------------------------------------------- interviews ---- */
 
 /** `starts` is an invitation still waiting on the talent's answer. */
-export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined" | "cancelled"; past?: boolean };
+export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined" | "cancelled" | "reschedule"; past?: boolean };
 
 export const interviews: Interview[] = [];
 
@@ -220,28 +221,28 @@ export const transactions: Transaction[] = [];
 
 /* ------------------------------------------------------------ profile ----- */
 
-/** IN-065 — what the skills box offers while you type. Anything else typed in is kept as well. */
+/** IN-065 — what the skills box offers a brand designer while they type. Anything else typed in is kept as well. */
 export const SKILL_SUGGESTIONS = [
-  "Account management",
-  "Apollo",
-  "Churn analysis",
-  "Cold calling",
-  "Contract negotiation",
-  "CRM",
-  "Demo delivery",
-  "Discovery calls",
-  "Forecasting",
-  "HubSpot",
-  "Lead generation",
-  "LinkedIn prospecting",
-  "Objection handling",
-  "Onboarding",
-  "Outbound email",
-  "Pipeline hygiene",
-  "Salesforce",
-  "Sales outreach",
-  "Team leadership",
-  "Territory planning",
+  "Art direction",
+  "Brand guidelines",
+  "Brand Identity Design",
+  "Brand strategy",
+  "Canva",
+  "Colour systems",
+  "Figma",
+  "Graphic Design",
+  "Icon design",
+  "Illustration",
+  "Layout design",
+  "Logo design",
+  "Mood boards",
+  "Packaging design",
+  "Pitch decks",
+  "Print design",
+  "Social media graphics",
+  "Typography",
+  "Visual identity",
+  "Web Design",
 ];
 
 /** IN-062 — the bio limit, quoted in the editor and enforced by it. */
@@ -255,13 +256,13 @@ export const BIO_MAX = 500;
 const DEMO_MATCH = 80;
 
 export const profile = {
-  bio: "Sales leader with eight years in B2B SaaS, most recently running a six-person outbound team for a US fintech. I own pipeline from first touch to signed contract, coach reps on discovery calls, and keep the CRM honest.",
+  bio: "Brand designer with eight years shaping visual identities for startups and SaaS teams. I take a brand from mood board to logo, type and colour system, and hand over guidelines a team can actually use.",
   editBio:
-    "Sales leader with eight years in B2B SaaS, most recently running a six-person outbound team for a US fintech. I own pipeline from first touch to signed contract, coach reps on discovery calls, and keep the CRM honest. Available for a 30-day trial starting October.",
+    "Brand designer with eight years shaping visual identities for startups and SaaS teams. I take a brand from mood board to logo, type and colour system, and hand over guidelines a team can actually use. Available for a 30-day trial starting October.",
   rate: "1,600",
   level: "Advanced (5–8 years)",
   location: "Manila, Philippines",
-  skills: ["Lead generation", "Objection handling", "Sales outreach", "Cold calling", "CRM", "LinkedIn prospecting"],
+  skills: ["Brand Identity Design", "Logo design", "Typography", "Adobe Illustrator", "Figma", "Graphic Design"],
   /** IN-061 — the photo lives with the rest of the profile once it has been changed. */
   photo: ME.avatar,
   links: { linkedin: "linkedin.com/in/juandelacruz", portfolio: "juandelacruz.notion.site", website: "juandelacruz.ph" },
@@ -272,21 +273,28 @@ export const profile = {
   ],
 };
 
+/** The saved profile's parts a Team Builder reads first: the profile step is done only once all three are filled. */
+type ProfileBasics = { bio: string; skills: readonly string[]; rate: string };
+
 /**
- * IN-003 account setup checklist — the 5 steps named in the acceptance criteria. `done` is
- * computed from real state, never stored, so completing a step actually moves the bar.
+ * IN-003 account setup checklist. `done` is computed from the saved state, never stored, so
+ * completing a step actually moves the bar. The payout method and ID check aren't steps here:
+ * they're asked for when the first proposal is written (KYC_NOTE says so up front).
  */
-export function setupSteps({ payouts, applications, workStyle = [], bio = profile.bio }: { payouts: PayoutMethod[]; applications: Application[]; workStyle?: number[]; bio?: string }) {
+export function setupSteps({ applications, workStyle = [], profile: p }: { applications: Application[]; workStyle?: number[]; profile: ProfileBasics }) {
+  const profileDone = p.bio.trim() !== "" && p.skills.length > 0 && p.rate.trim() !== "";
   return [
     // Nothing in the demo tracks email confirmation, so this one is simply already true.
     { label: "Verify email", done: true, href: "/independent/settings", hint: "Confirm the address we send role alerts to." },
     { label: "Answer Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/talent", hint: "Drives your match score against every open role." },
-    { label: "Setup profile", done: bio.trim() !== "" && profile.skills.length > 0 && profile.rate.trim() !== "", href: "/independent/profile?edit=profile", hint: "Bio, skills and rate — Team Builders see this first." },
-    { label: "Setup payment method", done: payouts.length > 0, href: "/independent/settings/payout", hint: "Where your trial and salary payments are released." },
-    // No point applying before there is a profile to send or an account to be paid into.
-    { label: "Apply to a role", done: applications.length > 0, href: "/independent/jobs", hint: "Browse matched roles and send your first application.", requires: ["Setup profile", "Setup payment method"] },
+    { label: "Set up profile", done: profileDone, href: "/independent/profile", hint: "Bio, skills and rate. Team Builders see this first.", action: "Set up" },
+    // No point applying before there is a profile to send.
+    { label: "Apply to a role", done: applications.length > 0, href: "/independent/jobs", hint: "Browse matched roles and send your first application.", requires: ["Set up profile"], action: "Browse roles" },
   ];
 }
+
+/** Said early, on the dashboard's checklist, so the ID check at the first proposal isn't a surprise. */
+export const KYC_NOTE = "You'll verify your ID before your first proposal.";
 
 /* ------------------------------------------------------- notifications ---- */
 
@@ -294,7 +302,7 @@ export function setupSteps({ payouts, applications, workStyle = [], bio = profil
  * `at` is when it happened (epoch ms), so the feed can say Today / Yesterday / Earlier as days pass;
  * `group` and `time` are what a record without it falls back to. `avatar` is who it is from.
  */
-export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: "contracts" | "offers" | "payments" | "interviews" | "other"; href: string; at?: number; avatar?: string };
+export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: NoteCategory; href: string; at?: number; avatar?: string; /** The company's initials, on a notification from the company rather than a person. */ initials?: string };
 
 export const notifications: Notification[] = [];
 

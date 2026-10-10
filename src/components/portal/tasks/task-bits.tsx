@@ -40,7 +40,7 @@ export function StatusCircle({ status, onClick, label, size = 18 }: { status: Ta
   const fill = {
     todo: "border-[#a6a6a6] bg-white",
     doing: "border-primary bg-primary text-white",
-    review: "border-warn bg-warn text-[#4d3800]",
+    review: "border-review bg-review text-[#4d3800]",
     done: "border-ok bg-ok text-white",
   }[status];
   const hover = !!onClick;

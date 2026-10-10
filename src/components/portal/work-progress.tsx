@@ -3,7 +3,7 @@ import { STATUS_META, type countsOf } from "@/lib/work/model";
 
 /** The bar fills most-done first; To do is what's left of it, hatched, so it has no colour. */
 const FILLED = ["done", "review", "doing"] as const;
-const BAR: Record<(typeof FILLED)[number], string> = { done: "var(--color-ok)", review: "var(--color-warn)", doing: "var(--color-primary)" };
+const BAR: Record<(typeof FILLED)[number], string> = { done: "var(--color-ok)", review: "var(--color-review)", doing: "var(--color-primary)" };
 /** The key under the bar, in the bar's order. */
 const LEGEND = [...FILLED, "todo"] as const;
 

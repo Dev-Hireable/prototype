@@ -10,7 +10,7 @@ const Calendar = ICONS.calendar;
 const Clock = ICONS.clock;
 
 /** IN-070 / IN-071 — an interview invitation: when, how, the link once it's accepted, and the answer or the call. */
-export function InterviewCard({ app, job, live, onAccept, onDecline, onToast }: StepProps & InterviewActions) {
+export function InterviewCard({ app, job, live, ...actions }: StepProps & InterviewActions) {
   const accepted = app.stage === "invite_accepted";
   return (
     <Card className="flex flex-col gap-4 p-4">
@@ -23,14 +23,14 @@ export function InterviewCard({ app, job, live, onAccept, onDecline, onToast }: 
       </div>
       <InterviewWhen date={job.interview.date} time={job.interview.time} format={live?.interview?.format} />
       {/* IN-070 — the link only appears once the invitation has been accepted. */}
-      {accepted ? <MeetingLink link={job.interview.link} onToast={onToast} /> : <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[13px] leading-[1.4] text-ink-2">The meeting link is shared once you accept the invitation.</p>}
+      {accepted ? <MeetingLink link={job.interview.link} onToast={actions.onToast} /> : <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[13px] leading-[1.4] text-ink-2">The meeting link is shared once you accept the invitation.</p>}
       {live?.interview?.note && (
         <div className="flex flex-col gap-1 text-[14px] leading-[1.4]">
           <span className="font-semibold text-ink">Note from {job.company}</span>
           <span className="text-ink-2">{live.interview.note}</span>
         </div>
       )}
-      <InterviewAnswer accepted={accepted} link={job.interview.link} onAccept={onAccept} onDecline={onDecline} onToast={onToast} />
+      <InterviewAnswer accepted={accepted} link={job.interview.link} {...actions} />
     </Card>
   );
 }
@@ -77,25 +77,33 @@ function MeetingLink({ link, onToast }: { link: string; onToast: SetToast }) {
   );
 }
 
-/** Accepting or declining the invitation — or, once it's confirmed, joining the call. */
-function InterviewAnswer({ accepted, link, onAccept, onDecline, onToast }: { accepted: boolean; link: string } & InterviewActions) {
-  return accepted ? (
-    // IN-071 — only on a confirmed interview, and it opens the meeting itself.
-    <Button
-      size="lg"
-      variant="primary"
-      onClick={() => {
-        if (!link) return onToast("No meeting link yet — ask the Team Builder to share one.", "danger");
-        window.open(link, "_blank", "noopener");
-      }}
-    >
-      <Video size={18} aria-hidden /> Join call
-    </Button>
-  ) : (
-    // IN-070: hidden once the status moves past Awaiting Confirmation.
+/**
+ * Accepting the invitation, asking for a new time or declining it — or, once it's confirmed,
+ * joining the call. A confirmed slot can still be moved or declined until it's held.
+ */
+function InterviewAnswer({ accepted, link, onAccept, onDecline, onReschedule, onToast }: { accepted: boolean; link: string } & InterviewActions) {
+  return (
     <div className="flex flex-col gap-2">
-      <Button size="lg" variant="primary" onClick={onAccept}>
-        Accept invitation
+      {accepted ? (
+        // IN-071 — only on a confirmed interview, and it opens the meeting itself.
+        <Button
+          size="lg"
+          variant="primary"
+          onClick={() => {
+            if (!link) return onToast("No meeting link yet — ask the Team Builder to share one.", "danger");
+            window.open(link, "_blank", "noopener");
+          }}
+        >
+          <Video size={18} aria-hidden /> Join call
+        </Button>
+      ) : (
+        // IN-070: hidden once the status moves past Awaiting Confirmation.
+        <Button size="lg" variant="primary" onClick={onAccept}>
+          Accept invitation
+        </Button>
+      )}
+      <Button size="lg" onClick={onReschedule}>
+        <Calendar size={18} aria-hidden /> Ask for a new time
       </Button>
       <Button size="lg" variant="danger" onClick={onDecline}>
         Decline

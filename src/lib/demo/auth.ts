@@ -53,7 +53,7 @@ export const DEMO_PASSWORD = "Hireable2026!";
 
 const SEED_ACCOUNTS: Account[] = [
   { email: "alex@nairobisolutions.com", password: DEMO_PASSWORD, name: "Alex Rivera", role: "team", detail: "Nairobi Solutions Inc.", verified: true },
-  { email: "juandelacruz@gmail.com", password: DEMO_PASSWORD, name: "Juan Dela Cruz", role: "independent", detail: "Sales Manager", verified: true },
+  { email: "juandelacruz@gmail.com", password: DEMO_PASSWORD, name: "Juan Dela Cruz", role: "independent", detail: "Brand Designer", verified: true },
   { email: "admin@hireable.com", password: DEMO_PASSWORD, name: "Hireable Admin", role: "admin", detail: "Platform operations", verified: true },
 ];
 

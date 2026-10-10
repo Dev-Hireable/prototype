@@ -82,7 +82,7 @@ export type DealEvaluation = { stars: number; scores?: { label: string; value: n
 /** The Trial Fit Score's parts: live while the trial runs (phase 3), final once it's evaluated (phase 4). */
 export type TrialScore = { overall: number; performance: number; profile: number; workStyle: number; evaluation?: number; phase: 3 | 4 };
 
-export type InterviewOutcome = "done" | "declined" | "cancelled";
+export type InterviewOutcome = "done" | "declined" | "cancelled" | "reschedule";
 
 export type OfferStatus = "sent" | "accepted" | "declined" | "withdrawn";
 
@@ -142,10 +142,11 @@ export type Deal = {
   /**
    * `outcome` — how it ended, once it has: the Team Builder marked it held (IN-018 Interview
    * completed, which is what unlocks Request Proposal), the talent declined it (IN-071), or the
-   * Team Builder cancelled it. `past` takes it off both upcoming lists. A new invitation replaces
-   * the whole record, so a declined or cancelled slot can be offered again.
+   * Team Builder cancelled it, or the talent asked to move it (`reschedule`, with the slot they
+   * asked for in `requested`). `past` takes it off both upcoming lists. A new invitation replaces
+   * the whole record, so a declined, cancelled or moved slot can be offered again.
    */
-  interview?: { when: string; format: string; link?: string; note?: string; accepted?: boolean; past?: boolean; outcome?: InterviewOutcome };
+  interview?: { when: string; format: string; link?: string; note?: string; accepted?: boolean; past?: boolean; outcome?: InterviewOutcome; requested?: { when: string; note?: string } };
   /** TB-103 — the request, and the note the Team Builder sent with it. */
   proposalRequest?: { note?: string; date: string };
   /** IN-072 — what the talent proposed; absent until they submit. */
