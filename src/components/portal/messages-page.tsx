@@ -12,7 +12,8 @@ import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
 import { Tip } from "@/components/portal/tip";
 import { MONTHS } from "@/lib/portal/dates";
-import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, startCall, unreadChat, useLive, type ChatMsg, type ChatSource, type Live } from "@/lib/demo/live";
+import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, startCall, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
+import { slotAt } from "@/lib/portal/timezones";
 import type { Side } from "@/lib/work/model";
 
 const DoneAll = ICONS.doneAll;
@@ -47,6 +48,8 @@ type MessagesPageProps<K extends string, C extends Thread<K>> = {
   badge?: ReactNode;
   /** A video call button beside the call button. */
   video?: boolean;
+  /** #152 — where the engagement stands, tagged on the thread's row: Applied, Interview, Trial… */
+  stage?: string;
 };
 
 /**
@@ -54,7 +57,7 @@ type MessagesPageProps<K extends string, C extends Thread<K>> = {
  * from @/lib/demo/live, so what one side sends lands in the other's portal (TB-006 / IN-006 send,
  * TB-007 / IN-007 receive, TB-008 / IN-008 unread).
  */
-export function MessagesPage<K extends string, C extends Thread<K>>({ side, conversations, tabs, emptyTab, emptyThread, face, badge, video = false }: MessagesPageProps<K, C>) {
+export function MessagesPage<K extends string, C extends Thread<K>>({ side, conversations, tabs, emptyTab, emptyThread, face, badge, video = false, stage }: MessagesPageProps<K, C>) {
   const other: Side = side === "team" ? "independent" : "team";
   const back = useReturnTo();
   const live = useLive();
@@ -92,6 +95,7 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
             onSearch={setQ}
             emptyTab={emptyTab}
             face={face}
+            stage={stage}
             active={view.active}
             onOpen={view.open}
           />
@@ -208,7 +212,7 @@ function NoConversations({ text, entry, side }: { text: string; entry?: ChatMsg;
  * The conversation list: the search (names and what was said), the tabs, and a row per conversation
  * with the latest message, its receipt and the unread count.
  */
-function ConversationList<K extends string, C extends Thread<K>>({ chat, conversations, tabs, tab, onTab, q, onSearch, emptyTab, face, active, onOpen }: {
+function ConversationList<K extends string, C extends Thread<K>>({ chat, conversations, tabs, tab, onTab, q, onSearch, emptyTab, face, stage, active, onOpen }: {
   chat: Chat;
   conversations: C[];
   tabs: readonly K[];
@@ -218,6 +222,7 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
   onSearch: (q: string) => void;
   emptyTab: (tab: K) => string;
   face: Face<C>;
+  stage?: string;
   active: string;
   onOpen: (id: string) => void;
 }) {
@@ -244,7 +249,7 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
       <ul className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-2">
         {list.map((c) => (
           <li key={c.id}>
-            <ConversationRow name={c.name} sub={c.sub} avatar={face(c, 38)} on={c.id === active} q={q} latest={latest} onOpen={() => onOpen(c.id)} />
+            <ConversationRow name={c.name} sub={c.sub} stage={stage} avatar={face(c, 38)} on={c.id === active} q={q} latest={latest} onOpen={() => onOpen(c.id)} />
           </li>
         ))}
       </ul>
@@ -274,7 +279,7 @@ function latestOf({ live, side, other }: Chat): Latest {
 }
 
 /** A conversation in the list: their face and name, what it's about, and the latest message with its receipt and the unread count. */
-function ConversationRow({ name, sub, avatar, on, q, latest, onOpen }: { name: string; sub: string; avatar: ReactNode; on: boolean; q: string; latest: Latest; onOpen: () => void }) {
+function ConversationRow({ name, sub, stage, avatar, on, q, latest, onOpen }: { name: string; sub: string; stage?: string; avatar: ReactNode; on: boolean; q: string; latest: Latest; onOpen: () => void }) {
   return (
     <button type="button" onClick={onOpen} aria-current={on} className={`flex w-full gap-3 rounded-lg p-3 text-left leading-[1.45] ${on ? "bg-accent-bg" : "hover:bg-surface-alt"}`}>
       {avatar}
@@ -283,6 +288,7 @@ function ConversationRow({ name, sub, avatar, on, q, latest, onOpen }: { name: s
           <span className={`min-w-0 flex-1 text-[13px] font-semibold ${on ? "text-accent-ink" : "text-ink-deep"}`}>
             <Highlight text={name} query={q} />
           </span>
+          {stage && <span className="rounded-full bg-surface-2 px-2 py-px text-[10.5px] font-semibold text-ink-2">{stage}</span>}
           <span className={`text-[11px] ${on ? "text-[#6b7480]" : "text-muted"}`}>{latest.time}</span>
         </span>
         <span className={`text-[11px] ${on ? "text-[#5b6b7a]" : "text-muted"}`}>{sub}</span>
@@ -398,6 +404,22 @@ function dayOf(at: number | undefined, now = new Date()): string | undefined {
   return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
+/**
+ * #153 — an interview's time in the viewer's own clock, and, for the side that didn't book it, the
+ * booker's too: "Tue 29 Sep, 9:00 AM your time, 10:00 AM Alex's time".
+ */
+function SlotTimes({ slot, side }: { slot: InterviewSlot; side: Side }) {
+  const mine = slotAt(slot.when, slot.offset, -new Date().getTimezoneOffset());
+  if (!mine) return <span className="w-full text-ink-deep">{slot.when}</span>;
+  const theirs = slotAt(slot.when, slot.offset, slot.offset);
+  const booker = PAIR[slot.by].name.split(" ")[0];
+  return (
+    <span className="w-full text-ink-deep">
+      {mine} your time{slot.by !== side && theirs !== mine ? `, ${theirs?.split(", ")[1]} ${booker}'s time` : ""}
+    </span>
+  );
+}
+
 /** Between two days of the thread. */
 function DayDivider({ label }: { label: string }) {
   return (
@@ -420,6 +442,7 @@ function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boo
   return (
     <p id={`msg-${m.id}`} className={`mx-auto flex max-w-[480px] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-lg px-3 py-2 text-center text-[12.5px] leading-[1.45] ${focused ? "bg-accent-bg outline outline-accent" : "bg-surface-alt"}`}>
       <span className="font-medium text-ink-deep">{m.event?.text}</span>
+      {m.event?.slot && <SlotTimes slot={m.event.slot} side={side} />}
       <span className="text-muted">{m.time}</span>
       {href && (
         <Link href={withReturn(href)} className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">

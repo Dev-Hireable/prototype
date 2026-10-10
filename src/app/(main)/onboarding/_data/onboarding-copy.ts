@@ -73,8 +73,7 @@ export const ONBOARDING_COPY: Record<PublicSignupRole, OnboardingCopy> = {
 /**
  * The welcome for someone retaking the quiz. The account isn't new, so there's no confetti;
  * they're welcomed back, shown the traits the quiz will replace, and the assistant skips
- * introducing itself again. How often a retake is allowed is still to be decided, so the copy
- * names no limit yet.
+ * introducing itself again. The quiz can be retaken once a year, and the copy says so.
  */
 export type RetakeCopy = {
   intro: IntroCopy;
@@ -91,7 +90,7 @@ export const ONBOARDING_RETAKE_COPY: Record<PublicSignupRole, RetakeCopy> = {
       successAlt: 'Hireable mascot welcoming you back',
       title: 'Welcome back.',
       description:
-        'Retake the work style quiz to refine your Independent recommendations. Your current traits stay until you finish.',
+        'Retake the work style quiz to refine your Independent recommendations. Your current traits stay until you finish. You can retake once a year.',
       startLabel: 'Retake quiz',
     },
     greeting:
@@ -103,7 +102,7 @@ export const ONBOARDING_RETAKE_COPY: Record<PublicSignupRole, RetakeCopy> = {
       successAlt: 'Hireable mascot welcoming you back',
       title: 'Welcome back.',
       description:
-        'Retake the work style quiz to keep your profile current and get yourself recommended to teams that fit how you work. Your current traits stay until you finish.',
+        'Retake the work style quiz to keep your profile current and get yourself recommended to teams that fit how you work. Your current traits stay until you finish. You can retake once a year.',
       startLabel: 'Retake quiz',
     },
     greeting:

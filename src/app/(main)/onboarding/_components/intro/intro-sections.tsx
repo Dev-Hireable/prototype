@@ -18,6 +18,8 @@ export type IntroRetake = {
   traits: WorkStyleTag[];
   tagMetadata: QuizTagMetadata;
   keepHref: string;
+  /** The day the quiz can be taken again, while the yearly limit holds (#386 / #186). */
+  opensOn?: string;
 };
 
 /**
@@ -111,9 +113,12 @@ export function OnboardingIntroContent({
         style={{ opacity: 0, transform: 'translateY(30px)' }}
         className="flex flex-col items-center gap-3"
       >
-        <Button variant="primary" size="lg" onClick={onContinue}>
+        <Button variant="primary" size="lg" onClick={onContinue} disabled={!!retake?.opensOn}>
           {copy.startLabel}
         </Button>
+        {retake?.opensOn ? (
+          <p className="text-muted-foreground text-sm">You can retake the quiz on {retake.opensOn}.</p>
+        ) : null}
         {retake ? (
           <Link
             href={retake.keepHref}

@@ -52,7 +52,10 @@ export type ChatMsg = {
  * one place: one line, and where each side opens it ("View details"). `only` is set when just one
  * side is told (a payment, a reminder); the other side doesn't see it.
  */
-export type ChatEvent = { text: string; href: Partial<Record<Side, string>>; only?: Side };
+export type ChatEvent = { text: string; href: Partial<Record<Side, string>>; only?: Side; /** #153 — an interview's time, read in each viewer's own clock. */ slot?: InterviewSlot };
+
+/** An interview time as booked: the slot in the booker's clock, that clock's offset from UTC in minutes, and which side booked it. */
+export type InterviewSlot = { when: string; offset: number; by: Side };
 
 /** TB-106 — a note left on a proposal's Activity pane, which both inboxes link back to. */
 export type ChatSource = { kind: "proposal"; version: number; roleSlug: string; title: string };
@@ -254,7 +257,7 @@ export type MoveKind =
   | "withdrawn"; // IN — withdraw application
 
 /** What a movement is about beyond the role: the task, the kind of role offered, the note sent with it. */
-export type MoveExtra = { task?: { id: string; title: string }; type?: JobType; note?: string; /** A trial offer's escrow, in dollars. */ escrow?: number };
+export type MoveExtra = { task?: { id: string; title: string }; type?: JobType; note?: string; /** A trial offer's escrow, in dollars. */ escrow?: number; /** The interview time a booking or a move is for. */ slot?: InterviewSlot };
 
 const dollars = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const managerFirst = PAIR.team.name.split(" ")[0];
@@ -485,6 +488,12 @@ function withEvent(from: Side, event: ChatEvent): { id: string; chat: ChatMsg[] 
   return { id, chat: [...snapshot.chat, { id, from, time: clock(), at: Date.now(), event }] };
 }
 
+/** A step logged in the thread with no notification of its own (the trial starting on its day): both sides see it. */
+export function logStep(text: string, href: Partial<Record<Side, string>>) {
+  refresh();
+  write({ ...snapshot, chat: withEvent("team", { text, href }).chat });
+}
+
 /**
  * IN-051 — record a payment against a contract. The independent is told in-app (and, in a real
  * build, by email — the notification says so), and the row lands in their ledger immediately.
@@ -596,7 +605,7 @@ export function move(kind: MoveKind, role: { slug: string; title: string }, extr
   const m = MOVES[kind];
   const from: Side = m.to === "team" ? "independent" : "team";
   const href = { team: teamTarget(kind, role.slug, extra), independent: independentTarget(kind, role.slug, extra) };
-  const { id, chat } = withEvent(from, { text: LOG[kind](role.title, extra), href });
+  const { id, chat } = withEvent(from, { text: LOG[kind](role.title, extra), href, slot: extra?.slot });
   const face = m.to === "team" ? { avatar: PAIR.independent.avatar } : FROM_COMPANY.has(kind) ? { initials: PAIR.team.initials } : { avatar: PAIR.team.avatar };
   write({ ...snapshot, chat, ...withNote(m.to, { title: m.title(role.title, extra), body: m.body(role.title, extra), href: inboxEntry(m.to, id), kind: categoryOfMove(kind), ...face }) });
 }

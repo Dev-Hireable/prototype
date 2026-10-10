@@ -16,3 +16,15 @@ export const PIPELINE = [
   { key: "hired", label: "Hired", major: true },
 ] as const;
 export type Stage = (typeof PIPELINE)[number]["key"];
+
+/**
+ * #152 — the one thread with a person, tagged with where the engagement stands: Applied, Interview,
+ * Proposal, Offer, then the contract's own label once hired ("Trial", "Full-time", "Ended").
+ */
+export function threadStage(stage: Stage, contract?: string): string {
+  if (contract) return contract;
+  if (stage === "invited" || stage === "invite_accepted" || stage === "interviewed") return "Interview";
+  if (stage === "proposal_requested" || stage === "proposal_sent") return "Proposal";
+  if (stage === "offer_received" || stage === "offer_accepted") return "Offer";
+  return "Applied";
+}

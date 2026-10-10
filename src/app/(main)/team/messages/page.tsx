@@ -8,6 +8,8 @@ import { useTeamContracts } from "@/lib/team/contracts";
 import { conversationsFor } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useRoles } from "@/lib/team/roles";
+import { useDeal } from "@/lib/demo/deal";
+import { threadStage } from "@/lib/portal/stages";
 
 /** The Team Builder's inbox; the Independent's is the same page (MessagesPage). */
 export default function Messages() {
@@ -16,6 +18,7 @@ export default function Messages() {
   const { contracts } = useTeamContracts();
   const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
   const contract = contracts[0];
+  const deal = useDeal();
   const pipelineRole = roles.find((r) => r.slug === candidates.find((c) => c.independent === "juan-dela-cruz")?.role)?.title;
   // TB-006 — a candidate thread opens when they are invited to interview, not when they apply.
   const conversations = conversationsFor({
@@ -36,6 +39,7 @@ export default function Messages() {
       emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "candidates" ? "This thread moved to Conversations when they were hired." : "No contract threads yet. The thread is under Candidates.")}
       emptyThread="A thread opens when you invite someone to interview."
       face={(c, size) => <Avatar src={c.avatar} size={size} />}
+      stage={deal ? threadStage(deal.stage, contract ? (contract.status.label === "Ended" ? "Ended" : JOB_TYPE_LABEL[contract.type]) : undefined) : undefined}
       badge={trial && (
         <Badge variant="solid" tone="trial">
           TRIAL · {trial.day}
