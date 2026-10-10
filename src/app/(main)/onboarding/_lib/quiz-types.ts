@@ -36,5 +36,5 @@ export type QuizChatMessage = {
 
 export type QuizPersona = Pick<
   PersonaConfig,
-  'assistantName' | 'greeting' | 'completionMessage'
+  'assistantName' | 'greeting' | 'explanation' | 'completionMessage'
 >;

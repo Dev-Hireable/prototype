@@ -97,17 +97,6 @@ const CLOSINGS: Record<
   Record<string, string>
 > = workstyleResultsContent.closings;
 
-const BODY_SENTENCES = buildAudienceDimensionRecord(
-  workstyleResultsContent.sentences,
-  (entries) => {
-    const map: Record<string, string> = {};
-    for (const [tag, sentence] of Object.entries(entries)) {
-      map[toTagKey(tag)] = sentence;
-    }
-    return map;
-  },
-);
-
 const PREWRITTEN_SUMMARIES: Record<
   ProfileAudience,
   Record<string, string>
@@ -314,52 +303,19 @@ function toDominanceKey(counts: Record<QuizPosition, number>): DominanceKey {
   return String(dominant) as DominanceKey;
 }
 
-function getBodySentence(
-  audience: ProfileAudience,
-  tag: RankedTag,
-): string | null {
-  return BODY_SENTENCES[audience][tag.dimension][tag.normalizedTag] ?? null;
-}
-
+/**
+ * An answer set no prewritten profile covers: the opening and the closing for where its answers
+ * lean. Each trait's own sentence used to sit between them, eight sentences in all; those are
+ * already what the trait tags above say on hover.
+ */
 function buildSummaryFromParts(
   audience: ProfileAudience,
-  tags: RankedTag[],
   counts: Record<QuizPosition, number>,
 ): string {
-  const parts: string[] = [];
-  const firstResolvedTagByDimension = new Map<WorkstyleDimension, RankedTag>();
-
-  for (const tag of tags) {
-    if (
-      tag.position !== null &&
-      !firstResolvedTagByDimension.has(tag.dimension)
-    ) {
-      firstResolvedTagByDimension.set(tag.dimension, tag);
-    }
-  }
-
   const dominanceKey = toDominanceKey(counts);
-  const opening = OPENINGS[audience][dominanceKey];
-  if (opening) {
-    parts.push(opening);
-  }
-
-  for (const dimension of WORKSTYLE_DIMENSIONS) {
-    const tag = firstResolvedTagByDimension.get(dimension);
-    if (!tag) continue;
-
-    const sentence = getBodySentence(audience, tag);
-    if (sentence) {
-      parts.push(sentence);
-    }
-  }
-
-  const closing = CLOSINGS[audience][dominanceKey];
-  if (closing) {
-    parts.push(closing);
-  }
-
-  return parts.join(' ');
+  return [OPENINGS[audience][dominanceKey], CLOSINGS[audience][dominanceKey]]
+    .filter(Boolean)
+    .join(' ');
 }
 
 export function getWorkstyleResultsSummary({
@@ -387,5 +343,5 @@ export function getWorkstyleResultsSummary({
     return EMPTY_SUMMARY;
   }
 
-  return buildSummaryFromParts(audience, rankedTags, counts);
+  return buildSummaryFromParts(audience, counts);
 }

@@ -2,7 +2,8 @@
   "client": {
     "persona": {
       "assistantName": "Hiro",
-      "greeting": "Hey, I'm Hiro. I'll throw a few real scenarios your way so we can see how you like to run your team. Pick one, or type your own answer. Ready?",
+      "greeting": "Hi, I'm Hiro. We recommend Independent profiles to Team Builders based on work style match, so answer honestly. Are you ready to start?",
+      "explanation": "I'll walk you through six everyday scenarios about running a team. Pick the answer closest to what you'd really do, or type your own. There are no right answers: the Independents whose answers sit closest to yours rank highest for you.",
       "completionMessage": "Perfect, you're done with the quiz. I'm getting your results ready now.",
       "shortAcknowledgments": [
         "Got it.",
@@ -186,7 +187,8 @@
   "talent": {
     "persona": {
       "assistantName": "Hira",
-      "greeting": "Hey! I'm Hira. I've got six quick scenarios about how you work remotely. Pick one, or type your own answer. Let's do it.",
+      "greeting": "Hi, I'm Hira. We recommend Independent profiles to Team Builders based on work style match, so answer honestly. Are you ready to start?",
+      "explanation": "I'll walk you through six everyday scenarios about working remotely. Pick the answer closest to what you'd really do, or type your own. There are no right answers: you rank highest with the Team Builders whose answers sit closest to yours.",
       "completionMessage": "Amazing, you're done with the quiz. I'm getting your results ready now.",
       "shortAcknowledgments": [
         "Got it.",

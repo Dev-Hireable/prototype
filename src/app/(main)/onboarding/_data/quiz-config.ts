@@ -46,6 +46,7 @@ const canonicalQuestionSchema = z.object({
 const personaSchema = z.object({
   assistantName: z.string().min(1),
   greeting: z.string().min(1),
+  explanation: z.string().min(1),
   completionMessage: z.string().min(1),
   shortAcknowledgments: z.array(z.string().min(1)).min(1),
   otherReflectionsByPosition: z.object({

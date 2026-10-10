@@ -12,23 +12,19 @@ import { useSpotlightFlight } from './use-spotlight-flight';
 
 function QuizHeader({
   title,
-  description,
   progressCurrent,
   totalQuestions,
   currentQuestionIndex,
 }: {
   title: string;
-  description: string;
   progressCurrent: number;
   totalQuestions: number;
   currentQuestionIndex: number;
 }) {
-  // The description is one line wherever it fits, and where it can't its lines are balanced. It
-  // used to wrap at 480px, a few pixels short of the line, and leave "Other." on a line of its own.
-  // On a short window (`short:`) the header tightens its spacing and the progress sits on one line;
-  // on a short phone, where the description would take two lines, it goes (screen readers still
-  // get it; the assistant's greeting says as much). At full height the header took 151px of a
-  // 720px laptop screen, and with the answer panel that left the chat 160px.
+  // The title, the progress bar and "Question 1 of 6", nothing more: the subheading under the
+  // title repeated the answer panel's "Pick one" label, its Other field and the assistant's
+  // greeting, and the title was too small to anchor the screen. On a short window (`short:`) the
+  // header tightens its spacing and the progress sits on one line, so the chat keeps its room.
   return (
     <div
       data-onboarding-quiz-header
@@ -36,14 +32,11 @@ function QuizHeader({
     >
       <div
         data-onboarding-quiz-header-copy
-        className="flex w-full shrink-0 flex-col items-center gap-1 text-center"
+        className="flex w-full shrink-0 flex-col items-center text-center"
       >
-        <h1 className="text-foreground w-full shrink-0 text-base font-semibold leading-[150%] tracking-[0.2px]">
+        <h1 className="text-foreground w-full shrink-0 text-xl font-semibold leading-[130%] tracking-[0.2px] sm:text-2xl short:text-lg">
           {title}
         </h1>
-        <p className="text-muted-foreground w-full shrink-0 text-sm font-normal leading-[120%] tracking-[0.2px] text-balance max-sm:short:sr-only">
-          {description}
-        </p>
       </div>
       <div
         data-onboarding-quiz-header-progress
@@ -100,7 +93,7 @@ function QuizFinalSpotlight({
       <div ref={cardRef} className="bg-background rounded-2xl p-4">
         <div
           ref={lineRef}
-          className="flex flex-row items-start gap-3 sm:gap-4"
+          className="flex flex-row items-end gap-3 sm:gap-4"
         >
           <div
             className="size-9 flex-none rounded-[25px] bg-contain bg-center bg-no-repeat"
@@ -111,7 +104,7 @@ function QuizFinalSpotlight({
               {assistantName}
             </p>
             <div className="w-full min-h-[44px]">
-              <p className="text-foreground wrap-break-word w-full text-sm font-normal leading-[120%] tracking-[0.2px]">
+              <p className="text-foreground wrap-break-word w-full text-sm font-normal leading-[120%] tracking-[0.2px] whitespace-pre-line">
                 {message.slice(0, lastSpace + 1)}
                 <span className="whitespace-nowrap">
                   {message.slice(lastSpace + 1)}
@@ -157,6 +150,7 @@ type OnboardingQuizContentProps = {
   progressCurrent: number;
   questionHeadingId: string;
   quizCopy: QuizCopy;
+  readinessPrompt: string | null;
   selectedOption: number | null;
   shouldSuppressFinalIndicators: boolean;
   totalQuestions: number;
@@ -211,6 +205,7 @@ function QuizAnswers({ quiz }: { quiz: QuizContentView }) {
       }}
       questionHeadingId={quiz.questionHeadingId}
       currentQuestionIndex={quiz.currentQuestionIndex}
+      allowsOther={quiz.readinessPrompt === null}
       onExitComplete={quiz.handleAnswerSectionExitComplete}
     />
   );
@@ -233,10 +228,10 @@ export function OnboardingQuizContent({
       >
         <QuizHeader
           title={quizCopy.title}
-          description={quizCopy.description}
           progressCurrent={quiz.progressCurrent}
           totalQuestions={quiz.totalQuestions}
-          currentQuestionIndex={quiz.currentQuestionIndex}
+          // "Are you ready?" comes before the first question, and still reads Question 1.
+          currentQuestionIndex={Math.max(0, quiz.currentQuestionIndex)}
         />
         <QuizChat quiz={quiz} />
         <QuizAnswers quiz={quiz} />

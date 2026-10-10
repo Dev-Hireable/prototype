@@ -5,9 +5,9 @@ import type { PublicSignupRole } from '@/web-app/lib/auth/auth-role-mapping';
  * wording changes never require touching a component.
  */
 export type IntroCopy = {
+  /** The mascot heading the intro, and what it says to a screen reader. */
   successImage: string;
   successAlt: string;
-  successMessage: string;
   title: string;
   description: string;
   startLabel: string;
@@ -15,7 +15,6 @@ export type IntroCopy = {
 
 export type QuizCopy = {
   title: string;
-  description: string;
 };
 
 export type ResultsCopy = {
@@ -32,8 +31,6 @@ type OnboardingCopy = {
 
 const QUIZ_HEADER: QuizCopy = {
   title: 'Hireable Work Style Quiz',
-  description:
-    'Six quick scenarios. Pick one of the four answers, or type your own in Other.',
 };
 
 export const ONBOARDING_COPY: Record<PublicSignupRole, OnboardingCopy> = {
@@ -41,32 +38,27 @@ export const ONBOARDING_COPY: Record<PublicSignupRole, OnboardingCopy> = {
     quiz: QUIZ_HEADER,
     intro: {
       successImage: '/images/employer-success.svg',
-      successAlt: 'Account created successfully',
-      successMessage:
-        "Congratulations, your account has been created.\nLet's get you started.",
-      title:
-        'Hire a dedicated long-term partner, not a short-term professional.',
+      successAlt: 'Hireable mascot celebrating your new account',
+      title: 'Your account is ready.',
       description:
-        "We'll ask a few questions to understand your preferred work style and start building your profile. It only takes less than 2 minutes.",
+        "Answer a few quick questions about how you like to work. We'll use them to recommend Independents who match your style. It takes about two minutes.",
       startLabel: 'Start quiz',
     },
     results: {
-      title: 'Your Hiring Style Profile',
+      title: 'Your Work Style Profile',
       description:
         'These traits help us recommend Independents aligned with your communication and collaboration style.',
-      badgeAlt: 'Hiring style profile illustration',
+      badgeAlt: 'Work style profile illustration',
     },
   },
   talent: {
     quiz: QUIZ_HEADER,
     intro: {
       successImage: '/images/talent-success.svg',
-      successAlt: 'Account verified successfully',
-      successMessage:
-        "Congratulations, your account has been verified.\nLet's get you started.",
-      title: "Looking for a lasting match? You're in the right place.",
+      successAlt: 'Hireable mascot celebrating your new account',
+      title: 'Your account is ready.',
       description:
-        'A few quick questions will help us tailor your profile and improve your matching with Team Builders.',
+        "Answer a few quick questions about how you like to work. We'll use them to match you with Team Builders who work the same way. It takes about two minutes.",
       startLabel: 'Start quiz',
     },
     results: {
@@ -79,9 +71,10 @@ export const ONBOARDING_COPY: Record<PublicSignupRole, OnboardingCopy> = {
 };
 
 /**
- * The welcome for someone retaking the quiz. The account isn't new, so there's no "account created"
- * celebration; they're welcomed back, shown the traits the quiz will replace, and the assistant
- * skips introducing itself again.
+ * The welcome for someone retaking the quiz. The account isn't new, so there's no confetti;
+ * they're welcomed back, shown the traits the quiz will replace, and the assistant skips
+ * introducing itself again. How often a retake is allowed is still to be decided, so the copy
+ * names no limit yet.
  */
 export type RetakeCopy = {
   intro: IntroCopy;
@@ -95,27 +88,25 @@ export const ONBOARDING_RETAKE_COPY: Record<PublicSignupRole, RetakeCopy> = {
   client: {
     intro: {
       successImage: '/images/employer-success.svg',
-      successAlt: 'Welcome back',
-      successMessage: "Welcome back.\nLet's see how you run your team today.",
-      title: 'Has the way you run your team changed?',
+      successAlt: 'Hireable mascot welcoming you back',
+      title: 'Welcome back.',
       description:
-        "Answer the same six scenarios again and we'll refresh your hiring style profile. Your current traits stay until you finish.",
+        'Retake the work style quiz to refine your Independent recommendations. Your current traits stay until you finish.',
       startLabel: 'Retake quiz',
     },
     greeting:
-      'Good to see you again. Same six scenarios as last time, so answer for how you run your team today, not how you answered before. Ready?',
+      'Welcome back. Retake the quiz so your Independent recommendations reflect how you run your team today. Are you ready?',
   },
   talent: {
     intro: {
       successImage: '/images/talent-success.svg',
-      successAlt: 'Welcome back',
-      successMessage: "Welcome back.\nLet's see how you work today.",
-      title: 'Has the way you work changed?',
+      successAlt: 'Hireable mascot welcoming you back',
+      title: 'Welcome back.',
       description:
-        "Answer the same six scenarios again and we'll refresh your work style profile. Your current traits stay until you finish.",
+        'Retake the work style quiz to keep your profile current and get yourself recommended to teams that fit how you work. Your current traits stay until you finish.',
       startLabel: 'Retake quiz',
     },
     greeting:
-      "Welcome back! Same six scenarios as last time. Answer for how you work today, not how you answered before. Let's do it.",
+      'Welcome back. Retake the quiz so your Team Builder recommendations reflect how you work today. Are you ready?',
   },
 };

@@ -111,7 +111,10 @@ function ResultsTags({
   );
 }
 
-/** Who these traits match best: an Independent for a Team Builder, a Team Builder for talent. */
+/**
+ * What the traits say about how they work, and who they match best with. It was headed "Your ideal
+ * Independent / Team Builder match", over a paragraph mostly about the reader.
+ */
 function ResultsSummary({
   role,
   tagMetadata,
@@ -126,10 +129,6 @@ function ResultsSummary({
     tags: workstyleTags,
     tagMetadata,
   });
-  const matchHeading =
-    role === 'client'
-      ? 'Your Ideal Independent Match'
-      : 'Your Ideal Team Builder Match';
 
   return (
     <div
@@ -137,7 +136,7 @@ function ResultsSummary({
       className="border-border box-border order-2 flex min-h-[129px] w-full max-w-[749px] flex-none flex-col items-start self-stretch gap-3 rounded-lg border bg-background px-4 pt-4 pb-4 sm:px-6 sm:pt-5 sm:pb-5"
     >
       <p className="font-secondary text-text-tertiary order-0 w-full flex-none self-stretch text-[12px] leading-[120%] font-semibold tracking-[0.2px] uppercase">
-        {matchHeading}
+        Your working style
       </p>
       <p className="font-secondary text-foreground order-1 w-full flex-none self-stretch text-[14px] leading-[120%] font-normal tracking-[0.2px]">
         {summary}

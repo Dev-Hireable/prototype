@@ -20,55 +20,6 @@ export type IntroRetake = {
   keepHref: string;
 };
 
-const SUCCESS_TITLE_INITIAL_STYLE = {
-  opacity: 0,
-  transform: 'translateY(30px)',
-} as const;
-
-export function OnboardingSuccessSplash({
-  copy,
-  successImageRef,
-  successTitleRef,
-  onImageReady,
-}: {
-  copy: IntroCopy;
-  successImageRef: React.RefObject<HTMLDivElement | null>;
-  successTitleRef: React.RefObject<HTMLHeadingElement | null>;
-  onImageReady: () => void;
-}) {
-  return (
-    <div
-      key="success"
-      className="absolute inset-0 flex flex-col items-center justify-center gap-6 pb-10 text-center"
-    >
-      <div
-        ref={successImageRef}
-        className="relative size-50"
-        style={{ opacity: 0, transform: 'translateY(30px) scale(0.8)' }}
-      >
-        <Image
-          src={copy.successImage}
-          alt={copy.successAlt}
-          fill
-          sizes="200px"
-          className="object-contain"
-          preload
-          unoptimized
-          onLoad={onImageReady}
-          onError={onImageReady}
-        />
-      </div>
-      <h1
-        ref={successTitleRef}
-        className="text-foreground w-full max-w-md text-center text-3xl font-semibold leading-[1.2] whitespace-pre-wrap select-text sm:max-w-2xl sm:text-4xl lg:max-w-none lg:text-5xl"
-        style={SUCCESS_TITLE_INITIAL_STYLE}
-      >
-        {copy.successMessage}
-      </h1>
-    </div>
-  );
-}
-
 /**
  * The intro's heading: its title and description and, on a retake, the traits the quiz is about to
  * replace.
@@ -137,11 +88,13 @@ export function OnboardingIntroContent({
         ref={introLogoRef}
         style={{ opacity: 0, transform: 'translateY(30px) scale(0.8)' }}
       >
+        {/* The mascot that was on the "account created" screen this one replaced. */}
         <Image
-          src="/Logo.svg"
-          alt="Hireable"
-          width={56}
-          height={56}
+          src={copy.successImage}
+          alt={copy.successAlt}
+          width={160}
+          height={160}
+          className="size-32 object-contain sm:size-40"
           loading="eager"
           unoptimized
         />

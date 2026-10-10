@@ -371,16 +371,37 @@ function ChatScroller({
   );
 }
 
+/**
+ * Whether the assistant spoke just before message `index`, and whether it speaks again right after
+ * it: the next message, or the typing dots when this is the last one so far.
+ */
+function assistantRunPlace(
+  messages: QuizChatMessage[],
+  index: number,
+  isAssistantTyping: boolean,
+) {
+  const next = messages[index + 1];
+  return {
+    first: messages[index - 1]?.sender !== 'assistant',
+    last: next ? next.sender !== 'assistant' : !isAssistantTyping,
+  };
+}
+
 /** The conversation so far: the assistant's lines and the reader's answers, in order. */
 function ChatMessages({
   messages,
+  isAssistantTyping,
   assistantName,
   assistantAvatarSrc,
   questionHeadingId,
   animateBubbleIn,
 }: Pick<
   QuizChatThreadProps,
-  'messages' | 'assistantName' | 'assistantAvatarSrc' | 'questionHeadingId'
+  | 'messages'
+  | 'isAssistantTyping'
+  | 'assistantName'
+  | 'assistantAvatarSrc'
+  | 'questionHeadingId'
 > & { animateBubbleIn: AnimateBubbleIn }) {
   const latestAssistantMessageId = useMemo(
     () => getLatestAssistantMessageId(messages),
@@ -389,7 +410,7 @@ function ChatMessages({
 
   return (
     <>
-      {messages.map((message) =>
+      {messages.map((message, index) =>
         message.sender === 'assistant' ? (
           <AssistantChatRow
             key={message.id}
@@ -398,6 +419,7 @@ function ChatMessages({
             assistantAvatarSrc={assistantAvatarSrc}
             questionHeadingId={questionHeadingId}
             isLatestAssistantMessage={message.id === latestAssistantMessageId}
+            place={assistantRunPlace(messages, index, isAssistantTyping)}
             animateBubbleIn={animateBubbleIn}
           />
         ) : (
@@ -417,6 +439,7 @@ function ChatMessages({
  * bubble once the question is out and unanswered. Neither shows through the wrap-up.
  */
 function ChatIndicators({
+  messages,
   isAssistantTyping,
   currentQuestionIndex,
   hasAssistantPromptCompleted,
@@ -425,7 +448,7 @@ function ChatIndicators({
   assistantAvatarSrc,
   suppressIndicators,
   animateBubbleIn,
-}: Omit<QuizChatThreadProps, 'messages' | 'questionHeadingId'> & {
+}: Omit<QuizChatThreadProps, 'questionHeadingId'> & {
   animateBubbleIn: AnimateBubbleIn;
 }) {
   return (
@@ -435,6 +458,7 @@ function ChatIndicators({
           key={`typing-${currentQuestionIndex}`}
           assistantName={assistantName}
           assistantAvatarSrc={assistantAvatarSrc}
+          first={messages[messages.length - 1]?.sender !== 'assistant'}
           animateBubbleIn={animateBubbleIn}
         />
       ) : null}
@@ -485,6 +509,7 @@ export function QuizChatThread({
     <ChatScroller chatScrollRef={chatScrollRef} listRef={listRef}>
       <ChatMessages
         messages={messages}
+        isAssistantTyping={isAssistantTyping && !suppressIndicators}
         assistantName={assistantName}
         assistantAvatarSrc={assistantAvatarSrc}
         questionHeadingId={questionHeadingId}
@@ -492,6 +517,7 @@ export function QuizChatThread({
       />
 
       <ChatIndicators
+        messages={messages}
         isAssistantTyping={isAssistantTyping}
         currentQuestionIndex={currentQuestionIndex}
         hasAssistantPromptCompleted={hasAssistantPromptCompleted}

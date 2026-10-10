@@ -266,11 +266,13 @@ export function templateChanges(tpl: RoleTemplate | "blank", type: JobType, chip
     desc: tpl.description,
     skills: [...tpl.skills],
     level: tpl.level,
-    ...(type === "trial" ? { taskRows: toDrafts(tpl.tasks), chip: Math.max(0, chips.indexOf(`${tpl.days} Days`)) } : {}),
-    min: settleMoney(String(tpl.budget.min)),
-    max: settleMoney(String(tpl.budget.max)),
+    ...(type === "trial" ? { taskRows: tpl.tasks.length ? toDrafts(tpl.tasks) : [blankDraft()], chip: Math.max(0, chips.indexOf(`${tpl.days} Days`)) } : {}),
+    ...templateBudget(tpl),
   };
 }
+
+/** The range a template fills in — left empty when no source published one for the role. */
+const templateBudget = (tpl: RoleTemplate) => ({ min: tpl.budget ? settleMoney(String(tpl.budget.min)) : "", max: tpl.budget ? settleMoney(String(tpl.budget.max)) : "" });
 
 /** A template's fields in a shape the form can be compared against. */
 export function templateShape(tpl: RoleTemplate, type: JobType, chips: readonly string[], f: Snapshot) {
@@ -280,8 +282,7 @@ export function templateShape(tpl: RoleTemplate, type: JobType, chips: readonly 
     skills: tpl.skills.join("|"),
     level: tpl.level,
     tasks: type === "trial" ? plan(tpl.tasks) : plan(fromDrafts(f.taskRows)),
-    min: settleMoney(String(tpl.budget.min)),
-    max: settleMoney(String(tpl.budget.max)),
+    ...templateBudget(tpl),
     chip: type === "trial" ? Math.max(0, chips.indexOf(`${tpl.days} Days`)) : f.chip,
   });
 }

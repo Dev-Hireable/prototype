@@ -127,7 +127,9 @@ export function useQuizAnswerEntranceAnimation(
       return;
     }
 
-    const isFirstQuestionContext = currentQuestionIndex === 0;
+    // The readiness turns (below 0) come first, and the first question shows the Other field for
+    // the first time, so each brings its chrome in as the opening did.
+    const isFirstQuestionContext = currentQuestionIndex <= 0;
 
     if (!hasAssistantPromptCompleted) {
       // Only the first question hides its chrome while the assistant is talking.

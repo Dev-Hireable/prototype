@@ -1,14 +1,12 @@
 'use client';
 
-import { useReducer, useRef, useState, type RefObject } from 'react';
+import { useRef, type RefObject } from 'react';
 import { useGSAP } from '@gsap/react';
 
 import { loadGsap, reportGsapLoadError } from '@/web-app/lib/load-gsap';
 import { ONBOARDING_CONFETTI_COLORS } from '@/web-app/lib/brand-colors';
 import { prefersReducedMotion } from '@/web-app/lib/motion';
 import { useIsOnboardingRevealed } from '../shared/splash-gate';
-
-const SUCCESS_DISPLAY_DURATION = 2000;
 
 const ANIM = {
   fadeInUp: { opacity: 0, y: 25 },
@@ -54,13 +52,7 @@ function animateIntroExit(
 
 type TimelineRef = RefObject<gsap.core.Timeline | null>;
 
-/** The success splash's image and title. */
-type SuccessRefs = {
-  image: RefObject<HTMLDivElement | null>;
-  title: RefObject<HTMLHeadingElement | null>;
-};
-
-/** The intro's logo, heading and button, which come in and leave in turn. */
+/** The intro's mascot, heading and button, which come in and leave in turn. */
 type IntroRefs = {
   logo: RefObject<HTMLDivElement | null>;
   heading: RefObject<HTMLDivElement | null>;
@@ -81,7 +73,7 @@ function clearTimeline(timelineRef: TimelineRef) {
   }
 }
 
-/** The intro's logo, heading and button, once all three are on the page. */
+/** The intro's mascot, heading and button, once all three are on the page. */
 function getIntroTargets(intro: IntroRefs) {
   const logo = intro.logo.current;
   const heading = intro.heading.current;
@@ -100,20 +92,18 @@ function revealIntroTargets(intro: IntroRefs) {
 }
 
 /**
- * The success splash: the image and title rise in, hold for SUCCESS_DISPLAY_DURATION, then leave,
- * and `onDone` swaps in the intro (at once, if GSAP won't load). Confetti's module loads with GSAP
- * so a new account's confetti fires as the splash starts.
+ * The intro's entrance: the mascot, the heading, then the button rise in, each over the last. A
+ * new account's confetti fires as it starts; its module loads with GSAP so it doesn't lag behind.
  */
-function playSuccessSplash(
-  success: SuccessRefs,
+function playIntroEntrance(
+  intro: IntroRefs,
   celebrate: boolean,
   run: EntranceRun,
-  onDone: () => void,
 ) {
-  const image = success.image.current;
-  const title = success.title.current;
-  if (!image || !title) return;
+  const targets = getIntroTargets(intro);
+  if (!targets) return;
 
+  const { logo, heading, button } = targets;
   void Promise.all([
     loadGsap(),
     import('canvas-confetti')
@@ -123,50 +113,9 @@ function playSuccessSplash(
     .then(([{ default: gsap }]) => {
       if (run.isCancelled()) return;
 
-      gsap.set(image, ANIM.fadeInUpScale);
-      gsap.set(title, ANIM.fadeInUp);
-
-      const tl = gsap.timeline({
-        onComplete: () => {
-          if (!run.isCancelled()) onDone();
-        },
-      });
-      run.timelineRef.current = tl;
-
-      if (celebrate) void fireOnboardingCelebrationConfetti();
-
-      tl.fromTo(image, ANIM.fadeInUpScale, {
-        ...ANIM.visible,
-        duration: 0.6,
-      })
-        .fromTo(
-          title,
-          ANIM.fadeInUp,
-          { ...ANIM.visibleNoScale, duration: 0.5 },
-          '-=0.4',
-        )
-        .to({}, { duration: SUCCESS_DISPLAY_DURATION / 1000 })
-        .to(title, { ...ANIM.exitUp, duration: 0.35 })
-        .to(image, { ...ANIM.exitUpScale, duration: 0.35 }, '-=0.2');
-    })
-    .catch((error: unknown) => {
-      reportGsapLoadError(error);
-      if (!run.isCancelled()) onDone();
-    });
-}
-
-/** The intro's entrance: the logo, the heading, then the button rise in, each over the last. */
-function playIntroEntrance(intro: IntroRefs, run: EntranceRun) {
-  const targets = getIntroTargets(intro);
-  if (!targets) return;
-
-  const { logo, heading, button } = targets;
-  void loadGsap()
-    .then(({ default: gsap }) => {
-      if (run.isCancelled()) return;
-
       const tl = gsap.timeline({ delay: 0.1 });
       run.timelineRef.current = tl;
+      if (celebrate) void fireOnboardingCelebrationConfetti();
 
       tl.fromTo(logo, ANIM.fadeInUpScale, {
         ...ANIM.visible,
@@ -194,25 +143,22 @@ function playIntroEntrance(intro: IntroRefs, run: EntranceRun) {
 type IntroEntranceOptions = {
   celebrate: boolean;
   containerRef: RefObject<HTMLElement | null>;
-  success: SuccessRefs;
   intro: IntroRefs;
   timelineRef: TimelineRef;
 };
 
 /**
- * Plays the success splash once the splash gate lifts and the image has loaded, gives way to the
- * intro when it ends, then plays the intro's entrance. Reduced motion skips to the intro at rest.
+ * Plays the intro's entrance once the splash gate lifts. It used to follow a full-screen
+ * "Congratulations, your account has been created" (or "Welcome back") that held for two seconds
+ * with nothing to do; this screen says it now. Reduced motion shows the intro at rest.
  */
 function useIntroEntrance({
   celebrate,
   containerRef,
-  success,
   intro,
   timelineRef,
 }: IntroEntranceOptions) {
   const isRevealed = useIsOnboardingRevealed();
-  const [showSuccess, setShowSuccess] = useState(true);
-  const [isImageReady, markImageReady] = useReducer(() => true, false);
 
   useGSAP(
     () => {
@@ -225,22 +171,14 @@ function useIntroEntrance({
       clearTimeline(timelineRef);
 
       if (prefersReducedMotion()) {
-        if (showSuccess) {
-          setShowSuccess(false);
-        } else {
-          revealIntroTargets(intro);
-        }
+        revealIntroTargets(intro);
         return;
       }
 
-      const run: EntranceRun = { isCancelled: () => cancelled, timelineRef };
-      if (showSuccess) {
-        if (!isImageReady) return;
-
-        playSuccessSplash(success, celebrate, run, () => setShowSuccess(false));
-      } else {
-        playIntroEntrance(intro, run);
-      }
+      playIntroEntrance(intro, celebrate, {
+        isCancelled: () => cancelled,
+        timelineRef,
+      });
 
       return () => {
         cancelled = true;
@@ -248,12 +186,10 @@ function useIntroEntrance({
       };
     },
     {
-      dependencies: [showSuccess, isImageReady, isRevealed, celebrate],
+      dependencies: [isRevealed, celebrate],
       scope: containerRef,
     },
   );
-
-  return { showSuccess, markImageReady };
 }
 
 /**
@@ -281,7 +217,7 @@ function useIntroExit(
     };
     const targets = getIntroTargets(intro);
 
-    // Reduced motion hands over at once, as the entrance skips to the intro at rest.
+    // Reduced motion hands over at once, as the entrance shows the intro at rest.
     if (!targets || prefersReducedMotion()) {
       proceed();
       return;
@@ -301,21 +237,15 @@ function useIntroExit(
 }
 
 /**
- * The intro step's motion: the success splash (confetti for a new account) and the intro's
- * entrance once the splash gate lifts, and the intro's exit on continue. They share one timeline,
- * so whichever starts stops the one before. Returns whether the success splash is up, the splash
- * image's ready callback, and the continue handler.
+ * The intro step's motion: its entrance (confetti for a new account) once the splash gate lifts,
+ * and its exit on continue. They share one timeline, so whichever starts stops the one before.
+ * Returns the continue handler.
  */
 export function useOnboardingIntroAnimations({
   onContinue,
   ...entrance
 }: Omit<IntroEntranceOptions, 'timelineRef'> & { onContinue: () => void }) {
   const timelineRef = useRef<gsap.core.Timeline | null>(null);
-  const { showSuccess, markImageReady } = useIntroEntrance({
-    ...entrance,
-    timelineRef,
-  });
-  const handleContinue = useIntroExit(entrance.intro, timelineRef, onContinue);
-
-  return { showSuccess, markImageReady, handleContinue };
+  useIntroEntrance({ ...entrance, timelineRef });
+  return useIntroExit(entrance.intro, timelineRef, onContinue);
 }

@@ -6,40 +6,55 @@
 export const FINAL_ASSISTANT_WRAP_UP_DELAY_MS = 2000;
 export const FINAL_SPOTLIGHT_DELAY_MS = 450;
 
+export const READY_ANSWER = "Yes, I'm ready";
+export const EXPLAIN_ANSWER = 'Explain further';
+const ASKING_OPTIONS: readonly string[] = [READY_ANSWER, EXPLAIN_ANSWER];
+const EXPLAINED_OPTIONS: readonly string[] = [READY_ANSWER];
+
 /**
- * Builds the assistant lines shown before the current question: a greeting on
- * the first question, an acknowledgement of the previous answer afterwards, or
- * just the follow-up prompt when we are asking the user to elaborate.
+ * Before the first scenario the assistant asks whether the reader is ready: the greeting ends on
+ * "Are you ready to start?" with Yes and Explain further. Explain further gets the explanation
+ * and Yes alone; Yes starts the quiz. The greeting and the first scenario used to come at once.
+ */
+export type QuizReadiness = 'asking' | 'explained' | 'ready';
+
+/**
+ * The readiness turn on screen, or null once the reader is ready. Its index sits before the first
+ * question's (0), so every turn has its own and the chat, the answer panel and their animations
+ * reset between them as they do between questions.
+ */
+export function getReadinessTurn(
+  readiness: QuizReadiness,
+  persona: { greeting: string; explanation: string },
+) {
+  if (readiness === 'ready') return null;
+  return readiness === 'asking'
+    ? { index: -2, prompt: persona.greeting, options: ASKING_OPTIONS }
+    : { index: -1, prompt: persona.explanation, options: EXPLAINED_OPTIONS };
+}
+
+/**
+ * Builds the assistant's turn before the current question: one bubble, with the
+ * acknowledgement of the previous answer ahead of the question ("Got it.
+ * You're mid-sprint and…"), or just the follow-up prompt when we are asking the
+ * user to elaborate. They used to be two bubbles in one turn, a lone "Got it."
+ * and then the question.
  */
 export function buildAssistantThread(params: {
-  currentQuestionIndex: number;
   followupPrompt: string | null;
-  greeting: string;
   question: string;
   transitionAcknowledgement: string | null;
 }): string[] {
-  const {
-    currentQuestionIndex,
-    followupPrompt,
-    greeting,
-    question,
-    transitionAcknowledgement,
-  } = params;
-  const lines: string[] = [];
-
+  const { followupPrompt, question, transitionAcknowledgement } = params;
   if (followupPrompt) {
-    lines.push(followupPrompt);
-    return lines;
+    return [followupPrompt];
   }
 
-  if (currentQuestionIndex === 0) {
-    lines.push(greeting);
-  } else if (transitionAcknowledgement) {
-    lines.push(transitionAcknowledgement);
-  }
-
-  lines.push(question);
-  return lines;
+  return [
+    transitionAcknowledgement
+      ? `${transitionAcknowledgement} ${question}`
+      : question,
+  ];
 }
 
 /**

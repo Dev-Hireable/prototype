@@ -3,11 +3,7 @@
 import { useRef } from 'react';
 
 import type { IntroCopy } from '../../_data/onboarding-copy';
-import {
-  OnboardingIntroContent,
-  OnboardingSuccessSplash,
-  type IntroRetake,
-} from './intro-sections';
+import { OnboardingIntroContent, type IntroRetake } from './intro-sections';
 import { useOnboardingIntroAnimations } from './use-intro-animations';
 
 type OnboardingIntroStepProps = {
@@ -19,6 +15,11 @@ type OnboardingIntroStepProps = {
   continueFromIntro: () => void;
 };
 
+/**
+ * One screen before the quiz: the mascot, that the account is ready (or welcome back), why the
+ * quiz is asked and how long it takes, and Start quiz. A full-screen "Congratulations" with no
+ * action used to come first, then a second intro screen.
+ */
 export function OnboardingIntroStep({
   copy,
   celebrate,
@@ -26,46 +27,33 @@ export function OnboardingIntroStep({
   continueFromIntro: onContinue,
 }: OnboardingIntroStepProps) {
   const containerRef = useRef<HTMLElement>(null);
-  const successImageRef = useRef<HTMLDivElement>(null);
-  const successTitleRef = useRef<HTMLHeadingElement>(null);
   const introLogoRef = useRef<HTMLDivElement>(null);
   const introHeadingRef = useRef<HTMLDivElement>(null);
   const introButtonRef = useRef<HTMLDivElement>(null);
-  const { showSuccess, markImageReady, handleContinue } =
-    useOnboardingIntroAnimations({
-      celebrate,
-      onContinue,
-      containerRef,
-      success: { image: successImageRef, title: successTitleRef },
-      intro: {
-        logo: introLogoRef,
-        heading: introHeadingRef,
-        button: introButtonRef,
-      },
-    });
+  const handleContinue = useOnboardingIntroAnimations({
+    celebrate,
+    onContinue,
+    containerRef,
+    intro: {
+      logo: introLogoRef,
+      heading: introHeadingRef,
+      button: introButtonRef,
+    },
+  });
 
   return (
     <section
       ref={containerRef}
       className="bg-background flex min-h-[calc(100dvh/var(--ui-scale))] w-full items-center justify-center px-4"
     >
-      {showSuccess ? (
-        <OnboardingSuccessSplash
-          copy={copy}
-          successImageRef={successImageRef}
-          successTitleRef={successTitleRef}
-          onImageReady={markImageReady}
-        />
-      ) : (
-        <OnboardingIntroContent
-          copy={copy}
-          retake={retake}
-          introLogoRef={introLogoRef}
-          introHeadingRef={introHeadingRef}
-          introButtonRef={introButtonRef}
-          onContinue={handleContinue}
-        />
-      )}
+      <OnboardingIntroContent
+        copy={copy}
+        retake={retake}
+        introLogoRef={introLogoRef}
+        introHeadingRef={introHeadingRef}
+        introButtonRef={introButtonRef}
+        onContinue={handleContinue}
+      />
     </section>
   );
 }
