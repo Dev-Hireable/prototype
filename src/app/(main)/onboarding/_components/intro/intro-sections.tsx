@@ -39,7 +39,8 @@ function IntroHeading({
         {copy.title}
       </h1>
       {copy.description ? (
-        <p className="text-muted-foreground mt-2 text-sm leading-normal text-balance">
+        // 16px, 18px from tablets up: at 14px it read as a footnote under the 48px heading.
+        <p className="text-muted-foreground mt-2 max-w-xl text-base leading-relaxed text-balance sm:text-lg">
           {copy.description}
         </p>
       ) : null}
