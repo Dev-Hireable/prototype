@@ -15,7 +15,7 @@ export type BadgeVariant = "tint" | "solid" | "outline";
 
 const TINT: Record<BadgeTone, string> = {
   ok: "bg-[#eef9f2] text-ok",
-  warn: "bg-warn-bg text-warn",
+  warn: "bg-warn-bg text-warn-ink",
   danger: "bg-[#fcf2f2] text-danger",
   info: "bg-[#ebf8fe] text-brand-blue",
   neutral: "bg-surface-2 text-ink-2",

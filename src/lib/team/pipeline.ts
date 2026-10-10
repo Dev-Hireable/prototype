@@ -179,7 +179,7 @@ function deleteCandidate(id: string) {
     return;
   }
   candidatesStore.set((cs) => cs.filter((x) => x.id !== id));
-  // Their past interviews stay on the Interviews page, no longer pointing at a card that's gone.
+  // Their past interviews stay on record, no longer pointing at a card that's gone.
   interviewsStore.set((is) => is.map((i) => (i.candidate === id ? { ...i, candidate: undefined } : i)));
 }
 
@@ -294,8 +294,8 @@ export function usePipeline() {
     commentOnProposal,
     decideSuggestion,
     /**
-     * TB-040 — scheduling an interview from a candidate's profile has to produce a row on the
-     * Interviews page and the dashboard widget, and a reschedule or cancel has to stick.
+     * TB-040 — scheduling an interview from a candidate's profile has to show on their card and
+     * the dashboard widget, and a reschedule or cancel has to stick.
      */
     interviews,
     inviteToInterview,

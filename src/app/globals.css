@@ -82,8 +82,13 @@
   --color-accent-ink: #004675;
   --color-primary: #007acc; /* primary buttons (Independent + Team Builder portals) */
   --color-ok: #27ae60;
-  --color-warn: #f7ba00;
-  --color-warn-bg: #fff9e7;
+  /* Warnings are orange (changes requested, unverified, outside a range); red is kept for what's
+     overdue or failed. `warn-ink` is the text on `warn-bg`. */
+  --color-warn: #ef7d1a;
+  --color-warn-bg: #fff3e8;
+  --color-warn-ink: #a84d05;
+  /* "In review" is a status, not a warning: it keeps the amber it always had. */
+  --color-review: #f7ba00;
   --color-danger: var(--destructive); /* #c4352c */
   --color-danger-hover: #a92d25;
 

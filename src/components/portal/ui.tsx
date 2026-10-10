@@ -306,7 +306,7 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
 export function InfoBanner({ children, tone = "info", className = "w-fit max-w-full rounded-lg", onClose }: { children: ReactNode; tone?: "info" | "warn"; className?: string; /** A banner that can be put away: the toast's × at its end. */ onClose?: () => void }) {
   const I = tone === "info" ? ICONS.info : ICONS.warning;
   return (
-    <div className={`flex items-start gap-4 p-4 text-[14px] leading-[1.2] tracking-[0.2px] ${tone === "info" ? "bg-[#ccedff] text-[#003049]" : "bg-[#fff3cc] text-[#8e6f12]"} ${className}`}>
+    <div className={`flex items-start gap-4 p-4 text-[14px] leading-[1.2] tracking-[0.2px] ${tone === "info" ? "bg-[#ccedff] text-[#003049]" : "bg-warn-bg text-warn-ink"} ${className}`}>
       <I size={20} aria-hidden className="shrink-0" />
       {/* The rest of the banner, so a strip's action can sit at its right end. A 20px line, the icon's
           height, so the first line sits level with the icon rather than riding above its middle. */}

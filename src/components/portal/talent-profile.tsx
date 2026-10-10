@@ -108,7 +108,8 @@ export function TalentProfile({ person: p, viewer, badge, actions, note, onPlayI
   const [playing, setPlaying] = useState(false);
   const self = viewer === "self";
   const first = p.name.split(" ")[0];
-  const hasIntro = !!(p.intro || p.introVideo);
+  /** The card shows with a still or a video, or empty on the talent's own view, holding their Add intro. */
+  const hasIntro = !!(p.intro || p.introVideo || introAction);
 
   return (
     <div className="@container flex flex-col gap-6">
@@ -148,7 +149,12 @@ function IntroCell({ still, video, name, action, onPlay }: { still?: string; vid
     // Running down beside the tabs, it stops where the tab row starts (mb 36, the row's height), so there's room
     // between the card and the divider instead of the card sitting on it.
     <div className="relative aspect-[4/5] w-full max-w-[280px] @lg:col-start-2 @lg:row-start-1 @lg:max-w-none @lg:self-center @2xl:row-[1/span_2] @2xl:mb-9 @2xl:aspect-auto @2xl:self-stretch">
-      <IntroVideo still={still} video={video} name={name} onPlay={onPlay} />
+      {still || video ? (
+        <IntroVideo still={still} video={video} name={name} onPlay={onPlay} />
+      ) : (
+        // Nothing to watch yet: the card holds its place, and the talent's Add intro is the only action on it.
+        <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-surface-2 p-6 text-center text-[13px] leading-[1.4] text-ink-2 outline -outline-offset-1 outline-border">No intro video yet</div>
+      )}
       {/* Beside the card's play button, not inside it: a button can't hold another. */}
       {action && <div className="absolute top-3 right-3">{action}</div>}
     </div>
@@ -177,7 +183,7 @@ function IntroPlayer({ src, name, open, onClose }: { src: string; name: string; 
 
 /** The badge beside the name — the talent's "Pro". A Team Builder's view has the gradient MatchPill there. */
 export function FlatBadge({ tone = "ok", children }: { tone?: "ok" | "warn" | "neutral"; children: ReactNode }) {
-  const TONE = { ok: "bg-[#eef9f2] text-ok", warn: "bg-warn-bg text-[#8e6f12]", neutral: "bg-surface-2 text-ink-2" };
+  const TONE = { ok: "bg-[#eef9f2] text-ok", warn: "bg-warn-bg text-warn-ink", neutral: "bg-surface-2 text-ink-2" };
   return <span className={`inline-flex h-8 items-center rounded px-3 text-[14px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${TONE[tone]}`}>{children}</span>;
 }
 

@@ -1,27 +1,27 @@
 "use client";
 
-import { Avatar, LinkButton, Page, Toast } from "@/components/portal/ui";
+import Link from "next/link";
+import { Avatar, Page, Toast } from "@/components/portal/ui";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/profile-editor";
-import { TraitTag } from "@/components/portal/trait-tag";
-import { traitTagsFor } from "@/lib/demo/work-style";
+import { WorkStyleSection } from "@/components/team/work-style-section";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { IMAGE_MAX_MB } from "@/lib/portal/profile-fields";
 import { useTeamAccount } from "@/lib/team/account";
 import { usePickedImage } from "./_lib/image";
 
-type Key = "name" | "title" | "email" | "phone" | "timezone" | "about";
+type Key = "name" | "title" | "about";
 
-/** The rows, in two groups: who you are, and how to reach you. */
-const GROUPS: { title: string; description: string; rows: [label: string, key: Key, kind?: "long" | "timezone"][] }[] = [
-  { title: "About you", description: "How you appear to independents in messages, interviews and offers.", rows: [["Full name", "name"], ["Job title", "title"], ["About you", "about", "long"]] },
-  { title: "Contact", description: "Where interview invites and notifications reach you.", rows: [["Work email", "email"], ["Phone", "phone"], ["Time zone", "timezone", "timezone"]] },
-];
+/**
+ * Who you are, as independents see you. The name is the account's legal name: locked here and in
+ * Settings, changed through support (TB-121). Email, phone and time zone live in Settings › Account
+ * only, linked from here, so they're kept in one place.
+ */
+const ROWS: [label: string, key: Key, kind?: "long"][] = [["Full name", "name"], ["Job title", "title"], ["Bio", "about", "long"]];
 
 /**
  * The personal profile, on the shared profile editor: the photo with its camera
- * button, the fields in two groups that each edit in place and save on their own (TB-121 / TB-122),
- * and the work style — the company's trait badges, which independents see, retaken from the company
- * profile (TB-096).
+ * button, the fields that each edit in place and save on their own (TB-122), and the work style:
+ * the company's tags, which independents see, with the quiz that gives them (TB-096).
  */
 export default function PersonalProfile() {
   const { profile, setProfile, company } = useTeamAccount();
@@ -48,74 +48,51 @@ export default function PersonalProfile() {
           <p className="truncate text-[14px] leading-[1.4] text-ink-2">
             {profile.title} · {company.name}
           </p>
-          {/* TB-094 — read-only: the one thing here that can't be edited. */}
+          {/* TB-094 — read-only. */}
           <p className="text-[12.5px] leading-[1.4] text-ink-2">Member since {profile.memberSince}</p>
         </ProfileHeader>
 
         <ProfileFields onToast={setToast} />
 
-        {/* TB-096 — the badges are the company's, shown where independents see them; the quiz lives there. */}
-        <WorkStyle />
+        <WorkStyleSection />
       </div>
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
 
-/** The fields in their two groups, each edited in place and saved on its own, and the progress while any is empty. */
+/** The fields, each edited in place and saved on its own (the name locked), and the progress while any is empty. */
 function ProfileFields({ onToast }: { onToast: SetToast }) {
   const { profile, setProfile } = useTeamAccount();
-  const keys = GROUPS.flatMap((g) => g.rows.map((r) => r[1]));
-  const done = keys.filter((k) => String(profile[k] ?? "").trim()).length;
+  const done = ROWS.filter(([, k]) => String(profile[k] ?? "").trim()).length;
   return (
     <>
-      {done < keys.length && <Completeness done={done} total={keys.length}>Fill in the rest so independents know who they&apos;re talking to.</Completeness>}
+      {done < ROWS.length && <Completeness done={done} total={ROWS.length}>Fill in the rest so independents know who they&apos;re talking to.</Completeness>}
 
-      {GROUPS.map((g) => (
-        <ProfileSection key={g.title} title={g.title} description={g.description}>
-          <div className="-mx-2 flex flex-col px-2">
-            {g.rows.map(([label, key, kind]) => (
-              <EditableRow
-                key={key}
-                label={label}
-                value={String(profile[key] ?? "")}
-                kind={kind}
-                onSave={(v) => {
-                  setProfile({ [key]: v });
-                  onToast(`${label} saved`);
-                }}
-              />
-            ))}
-          </div>
-        </ProfileSection>
-      ))}
-    </>
-  );
-}
-
-/** The company's work-style badges, read-only here: they're managed, and the quiz taken, on the company profile. */
-function WorkStyle() {
-  const { workStyle } = useTeamAccount();
-  const tags = traitTagsFor(workStyle, "team");
-  return (
-    <ProfileSection
-      title="Work style"
-      description="Your badges from the work-style quiz. Independents see them on your company profile, and matching uses them."
-      action={
-        <LinkButton size="sm" href="/team/profile/company">
-          {tags.length ? "Manage" : "Take the quiz"}
-        </LinkButton>
-      }
-    >
-      {tags.length ? (
-        <div className="flex flex-wrap gap-2">
-          {tags.map((t) => (
-            <TraitTag key={`${t.trait}-${t.label}`} tag={t} />
+      <ProfileSection title="About you" description="How you appear to independents in messages, interviews and offers.">
+        <div className="-mx-2 flex flex-col px-2">
+          {ROWS.map(([label, key, kind]) => (
+            <EditableRow
+              key={key}
+              label={label}
+              value={String(profile[key] ?? "")}
+              kind={kind}
+              locked={key === "name" ? "Contact support to change your name." : undefined}
+              onSave={(v) => {
+                setProfile({ [key]: v });
+                onToast(`${label} saved`);
+              }}
+            />
           ))}
         </div>
-      ) : (
-        <p className="text-[13px] leading-[1.45] text-ink-2">No badges yet. Take the quiz from the company profile and they appear here.</p>
-      )}
-    </ProfileSection>
+        <p className="text-[13px] leading-[1.45] text-ink-2">
+          Email, phone and time zone are in{" "}
+          <Link href="/team/settings" className="font-medium text-primary hover:underline">
+            Settings › Account
+          </Link>
+          .
+        </p>
+      </ProfileSection>
+    </>
   );
 }

@@ -11,7 +11,7 @@ import type { WorkStyleTag } from "@/lib/demo/work-style";
  * not a link, and it says what is still missing. Applying to a role with no profile and no
  * payout method is the case this exists for.
  */
-export type DashboardChecklistItem = { label: string; done: boolean; href?: string; hint?: string; requires?: string[] };
+export type DashboardChecklistItem = { label: string; done: boolean; href?: string; hint?: string; requires?: string[]; /** The open step's button, when "Complete" (or "Verify") doesn't say what it does. */ action?: string };
 
 const Check = ICONS.check;
 const Lock = ICONS.lock;
@@ -42,6 +42,7 @@ export function DashboardSetupCard({
   traits = [],
   completeDescription = "Setup complete — here is the work style you are matched on.",
   profileHref,
+  note,
 }: {
   avatarSrc: string;
   avatarClassName?: string;
@@ -54,6 +55,8 @@ export function DashboardSetupCard({
   completeDescription?: string;
   /** Where the traits are shown in full once setup is done. */
   profileHref?: string;
+  /** One line under the open checklist: what comes later, said early. */
+  note?: string;
 }) {
   const done = items.filter((i) => i.done).length;
   const percent = items.length ? Math.round((done / items.length) * 100) : 100;
@@ -77,6 +80,12 @@ export function DashboardSetupCard({
       </Link>
 
       {complete ? <WorkStylePanel traits={traits} profileHref={profileHref} /> : <Checklist items={items} />}
+      {!complete && note && (
+        <p className="relative mt-3 flex items-center gap-1.5 px-1 text-[13px] leading-[1.35] tracking-[0.2px] text-ink-2">
+          <ICONS.idCheck size={16} aria-hidden className="shrink-0" />
+          {note}
+        </p>
+      )}
     </section>
   );
 }
@@ -146,7 +155,7 @@ function Checklist({ items }: { items: readonly DashboardChecklistItem[] }) {
               <span className="shrink-0 text-[13px] leading-[1.2] font-medium text-ink-2 opacity-70">Locked</span>
             ) : (
               <Link href={item.href} className="shrink-0 rounded-lg bg-primary px-3.5 py-2 text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
-                {item.label.toLowerCase().startsWith("verify") ? "Verify" : "Complete"}
+                {item.action ?? (item.label.toLowerCase().startsWith("verify") ? "Verify" : "Complete")}
               </Link>
             )}
           </li>

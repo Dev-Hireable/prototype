@@ -96,9 +96,30 @@ export function storedWorkStyle(side: WorkStyleSide): number[] {
   }
 }
 
-/** The quiz's answers, where that side's portal picks them up the next time it loads. */
+/** When this side last finished the quiz (epoch ms), beside its answers. */
+const takenAtKey = (side: WorkStyleSide) => `${storageKey(side)}At`;
+
+/** The quiz's answers, where that side's portal picks them up the next time it loads, and when they were given. */
 export function saveWorkStyle(side: WorkStyleSide, answers: readonly number[]) {
   localStorage.setItem(storageKey(side), JSON.stringify(answers));
+  localStorage.setItem(takenAtKey(side), JSON.stringify(Date.now()));
+}
+
+/**
+ * The quiz can be retaken once a year. The day this side may take it again, or null when it may now:
+ * never dated (answers from before the date was kept, or none), or a year has passed. Null on the server.
+ */
+export function nextRetake(side: WorkStyleSide): Date | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const at = Number(JSON.parse(localStorage.getItem(takenAtKey(side)) ?? "null"));
+    if (!at) return null;
+    const next = new Date(at);
+    next.setFullYear(next.getFullYear() + 1);
+    return next.getTime() > Date.now() ? next : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Whether this side has taken the quiz. Until it has, its portal sends it to the quiz first. */

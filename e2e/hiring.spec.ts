@@ -37,10 +37,10 @@ async function pipeline(page: import("@playwright/test").Page, stage: string | n
 async function deleteDropped(page: import("@playwright/test").Page) {
   await page.goto(`/team/hire/roles/${ROLE.slug}`);
   await page.getByRole("button", { name: "Delete", exact: true }).click();
-  const confirm = page.getByRole("dialog", { name: "Delete Juan Dela Cruz from this role?" });
+  const confirm = page.getByRole("dialog", { name: "Delete Juan D. from this role?" });
   await expect(confirm).toContainText("Nothing is sent to Juan");
   await confirm.getByRole("button", { name: "Delete", exact: true }).click();
-  await expect(toast(page, "Deleted Juan Dela Cruz from Brand Designer")).toBeVisible();
+  await expect(toast(page, "Deleted Juan D. from Brand Designer")).toBeVisible();
   await expect(page.getByRole("button", { name: "Undrop" })).toHaveCount(0);
 }
 
@@ -85,7 +85,7 @@ test.describe("deleting from Dropped, so it doesn't pile up", () => {
     await deleteDropped(page);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("hireable.demo.team.candidates") ?? "[]"))).toEqual([]);
     await page.reload();
-    await expect(page.getByText("Juan Dela Cruz")).toHaveCount(0);
+    await expect(page.getByText("Juan D.")).toHaveCount(0);
   });
 });
 
@@ -164,7 +164,7 @@ test.describe("dropping at the proposal stage", () => {
     await expect(page.getByRole("button", { name: "Undrop" })).toHaveCount(0);
     await page.getByRole("button", { name: "Drop", exact: true }).click();
     await drop.getByRole("button", { name: "Drop candidate" }).click();
-    await expect(toast(page, "Dropped Juan Dela Cruz from Brand Designer")).toBeVisible();
+    await expect(toast(page, "Dropped Juan D. from Brand Designer")).toBeVisible();
     await expect(page.getByRole("button", { name: "Undrop" })).toBeVisible();
 
     const juan = await secondPage();

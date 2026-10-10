@@ -1,14 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { ICONS } from "@/components/icons";
 import { BioEditor, HeroEditor, LinksEditor, SkillsEditor } from "@/components/independent/profile-editors";
 import { Button, Modal, Page, Toast } from "@/components/portal/ui";
 import { EditButton } from "@/components/portal/inline-edit";
 import { FlatBadge, TalentProfile } from "@/components/portal/talent-profile";
 import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
-import { ME } from "@/lib/independent/data";
+import { nextRetake } from "@/lib/demo/work-style";
+import { dayLabel } from "@/lib/portal/dates";
+import { shortName } from "@/lib/portal/names";
 import { pastEvaluations } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";
 import { useIndependentAccount, type Profile as ProfileData } from "@/lib/independent/account";
@@ -38,6 +40,7 @@ export default function Profile() {
   const [retake, setRetake] = useState(false);
   const [toast, setToast] = useToast();
   const introVideo = useIntroVideo();
+  const retakeOn = useNextRetake();
   /** Saves one part of the profile, closes its editor and says what was saved. */
   const save = (patch: Partial<ProfileData>, message: string) => {
     setProfile(patch);
@@ -49,7 +52,9 @@ export default function Profile() {
     <Page title="Profile">
       <TalentProfile
         viewer="self"
-        person={{ ...profile, intro: ME.intro, introVideo: introVideo ?? undefined, tags, history: historyOf(contracts) }}
+        // Full names stay hidden until a match or a hire, so the preview reads "Juan D.". No intro
+        // still here: the card shows the talent's own video, or an empty card to add one.
+        person={{ ...profile, name: shortName(profile.name), introVideo: introVideo ?? undefined, tags, history: historyOf(contracts) }}
         badge={<FlatBadge>Pro</FlatBadge>}
         note={
           // IN-060 — this page is the Team Builder's view of you, not a separate internal one.
@@ -60,7 +65,7 @@ export default function Profile() {
         }
         onPlayIntro={() => setToast("Intro video plays here", "info")}
         introAction={<IntroAction hasVideo={!!introVideo} onMessage={setToast} />}
-        edit={pencilsFor(editing, tags.length > 0, setEditing, () => setRetake(true))}
+        edit={pencilsFor(editing, { hasTags: tags.length > 0, retakeOn }, setEditing, () => setRetake(true))}
         editor={editorsFor(editing, profile, { onCancel: done, onSave: save, onMessage: setToast })}
       />
 
@@ -69,7 +74,7 @@ export default function Profile() {
         open={retake}
         onClose={() => setRetake(false)}
         title="Retake the work-style quiz?"
-        description="Your current tags stay on your profile until you finish the new quiz. Six scenarios, and your tags and match scores update when you finish."
+        description="Your current tags stay until you finish. Your tags and match scores update after. You can retake the quiz once a year."
         footer={
           <>
             <Button size="lg" onClick={() => setRetake(false)}>
@@ -98,7 +103,16 @@ function historyOf(contracts: Contract[]) {
   ];
 }
 
-/** The talent's own Add / Change intro over the intro card: it picks a video, checks it and saves it. */
+/** Nothing to subscribe to: the quiz's date is written on another page, and this one reads it as it loads. */
+const noSubscribe = () => () => {};
+
+/** The day the quiz can be taken again (nextRetake), read after hydration: the server has no storage. */
+function useNextRetake(): Date | null {
+  const at = useSyncExternalStore(noSubscribe, () => nextRetake("independent")?.getTime() ?? 0, () => 0);
+  return at ? new Date(at) : null;
+}
+
+/** The talent's own Add / Replace intro over the intro card: it picks a video, checks it and saves it. */
 function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: SetToast }) {
   const introFile = useRef<HTMLInputElement>(null);
   return (
@@ -116,7 +130,7 @@ function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: Se
           if (problem) return onMessage(problem, "danger");
           try {
             await saveIntro(file);
-            onMessage(hasVideo ? "Intro video changed" : "Intro video added");
+            onMessage(hasVideo ? "Intro video replaced" : "Intro video added");
           } catch {
             onMessage("That video couldn't be saved. Try a shorter one.", "danger");
           }
@@ -128,7 +142,7 @@ function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: Se
         className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white pr-3 pl-2 text-[13px] leading-none font-medium text-ink shadow-[0_2px_8px_rgba(0,0,0,.15)] transition hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <AddVideo size={18} aria-hidden className="text-primary" />
-        {hasVideo ? "Change intro" : "Add intro"}
+        {hasVideo ? "Replace intro" : "Add intro"}
       </button>
     </>
   );
@@ -138,7 +152,7 @@ function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: Se
  * The pencil beside each part — none beside the part being edited, since its editor replaces it —
  * and the tags' own, which retakes the quiz. While any part is open the others wait.
  */
-function pencilsFor(editing: Edit, hasTags: boolean, onEdit: (part: Edit) => void, onRetake: () => void) {
+function pencilsFor(editing: Edit, { hasTags, retakeOn }: { hasTags: boolean; retakeOn: Date | null }, onEdit: (part: Edit) => void, onRetake: () => void) {
   /** Another part is open: Save or Cancel it first, as on Create Role's Review. */
   const locked = editing !== "none";
   /** The pencil next to a part (its own editor replaces the part, pencil and all). */
@@ -150,8 +164,9 @@ function pencilsFor(editing: Edit, hasTags: boolean, onEdit: (part: Edit) => voi
     bio: pencil("bio", "bio"),
     // IN-063 / IN-064 — the tags are display-only: the only way to change them is to retake the quiz, which is the
     // real app's onboarding (/onboarding/talent), after a confirmation.
+    // Once a year: until the next retake comes round, the pencil waits and says when.
     tags: hasTags ? (
-      <EditButton label="workplace tags" tip="Retake the quiz to change your tags" onClick={onRetake} disabled={locked} />
+      <EditButton label="workplace tags" tip="Retake the quiz to change your tags" onClick={onRetake} disabled={locked || !!retakeOn} reason={!locked && retakeOn ? `You can retake the quiz on ${dayLabel(retakeOn)}.` : undefined} />
     ) : (
       <EditButton label="workplace tags" tip="Take the work-style quiz" href="/onboarding/talent" disabled={locked} />
     ),

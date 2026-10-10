@@ -1,6 +1,6 @@
 import { card, column, drag, expect, notes, open, panel, ROLE, savedItem, test, toast, view } from "./fixtures";
 
-// Scenario N — everything saved survives a hard reload; a notification opens the item.
+// Scenario N — everything saved survives a hard reload; a notification opens its step in the thread, and that opens the item.
 test.describe("persistence · on a role, where work is added", () => {
   test.use({ seedOptions: ROLE });
 
@@ -31,14 +31,18 @@ test.describe("persistence · on a role, where work is added", () => {
 });
 
 test.describe("persistence · notifications", () => {
-  test("a notification links straight to the item", async ({ page, secondPage }) => {
+  test("a notification opens its step in the thread, whose View details opens the item", async ({ page, secondPage }) => {
     await open(page, "team", "?task=t-logos");
     await panel(page).getByRole("button", { name: "Approve" }).click();
     await expect(toast(page, "Approved #2 — Juan has been told")).toBeVisible();
     const [note] = await notes(page, "independent");
-    expect(note.href).toBe("/independent/contracts/brand-designer?task=t-logos");
+    expect(note.href).toMatch(/^\/independent\/messages\?msg=/);
     const juan = await secondPage();
     await juan.goto(note.href);
+    const entry = juan.locator(`#msg-${new URL(note.href, "http://x").searchParams.get("msg")}`);
+    await expect(entry).toContainText("Alex Rivera approved");
+    await entry.getByRole("link", { name: "View details" }).click();
+    await expect(juan).toHaveURL(/\/independent\/contracts\/brand-designer\?.*task=t-logos/);
     await expect(panel(juan).getByText(/Approved by Alex Rivera/).first()).toBeVisible();
     await expect(panel(juan).getByRole("heading", { name: "Activity" })).toBeVisible();
   });

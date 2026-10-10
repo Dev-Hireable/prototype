@@ -11,16 +11,16 @@ import type { Offer } from "./data";
 import { DEAL_ID } from "./deal-view";
 
 /*
- * Sent Offers: the offer the talent opens on their application, the post-trial offer that follows an
+ * Offers sent: the offer the talent opens on their application, the post-trial offer that follows an
  * evaluated trial, and the seed's other offers. The live two sit on the shared engagement.
  */
 
 const offersStore = persisted("team.offers", seedOffers);
 
-/** The id the post-trial offer goes by in Sent Offers, beside the proposal's offer (DEAL_ID). */
+/** The id the post-trial offer goes by among the offers, beside the proposal's offer (DEAL_ID). */
 export const CONVERSION_ID = "deal-hire";
 
-/** Sent Offers' vocabulary for an offer's answer. */
+/** The vocabulary for an offer's answer, as the candidate's card shows it. */
 const OFFER_STATUS: Record<ConversionStatus, Offer["status"]> = {
   sent: { label: "Pending", tone: "warn" },
   accepted: { label: "Accepted", tone: "ok" },
@@ -79,7 +79,7 @@ const talentSide = (d: Deal) => ({ slug: d.roleSlug, title: d.title });
 function sendOffer(terms: Omit<DealOffer, "status" | "sent" | "declineReason">) {
   const d = readDeal();
   if (!d) return;
-  move("offer_sent", talentSide(d), { type: terms.type });
+  move("offer_sent", talentSide(d), { type: terms.type, escrow: terms.deposit?.escrow });
   updateDeal((x) => ({ ...x, stage: "offer_received", dropped: false, proposalDeclined: undefined, offer: { ...terms, status: "sent", sent: today() } }));
 }
 

@@ -339,7 +339,7 @@ test.describe("role wizard · Review", () => {
     await expect(publish).toBeDisabled();
     // A disabled button takes no pointer, so its tip hangs on the wrapper around it.
     await publish.locator("..").hover();
-    await expect(page.locator('[data-slot="tooltip-content"]')).toHaveText("Finish your company profile and add a payment method first");
+    await expect(page.locator('[data-slot="tooltip-content"]')).toHaveText("Finish your company profile first");
     await expect(page.getByText("To publish, finish your company profile. You can save this role as a draft now and publish it after.")).toBeVisible();
     await expect(page.getByRole("link", { name: "company profile", exact: true })).toHaveAttribute("href", "/team/profile/company");
     await expect(page.getByRole("button", { name: "Save as draft" })).toBeEnabled();

@@ -29,9 +29,8 @@ export const SECTIONS: Section[] = [
     icon: "logo",
     menu: [
       { href: "/team/hire", label: "Create Role", icon: "edit" },
+      // Interviews and sent offers are read on each candidate's card in the role's pipeline.
       { href: "/team/hire/roles", label: "All Roles", icon: "contracts" },
-      { href: "/team/hire/offers", label: "Sent Offers", icon: "document" },
-      { href: "/team/hire/interviews", label: "Interviews", icon: "interviews" },
     ],
   },
   {

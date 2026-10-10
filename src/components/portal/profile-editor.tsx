@@ -3,7 +3,9 @@
 import { useRef, useState, type ReactNode } from "react";
 import { MdOutlineEdit, MdOutlinePhotoCamera } from "react-icons/md";
 import { Button, Input, Select, Textarea } from "@/components/portal/ui";
-import { TimeZonePicker } from "@/components/portal/time-zone-picker";
+import { CityPicker, TimeZonePicker } from "@/components/portal/time-zone-picker";
+import { Tip } from "@/components/portal/tip";
+import { ICONS } from "@/components/icons";
 
 /**
  * The profile editors' parts — the Team Builder's own profile and the company profile draw every
@@ -106,6 +108,7 @@ export function ProfileHeader({
  * One field, edited where it's read: the row opens into its editor when clicked (or its pencil is
  * pressed), Enter or Save keeps the change, Escape or Cancel drops it. Each row saves on its own.
  * `validate` says why a draft can't be saved; `hint` is shown under the editor (a character count).
+ * A `locked` row can't be edited at all, and says how it's changed; a `required` row that's empty says so.
  */
 export function EditableRow({
   label,
@@ -115,10 +118,16 @@ export function EditableRow({
   placeholder,
   validate,
   hint,
+  locked,
+  required = false,
   onSave,
 }: {
   label: string;
   value: string;
+  /** Why it can't be edited here ("Contact support to change your name."): the row is read-only, with a lock. */
+  locked?: string;
+  /** Empty, it's marked Required, so a profile short of complete shows which row is missing. */
+  required?: boolean;
   /** "timezone" edits with the searchable TimeZonePicker — every zone there is, not a typed string. */
   kind?: RowKind;
   options?: readonly string[];
@@ -129,6 +138,7 @@ export function EditableRow({
 }) {
   const [draft, setDraft] = useState<string | null>(null);
 
+  if (locked) return <LockedRow label={label} value={value} reason={locked} />;
   if (draft !== null)
     return <RowEditor label={label} value={value} kind={kind} options={options} placeholder={placeholder} validate={validate} hint={hint} onSave={onSave} draft={draft} setDraft={setDraft} />;
 
@@ -143,7 +153,10 @@ export function EditableRow({
           the label and the pencil; the hairlines between rows stay on the text's edges. */}
       <span aria-hidden className="absolute inset-y-0 -right-3 -left-3 -z-10 rounded-lg group-hover:bg-surface-alt group-focus-visible:outline-2 group-focus-visible:outline-primary" />
       <span className="text-[13px] leading-[1.4] font-medium text-ink-2 max-sm:col-span-2">{label}</span>
-      <span className={`min-w-0 text-[14px] leading-[1.5] whitespace-pre-line ${value ? "text-ink" : "text-ink-2"}`}>{value || placeholder || "Not set"}</span>
+      <span className={`min-w-0 text-[14px] leading-[1.5] whitespace-pre-line ${value ? "text-ink" : "text-ink-2"}`}>
+        {value || placeholder || "Not set"}
+        {!value && required && <span className="ml-2 rounded-full bg-warn-bg px-2 py-0.5 text-[12px] font-semibold text-warn-ink">Required</span>}
+      </span>
       <span aria-hidden className="flex size-8 items-center justify-center rounded-md text-ink-2 opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-focus-visible:opacity-100">
         <MdOutlineEdit size={17} />
       </span>
@@ -151,8 +164,23 @@ export function EditableRow({
   );
 }
 
-/** What a row edits with: a one-line input, a textarea, a select, or the time zone picker. */
-type RowKind = "text" | "long" | "select" | "timezone";
+/** A row that can't be edited here: its value, and a lock that says how it's changed. */
+function LockedRow({ label, value, reason }: { label: string; value: string; reason: string }) {
+  return (
+    <div className="grid w-full grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-x-4 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto]">
+      <span className="text-[13px] leading-[1.4] font-medium text-ink-2 max-sm:col-span-2">{label}</span>
+      <span className="min-w-0 text-[14px] leading-[1.5] text-ink">{value}</span>
+      <Tip label={reason}>
+        <span tabIndex={0} role="img" aria-label={`Locked. ${reason}`} className="flex size-8 items-center justify-center rounded-md text-ink-2 focus-visible:outline-2 focus-visible:outline-primary">
+          <ICONS.lock size={17} aria-hidden />
+        </span>
+      </Tip>
+    </div>
+  );
+}
+
+/** What a row edits with: a one-line input, a textarea, a select, or the time zone or city picker. */
+type RowKind = "text" | "long" | "select" | "timezone" | "city";
 
 /**
  * A row open in its editor: the field for its kind, what's wrong with the draft (and the hint), and
@@ -204,7 +232,7 @@ function RowEditor({
       <div className="flex min-w-0 flex-col gap-2">
         <DraftField kind={kind} options={options} label={label} placeholder={placeholder} draft={draft} setDraft={setDraft} onKeyDown={keys} />
         {(hint || problem) && <DraftNote problem={problem} hint={hint} draft={draft} />}
-        <EditorActions long={kind === "long"} canSave={canSave} onCancel={() => setDraft(null)} onSave={save} />
+        <EditorActions canSave={canSave} onCancel={() => setDraft(null)} onSave={save} />
       </div>
     </div>
   );
@@ -222,11 +250,10 @@ function DraftNote({ problem, hint, draft }: { problem: string | null; hint?: (d
   );
 }
 
-/** The editor's foot: the keys that save and cancel (Ctrl+Enter in a textarea), then Cancel and Save. */
-function EditorActions({ long, canSave, onCancel, onSave }: { long: boolean; canSave: boolean; onCancel: () => void; onSave: () => void }) {
+/** The editor's foot: Cancel and Save. (Enter, or Ctrl+Enter in a textarea, saves; Escape cancels.) */
+function EditorActions({ canSave, onCancel, onSave }: { canSave: boolean; onCancel: () => void; onSave: () => void }) {
   return (
     <div className="flex items-center justify-end gap-2">
-      <span className="mr-auto text-[12px] text-ink-2">{long ? "Ctrl+Enter to save · Esc to cancel" : "Enter to save · Esc to cancel"}</span>
       <Button size="sm" onClick={onCancel}>
         Cancel
       </Button>
@@ -256,6 +283,7 @@ function DraftField({
   onKeyDown: (e: React.KeyboardEvent) => void;
 }) {
   if (kind === "timezone") return <TimeZonePicker value={draft} onChange={setDraft} autoFocus />;
+  if (kind === "city") return <CityPicker value={draft} onChange={setDraft} aria-label={label} autoFocus />;
   if (kind === "select" && options) return <Select options={options} value={draft} onChange={(e) => setDraft(e.target.value)} />;
   if (kind === "long") return <Textarea autoFocus rows={4} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKeyDown} aria-label={label} />;
   return <Input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={onKeyDown} aria-label={label} placeholder={placeholder} />;

@@ -133,22 +133,21 @@ function useSidebarFold() {
   return { collapsed, railOnly, toggle: () => setChosen(!collapsed) };
 }
 
-/** Log out's confirm: Log out signs out and follows the menu item's link; Cancel stays. */
+/** Log out's confirm, in neutral styling (nothing is lost but unsaved edits): Log out signs out and follows the menu item's link; Cancel stays. */
 function LogoutDialog({ to, onClose }: { to: string | null; onClose: () => void }) {
   const router = useRouter();
   return (
     <Modal
       open={!!to}
       onClose={onClose}
-      tone="danger"
       title="Log out?"
-      description="You'll be signed out of this device. Anything you haven't saved is lost, and you'll need to sign in again to get back in."
+      description="Unsaved changes will be lost."
       footer={
         <>
           <Button size="lg" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" variant="danger" onClick={() => { signOut(); if (to) router.push(to); }}>
+          <Button size="lg" variant="primary" onClick={() => { signOut(); if (to) router.push(to); }}>
             Log out
           </Button>
         </>

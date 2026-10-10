@@ -27,7 +27,7 @@ let editorClosed = false;
  * and its tooltip says why. `tip` replaces the plain "Edit" when the pencil does something more
  * particular; `href` makes it a link, for an edit that happens on another page.
  */
-export function EditButton({ label, onClick, disabled, href, tip = "Edit" }: { label: string; onClick?: () => void; disabled?: boolean; href?: string; tip?: string }) {
+export function EditButton({ label, onClick, disabled, href, tip = "Edit", reason }: { label: string; onClick?: () => void; disabled?: boolean; href?: string; tip?: string; /** Why it's disabled, when it isn't another edit being open. */ reason?: string }) {
   const name = `Edit ${label.replace(/:$/, "")}`;
   const className = "flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-ink enabled:hover:bg-surface-2 disabled:opacity-40";
   const icon = <Edit size={16} aria-hidden />;
@@ -37,7 +37,7 @@ export function EditButton({ label, onClick, disabled, href, tip = "Edit" }: { l
     if (editorClosed && (!document.activeElement || document.activeElement === document.body)) button.current?.focus();
   }, []);
   return (
-    <Tip label={disabled ? "Save or cancel your edit first" : tip} wrap={disabled}>
+    <Tip label={disabled ? (reason ?? "Save or cancel your edit first") : tip} wrap={disabled}>
       {href && !disabled ? (
         <Link href={href} aria-label={name} className={`${className} hover:bg-surface-2`}>
           {icon}

@@ -2,12 +2,18 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { Button, Card, CardHeading, Checkbox, EmptyState, Field, InfoBanner, Input, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { Button, Card, CardHeading, EmptyState, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { Tip } from "@/components/portal/tip";
 import { PaymentMethodRow } from "@/components/portal/settings";
+import { AddCardDialog, ADD_CARD } from "@/components/team/add-card-dialog";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { PaymentMethod } from "@/lib/team/data";
 import { useCards } from "@/lib/team/account";
 
+/**
+ * TB-102 — the cards on file. None is needed to start: a card is asked for when it's first used, the
+ * first proposal or offer (TB-105), with the same Add a card form as here.
+ */
 export default function PaymentMethods() {
   const { cards, setDefaultCard } = useCards();
   const [adding, setAdding] = useState(false);
@@ -21,11 +27,14 @@ export default function PaymentMethods() {
         <div className="flex items-center justify-between">
           <CardHeading>Payment methods</CardHeading>
           <Button size="lg" variant="primary" onClick={() => setAdding(true)}>
-            Add payment method
+            {ADD_CARD}
           </Button>
         </div>
-        <p className="text-[13px] leading-[1.4] text-ink-2">Escrow deposits and salaries are charged to your default method.</p>
-        {cards.length === 0 && <EmptyState title="No payment method yet" body="Add a card to fund escrow for trials and pay salaries." />}
+        {cards.length === 0 ? (
+          <EmptyState title="No card yet" body="You'll be asked for one when your first proposal comes in or you send an offer. You can also add it now." />
+        ) : (
+          <p className="text-[13px] leading-[1.4] text-ink-2">Trial escrow and salaries are charged to your default card.</p>
+        )}
         {cards.map((c) => (
           <CardRow
             key={c.id}
@@ -42,7 +51,7 @@ export default function PaymentMethods() {
         )}
       </Card>
 
-      <AddCardDialog open={adding} onClose={() => setAdding(false)} onToast={setToast} />
+      <AddCardDialog open={adding} onClose={() => setAdding(false)} onAdded={() => setToast("Card added")} />
       <RemoveCardDialog card={removing} onClose={() => setRemoving(null)} onToast={setToast} />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
@@ -68,66 +77,15 @@ function CardRow({ card: c, only, onDefault, onRemove }: { card: PaymentMethod; 
               Set as default
             </Button>
           )}
-          <Button size="sm" variant="danger" disabled={only || c.isDefault} onClick={onRemove}>
-            Remove
-          </Button>
+          {/* Quiet here; the solid red is the confirm's. A card that can't go yet says why. */}
+          <Tip label={c.isDefault && !only ? "Set another card as default to remove this one." : undefined} wrap>
+            <Button size="sm" disabled={only || c.isDefault} onClick={onRemove}>
+              Remove
+            </Button>
+          </Tip>
         </>
       }
     />
-  );
-}
-
-/** A new card — number, expiry and CVC, and whether it becomes the default. Only the number is kept once it's added. */
-function AddCardDialog({ open, onClose, onToast }: { open: boolean; onClose: () => void; onToast: SetToast }) {
-  const { cards, addCard } = useCards();
-  const [number, setNumber] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [isDefault, setIsDefault] = useState(cards.length === 0);
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Add a card"
-      description="Cards are stored by our payment provider; Hireable only keeps the last four digits."
-      footer={
-        <>
-          <Button size="lg" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            size="lg"
-            variant="primary"
-            disabled={number.replace(/\s/g, "").length < 12}
-            onClick={() => {
-              const digits = number.replace(/\s/g, "");
-              addCard({ id: `pm${Date.now()}`, brand: digits.startsWith("5") ? "Mastercard" : "Visa", last4: digits.slice(-4), expires: expiry || "12/2029", isDefault });
-              onClose();
-              setNumber("");
-              onToast("Card added");
-            }}
-          >
-            Add card
-          </Button>
-        </>
-      }
-    >
-      <div className="flex flex-col gap-3">
-        <Field label="Card number">
-          <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder="4242 4242 4242 4242" inputMode="numeric" />
-        </Field>
-        <div className="flex gap-3">
-          <Field label="Expiry" className="flex-1">
-            <Input value={expiry} onChange={(e) => setExpiry(e.target.value)} placeholder="MM/YYYY" />
-          </Field>
-          <Field label="CVC" className="flex-1">
-            <Input placeholder="123" inputMode="numeric" />
-          </Field>
-        </div>
-        <Checkbox checked={isDefault} onChange={setIsDefault}>
-          Set as default payment method
-        </Checkbox>
-      </div>
-    </Modal>
   );
 }
 
@@ -140,7 +98,7 @@ function RemoveCardDialog({ card, onClose, onToast }: { card: PaymentMethod | nu
       onClose={onClose}
       tone="danger"
       title={`Remove ${card?.brand} ending ${card?.last4}?`}
-      description="Charges already scheduled to this card complete; nothing new is charged here."
+      description="Payments already scheduled on this card will still go through. New payments will use your default card."
       footer={
         <>
           <Button size="lg" onClick={onClose}>

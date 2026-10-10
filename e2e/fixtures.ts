@@ -184,6 +184,15 @@ export async function notes(page: Page, side: "team" | "independent"): Promise<{
   return page.evaluate((s) => JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}")?.[s] ?? [], side);
 }
 
+/**
+ * The thread entry a notification opens (its href is `/<side>/messages?msg=<id>`): the step logged in
+ * the shared thread, with where each side's View details goes.
+ */
+export async function entryOf(page: Page, href: string): Promise<{ id: string; event?: { text: string; href: Partial<Record<"team" | "independent", string>>; only?: string } } | undefined> {
+  const id = new URL(href, "http://x").searchParams.get("msg");
+  return page.evaluate((i) => JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}")?.chat?.find((m: { id: string }) => m.id === i), id);
+}
+
 /** A board card by its reference and name, as it's announced. */
 export const card = (page: Page, name: string | RegExp) => page.getByTestId("board").getByRole("group", { name });
 

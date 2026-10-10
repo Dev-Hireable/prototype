@@ -34,7 +34,8 @@ const SEED_PROFILE: Profile = {
   links: seedProfile.links,
   email: "juandelacruz@gmail.com",
   phone: "+63 917 555 0142",
-  timezone: "(GMT+8) Manila",
+  /** "" = automatic: this device's time zone (TB-099 / IN-067). */
+  timezone: "",
 };
 
 /**
