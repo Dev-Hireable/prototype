@@ -69,7 +69,7 @@ function ResultsHeader({ copy }: { copy: ResultsCopy }) {
       <h1 className="font-sans text-foreground w-full text-center text-[1.85rem] leading-[125%] font-semibold text-balance sm:text-[2rem] sm:leading-[150%]">
         {copy.title}
       </h1>
-      <p className="font-secondary text-text-tertiary flex w-full max-w-[749px] flex-none items-center justify-center self-stretch text-center text-sm leading-[145%] tracking-[0.2px] text-balance sm:text-base sm:leading-[150%]">
+      <p className="font-secondary text-text-tertiary flex w-full max-w-[749px] flex-none items-center justify-center self-stretch text-center text-base leading-[150%] tracking-[0.2px] text-balance sm:text-lg">
         {copy.description}
       </p>
     </div>
@@ -138,7 +138,7 @@ function ResultsSummary({
       <p className="font-secondary text-text-tertiary order-0 w-full flex-none self-stretch text-[12px] leading-[120%] font-semibold tracking-[0.2px] uppercase">
         Your working style
       </p>
-      <p className="font-secondary text-foreground order-1 w-full flex-none self-stretch text-[14px] leading-[120%] font-normal tracking-[0.2px]">
+      <p className="font-secondary text-foreground order-1 w-full flex-none self-stretch text-base leading-[150%] font-normal tracking-[0.2px]">
         {summary}
       </p>
     </div>
