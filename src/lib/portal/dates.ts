@@ -69,6 +69,13 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
  */
 export const formatDate = (d: Date) => `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 
+/**
+ * The slots an interview can be booked, moved or asked to move to, in the Team Builder's time zone
+ * — (GMT+8) Manila, as the availability settings say. They were EST in booking and PHT in
+ * Reschedule, so one interview could read in two zones.
+ */
+export const INTERVIEW_TIMES = ["09:00 AM (PHT)", "10:00 AM (PHT)", "02:00 PM (PHT)", "04:00 PM (PHT)"];
+
 /** An interview's `when` ("Tue 29 Sep 2026, 10:00 AM (PHT)") as its start, read in local time. */
 function interviewStart(when: string): Date | undefined {
   const m = /(\d{1,2}) (\w{3}) (\d{4}), (\d{1,2}):(\d{2}) (AM|PM)/.exec(when);

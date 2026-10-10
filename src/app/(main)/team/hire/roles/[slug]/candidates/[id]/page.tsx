@@ -14,7 +14,7 @@ import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import { useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { useToast, type SetToast } from "@/lib/portal/toast";
-import { EMPLOYER_STAGE_LABELS, INTERVIEW_DECLINED, awaitsApplication, byName, needsNewSlot } from "@/lib/team/data";
+import { EMPLOYER_STAGE_LABELS, INTERVIEW_DECLINED, NEW_TIME_REQUESTED, awaitsApplication, byName, needsNewSlot } from "@/lib/team/data";
 import type { Candidate, Independent, Interview, Role } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { useRoles } from "@/lib/team/roles";
@@ -239,7 +239,7 @@ function StageAction({ cand, role, person, hasProposal, onOpen }: { cand: Candid
       if (needsNewSlot(cand))
         return (
           <Button variant="primary" onClick={() => onOpen("invite")}>
-            Offer a new time
+            {cand.status?.label === NEW_TIME_REQUESTED ? "Review new time" : "Offer a new time"}
           </Button>
         );
       return (
@@ -289,7 +289,9 @@ function StageNote({ cand, first }: { cand: Candidate; first: string }) {
   if (cand.dropped || (cand.stage !== "invited" && cand.stage !== "invite_accepted")) return null;
   return (
     <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">
-      {needsNewSlot(cand)
+      {cand.status?.label === NEW_TIME_REQUESTED
+        ? `${first} can't make the slot and asked for ${cand.status.meta ?? "another time"}. Confirm it or offer another to keep going.`
+        : needsNewSlot(cand)
         ? `${cand.status?.label === INTERVIEW_DECLINED ? `${first} declined the interview` : "The interview was cancelled"}. Offer a new time to keep going.`
         : `${cand.stage === "invited" ? `Waiting for ${first} to confirm the interview. ` : ""}You can request a proposal once the interview is done.`}
     </p>

@@ -105,7 +105,7 @@ export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string;
 /* ---------------------------------------------------------- interviews ---- */
 
 /** `starts` is an invitation still waiting on the talent's answer. */
-export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined" | "cancelled"; past?: boolean };
+export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined" | "cancelled" | "reschedule"; past?: boolean };
 
 export const interviews: Interview[] = [];
 

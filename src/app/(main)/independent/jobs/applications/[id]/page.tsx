@@ -4,6 +4,7 @@ import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { ApplicationProposalDialog } from "@/components/independent/application-proposal-dialog";
+import { RescheduleDialog } from "@/components/independent/reschedule-dialog";
 import { Button, Card, Chip, JobBadge, Modal, Page, PipelineTracker, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { FactStrip } from "@/components/portal/page-parts";
@@ -34,7 +35,7 @@ const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-de
 export default function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { workStyle } = useIndependentAccount();
-  const { applications, setStage, declineInterview } = useApplications();
+  const { applications, setStage, declineInterview, requestReschedule } = useApplications();
   const app = applications.find((a) => a.id === id);
   if (!app) notFound();
   const job = useJobView(app);
@@ -44,6 +45,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
   /** TB-106 — the Team Builder's note and the version it applies to, off the shared engagement. */
   const live = deal?.roleSlug === app.roleSlug ? deal : null;
   const [declining, setDeclining] = useState(false);
+  const [rescheduling, setRescheduling] = useState(false);
   /** TB-106 — their proposal as the Team Builder reads it, with its history (the same dialog). */
   const [reading, setReading] = useState(() => search.get("proposal") === "1");
   const [toast, setToast] = useToast();
@@ -61,7 +63,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
             fade), so they line up at rest and the right one doesn't jump when it catches. */}
         <div className="flex items-start justify-center gap-6 pt-4">
           <RoleColumn job={job} tasksShared={job.type === "trial" && app.stage !== "applied"} mine={workStyle} />
-          <ActionColumn app={app} job={job} live={live} onAccept={accept} onDecline={() => setDeclining(true)} onToast={setToast} onReadProposal={() => setReading(true)} />
+          <ActionColumn app={app} job={job} live={live} onAccept={accept} onDecline={() => setDeclining(true)} onReschedule={() => setRescheduling(true)} onToast={setToast} onReadProposal={() => setReading(true)} />
         </div>
       </div>
 
@@ -73,6 +75,20 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
           declineInterview(app.id);
           setDeclining(false);
           setToast("Invitation declined");
+        }}
+        onReschedule={() => {
+          setDeclining(false);
+          setRescheduling(true);
+        }}
+      />
+      <RescheduleDialog
+        open={rescheduling}
+        company={job.company}
+        when={`${job.interview.date}, ${job.interview.time}`}
+        onClose={() => setRescheduling(false)}
+        onSend={(when, note) => {
+          requestReschedule(app.id, when, note);
+          setToast(`New time sent to ${job.company}`);
         }}
       />
       {/* The same Review proposal dialog the Team Builder opens: one layout, one history, both sides. */}
@@ -203,19 +219,25 @@ function AboutCompany({ job }: { job: JobView }) {
   );
 }
 
-/** Declining the interview invitation: the company gets a note, and the application stays open. */
-function DeclineInvitation({ open, company, onClose, onDecline }: { open: boolean; company: string; onClose: () => void; onDecline: () => void }) {
+/**
+ * Declining the interview invitation: the company gets a note, and the application stays open but
+ * goes no further until a new slot is agreed. If it's only the time, asking for another is one click.
+ */
+function DeclineInvitation({ open, company, onClose, onDecline, onReschedule }: { open: boolean; company: string; onClose: () => void; onDecline: () => void; onReschedule: () => void }) {
   return (
     <Modal
       open={open}
       onClose={onClose}
       tone="danger"
       title="Decline this invitation?"
-      description={`${company} gets a note and your application stays open. You can ask to reschedule from Messages.`}
+      description={`${company} gets a note and your application stays open, but nothing moves on until you agree a new time. If it's only the time, ask for another instead.`}
       footer={
         <>
           <Button size="lg" onClick={onClose}>
             Cancel
+          </Button>
+          <Button size="lg" onClick={onReschedule}>
+            Ask for a new time
           </Button>
           <Button size="lg" variant="danger" onClick={onDecline}>
             Decline

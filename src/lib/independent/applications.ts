@@ -60,6 +60,7 @@ function dealStatus(deal: Deal): Application["status"] {
   // IN-071 / TB-037 — a declined or cancelled slot says so until a new one is offered.
   if (deal.interview?.outcome === "declined") return { label: "Interview declined", tone: "danger", meta: deal.interview.when };
   if (deal.interview?.outcome === "cancelled") return { label: "Interview cancelled", tone: "neutral", meta: deal.interview.when };
+  if (deal.interview?.outcome === "reschedule") return { label: "New time requested", tone: "warn", meta: deal.interview.requested?.when };
   if (deal.interview?.accepted) return { label: "Interview confirmed", tone: "info", meta: deal.interview.when };
   if (deal.interview) return { label: "Interview invitation", tone: "warn", meta: deal.interview.when };
   return undefined;
@@ -241,12 +242,32 @@ function commentOnProposal(text: string, file?: File) {
   updateDeal((x) => withProposalEvent(x, { kind: "comment", at: momentLabel(), by: "independent", text: body, chatId }));
 }
 
-/** IN-071 — declining keeps the application open and tells the Team Builder. */
+/** An interview the talent can still answer: booked, not held, and not already turned down. */
+const answerable = (deal: Deal | null): deal is Deal & { interview: NonNullable<Deal["interview"]> } => !!deal?.interview && !deal.interview.past && (deal.stage === "invited" || deal.stage === "invite_accepted");
+
+/**
+ * IN-071 — declining keeps the application open and tells the Team Builder. It goes back to
+ * Invited: a confirmed slot declined used to stay Confirmed, so the Team Builder could mark it held
+ * and carry on to the proposal and the contract.
+ */
 function declineInterview(id: string) {
   const deal = readDeal();
-  if (id !== DEAL_ID || !deal) return;
+  if (id !== DEAL_ID || !answerable(deal)) return;
   move("interview_declined", { slug: deal.roleSlug, title: deal.title });
-  updateDeal((d) => (d.interview ? { ...d, interview: { ...d.interview, past: true, accepted: false, outcome: "declined" } } : d));
+  updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, past: true, accepted: false, outcome: "declined", requested: undefined } } : d));
+}
+
+/**
+ * IN-071 — can't make the slot: the talent names the one they can, and the Team Builder confirms
+ * it or offers another. Like a decline, nothing moves on until a new slot is agreed. Also open
+ * after a decline, so turning one down isn't the end of the interview.
+ */
+function requestReschedule(id: string, when: string, note?: string) {
+  const deal = readDeal();
+  const declined = deal?.interview?.outcome === "declined" || deal?.interview?.outcome === "reschedule";
+  if (id !== DEAL_ID || !deal?.interview || deal.dropped || !(answerable(deal) || (declined && deal.stage === "invited"))) return;
+  move("interview_reschedule", { slug: deal.roleSlug, title: deal.title }, { note: when });
+  updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, past: true, accepted: false, outcome: "reschedule", requested: { when, note: note?.trim() || undefined } } } : d));
 }
 
 export function useApplications() {
@@ -280,5 +301,6 @@ export function useApplications() {
     submitProposal,
     commentOnProposal,
     declineInterview,
+    requestReschedule,
   };
 }

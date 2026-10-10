@@ -196,17 +196,17 @@ export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
 /** `roleSlug` / `candidate` — the role and tracker card it was booked from, so a row can open them. */
 export type Interview = { id: string; independent: string; role: string; roleSlug?: string; candidate?: string; when: string; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean };
 
-/** A candidate whose interview fell through — declined by them or cancelled — and can be offered a new slot. */
-/**
- * The slots an interview can be booked or moved to, in the Team Builder's time zone — (GMT+8)
- * Manila, as the availability settings say. They were EST in booking and PHT in Reschedule, so one
- * interview could read in two zones.
- */
-export const INTERVIEW_TIMES = ["09:00 AM (PHT)", "10:00 AM (PHT)", "02:00 PM (PHT)", "04:00 PM (PHT)"];
-
 export const INTERVIEW_DECLINED = "Interview declined";
 export const INTERVIEW_CANCELLED = "Interview cancelled";
-export const needsNewSlot = (c: { stage: string; status?: { label: string } }) => c.stage === "invited" && (c.status?.label === INTERVIEW_DECLINED || c.status?.label === INTERVIEW_CANCELLED);
+/** IN-071 — the talent can't make the slot and asked for the one they named instead. */
+export const NEW_TIME_REQUESTED = "New time requested";
+/**
+ * A candidate whose interview fell through — declined or asked to move by them, or cancelled — and
+ * needs a new slot before anything else. Declining a slot they had already confirmed used to leave
+ * the card at Confirmed, so "Mark interview as done" and the proposal after it stayed open.
+ */
+export const needsNewSlot = (c: { stage: string; status?: { label: string } }) =>
+  (c.stage === "invited" || c.stage === "invite_accepted") && [INTERVIEW_DECLINED, INTERVIEW_CANCELLED, NEW_TIME_REQUESTED].includes(c.status?.label ?? "");
 
 export const interviews: Interview[] = [];
 

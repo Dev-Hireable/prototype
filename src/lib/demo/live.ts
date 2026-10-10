@@ -215,6 +215,7 @@ export type MoveKind =
   | "interview_invited" // TB-037 Candidate tracker → Interview
   | "interview_rescheduled" // TB-037 Interviews → Reschedule
   | "interview_cancelled" // TB-037 Interviews → Cancel interview
+  | "interview_moved" // TB-037 Confirm the new time the talent asked for
   | "proposal_requested" // TB-103 Request Proposal from Candidate
   | "proposal_revision" // TB-106 Request Changes to Proposal
   | "proposal_declined" // TB-107 Decline Proposal
@@ -235,6 +236,7 @@ export type MoveKind =
   | "offer_declined" // IN-075 Decline Offer
   | "task_submitted" // IN-030 Submit a Task for Review
   | "interview_declined" // IN-071 Decline an interview invitation
+  | "interview_reschedule" // IN-071 Ask for a new interview time
   | "hire_accepted" // IN-084 Accept the post-trial offer
   | "hire_declined" // IN-084 Decline the post-trial offer
   | "withdrawn"; // IN — withdraw application
@@ -264,6 +266,12 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     story: "TB-037",
     title: () => "Interview rescheduled",
     body: (r) => `${PAIR.team.name} moved your ${r} interview to a new time. Accept the new slot to confirm it.`,
+  },
+  interview_moved: {
+    to: "independent",
+    story: "TB-037",
+    title: () => "New interview time confirmed",
+    body: (r) => `${PAIR.team.name} agreed to the time you asked for on ${r}. The meeting link is on your application.`,
   },
   interview_cancelled: {
     to: "independent",
@@ -387,6 +395,13 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
     title: () => `${PAIR.independent.name} declined the interview`,
     body: (r) => `They cannot make that slot for ${r}. Their application stays open — offer another time.`,
   },
+  interview_reschedule: {
+    to: "team",
+    story: "IN-071",
+    title: () => `${PAIR.independent.name} asked for a new interview time`,
+    // `note` carries the slot they asked for.
+    body: (r, x) => `They cannot make the ${r} slot and asked for ${x?.note ?? "another time"}. Confirm it or offer a different one.`,
+  },
   hire_accepted: {
     to: "team",
     story: "IN-084",
@@ -472,6 +487,7 @@ function independentTarget(kind: MoveKind, slug: string, x?: MoveExtra): { href:
       return { href: `/independent/jobs/${slug}`, kind: "other" };
     case "interview_invited":
     case "interview_rescheduled":
+    case "interview_moved":
     case "interview_cancelled":
       return { href: application, kind: "interviews" };
     case "proposal_requested":
@@ -500,6 +516,7 @@ function teamTarget(kind: MoveKind, slug: string, x?: MoveExtra): string {
   switch (kind) {
     case "interview_accepted":
     case "interview_declined":
+    case "interview_reschedule":
       return `${board}?stage=interview`;
     case "proposal_sent":
       return `${board}/candidates/${DEAL}`;

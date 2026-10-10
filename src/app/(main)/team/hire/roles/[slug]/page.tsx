@@ -16,7 +16,7 @@ import { InterviewDialog } from "@/components/team/interview-dialog";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/interview-steps";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
-import { awaitsApplication, byName, columnOf, needsNewSlot, TRACKER_COLUMNS } from "@/lib/team/data";
+import { awaitsApplication, byName, columnOf, needsNewSlot, NEW_TIME_REQUESTED, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate, Role as RoleData } from "@/lib/team/data";
 import { jobFacts } from "@/lib/contract/job-types";
 import { PAIR, unreadChat, useLive } from "@/lib/demo/live";
@@ -404,11 +404,11 @@ function InterviewButton({ c, actions }: { c: Candidate; actions: CardActions })
       </button>
     );
   }
-  // They declined it, or it was cancelled: a new slot is the way on.
+  // They declined it, asked for another time, or it was cancelled: a new slot is the way on.
   if (needsNewSlot(c)) {
     return (
       <button type="button" onClick={() => actions.invite(c)} className={PRIMARY}>
-        Offer a new time
+        {c.status?.label === NEW_TIME_REQUESTED ? "Review new time" : "Offer a new time"}
       </button>
     );
   }
