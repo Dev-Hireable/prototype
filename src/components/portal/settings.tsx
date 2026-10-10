@@ -169,21 +169,27 @@ function EmailChange({ label, value, saved, onChange, pending, onPending, onToas
   };
   return (
     <>
-      <div className="flex items-end gap-3">
-        <Field label={label} hint="Type a new email, then select Change email. We'll send a 6-digit code to it." className="flex-1">
-          <Input value={value} onChange={(event) => onChange(event.target.value)} type="email" />
-        </Field>
-        <Button
-          size="lg"
-          className="shrink-0"
-          disabled={value === saved || !value.includes("@")}
-          onClick={() => {
-            onPending(value);
-            send(value);
-          }}
-        >
-          Change email
-        </Button>
+      {/* The hint goes under the whole row, so Change email lines up with the field, not with the hint. */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-end gap-3">
+          <Field label={label} className="flex-1">
+            <Input value={value} onChange={(event) => onChange(event.target.value)} type="email" aria-describedby="email-change-hint" />
+          </Field>
+          <Button
+            size="lg"
+            className="shrink-0"
+            disabled={value === saved || !value.includes("@")}
+            onClick={() => {
+              onPending(value);
+              send(value);
+            }}
+          >
+            Change email
+          </Button>
+        </div>
+        <p id="email-change-hint" className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
+          Type a new email, then select Change email. We&apos;ll send a 6-digit code to it.
+        </p>
       </div>
       {/* TB-099 — until this is confirmed, the address on the account is still the old one. */}
       {pending && (

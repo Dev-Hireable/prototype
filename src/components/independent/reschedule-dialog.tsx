@@ -6,7 +6,7 @@ import { DatePicker } from "@/components/portal/date-picker";
 import { formatDate, INTERVIEW_TIMES, startOfToday } from "@/lib/portal/dates";
 
 /**
- * IN-071 — can't make the interview: the talent picks the slot they can do, from the Team
+ * IN-093 — can't make the interview: the talent picks the slot they can do, from the Team
  * Builder's bookable times, with a note if they like. The Team Builder confirms it or offers
  * another; until then the interview is on hold. Closing it, either way, clears what was picked.
  */

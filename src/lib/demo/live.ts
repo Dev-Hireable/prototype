@@ -250,8 +250,8 @@ export type MoveKind =
   | "offer_accepted" // IN-074 Accept Offer
   | "offer_declined" // IN-075 Decline Offer
   | "task_submitted" // IN-030 Submit a Task for Review
-  | "interview_declined" // IN-071 Decline an interview invitation
-  | "interview_reschedule" // IN-071 Ask for a new interview time
+  | "interview_declined" // IN-092 Decline an interview invitation
+  | "interview_reschedule" // IN-093 Ask for a new interview time
   | "hire_accepted" // IN-084 Accept the post-trial offer
   | "hire_declined" // IN-084 Decline the post-trial offer
   | "withdrawn"; // IN — withdraw application
@@ -413,13 +413,13 @@ const MOVES: Record<MoveKind, { to: Side; story: string; title: (role: string, x
   },
   interview_declined: {
     to: "team",
-    story: "IN-071",
+    story: "IN-092",
     title: () => `${PAIR.independent.name} declined the interview`,
     body: (r) => `They can't make that slot for ${r}. Their application stays open, so offer another time.`,
   },
   interview_reschedule: {
     to: "team",
-    story: "IN-071",
+    story: "IN-093",
     title: () => `${PAIR.independent.name} asked for a new interview time`,
     // `note` carries the slot they asked for.
     body: (r, x) => `They cannot make the ${r} slot and asked for ${x?.note ?? "another time"}. Confirm it or offer a different one.`,

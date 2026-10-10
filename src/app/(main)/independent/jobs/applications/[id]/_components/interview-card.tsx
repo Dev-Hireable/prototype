@@ -9,7 +9,7 @@ const Video = ICONS.video;
 const Calendar = ICONS.calendar;
 const Clock = ICONS.clock;
 
-/** IN-070 / IN-071 — an interview invitation: when, how, the link once it's accepted, and the answer or the call. */
+/** IN-070 / IN-071 / IN-092 / IN-093 — an interview invitation: when, how, the link once it's accepted, and the answer (accept, a new time, decline) or the call. */
 export function InterviewCard({ app, job, live, ...actions }: StepProps & InterviewActions) {
   const accepted = app.stage === "invite_accepted";
   return (
