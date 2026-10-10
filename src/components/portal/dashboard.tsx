@@ -212,9 +212,10 @@ export function DashboardBanner({ banner, dismissed, onDismiss }: { banner: Dash
  * greeting column as a 1-col stack rather than a separate row further down the page, so the
  * two main entry points sit with the greeting instead of duplicating it.
  */
-export function DashboardQuickAction({ title, body, href, icon }: { title: string; body: string; href: string; icon: ReactNode }) {
+/** `tour` names it for the guided tour that points it out (@/lib/portal/tours). */
+export function DashboardQuickAction({ title, body, href, icon, tour }: { title: string; body: string; href: string; icon: ReactNode; tour?: string }) {
   return (
-    <Link href={href} className="flex w-full items-center gap-4 rounded-lg bg-surface-2 p-4 hover:bg-[#e9e9e9]">
+    <Link href={href} data-tour={tour} className="flex w-full items-center gap-4 rounded-lg bg-surface-2 p-4 hover:bg-[#e9e9e9]">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white text-ink">{icon}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] tracking-[0.2px]">
         <span className="text-[15px] font-semibold text-ink">{title}</span>

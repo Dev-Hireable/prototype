@@ -100,7 +100,7 @@ function Hero({ photo, workStyle, steps }: { photo: string; workStyle: readonly 
   return (
     <DashboardHero>
       <DashboardGreeting name={ME.first}>
-        <DashboardQuickAction title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
+        <DashboardQuickAction tour="find-role" title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
         <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile?edit=profile" icon={<Account size={20} aria-hidden />} />
       </DashboardGreeting>
 

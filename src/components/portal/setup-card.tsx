@@ -62,7 +62,8 @@ export function DashboardSetupCard({
   return (
     // Stretches to the greeting column's height either way. Once complete, the white traits panel
     // grows to fill it — a short card ended ~100px above the greeting and left a gap beside it.
-    <section className="relative flex w-full min-w-0 flex-col overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4">
+    // data-tour: the getting-started tours point it out (@/lib/portal/tours).
+    <section data-tour="setup" className="relative flex w-full min-w-0 flex-col overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4">
       {/* Sized as a share of the card and anchored right, so it scales with the card instead of
           drifting over the header copy — a fixed 330px-from-left offset put it on top of the
           text as the card grew. The header text is capped below so the two never meet. */}

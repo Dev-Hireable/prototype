@@ -1,5 +1,6 @@
 import { expect, test as base, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import seedFile from "./fixtures/deal.json";
+import { TOURS } from "../src/lib/portal/tours";
 
 /**
  * The E2E harness. Every test starts from the same contract (fixtures/deal.json): a trial between
@@ -71,7 +72,10 @@ export async function seed(context: BrowserContext, opts: SeedOptions = {}) {
   if (opts.deal) Object.assign(deal.deal, opts.deal);
   const value = opts.raw ?? (opts.empty ? null : JSON.stringify(deal));
   const disputes = opts.disputes ? JSON.stringify(opts.disputes) : null;
-  const stores = Object.entries(opts.stores ?? {}).map(([key, v]) => [`hireable.demo.${key}`, JSON.stringify(v)]);
+  // Every guided tour already seen, so none starts on its own over a test; a test of the tours
+  // themselves seeds `tours` empty.
+  const tours = Object.fromEntries(TOURS.map((t) => [t.id, { status: "done", step: 0 }]));
+  const stores = Object.entries({ tours, ...opts.stores }).map(([key, v]) => [`hireable.demo.${key}`, JSON.stringify(v)]);
   await context.addInitScript(
     ({ run, value, disputes, stores }) => {
       if (localStorage.getItem("hireable.e2e.run") === run) return;

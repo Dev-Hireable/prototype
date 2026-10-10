@@ -111,11 +111,18 @@ import {
   MdSort,
   MdVerticalAlignBottom,
   MdVerticalAlignTop,
+  MdHelpOutline,
+  MdRestartAlt,
+  MdPlayArrow,
 } from "react-icons/md";
 import type { IconType } from "react-icons";
 
 /** Google Material Design icons. */
 export const ICONS = {
+  // guided tours: the help button, and the tour menu's resume / restart
+  help: MdHelpOutline,
+  resume: MdPlayArrow,
+  restart: MdRestartAlt,
   // rail — admin
   home: MdOutlineHome,
   users: MdOutlinePeople,
