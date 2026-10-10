@@ -11,7 +11,7 @@ import { expect, test, toast } from "./fixtures";
 const NEW_ROLE = {
   title: "Growth Marketer",
   description: "Run our paid channels and report on leads every week.",
-  skill: "Digital marketing",
+  skill: "Paid Advertising",
   level: "Intermediate (2–5 years)",
   task: "Audit the ad accounts",
 };
@@ -54,7 +54,7 @@ const FINISHED_COMPANY = {
   logo: null,
 };
 
-/** The UI/UX Designer template's trial tasks: it's a 60-day trial at $1,500 – $2,500 a month. */
+/** The UI/UX Designer template's trial tasks: it's a 60-day trial at the senior rate, $3,700 – $5,700 a month. */
 const UX_TASKS = ["Map the current onboarding journey", "Run 5 user interviews", "Deliver wireframes and a high-fidelity Figma prototype", "Hand off specs the developers can build from"];
 
 /* -------------------------------------------------------------- locators */
@@ -66,8 +66,10 @@ const roleField = (page: Page) => page.getByRole("textbox", { name: "Add e.g. Ma
 const descriptionField = (page: Page) => field(page, "Role Description").getByRole("textbox");
 const levelPicker = (page: Page) => field(page, "Experience Level").getByRole("button");
 const reviewHeading = (page: Page) => page.getByRole("heading", { name: "Review your trial role" });
-/** The library's template cards: each one is the button that picks it. */
-const cards = (library: Locator) => library.getByRole("button", { name: /^Use the .+ template$/ });
+/** The library's template rows. */
+const rows = (library: Locator) => library.getByRole("list", { name: "Templates" }).locator("> li");
+/** One template's row, by its exact title. */
+const row = (library: Locator, title: string) => rows(library).filter({ has: library.page().getByText(title, { exact: true }) });
 const librarySearch = (library: Locator) => library.getByPlaceholder("Search roles, e.g. assistant, sales, designer");
 
 /** The Team Builder's roles, as they're saved. */
@@ -131,27 +133,57 @@ async function openLibrary(page: Page) {
   return library;
 }
 
+/** Opens a template's row, then uses it. */
+async function useTemplate(library: Locator, title: string) {
+  await row(library, title).getByRole("button", { expanded: false }).click();
+  await row(library, title).getByRole("button", { name: "Use this template" }).click();
+}
+
 /** The library's counts by category, one category narrowed to its own, and a search that finds none. */
 async function narrowAndSearch(library: Locator) {
   const categories = library.getByRole("group", { name: "Template category" }).getByRole("button");
-  await expect(categories).toHaveText(["All 18", "Admin & Support 4", "Sales 3", "Marketing 4", "Design & Creative 3", "Engineering 2", "Finance & Operations 2"]);
-  await expect(cards(library)).toHaveCount(18);
-  await library.getByRole("button", { name: "Sales 3" }).click();
-  await expect(cards(library)).toHaveCount(3);
-  await expect(library.getByRole("button", { name: "Use the Sales Manager template" })).toBeVisible();
-  await expect(library.getByRole("button", { name: "Use the Virtual Assistant template" })).toHaveCount(0);
+  await expect(categories).toHaveText([
+    "All 100",
+    "Admin and Support 13",
+    "Customer Service 8",
+    "Marketing 17",
+    "Sales 9",
+    "Design and Creative 12",
+    "Development and IT 15",
+    "Finance and Accounting 9",
+    "Operations and Project Management 7",
+    "HR and Recruitment 4",
+    "E-commerce 6",
+  ]);
+  await expect(rows(library)).toHaveCount(100);
+  await library.getByRole("button", { name: "Sales 9" }).click();
+  await expect(rows(library)).toHaveCount(9);
+  await expect(row(library, "Sales Manager")).toBeVisible();
+  await expect(row(library, "Virtual Assistant")).toHaveCount(0);
   await librarySearch(library).fill("zzzz");
   await expect(library.getByText("No templates match “zzzz”. Try another word, or close this and start from scratch.")).toBeVisible();
-  await expect(cards(library)).toHaveCount(0);
+  await expect(rows(library)).toHaveCount(0);
+}
+
+/** A row opens onto what the template fills in, one at a time, and closes again. */
+async function rowsExpand(library: Locator) {
+  const va = row(library, "Virtual Assistant").getByRole("button", { expanded: false });
+  await va.click();
+  await expect(row(library, "Virtual Assistant").getByText(/^Handles the day-to-day admin/)).toBeVisible();
+  await expect(row(library, "Virtual Assistant").getByRole("button", { name: "Use this template" })).toBeEnabled();
+  await row(library, "Executive Assistant").getByRole("button", { expanded: false }).click();
+  await expect(library.getByRole("button", { name: "Use this template" })).toHaveCount(1);
+  await row(library, "Executive Assistant").getByRole("button", { expanded: true }).click();
+  await expect(library.getByRole("button", { name: "Use this template" })).toHaveCount(0);
 }
 
 /** Step one as the UI/UX Designer template fills it in, with the template button now for changing it. */
 async function expectUxDetails(page: Page) {
   await expect(page.getByRole("button", { name: "Change template" })).toBeVisible();
   await expect(roleField(page)).toHaveValue("UI/UX Designer");
-  await expect(descriptionField(page)).toHaveValue(/^Design product experiences our users love\./);
+  await expect(descriptionField(page)).toHaveValue(/^Designs how your app or website looks/);
   await expect(field(page, "Skills")).toContainText("5 / 5");
-  await expect(field(page, "Skills").getByText("UI/UX design", { exact: true })).toBeVisible();
+  await expect(field(page, "Skills").getByText("UX Research", { exact: true })).toBeVisible();
   await expect(levelPicker(page)).toHaveText("Advanced (5–8 years)");
 }
 
@@ -258,38 +290,38 @@ test.describe("role wizard · templates", () => {
     await expect(library).toBeHidden();
     await openLibrary(page);
     await expect(librarySearch(library)).toHaveValue("");
-    await expect(library.getByRole("button", { name: "All 18" })).toHaveAttribute("aria-pressed", "true");
-    await expect(cards(library)).toHaveCount(18);
-    // A search matches the start of a title's words: "assistant" finds both assistants.
+    await expect(library.getByRole("button", { name: "All 100" })).toHaveAttribute("aria-pressed", "true");
+    await expect(rows(library)).toHaveCount(100);
+    // A search matches the start of a title's words: "assistant" finds every assistant.
     await librarySearch(library).fill("assistant");
-    await expect(cards(library)).toHaveCount(2);
-    await expect(library.getByRole("button", { name: "Use the Virtual Assistant template" })).toBeVisible();
-    await expect(library.getByRole("button", { name: "Use the Executive Assistant template" })).toBeVisible();
+    await expect(rows(library)).toHaveCount(9);
+    await rowsExpand(library);
   });
 
   test("a template fills in the whole trial: the details, its tasks, its length and its budget", async ({ page }) => {
     await page.goto("/team/hire/new?type=trial");
     const library = await openLibrary(page);
-    await library.getByRole("button", { name: "Use the UI/UX Designer template" }).click();
+    await useTemplate(library, "UI/UX Designer");
     await expect(library).toBeHidden();
     await expectUxDetails(page);
     await page.getByRole("button", { name: "Next: Trial Tasks" }).click();
     for (const [i, task] of UX_TASKS.entries()) await expect(page.getByRole("textbox", { name: `Task ${i + 1}` })).toHaveValue(task);
     await page.getByRole("button", { name: "Add budget & duration" }).click();
-    await expect(page.getByRole("textbox", { name: "Minimum" })).toHaveValue("1,500.00");
-    await expect(page.getByRole("textbox", { name: "Maximum" })).toHaveValue("2,500.00");
+    await expect(page.getByRole("textbox", { name: "Minimum" })).toHaveValue("3,700.00");
+    await expect(page.getByRole("textbox", { name: "Maximum" })).toHaveValue("5,700.00");
     await expect(page.getByRole("button", { name: "60 Days", exact: true })).toHaveAttribute("aria-pressed", "true");
   });
 
   test("reopened, the library names the template in use, and Start from scratch clears all it filled in", async ({ page }) => {
     await page.goto("/team/hire/new?type=trial");
     const library = await openLibrary(page);
-    await library.getByRole("button", { name: "Use the Front-end Developer template" }).click();
+    await useTemplate(library, "Front-End Developer");
     await openLibrary(page);
-    await expect(library.getByText("The form is filled from the Front-end Developer template.")).toBeVisible();
-    const inUse = library.getByRole("button", { name: "Front-end Developer — in use" });
-    await expect(inUse).toBeDisabled();
+    await expect(library.getByText("The form is filled from the Front-End Developer template.")).toBeVisible();
+    const inUse = row(library, "Front-End Developer");
     await expect(inUse).toContainText("In use");
+    await inUse.getByRole("button", { expanded: false }).click();
+    await expect(inUse.getByRole("button", { name: "In use", exact: true })).toBeDisabled();
     await library.getByRole("button", { name: "Start from scratch" }).click();
     await expect(library).toBeHidden();
     await expectBlankDetails(page);

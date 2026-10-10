@@ -6,7 +6,7 @@ import { TaskPlanEditor } from "@/components/portal/tasks/task-plan";
 import { RateSourceModal, TemplateBrowser, TemplateSuggestions } from "@/components/team/role-templates";
 import type { JobType, OngoingType } from "@/lib/contract/job-types";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
-import { LEVELS, levelName, suggestRange } from "@/lib/team/role-templates";
+import { LEVELS, levelName, rangeText, suggestRange } from "@/lib/team/role-templates";
 import type { RoleTemplate } from "@/lib/team/role-templates";
 import type { RoleForm, Templates } from "../_lib/form";
 import { settleMoney } from "@/lib/portal/money";
@@ -78,7 +78,7 @@ function TemplateDialogs({ templates, type }: { templates: Templates; type: JobT
   const { pending, setPending } = templates;
   return (
     <>
-      <TemplateBrowser open={templates.browsing} onClose={() => templates.setBrowsing(false)} onPick={templates.pick} onClear={() => templates.pick("blank")} applied={templates.template} />
+      <TemplateBrowser open={templates.browsing} onClose={() => templates.setBrowsing(false)} onPick={templates.pick} onClear={() => templates.pick("blank")} applied={templates.template} trial={type === "trial"} />
       {/* Opens over the library when a pick would replace something typed; Cancel keeps both. */}
       <Modal
         open={pending !== null}
@@ -177,7 +177,7 @@ function SuggestedRange({ f, suggestion, noun, inUse, onSource, onUse }: { f: Ro
     <p className="w-[533px] text-[12px] leading-[1.5] tracking-[0.2px] text-ink-2">
       Suggested {noun}:{" "}
       <strong className="font-semibold text-ink">
-        ${suggestion.min.toLocaleString("en-US")} – ${suggestion.max.toLocaleString("en-US")} /month
+        {rangeText(suggestion)}
       </strong>{" "}
       for {f.title.trim() || suggestion.guide.title} ({levelName(f.level !== LEVELS[0] ? f.level : suggestion.guide.level)}), based on similar roles on Hireable.{" "}
       <button type="button" onClick={onSource} className="font-medium text-primary underline underline-offset-2">

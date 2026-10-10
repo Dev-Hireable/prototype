@@ -51,33 +51,23 @@ type ChatHistory = ReturnType<typeof useQuizChatHistory>;
 function useAssistantPrompt({
   currentQuestionIndex,
   question,
-  persona,
   followupPrompt,
   transitionAcknowledgement,
 }: Pick<
   UseOnboardingQuizControllerParams,
   | 'currentQuestionIndex'
   | 'question'
-  | 'persona'
   | 'followupPrompt'
   | 'transitionAcknowledgement'
 >) {
   const assistantThread = useMemo(
     () =>
       buildAssistantThread({
-        currentQuestionIndex,
         followupPrompt,
-        greeting: persona.greeting,
         question,
         transitionAcknowledgement,
       }),
-    [
-      currentQuestionIndex,
-      followupPrompt,
-      persona.greeting,
-      question,
-      transitionAcknowledgement,
-    ],
+    [followupPrompt, question, transitionAcknowledgement],
   );
 
   const currentPromptDedupeKey = useMemo(
@@ -289,7 +279,6 @@ export function useOnboardingQuizController({
   const { assistantThread, currentPromptDedupeKey } = useAssistantPrompt({
     currentQuestionIndex,
     question,
-    persona,
     followupPrompt,
     transitionAcknowledgement,
   });

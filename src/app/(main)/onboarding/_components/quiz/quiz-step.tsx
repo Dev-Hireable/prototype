@@ -6,6 +6,7 @@ import type { Dispatch, RefObject } from 'react';
 import { OnboardingStepShell } from '../shared/step-shell';
 import { getQuizPersona } from '../../_lib/quiz-conversation-spec';
 import { normalizeTextOrNull } from '../../_lib/onboarding-schemas';
+import { getReadinessTurn } from '../../_lib/quiz-thread';
 import { useOnboardingQuizController } from './use-quiz-controller';
 import { useFinalCurtainTransition } from './use-curtain-transition';
 import { useQuizSectionAnimations } from './use-section-animations';
@@ -52,6 +53,9 @@ type QuizQuestionView = {
   persona: QuizPersona;
   assistantAvatarSrc: string;
   questionHeadingId: string;
+  /** The assistant's "Are you ready?" (or its explanation) before the first scenario, else null. */
+  readinessPrompt: string | null;
+  /** The question's index, or the readiness turn's (below 0) before the first one. */
   currentQuestionIndex: number;
   totalQuestions: number;
   progressCurrent: number;
@@ -71,23 +75,33 @@ function useQuizQuestionView({
   currentQuestion,
   isLastQuestion,
 }: OnboardingQuizStepProps): QuizQuestionView {
-  const { currentQuestionIndex, selectedOption, isQuizSubmitting } = flowState;
-  const currentAnswers = currentQuestion?.answers;
-  const options = useMemo(
-    () => currentAnswers?.map((answer) => answer.answerText) ?? EMPTY_OPTIONS,
-    [currentAnswers],
-  );
-  const questionHeadingId = useId();
+  const { readiness, selectedOption, isQuizSubmitting } = flowState;
   const persona = useMemo(() => {
     const base = getQuizPersona(role);
     return greeting ? { ...base, greeting } : base;
   }, [greeting, role]);
+  const readinessTurn = useMemo(
+    () => getReadinessTurn(readiness, persona),
+    [persona, readiness],
+  );
+  const currentAnswers = currentQuestion?.answers;
+  const options = useMemo(
+    () =>
+      readinessTurn?.options ??
+      currentAnswers?.map((answer) => answer.answerText) ??
+      EMPTY_OPTIONS,
+    [currentAnswers, readinessTurn],
+  );
+  const questionHeadingId = useId();
+  const currentQuestionIndex =
+    readinessTurn?.index ?? flowState.currentQuestionIndex;
 
   return {
     quizCopy,
     persona,
     assistantAvatarSrc: ASSISTANT_AVATAR_BY_VARIANT[role],
     questionHeadingId,
+    readinessPrompt: readinessTurn?.prompt ?? null,
     currentQuestionIndex,
     totalQuestions,
     progressCurrent: Math.min(
@@ -96,7 +110,7 @@ function useQuizQuestionView({
     ),
     options,
     selectedOption,
-    isLastQuestion,
+    isLastQuestion: readinessTurn ? false : isLastQuestion,
     isSubmitting: isQuizSubmitting,
   };
 }
@@ -154,30 +168,54 @@ function useQuizAnswerHandlers({
 }
 
 /**
+ * Takes the answer to "Are you ready?": Yes (always the first option) starts the first scenario,
+ * Explain further gets the explanation.
+ */
+function useReadinessAnswer(dispatchFlow: Dispatch<WizardFlowAction>) {
+  return useCallback(
+    (payload: QuizSubmissionPayload) => {
+      dispatchFlow({
+        type: 'setReadiness',
+        readiness: payload.selectedOptionIndex === 0 ? 'ready' : 'explained',
+      });
+    },
+    [dispatchFlow],
+  );
+}
+
+/**
  * The conversation about the question (useOnboardingQuizController), and the answer panel's
- * handlers on it.
+ * handlers on it. Before the first scenario it's about whether the reader is ready.
  */
 function useQuizConversation(
   {
     flowState,
     dispatchFlow,
     currentQuestion,
-    handleQuizSubmitResponse: onSubmitResponse,
+    handleQuizSubmitResponse,
   }: OnboardingQuizStepProps,
   question: QuizQuestionView,
 ) {
+  const answerReadiness = useReadinessAnswer(dispatchFlow);
+  const { readinessPrompt } = question;
   const { setCustomReply, setComposerFocused, ...conversation } =
     useOnboardingQuizController({
       currentQuestionIndex: question.currentQuestionIndex,
-      question: currentQuestion?.questionText ?? '',
+      question: readinessPrompt ?? currentQuestion?.questionText ?? '',
       options: question.options,
       selectedOption: question.selectedOption,
       persona: question.persona,
-      followupPrompt: flowState.pendingFollowup?.prompt ?? null,
-      transitionAcknowledgement: flowState.lastAssistantAcknowledgement,
+      followupPrompt: readinessPrompt
+        ? null
+        : (flowState.pendingFollowup?.prompt ?? null),
+      transitionAcknowledgement: readinessPrompt
+        ? null
+        : flowState.lastAssistantAcknowledgement,
       isLastQuestion: question.isLastQuestion,
       isSubmitting: question.isSubmitting,
-      onSubmitResponse,
+      onSubmitResponse: readinessPrompt
+        ? answerReadiness
+        : handleQuizSubmitResponse,
     });
   const answerHandlers = useQuizAnswerHandlers({
     dispatchFlow,

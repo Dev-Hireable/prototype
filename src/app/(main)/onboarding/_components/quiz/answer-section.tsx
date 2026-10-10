@@ -26,6 +26,8 @@ type QuizAnswerSectionProps = {
   state: QuizAnswerSectionState;
   questionHeadingId: string;
   currentQuestionIndex: number;
+  /** False for "Are you ready?", which only its options answer: no Other field. */
+  allowsOther: boolean;
   onExitComplete: () => void;
 };
 
@@ -172,6 +174,7 @@ export function QuizAnswerSection(props: QuizAnswerSectionProps) {
         composerSendRef={answer.composerSendRef}
         state={answer.composerState}
         customReply={customReply}
+        hidden={!props.allowsOther}
         onControlBlur={answer.handleComposerControlBlur}
         onInputChange={onCustomReplyChange}
         onInputFocus={answer.handleComposerFocus}

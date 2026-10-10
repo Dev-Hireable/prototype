@@ -16,8 +16,9 @@ type Side = typeof TEAM | typeof TALENT;
 const PASSWORD = "Quizready2026";
 
 /** Hiro, the client quiz's assistant: how he opens, and how he opens a retake. */
-const HIRO_GREETING = "Hey, I'm Hiro. I'll throw a few real scenarios your way so we can see how you like to run your team. Pick one, or type your own answer. Ready?";
-const HIRO_WELCOME_BACK = "Good to see you again. Same six scenarios as last time, so answer for how you run your team today, not how you answered before. Ready?";
+const HIRO_GREETING = "Hi, I'm Hiro. We recommend Independent profiles to Team Builders based on work style match, so answer honestly. Are you ready to start?";
+const HIRO_WELCOME_BACK = "Welcome back. Retake the quiz so your Independent recommendations reflect how you run your team today. Are you ready?";
+const HIRO_EXPLANATION = "I'll walk you through six everyday scenarios about running a team.";
 /** The client quiz's second question's options, in order: the keyboard walks them. */
 const CLIENT_Q2 = [
   "Redirect the team right away and keep shipping.",
@@ -100,20 +101,34 @@ async function openOnboarding(page: Page, quiz: "client" | "talent") {
   await page.goto(`/onboarding/${quiz}`);
 }
 
-/** A first run's intro — its title and no traits to keep — then Start quiz. */
-async function startFirstQuiz(page: Page, title: string) {
+/** A first run's intro — one screen, the account ready and no traits to keep — then Start quiz. */
+async function startFirstQuiz(page: Page) {
   await waitOutSplash(page);
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your account is ready." })).toBeVisible();
   await expect(page.getByText("Your current traits", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Keep my current traits" })).toHaveCount(0);
   await page.getByRole("button", { name: "Start quiz" }).click();
   await expect(page.getByText("Question 1 of 6")).toBeVisible();
+  await sayReady(page);
 }
 
-/** A retake's intro: its title, the traits the quiz would replace, and the two ways on. */
-async function expectRetakeIntro(page: Page, title: string, traits: readonly string[]) {
+/**
+ * Answers the assistant's "Are you ready?", which comes before the first scenario and only its
+ * options answer: no Other field until the scenario.
+ */
+async function sayReady(page: Page) {
+  const ready = page.getByRole("radio", { name: "Yes, I'm ready" });
+  await expect(ready).toBeEnabled();
+  await expect(page.getByRole("textbox", { name: "Other answer" })).toBeHidden();
+  await ready.click();
+  await expect(page.getByRole("log")).toContainText("Yes, I'm ready");
+  await expect(page.getByRole("textbox", { name: "Other answer" })).toBeVisible();
+}
+
+/** A retake's intro: welcome back, the traits the quiz would replace, and the two ways on. */
+async function expectRetakeIntro(page: Page, traits: readonly string[]) {
   await waitOutSplash(page);
-  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
   await expect(page.getByText("Your current traits", { exact: true })).toBeVisible();
   for (const trait of traits) await expect(page.getByText(trait, { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Keep my current traits" })).toBeVisible();
@@ -148,9 +163,9 @@ async function answerByKeyboard(page: Page, n: number, options: readonly string[
 
 /** The client results: the profile's title, one tag per answer, and who it matches best. */
 async function expectClientResults(page: Page, tags: readonly string[]) {
-  await expect(page.getByRole("heading", { name: "Your Hiring Style Profile" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your Work Style Profile" })).toBeVisible();
   for (const tag of tags) await expect(page.getByText(tag, { exact: true })).toBeVisible();
-  await expect(page.getByText("Your Ideal Independent Match")).toBeVisible();
+  await expect(page.getByText("Your working style", { exact: true })).toBeVisible();
 }
 
 test.describe("onboarding · signing up", () => {
@@ -273,8 +288,16 @@ test.describe("onboarding · a first quiz", () => {
     await page.getByRole("button", { name: "Create account" }).click();
     await page.getByRole("button", { name: "Start the Work Style Quiz" }).click();
     await expect(page).toHaveURL(/\/onboarding\/client$/);
-    await startFirstQuiz(page, "Hire a dedicated long-term partner, not a short-term professional.");
-    await expect(page.getByRole("log")).toContainText(HIRO_GREETING);
+    await waitOutSplash(page);
+    await page.getByRole("button", { name: "Start quiz" }).click();
+    // The greeting asks whether they're ready, on its own: the first scenario waits for the answer.
+    const said = page.getByRole("log").locator("[data-quiz-assistant-message]");
+    await expect(said).toHaveCount(1);
+    await expect(said).toHaveText(HIRO_GREETING);
+    await page.getByRole("radio", { name: "Explain further" }).click();
+    await expect(said.nth(1)).toContainText(HIRO_EXPLANATION);
+    await expect(page.getByRole("radio", { name: "Explain further" })).toHaveCount(0);
+    await sayReady(page);
     await answerByClick(page, 1, "Hold off until I have the full picture.");
     await answerByKeyboard(page, 2, CLIENT_Q2);
     await answerByClick(page, 3, "Reply as soon as I see it.");
@@ -296,7 +319,7 @@ test.describe("onboarding · answering in your own words", () => {
 
   test("a typed answer takes over from a picked option, and one with nothing to go on earns a single follow-up", async ({ page }) => {
     await openOnboarding(page, "talent");
-    await startFirstQuiz(page, "Looking for a lasting match? You're in the right place.");
+    await startFirstQuiz(page);
     const other = page.getByRole("textbox", { name: "Other answer" });
     const send = page.getByRole("button", { name: "Send response" });
     const log = page.getByRole("log");
@@ -325,7 +348,7 @@ test.describe("onboarding · answering in your own words", () => {
   // The intro's exit used to play with reduced motion too, and stood still with the clock.
   test("with reduced motion, Start quiz leads on without waiting for an animation", async ({ page }) => {
     await page.goto("/onboarding/talent");
-    await startFirstQuiz(page, "Looking for a lasting match? You're in the right place.");
+    await startFirstQuiz(page);
   });
 });
 
@@ -334,7 +357,7 @@ test.describe("onboarding · retaking the quiz", () => {
 
   test("a returning Independent is shown their current traits, and keeping them goes back to the dashboard unchanged", async ({ page }) => {
     await openOnboarding(page, "talent");
-    await expectRetakeIntro(page, "Has the way you work changed?", JUAN_TRAITS);
+    await expectRetakeIntro(page, JUAN_TRAITS);
     await page.getByRole("link", { name: "Keep my current traits" }).click();
     await expect(page).toHaveURL(/\/independent$/);
     await expect(page.getByText("Your work style", { exact: true })).toBeVisible();
@@ -344,11 +367,12 @@ test.describe("onboarding · retaking the quiz", () => {
 
   test("retaking, the assistant welcomes them back instead of introducing itself, and the old traits stay until the end", async ({ page }) => {
     await openOnboarding(page, "client");
-    await expectRetakeIntro(page, "Has the way you run your team changed?", ALEX_TRAITS);
+    await expectRetakeIntro(page, ALEX_TRAITS);
     await page.getByRole("button", { name: "Retake quiz" }).click();
     const log = page.getByRole("log");
     await expect(log).toContainText(HIRO_WELCOME_BACK);
     await expect(log).not.toContainText("I'm Hiro");
+    await sayReady(page);
     await answerByClick(page, 1, "Approve it and keep things moving.");
     await expect(page.getByText("Question 2 of 6")).toBeVisible();
     expect(await savedTraits(page, "team")).toEqual([5, 4, 2, 1, 5, 4]);

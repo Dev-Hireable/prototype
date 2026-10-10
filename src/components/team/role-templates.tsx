@@ -1,15 +1,16 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { MdArrowForward, MdCheckCircle, MdClose } from "react-icons/md";
+import { MdCheckCircle, MdClose, MdExpandMore } from "react-icons/md";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { Button, Chip, Modal, Pills, SearchBox } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
-import { levelName, ROLE_TEMPLATES, searchTemplates, TEMPLATE_CATEGORIES, templateRange } from "@/lib/team/role-templates";
+import { levelName, rangeText, ROLE_TEMPLATES, searchTemplates, TEMPLATE_CATEGORIES, templateRange } from "@/lib/team/role-templates";
 import type { RateSuggestion, RoleTemplate, TemplateCategory } from "@/lib/team/role-templates";
+import { SOURCES } from "@/lib/team/role-catalogue";
 
 /**
- * Create Role templates: the most common roles, ready to post. Picking one fills step one, the
+ * Create Role templates: the role catalogue, ready to post. Picking one fills step one, the
  * trial's tasks and a suggested budget; the wizard decides whether that needs a confirm.
  * They live in a dialog behind "Use a template", so the form itself stays uncluttered.
  */
@@ -20,8 +21,11 @@ const BY_POPULARITY = [...ROLE_TEMPLATES.filter((t) => t.popular), ...ROLE_TEMPL
 /** The templates under a category pill: all of them, most-used first, or the category's own. */
 const inCategory = (c: TemplateCategory | "All") => (c === "All" ? BY_POPULARITY : ROLE_TEMPLATES.filter((t) => t.category === c));
 
-/** The library: search it, narrow it by category, see what each template fills in, or go back to blank. */
-export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { open: boolean; onClose: () => void; onPick: (t: RoleTemplate) => void; onClear: () => void; applied: RoleTemplate | null }) {
+/**
+ * The library: search it, narrow it by category, open a template to see what it fills in, or go
+ * back to blank. `trial` says whether a template's tasks and trial length go in too.
+ */
+export function TemplateBrowser({ open, onClose, onPick, onClear, applied, trial }: { open: boolean; onClose: () => void; onPick: (t: RoleTemplate) => void; onClear: () => void; applied: RoleTemplate | null; trial: boolean }) {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<TemplateCategory | "All">("All");
   const list = searchTemplates(q, inCategory(category));
@@ -33,14 +37,14 @@ export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { o
 
   return (
     // `bare`: this dialog owns its layout, so the header — title, close, search and filters —
-    // stays put while the cards scroll under it, instead of scrolling away with them.
+    // stays put while the list scrolls under it, instead of scrolling away with it.
     <Modal open={open} onClose={close} width={820} bare title="Role templates">
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="flex flex-col gap-4 border-b border-border px-6 pt-6 pb-4">
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-[20px] leading-[1.4] font-semibold text-ink">Role templates</p>
-              <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">The most common roles, ready to post. Click one to fill in the form — every field stays editable.</p>
+              <p className="mt-1.5 text-[14px] leading-[1.4] text-ink-2">Open a role to see what it fills in, then use it. Every field stays editable.</p>
             </div>
             <button type="button" onClick={close} aria-label="Close" className={`${ICON_BUTTON} size-8`}>
               <MdClose size={20} aria-hidden />
@@ -63,7 +67,7 @@ export function TemplateBrowser({ open, onClose, onPick, onClear, applied }: { o
           />
         </div>
 
-        <TemplateResults list={list} query={q} applied={applied} onPick={onPick} />
+        <TemplateResults list={list} query={q} applied={applied} trial={trial} onPick={onPick} />
       </div>
     </Modal>
   );
@@ -86,18 +90,17 @@ function AppliedTemplate({ template, onClear }: { template: RoleTemplate; onClea
   );
 }
 
-/** The library's scrolling part: the templates that match, two to a row — or a line saying none do. */
-function TemplateResults({ list, query, applied, onPick }: { list: RoleTemplate[]; query: string; applied: RoleTemplate | null; onPick: (t: RoleTemplate) => void }) {
+/** The library's scrolling part: the templates that match, one open at a time — or a line saying none do. */
+function TemplateResults({ list, query, applied, trial, onPick }: { list: RoleTemplate[]; query: string; applied: RoleTemplate | null; trial: boolean; onPick: (t: RoleTemplate) => void }) {
+  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
       {list.length === 0 ? (
         <p className="rounded-lg bg-[#fafafa] px-4 py-8 text-center text-[13px] leading-[1.4] text-ink-2">No templates match “{query.trim()}”. Try another word, or close this and start from scratch.</p>
       ) : (
-        <ul className="grid grid-cols-2 gap-3">
+        <ul aria-label="Templates" className="divide-y divide-border rounded-lg outline -outline-offset-1 outline-border">
           {list.map((t) => (
-            <li key={t.id}>
-              <TemplateCard template={t} inUse={applied?.id === t.id} onPick={onPick} />
-            </li>
+            <TemplateRow key={t.id} template={t} expanded={openId === t.id} onToggle={() => setOpenId(openId === t.id ? null : t.id)} inUse={applied?.id === t.id} trial={trial} onPick={onPick} />
           ))}
         </ul>
       )}
@@ -105,54 +108,114 @@ function TemplateResults({ list, query, applied, onPick }: { list: RoleTemplate[
   );
 }
 
-/** One template: what it fills in — level, budget, trial, skills — on a card that picks it, or says it's the one in use. */
-function TemplateCard({ template: t, inUse: on, onPick }: { template: RoleTemplate; inUse: boolean; onPick: (t: RoleTemplate) => void }) {
+/** One template: a row naming the role, its category, level and range, that opens onto what it fills in. */
+function TemplateRow({ template: t, expanded, onToggle, inUse, trial, onPick }: { template: RoleTemplate; expanded: boolean; onToggle: () => void; inUse: boolean; trial: boolean; onPick: (t: RoleTemplate) => void }) {
+  const panel = `template-${t.id}`;
   return (
-    // The whole card is the button — a small "Use template" button at the
-    // bottom was a hard target to find and hit.
-    <button
-      type="button"
-      onClick={() => onPick(t)}
-      disabled={on}
-      aria-label={on ? `${t.title} — in use` : `Use the ${t.title} template`}
-      className={`group flex h-full w-full flex-col gap-3 rounded-lg p-4 text-left transition ${
-        on ? "cursor-default bg-accent-bg/40 outline-2 -outline-offset-2 outline-primary" : "cursor-pointer outline -outline-offset-1 outline-border hover:bg-[#f7fbff] hover:shadow-[0_2px_8px_rgba(0,0,0,.08)] hover:outline-primary focus-visible:outline-2 focus-visible:outline-primary"
-      }`}
-    >
-      <span className="flex flex-col gap-0.5">
-        <span className="flex items-center gap-2 text-[15px] leading-[1.3] font-semibold text-ink">
-          {t.title}
+    <li>
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={panel}
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#fafafa] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+      >
+        <span className="flex min-w-0 flex-1 items-center gap-2 text-[15px] leading-[1.3] font-semibold text-ink">
+          <span>{t.title}</span>
           {t.popular && <Badge tone="trial">Popular</Badge>}
+          {inUse && (
+            <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-primary">
+              <MdCheckCircle size={14} aria-hidden /> In use
+            </span>
+          )}
         </span>
-        <span className="text-[12px] leading-[1.3] text-ink-2">
-          {t.category} · {levelName(t.level)} · {templateRange(t)} · {t.days}-day trial, {t.tasks.length} tasks
+        <MdExpandMore size={20} aria-hidden className={`shrink-0 text-ink-2 transition ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      {expanded && <TemplateDetails id={panel} template={t} inUse={inUse} trial={trial} onPick={onPick} />}
+    </li>
+  );
+}
+
+/** An open template: its category, level and range, description, the skills it fills in, the trial plan when it has one, its sources, and the button that uses it. */
+function TemplateDetails({ id, template: t, inUse, trial, onPick }: { id: string; template: RoleTemplate; inUse: boolean; trial: boolean; onPick: (t: RoleTemplate) => void }) {
+  return (
+    <div id={id} className="flex flex-col gap-3 px-4 pb-4 text-[13px] leading-[1.4]">
+      <p className="text-[12px] text-ink-2">
+        {t.category} · {levelName(t.level)} · {templateRange(t)}
+      </p>
+      <p className="text-ink-2">{t.description}</p>
+      <div className="flex flex-col gap-1.5">
+        <span className="font-semibold text-ink">Skills it fills in</span>
+        <span className="flex flex-wrap gap-1.5">
+          {t.skills.map((s) => (
+            <Chip key={s} size="sm">
+              {s}
+            </Chip>
+          ))}
         </span>
-      </span>
-      <span className="line-clamp-3 text-[13px] leading-[1.4] text-ink-2">{t.description}</span>
-      <span className="flex flex-wrap gap-1.5">
-        {t.skills.map((s) => (
-          <Chip key={s} size="sm">
-            {s}
-          </Chip>
-        ))}
-      </span>
-      {/* A label, not a second button: it says what a click does and lights up on hover. */}
-      <span className={`mt-auto inline-flex items-center gap-1 text-[13px] leading-none font-semibold ${on ? "text-primary" : "text-primary opacity-70 group-hover:opacity-100"}`}>
-        {on ? (
-          <>
-            <MdCheckCircle size={16} aria-hidden /> In use
-          </>
-        ) : (
-          <>
-            Use this template <MdArrowForward size={16} aria-hidden className="transition group-hover:translate-x-0.5" />
-          </>
-        )}
-      </span>
-    </button>
+        {t.moreSkills.length > 0 && <span className="text-[12px] text-ink-2">Also useful: {t.moreSkills.join(", ")}</span>}
+      </div>
+      {trial && t.tasks.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="font-semibold text-ink">
+            {t.days}-day trial · {t.tasks.length} tasks
+          </span>
+          <ul className="list-disc pl-5 text-ink-2">
+            {t.tasks.map((task) => (
+              <li key={task.title}>
+                {task.title} <span className="text-[12px]">· week {task.week}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <TemplateSources template={t} />
+      <div className="flex justify-end">
+        <Button variant="primary" disabled={inUse} onClick={() => onPick(t)}>
+          {inUse ? "In use" : "Use this template"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
 const money = (n: number) => `$${n.toLocaleString("en-US")}`;
+
+/** A cited source, by name, opening its page in a new tab. */
+function SourceLink({ name }: { name: string }) {
+  return (
+    <a href={SOURCES[name].url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+      {name}
+    </a>
+  );
+}
+
+/** Where a template comes from: why the role is in demand, and who published its rates. */
+function TemplateSources({ template: t }: { template: RoleTemplate }) {
+  if (!t.demand && t.rateSources.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1 text-[12px] text-ink-2">
+      <span className="font-semibold text-ink">Sources</span>
+      {t.demand && (
+        <span>
+          In demand: {t.demand.evidence} (<SourceLink name={t.demand.source} />)
+        </span>
+      )}
+      {t.rateSources.length > 0 && (
+        <span>
+          Rates:{" "}
+          {t.rateSources.map((r, i) => (
+            <span key={r.source}>
+              {i > 0 && "; "}
+              <SourceLink name={r.source} />
+              {r.kind && ` (${r.kind.toLowerCase()})`}
+            </span>
+          ))}
+        </span>
+      )}
+    </div>
+  );
+}
 
 /** One labelled block in the source dialog. */
 function Source({ title, children }: { title: string; children: ReactNode }) {
@@ -171,7 +234,7 @@ function Source({ title, children }: { title: string; children: ReactNode }) {
  * nothing.
  */
 export function RateSourceModal({ open, onClose, suggestion: s, role, noun, inUse, onUse }: { open: boolean; onClose: () => void; suggestion: RateSuggestion | null; role: string; noun: "rate" | "salary"; inUse: boolean; onUse: () => void }) {
-  const range = s ? `${money(s.min)} – ${money(s.max)} /month` : "";
+  const range = s ? rangeText(s) : "";
   return (
     <Modal
       open={open && !!s}
@@ -218,11 +281,25 @@ function GuideSource({ suggestion: s, role, range }: { suggestion: RateSuggestio
       <p className="text-ink">
         {s.guide.title} · {s.guide.category} · {levelName(s.guide.level)}: <strong className="font-semibold">{templateRange(s.guide)}</strong>
       </p>
-      <p className="text-ink-2">Typical monthly rates for remote {s.guide.title.toLowerCase()} roles. {how}</p>
+      <p className="text-ink-2">Published monthly rates for remote {s.guide.title.toLowerCase()} roles in the Philippines. {how}</p>
       {s.adjustedFor && (
         <p className="text-ink-2">
-          Scaled to {levelName(s.adjustedFor)} experience, the level on this role: <strong className="font-semibold text-ink">{range}</strong>.
+          {s.scaled ? "Scaled to" : "At"} {levelName(s.adjustedFor)} experience, the level on this role: <strong className="font-semibold text-ink">{range}</strong>.
         </p>
+      )}
+      {s.guide.rateSources.length > 0 && (
+        <ul className="flex flex-col gap-1.5 text-[12px] text-ink-2">
+          {s.guide.rateSources.map((r) => {
+            const src = SOURCES[r.source];
+            return (
+              <li key={r.source}>
+                <SourceLink name={r.source} />
+                {[src.publisher, r.kind, src.date].filter(Boolean).map((part) => ` · ${part}`)}
+                {src.caveat && <span className="block">{src.caveat}</span>}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </Source>
   );

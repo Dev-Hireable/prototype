@@ -26,6 +26,8 @@ type QuizAnswerComposerProps = {
   composerSendRef: RefObject<HTMLButtonElement | null>;
   state: QuizAnswerComposerState;
   customReply: string;
+  /** Left out where only the options answer ("Are you ready?"), yet kept for the panel's motion. */
+  hidden?: boolean;
 } & ComposerInputHandlers;
 
 const COMPOSER_INPUT_BASE_CLASS =
@@ -181,6 +183,7 @@ export function QuizAnswerComposer({
   composerSendRef,
   state,
   customReply,
+  hidden,
   onInputChange,
   onInputFocus,
   onControlBlur,
@@ -194,6 +197,7 @@ export function QuizAnswerComposer({
     <fieldset
       data-onboarding-quiz-button
       ref={composerShellRef}
+      hidden={hidden}
       className={cn(
         COMPOSER_SHELL_BASE_CLASS,
         focused ? COMPOSER_SHELL_FOCUSED_CLASS : COMPOSER_SHELL_IDLE_CLASS,

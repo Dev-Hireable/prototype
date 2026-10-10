@@ -20,33 +20,48 @@ const CHAT_DOT_GROUP_CLASS =
 const USER_ROW_CLASS =
   'flex w-full flex-none flex-col items-end justify-center gap-2.5 pl-8 sm:pl-24';
 
+/**
+ * Where a row sits in a run of the assistant's rows, Messenger style: the name heads the run and
+ * the avatar closes it, so back-to-back lines don't repeat either.
+ */
+export type AssistantRowPlace = { first: boolean; last: boolean };
+
 type AssistantRowShellProps = {
   assistantName: string;
   assistantAvatarSrc: string;
+  place: AssistantRowPlace;
   children: ReactNode;
 };
 
 function AssistantRowShell({
   assistantName,
   assistantAvatarSrc,
+  place,
   children,
 }: AssistantRowShellProps) {
   return (
     <div className="flex w-full flex-none flex-col items-start gap-2.5 pr-8 sm:pr-24">
       <div
         data-quiz-assistant-row
-        className="flex w-full max-w-full flex-row items-start gap-3 sm:max-w-[580px] sm:gap-4"
+        className="flex w-full max-w-full flex-row items-end gap-3 sm:max-w-[580px] sm:gap-4"
       >
+        {/* Held in place when it's hidden, so every line in the run starts at the same edge. */}
         <div
           aria-hidden
           className="size-9 flex-none rounded-[25px] bg-contain bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${assistantAvatarSrc})` }}
+          style={
+            place.last
+              ? { backgroundImage: `url(${assistantAvatarSrc})` }
+              : undefined
+          }
         />
         <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-          <p className="text-foreground text-sm font-semibold leading-[120%] tracking-[0.2px]">
-            {assistantName}
-          </p>
-          <div className="w-full min-h-[44px]">{children}</div>
+          {place.first ? (
+            <p className="text-foreground text-sm font-semibold leading-[120%] tracking-[0.2px]">
+              {assistantName}
+            </p>
+          ) : null}
+          <div className={place.last ? 'w-full min-h-[44px]' : 'w-full'}>{children}</div>
         </div>
       </div>
     </div>
@@ -59,6 +74,7 @@ type AssistantChatRowProps = {
   assistantAvatarSrc: string;
   questionHeadingId?: string;
   isLatestAssistantMessage: boolean;
+  place: AssistantRowPlace;
   animateBubbleIn: AnimateBubbleIn;
 };
 
@@ -68,12 +84,14 @@ export function AssistantChatRow({
   assistantAvatarSrc,
   questionHeadingId,
   isLatestAssistantMessage,
+  place,
   animateBubbleIn,
 }: AssistantChatRowProps) {
   return (
     <AssistantRowShell
       assistantName={assistantName}
       assistantAvatarSrc={assistantAvatarSrc}
+      place={place}
     >
       <p
         ref={(node) => {
@@ -81,7 +99,7 @@ export function AssistantChatRow({
         }}
         id={isLatestAssistantMessage ? questionHeadingId : undefined}
         data-quiz-assistant-message
-        className="text-foreground wrap-break-word w-full text-sm font-normal leading-[120%] tracking-[0.2px]"
+        className="text-foreground wrap-break-word w-full text-sm font-normal leading-[120%] tracking-[0.2px] whitespace-pre-line"
       >
         {message.text}
       </p>
@@ -155,18 +173,22 @@ function ChatDotGroup({
 type AssistantTypingRowProps = {
   assistantName: string;
   assistantAvatarSrc: string;
+  /** False when it follows one of the assistant's lines: the run already has its name. */
+  first: boolean;
   animateBubbleIn: AnimateBubbleIn;
 };
 
 export function AssistantTypingRow({
   assistantName,
   assistantAvatarSrc,
+  first,
   animateBubbleIn,
 }: AssistantTypingRowProps) {
   return (
     <AssistantRowShell
       assistantName={assistantName}
       assistantAvatarSrc={assistantAvatarSrc}
+      place={{ first, last: true }}
     >
       <ChatDotGroup
         statusLabel={`${assistantName} is typing`}
