@@ -57,7 +57,7 @@ function dealStatus(deal: Deal): Application["status"] {
   if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
   if (deal.stage === "proposal_requested") return { label: "Proposal requested", tone: "warn" };
   if (deal.stage === "interviewed") return { label: "Interview completed", tone: "ok", meta: deal.interview?.when };
-  // IN-071 / TB-037 — a declined or cancelled slot says so until a new one is offered.
+  // IN-092 / TB-037 — a declined or cancelled slot says so until a new one is offered.
   if (deal.interview?.outcome === "declined") return { label: "Interview declined", tone: "danger", meta: deal.interview.when };
   if (deal.interview?.outcome === "cancelled") return { label: "Interview cancelled", tone: "neutral", meta: deal.interview.when };
   if (deal.interview?.outcome === "reschedule") return { label: "New time requested", tone: "warn", meta: deal.interview.requested?.when };
@@ -246,7 +246,7 @@ function commentOnProposal(text: string, file?: File) {
 const answerable = (deal: Deal | null): deal is Deal & { interview: NonNullable<Deal["interview"]> } => !!deal?.interview && !deal.interview.past && (deal.stage === "invited" || deal.stage === "invite_accepted");
 
 /**
- * IN-071 — declining keeps the application open and tells the Team Builder. It goes back to
+ * IN-092 — declining keeps the application open and tells the Team Builder. It goes back to
  * Invited: a confirmed slot declined used to stay Confirmed, so the Team Builder could mark it held
  * and carry on to the proposal and the contract.
  */
@@ -258,7 +258,7 @@ function declineInterview(id: string) {
 }
 
 /**
- * IN-071 — can't make the slot: the talent names the one they can, and the Team Builder confirms
+ * IN-093 — can't make the slot: the talent names the one they can, and the Team Builder confirms
  * it or offers another. Like a decline, nothing moves on until a new slot is agreed. Also open
  * after a decline, so turning one down isn't the end of the interview.
  */

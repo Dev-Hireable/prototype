@@ -198,7 +198,7 @@ export type Interview = { id: string; independent: string; role: string; roleSlu
 
 export const INTERVIEW_DECLINED = "Interview declined";
 export const INTERVIEW_CANCELLED = "Interview cancelled";
-/** IN-071 — the talent can't make the slot and asked for the one they named instead. */
+/** IN-093 — the talent can't make the slot and asked for the one they named instead. */
 export const NEW_TIME_REQUESTED = "New time requested";
 /**
  * A candidate whose interview fell through — declined or asked to move by them, or cancelled — and

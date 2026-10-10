@@ -141,7 +141,7 @@ export type Deal = {
   /** TB-037 / IN-070 — set when the Team Builder books one; `accepted` once the talent confirms. */
   /**
    * `outcome` — how it ended, once it has: the Team Builder marked it held (IN-018 Interview
-   * completed, which is what unlocks Request Proposal), the talent declined it (IN-071), or the
+   * completed, which is what unlocks Request Proposal), the talent declined it (IN-092), or the
    * Team Builder cancelled it, or the talent asked to move it (`reschedule`, with the slot they
    * asked for in `requested`). `past` takes it off both upcoming lists. A new invitation replaces
    * the whole record, so a declined, cancelled or moved slot can be offered again.

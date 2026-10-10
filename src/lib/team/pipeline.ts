@@ -210,7 +210,7 @@ function inviteToInterview(candidateId: string, slot: { when: string; format: st
   const role = roleOf(c.role);
   const interview = { when: slot.when, format: slot.format, link: slot.link, note: slot.note?.trim() || undefined };
   if (candidateId === DEAL_ID) {
-    // IN-071 — the very slot the talent asked for needs no second yes from them: it's confirmed.
+    // IN-093 — the very slot the talent asked for needs no second yes from them: it's confirmed.
     const deal = readDeal();
     const asked = deal?.interview?.outcome === "reschedule" && deal.interview.requested?.when === slot.when;
     if (livePair(c)) move(asked ? "interview_moved" : "interview_invited", role, { slot: bookedAt(slot.when) });

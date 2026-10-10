@@ -14,7 +14,7 @@ import { formatDate, INTERVIEW_TIMES, parseDay, startOfToday } from "@/lib/porta
  * TB-037 / TB-040 — "Invite to interview", shared by the candidate profile and the pipeline board,
  * so the board can offer the CTA without sending the Team Builder off to a profile first. Also
  * how a declined or cancelled interview is offered again: a new slot replaces the old one. When
- * the talent asked for a new time (IN-071), it opens on that slot, so confirming it is one click.
+ * the talent asked for a new time (IN-093), it opens on that slot, so confirming it is one click.
  */
 export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Candidate | null; onClose: () => void; onSent: (name: string) => void }) {
   const { inviteToInterview } = usePipeline();

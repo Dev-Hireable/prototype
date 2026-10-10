@@ -54,7 +54,7 @@ function InterviewStep({ app, job, live, ...actions }: StepProps & InterviewActi
   const declined = app.status?.label === "Interview declined";
   /** TB-037 — the Team Builder called it off; the application stays open for a new slot. */
   const cancelled = app.status?.label === "Interview cancelled";
-  /** IN-071 — waiting on the Team Builder to confirm the time they asked for. */
+  /** IN-093 — waiting on the Team Builder to confirm the time they asked for. */
   const requested = live?.interview?.outcome === "reschedule" ? live.interview.requested : undefined;
   if (requested)
     return (
