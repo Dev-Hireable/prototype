@@ -60,3 +60,24 @@ export function deviceTimeZone(at = new Date()): string {
 
 /** The time zone a saved value stands for: the one picked, or this device's when it's automatic (""). */
 export const effectiveTimeZone = (saved: string) => saved || deviceTimeZone();
+
+/** "(GMT+8) Manila" or "(GMT+5:30) Kolkata" → its offset from UTC in minutes (480, 330). */
+export const offsetOfLabel = (label: string) => offsetMinutes(label.match(/GMT[+-]\d{1,2}(?::\d{2})?/)?.[0] ?? "GMT");
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * #153 — an interview slot ("Tue 29 Sep 2026, 10:00 AM", in the clock of whoever booked it, `from`
+ * minutes off UTC) as it reads at `to` minutes off UTC: "Tue 29 Sep, 9:00 AM". Undefined if the
+ * slot doesn't read as a date and time.
+ */
+export function slotAt(when: string, from: number, to: number): string | undefined {
+  const m = when.match(/(\d{1,2}) (\w{3}) (\d{4}), (\d{1,2}):(\d{2}) ([AP]M)/);
+  if (!m) return undefined;
+  const hour = (Number(m[4]) % 12) + (m[6] === "PM" ? 12 : 0);
+  const utc = Date.UTC(Number(m[3]), MONTH_NAMES.indexOf(m[2]), Number(m[1]), hour, Number(m[5])) - from * 60_000;
+  const d = new Date(utc + to * 60_000);
+  const h = d.getUTCHours();
+  return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}, ${h % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}

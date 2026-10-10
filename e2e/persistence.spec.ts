@@ -47,3 +47,18 @@ test.describe("persistence · notifications", () => {
     await expect(panel(juan).getByRole("heading", { name: "Activity" })).toBeVisible();
   });
 });
+
+test.describe("persistence · the thread's log", () => {
+  test("the trial's first day is logged in the thread once, and the thread is tagged with the stage", async ({ page }) => {
+    await open(page, "team");
+    await page.goto("/team/messages");
+    // The entry in the thread (the list's preview line repeats the latest message, so it's found by its id).
+    const started = page.locator('[id^="msg-"]').filter({ hasText: /^Brand Designer trial started, / });
+    const logged = () => page.evaluate(() => (JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}").chat ?? []).filter((m: { event?: { text: string } }) => m.event?.text.startsWith("Brand Designer trial started")).length);
+    await expect(started).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /Juan Dela Cruz/ }).getByText("Trial", { exact: true })).toBeVisible();
+    await page.reload();
+    await expect(started).toHaveCount(1);
+    expect(await logged()).toBe(1);
+  });
+});

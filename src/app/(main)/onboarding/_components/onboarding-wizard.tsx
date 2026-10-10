@@ -12,7 +12,7 @@ import { OnboardingQuizStep } from './quiz/quiz-step';
 import { OnboardingResultsStep } from './results/results-step';
 import { OnboardingCurtain, type CurtainPhase } from './shared/curtain';
 import { useOnboardingWizardController } from './use-wizard-controller';
-import { useCurrentTraits } from './use-current-traits';
+import { useCurrentTraits, useRetakeOpensOn } from './use-current-traits';
 import { saveQuizResponsesAction } from '../_lib/onboarding-actions';
 import type { QuizTagMetadata } from '@/web-app/lib/workstyle/tag-metadata';
 import type { QuizQuestionWithAnswers } from '../_lib/quiz-types';
@@ -67,6 +67,7 @@ function OnboardingWizardStep({
   finishQuiz,
 }: OnboardingWizardStepProps) {
   const copy = ONBOARDING_COPY[role];
+  const opensOn = useRetakeOpensOn(role);
   const retake =
     currentTraits.length > 0 ? ONBOARDING_RETAKE_COPY[role] : null;
   const { flowState } = wizard;
@@ -83,6 +84,7 @@ function OnboardingWizardStep({
                   traits: currentTraits,
                   tagMetadata,
                   keepHref: getDashboardPath(role),
+                  opensOn,
                 }
               : null
           }

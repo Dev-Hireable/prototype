@@ -10,6 +10,8 @@ import type { SuggestionDecision } from "@/lib/demo/suggestions";
 import { awaitsApplication, byName, INTERVIEW_CANCELLED, INTERVIEW_DECLINED, NEW_TIME_REQUESTED, needsNewSlot, candidates as seedCandidates, interviews as seedInterviews } from "./data";
 import type { Candidate, Interview } from "./data";
 import { DEAL_ID } from "./deal-view";
+import { profileStore } from "./account";
+import { effectiveTimeZone, offsetOfLabel } from "@/lib/portal/timezones";
 import { roleOf } from "./roles";
 
 /*
@@ -211,14 +213,14 @@ function inviteToInterview(candidateId: string, slot: { when: string; format: st
     // IN-071 — the very slot the talent asked for needs no second yes from them: it's confirmed.
     const deal = readDeal();
     const asked = deal?.interview?.outcome === "reschedule" && deal.interview.requested?.when === slot.when;
-    if (livePair(c)) move(asked ? "interview_moved" : "interview_invited", role);
+    if (livePair(c)) move(asked ? "interview_moved" : "interview_invited", role, { slot: bookedAt(slot.when) });
     return updateDeal((d) => ({ ...d, stage: asked ? "invite_accepted" : "invited", interview: { ...interview, accepted: asked || undefined } }));
   }
   // The pair without an engagement: start it at the interview, so the invitation has an
   // application to land on in their pipeline. (One engagement at a time — a second role for
   // the pair stays on this side only rather than overwrite the first.)
   if (livePair(c) && !readDeal() && startDeal({ roleSlug: c.role, title: role.title, company: PAIR.team.company, match: byName(c.independent).match, stage: "invited", invited: true, interview })) {
-    move("interview_invited", role);
+    move("interview_invited", role, { slot: bookedAt(slot.when) });
     return;
   }
   const [day, time] = slot.when.split(", ");
@@ -229,12 +231,15 @@ function inviteToInterview(candidateId: string, slot: { when: string; format: st
   ]);
 }
 
+/** #153 — a slot the Team Builder picked, in their own clock (their profile's time zone, or this device's). */
+const bookedAt = (when: string) => ({ when, offset: offsetOfLabel(effectiveTimeZone(profileStore.get().timezone)), by: "team" as const });
+
 /** A new time for a booked interview: the talent is told and confirms again. */
 function rescheduleInterview(id: string, when: string) {
   if (!interviewsNow().some((i) => i.id === id)) return;
   if (id === DEAL_ID) {
     const deal = readDeal();
-    if (deal) move("interview_rescheduled", roleOf(deal.roleSlug));
+    if (deal) move("interview_rescheduled", roleOf(deal.roleSlug), { slot: bookedAt(when) });
     return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, when, accepted: false, past: false, outcome: undefined } } : d));
   }
   interviewsStore.set((is) => is.map((i) => (i.id === id ? { ...i, when, status: INTERVIEW_STATUS.awaiting } : i)));

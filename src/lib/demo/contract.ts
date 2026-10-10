@@ -10,7 +10,7 @@ import { contractTypeOf, type Deal, type DealEvaluation, evaluationsOf, fitScore
 // fallow-ignore-next-line circular-dependency
 import { dealContract, escrowOf, getDisputes, holds, rateAmount, usd } from "@/lib/demo/disputes";
 import { JOB_TYPE_LABEL, type OngoingType } from "@/lib/contract/job-types";
-import { move, notify, PAIR, recordLedger, recordPayment } from "@/lib/demo/live";
+import { logStep, move, notify, PAIR, recordLedger, recordPayment } from "@/lib/demo/live";
 
 /**
  * The live contract's lifecycle as it moves money and closes its chapters (the rules are in
@@ -386,6 +386,11 @@ export function sweepContract(now = new Date()) {
     const c = d?.contract;
     if (!d || !c || !l) return;
     const who = talent();
+    // #146 — the trial's first day is logged in the thread, once, on the day it starts.
+    if (l.phase === "trial" && !fired(d, "trial-started")) {
+      fire("trial-started");
+      logStep(`${d.title} trial started, ${dayLabel(c.started)}`, { team: teamHref(), independent: talentHref(d) });
+    }
     if (l.phase === "evaluation" && l.trial) {
       const due = l.trial.evaluationDue;
       const eve = new Date(due.getFullYear(), due.getMonth(), due.getDate() - 1);
