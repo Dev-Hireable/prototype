@@ -9,13 +9,34 @@ export type AnimateBubbleIn = (
 ) => void;
 
 const USER_BUBBLE_CLASS =
-  'inline-flex w-fit max-w-[85%] flex-row items-center gap-2.5 rounded-[16px] bg-muted px-4 py-3 sm:px-6 sm:py-4';
+  'relative inline-flex w-fit max-w-[85%] flex-row items-center gap-2.5 rounded-[16px] rounded-br-[4px] bg-muted px-4 py-3 sm:px-6 sm:py-4';
+
+/** The assistant's lines, in a bubble of their own colour; the last of a run carries the tail. */
+const ASSISTANT_BUBBLE_CLASS =
+  'relative w-fit max-w-full rounded-[16px] bg-accent-bg px-4 py-3 text-foreground wrap-break-word text-sm font-normal leading-[140%] tracking-[0.2px] whitespace-pre-line sm:px-5';
 
 const USER_BUBBLE_TEXT_CLASS =
   'font-secondary wrap-break-word text-foreground max-w-full text-left text-sm font-normal leading-[120%] tracking-[0.2px]';
 
 const CHAT_DOT_GROUP_CLASS =
-  'relative h-[22px] w-[42px] flex-none rounded-[8px] bg-muted';
+  'relative h-[22px] w-[42px] flex-none rounded-[8px]';
+
+/**
+ * A chat bubble's tail: a curved point on the speaker's side, at the bottom, in the bubble's own
+ * colour (`className` sets the fill). It sits just outside the bubble, whose corner on that side is
+ * squared off to meet it, Messenger style.
+ */
+function BubbleTail({ side, className }: { side: 'left' | 'right'; className: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 10 14"
+      className={`absolute bottom-0 h-3.5 w-2.5 ${side === 'left' ? '-left-2' : '-right-2 -scale-x-100'} ${className}`}
+    >
+      <path d="M10 0 V14 H0 C5 13 9 9 10 0 Z" />
+    </svg>
+  );
+}
 
 const USER_ROW_CLASS =
   'flex w-full flex-none flex-col items-end justify-center gap-2.5 pl-8 sm:pl-24';
@@ -99,9 +120,10 @@ export function AssistantChatRow({
         }}
         id={isLatestAssistantMessage ? questionHeadingId : undefined}
         data-quiz-assistant-message
-        className="text-foreground wrap-break-word w-full text-sm font-normal leading-[120%] tracking-[0.2px] whitespace-pre-line"
+        className={`${ASSISTANT_BUBBLE_CLASS} ${place.last ? 'rounded-bl-[4px]' : ''}`}
       >
         {message.text}
+        {place.last ? <BubbleTail side="left" className="fill-accent-bg" /> : null}
       </p>
     </AssistantRowShell>
   );
@@ -122,18 +144,22 @@ export function UserChatRow({ message, animateBubbleIn }: UserChatRowProps) {
         className={USER_BUBBLE_CLASS}
       >
         <p className={USER_BUBBLE_TEXT_CLASS}>{message.text}</p>
+        <BubbleTail side="right" className="fill-muted" />
       </div>
     </div>
   );
 }
 
 type ChatDotGroupProps = {
+  /** The bubble colour of whoever is typing: the assistant's blue, or the user's grey. */
+  tone: 'assistant' | 'user';
   statusLabel?: string;
   animateBubbleIn?: AnimateBubbleIn;
   animationStyle?: BubbleAnimationStyle;
 };
 
 function ChatDotGroup({
+  tone,
   statusLabel,
   animateBubbleIn,
   animationStyle,
@@ -148,7 +174,7 @@ function ChatDotGroup({
             }
           : undefined
       }
-      className={CHAT_DOT_GROUP_CLASS}
+      className={`${CHAT_DOT_GROUP_CLASS} ${tone === 'assistant' ? 'bg-accent-bg' : 'bg-muted'}`}
       role={statusLabel ? 'status' : undefined}
       aria-live={statusLabel ? 'polite' : undefined}
       aria-label={statusLabel}
@@ -191,6 +217,7 @@ export function AssistantTypingRow({
       place={{ first, last: true }}
     >
       <ChatDotGroup
+        tone="assistant"
         statusLabel={`${assistantName} is typing`}
         animateBubbleIn={animateBubbleIn}
         animationStyle="typing"
@@ -212,7 +239,7 @@ export function UserPendingRow({ animateBubbleIn }: UserPendingRowProps) {
           animateBubbleIn(node, 'user');
         }}
       >
-        <ChatDotGroup />
+        <ChatDotGroup tone="user" />
       </div>
     </div>
   );
