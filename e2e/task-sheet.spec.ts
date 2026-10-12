@@ -29,6 +29,25 @@ test.describe("task sheet · the name", () => {
     await page.keyboard.press("Escape");
     await expect(p).toHaveCount(0);
   });
+
+  test("the number and the name share the line beside the close; a name too long for it ends in … with the whole of it in a tooltip", async ({ page }) => {
+    await open(page, "team", "?task=t-kickoff");
+    const p = panel(page);
+    const name = p.getByRole("textbox", { name: "Name" });
+    const tip = page.locator('[data-slot="tooltip-content"]');
+    const top = async (l: import("@playwright/test").Locator) => Math.round(((await l.boundingBox())?.y ?? 0) + ((await l.boundingBox())?.height ?? 0) / 2);
+    expect(Math.abs((await top(name)) - (await top(p.getByRole("button", { name: "Close" }))))).toBeLessThanOrEqual(2);
+    await name.hover();
+    await page.waitForTimeout(800);
+    await expect(tip).toHaveCount(0);
+
+    const long = "Kickoff call with marketing and the whole brand team to agree the direction for the launch";
+    await name.fill(long);
+    await name.press("Enter");
+    await page.mouse.move(0, 0);
+    await name.hover();
+    await expect(tip).toHaveText(long);
+  });
 });
 
 test.describe("task sheet · subtasks", () => {
