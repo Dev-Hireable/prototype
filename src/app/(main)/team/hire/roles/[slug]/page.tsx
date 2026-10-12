@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
-import { Avatar, Button, Card, Chip, JobBadge, LinkButton, MatchPill, Modal, Page, StatusDot, Tabs, Toast } from "@/components/portal/ui";
+import { Avatar, Button, Card, Chip, JobBadge, LinkButton, MatchPill, MessageButton, Modal, Page, StatusDot, Tabs, Toast } from "@/components/portal/ui";
 import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board";
 import { FactStrip } from "@/components/portal/page-parts";
 import { BreadcrumbBack } from "@/components/portal/nav";
@@ -12,6 +12,7 @@ import { ScrollFade } from "@/components/portal/scroll-fade";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { Tip } from "@/components/portal/tip";
 import { DropDialog } from "@/components/team/drop-dialog";
+import { ProfileDrawer, SaveButton } from "@/components/team/ui";
 import { InterviewDialog } from "@/components/team/interview-dialog";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/interview-steps";
@@ -41,7 +42,7 @@ const DANGER = "h-9 rounded-lg bg-danger text-[13px] leading-[1.2] font-medium t
 const firstOf = (c: Candidate) => byName(c.independent).name.split(" ")[0];
 
 /** What a card's buttons open: each one's confirmation dialog, never a change on one click. */
-type CardActions = { invite: (c: Candidate) => void; complete: (c: Candidate) => void; request: (c: Candidate) => void; review: (c: Candidate) => void; drop: (c: Candidate) => void; remove: (c: Candidate) => void };
+type CardActions = { open: (c: Candidate) => void; invite: (c: Candidate) => void; complete: (c: Candidate) => void; request: (c: Candidate) => void; review: (c: Candidate) => void; drop: (c: Candidate) => void; remove: (c: Candidate) => void };
 
 export default function RolePage({ params }: { params: Promise<{ slug: string }> }) {
   return (
@@ -125,7 +126,10 @@ function useCardDialogs(candidates: Candidate[]) {
   const [requesting, setRequesting] = useState<Candidate | null>(null);
   /** TB-104 — the proposal opens from its card, without a detour through the profile. */
   const [reviewingId, setReviewing] = useState<string | null>(null);
+  /** The candidate whose profile is open in the sheet, over the board. */
+  const [previewing, setPreviewing] = useState<Candidate | null>(null);
   const actions: CardActions = {
+    open: setPreviewing,
     invite: setInviting,
     complete: setCompleting,
     request: setRequesting,
@@ -146,6 +150,8 @@ function useCardDialogs(candidates: Candidate[]) {
     requesting,
     setRequesting,
     reviewing: candidates.find((x) => x.id === reviewingId),
+    previewing,
+    setPreviewing,
     setReviewing,
   };
 }
@@ -155,9 +161,22 @@ type CardDialogs = ReturnType<typeof useCardDialogs>;
 /** The confirmations the cards open, each for the card it came from: drop, delete, invite, mark the interview done, request and review the proposal. */
 function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: CardDialogs; onToast: SetToast }) {
   const { interviews, requestProposal, deleteCandidate, completeInterview } = usePipeline();
-  const { dropping, deleting, inviting, completing, requesting, reviewing } = dialogs;
+  const { dropping, deleting, inviting, completing, requesting, reviewing, previewing } = dialogs;
+  const withReturn = useWithReturn();
   return (
     <>
+      {/* A name opens the profile over the board; its View profile leads on to the candidate's own page. */}
+      <ProfileDrawer
+        person={previewing ? byName(previewing.independent) : null}
+        onClose={() => dialogs.setPreviewing(null)}
+        href={() => (previewing ? `/team/hire/roles/${role.slug}/candidates/${previewing.id}` : "")}
+        actions={(p) => (
+          <>
+            {previewing && stageCanMessage(previewing.stage) && <MessageButton href={withReturn("/team/messages")} />}
+            <SaveButton person={p} />
+          </>
+        )}
+      />
       <DropDialog candidate={dropping} role={role.title} onClose={() => dialogs.setDropping(null)} onDone={onToast} />
       {deleting && (
         <DeleteDialog
@@ -273,7 +292,7 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
             >
               <KanbanList>
                 {cards.map((c) => (
-                  <CandidateCard key={c.id} c={c} column={col.key} role={role.slug} unread={c.independent === PAIR.independent.slug ? unread : 0} actions={actions} />
+                  <CandidateCard key={c.id} c={c} column={col.key} unread={c.independent === PAIR.independent.slug ? unread : 0} actions={actions} />
                 ))}
                 {cards.length === 0 && <KanbanEmpty>Nothing here yet</KanbanEmpty>}
               </KanbanList>
@@ -286,20 +305,15 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
 }
 
 /** One candidate on the board: who they are, where they stand, and the step their column offers. */
-function CandidateCard({ c, column, role, unread, actions }: { c: Candidate; column: string; role: string; unread: number; actions: CardActions }) {
+function CandidateCard({ c, column, unread, actions }: { c: Candidate; column: string; unread: number; actions: CardActions }) {
   const p = byName(c.independent);
   // The surname stays an initial ("Juan D.") until they're hired.
   const name = c.stage === "hired" ? p.name : shortName(p.name);
-  // Hired cards go to the trial dashboard; everyone else to their profile.
-  const href = c.stage === "hired" ? `/team/independents/${c.independent}` : `/team/hire/roles/${role}/candidates/${c.id}`;
   return (
     <li className={`flex flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${c.dropped ? "opacity-60" : ""}`}>
       <div className="flex items-start gap-2.5">
         <Avatar src={p.avatar} size={36} />
-        <Link href={href} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25]">
-          <span className="truncate text-[14px] font-semibold tracking-[0.2px] text-ink hover:text-primary">{name}</span>
-          <span className="truncate text-[12px] text-ink-2">{p.role}</span>
-        </Link>
+        <CardName c={c} name={name} headline={p.role} onOpen={actions.open} />
         <MessageLink c={c} name={name} unread={unread} />
       </div>
       <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">
@@ -331,6 +345,31 @@ function CandidateCard({ c, column, role, unread, actions }: { c: Candidate; col
         )
       )}
     </li>
+  );
+}
+
+/**
+ * A hired card's name goes to their contract; anyone else's opens their profile in a sheet over the
+ * board (TB-040), so the pipeline stays where it was.
+ */
+function CardName({ c, name, headline, onOpen }: { c: Candidate; name: string; headline: string; onOpen: (c: Candidate) => void }) {
+  const className = "flex min-w-0 flex-1 flex-col gap-0.5 text-left leading-[1.25]";
+  const label = (
+    <>
+      <span className="truncate text-[14px] font-semibold tracking-[0.2px] text-ink hover:text-primary">{name}</span>
+      <span className="truncate text-[12px] text-ink-2">{headline}</span>
+    </>
+  );
+  if (c.stage === "hired")
+    return (
+      <Link href={`/team/independents/${c.independent}`} className={className}>
+        {label}
+      </Link>
+    );
+  return (
+    <button type="button" onClick={() => onOpen(c)} className={className}>
+      {label}
+    </button>
   );
 }
 

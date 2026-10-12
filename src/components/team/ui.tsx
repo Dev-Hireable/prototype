@@ -110,8 +110,24 @@ function IndependentCardActions({ person, variant, onInvite, onRemove }: { perso
  * An independent's profile preview, drawn as the same Contra-style profile as
  * the full page and the talent's own view, in a sheet that slides in: the hero (Invite / Save, the
  * facts, the intro) and the tabs are all here, with the full page one click away beside the photo.
+ * A role's pipeline opens it too: there the full page is the candidate's, and the hero's buttons are
+ * the pipeline's own (`actions`).
  */
-export function ProfileDrawer({ person, onClose, onInvite }: { person: Independent | null; onClose: () => void; onInvite: (p: Independent) => void }) {
+export function ProfileDrawer({
+  person,
+  onClose,
+  onInvite,
+  href = (p) => `/team/discover/${p.slug}`,
+  actions,
+}: {
+  person: Independent | null;
+  onClose: () => void;
+  onInvite?: (p: Independent) => void;
+  /** Where View profile goes: Discover's full profile by default. */
+  href?: (p: Independent) => string;
+  /** In place of Invite to apply / Save. */
+  actions?: (p: Independent) => ReactNode;
+}) {
   const withReturn = useWithReturn();
   /** The one on screen, kept while the sheet slides out so it doesn't empty mid-animation. */
   const [last, setLast] = useState(person);
@@ -125,14 +141,15 @@ export function ProfileDrawer({ person, onClose, onInvite }: { person: Independe
         {p && (
           <TeamProfile
             person={p}
-            onInvite={() => onInvite(p)}
+            onInvite={() => onInvite?.(p)}
+            actions={actions?.(p)}
             onPlayIntro={() => setToast("Intro video plays here", "info")}
             inSheet
             // A plain ink link by the photo, not a button or the brand blue: it leaves the preview for the full page.
             // No underline on hover — the arrow nudges the way it points instead.
             photoAction={
               <Link
-                href={withReturn(`/team/discover/${p.slug}`)}
+                href={withReturn(href(p))}
                 className="group inline-flex items-center gap-1 rounded-sm text-[14px] leading-[1.2] font-medium tracking-[0.2px] text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 View profile
