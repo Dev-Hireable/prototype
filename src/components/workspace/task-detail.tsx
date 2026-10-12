@@ -55,7 +55,8 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
 /**
  * The item's name and where it stands, in the sheet's header, so they stay in view while the sheet
  * scrolls — the header used to hold only its number ("#1"), with the name down in the body. The
- * number sits over the name, where it's found again, with whether a change is still saving.
+ * number and the name share the line beside the close; a long name ends in "…" with the whole of it
+ * in a tooltip, and scrolls while it's edited. Whether a change is still saving follows them.
  */
 function PanelHeading({ item: t, byId, focus, pending, onLocked }: { item: WorkItem; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean; onLocked: (field: AgreedField) => void }) {
   const { actor, access, actions, names } = useWorkspace();
@@ -63,15 +64,10 @@ function PanelHeading({ item: t, byId, focus, pending, onLocked }: { item: WorkI
   const blockers = isCompleted(t.status) ? [] : openBlockers(t, byId);
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
-      {(t.number || pending) && (
-        <p className="flex h-5 items-center gap-2 text-[12px] leading-none font-medium text-ink-2">
-          {t.number ? <span className="tabular-nums">{refOf(t)}</span> : null}
-          {pending && <span role="status">Saving…</span>}
-        </p>
-      )}
-      {/* -mx-1 lines the text up with the number above it; the field keeps its own 4px inset for its hover box. */}
-      <div className="-mx-1">
+      <div className="flex h-8 min-w-0 items-center gap-1">
+        {t.number ? <span className="shrink-0 font-display text-[18px] leading-none font-semibold text-ink-2 tabular-nums">{refOf(t)}</span> : null}
         <DraftText
+          oneLine
           key={`title-${t.id}`}
           label="Name"
           value={t.title}
@@ -81,8 +77,13 @@ function PanelHeading({ item: t, byId, focus, pending, onLocked }: { item: WorkI
           updatedBy={t.updatedBy}
           validate={(v) => checkTitle(v)?.message ?? null}
           onSave={(next, base) => void actions.patch({ ...t, title: base }, { title: next })}
-          className={`font-display text-[20px] leading-[1.35] font-semibold ${isCompleted(t.status) ? "text-ink-2" : "text-ink"}`}
+          className={`font-display text-[18px] leading-[1.35] font-semibold ${isCompleted(t.status) ? "text-ink-2" : "text-ink"}`}
         />
+        {pending && (
+          <span role="status" className="shrink-0 text-[12px] font-medium text-ink-2">
+            Saving…
+          </span>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <StatusField item={t} />
@@ -673,7 +674,12 @@ function leaveOnly(e: KeyboardEvent) {
  * draft isn't wiped — it says so, and the save is checked against what was there when editing
  * began, so it can't silently overwrite theirs.
  */
-function DraftText({ value, editable, lock, onSave, label, multiline = false, placeholder, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
+function DraftText(props: DraftTextProps) {
+  if (props.oneLine) return <OneLineText {...props} />;
+  return <WrappingText {...props} />;
+}
+
+function WrappingText({ value, editable, lock, onSave, label, multiline = false, placeholder, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
   const draft = useTextDraft(value, onSave, validate);
   // The same lock as every other agreed value (LockedValue), laid out for text that wraps.
   if (!editable && lock)
@@ -729,7 +735,86 @@ function DraftText({ value, editable, lock, onSave, label, multiline = false, pl
   );
 }
 
+/**
+ * Whether the text in `ref`'s element is cut short, measured again as its width or `value` changes,
+ * so a tooltip that holds the whole of it is already on before the pointer arrives.
+ */
+function useCut(value: string) {
+  const [el, ref] = useState<HTMLElement | null>(null);
+  const [cut, setCut] = useState(false);
+  useEffect(() => {
+    if (!el) return;
+    const measure = () => setCut(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [el, value]);
+  return { ref, cut };
+}
+
+/**
+ * DraftText on one line (the header's name): cut to "…" when it doesn't fit, with the whole of it in
+ * a tooltip — only when it is cut, and not while it's being edited, when the field scrolls instead.
+ */
+function OneLineText({ value, editable, lock, onSave, label, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
+  const draft = useTextDraft(value, onSave, validate);
+  const { ref: measure, cut } = useCut(value);
+  const box = `min-w-0 flex-1 truncate rounded-md px-1 py-0.5 ${className}`;
+  if (!editable && lock)
+    return (
+      <Tip label={cut ? `${value} · Agreed in the signed offer` : "Agreed in the signed offer"}>
+        <button ref={measure} type="button" onClick={() => lock.onLocked(lock.field)} aria-label={lockLabel(lock.field)} className={`${box} flex items-center gap-2 text-left hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary`}>
+          <span className="min-w-0 flex-1 truncate">{value || empty}</span>
+          <ICONS.lock size={14} aria-hidden className="shrink-0 text-ink-2" />
+        </button>
+      </Tip>
+    );
+  if (!editable)
+    return (
+      <Tip label={value} off={!cut}>
+        <p ref={measure} className={`${box} ${!value ? "text-ink-2" : ""}`}>
+          {value || empty}
+        </p>
+      </Tip>
+    );
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <Tip label={value} off={!cut || draft.editing}>
+        {/* Enter saves; out of focus, text-overflow cuts the name to "…". */}
+        <input
+          value={draft.value}
+          aria-label={label}
+          aria-invalid={!!draft.error}
+          autoFocus={autoFocus}
+          maxLength={400}
+          {...draft.handlers}
+          ref={measure}
+          onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.blur();
+            }
+            if (e.key === "Escape") draft.escape(e);
+          }}
+          className={`${box} w-full text-ellipsis outline-none hover:bg-surface-2 focus:bg-white focus:ring-2 focus:ring-primary/30`}
+          style={{ fontVariationSettings: '"opsz" 14' }}
+        />
+      </Tip>
+      {draft.error && (
+        <span role="alert" className="px-1 text-[12.5px] text-danger">
+          {draft.error}
+        </span>
+      )}
+      {draft.theirs && <TheirChange updatedBy={updatedBy} onUseTheirs={draft.takeTheirs} />}
+    </div>
+  );
+}
+
 type DraftTextProps = {
+  /** The header's name: one line, cut to "…" with a tooltip (OneLineText). */
+  oneLine?: boolean;
   value: string;
   editable: boolean;
   /** Text the signed offer agreed: which field it is, and what trying to change it does — say why it can't be. */
@@ -789,14 +874,14 @@ function useTextDraft(value: string, onSave: (next: string, base: string) => voi
     },
   };
   /** Escape: the draft is thrown away, and the field — only the field — is left. */
-  const escape = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+  const escape = (e: KeyboardEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     e.preventDefault();
     leaveOnly(e);
     setDraft(null);
     setError(null);
-    (e.target as HTMLTextAreaElement).blur();
+    e.currentTarget.blur();
   };
-  return { value: draft ?? value, error, theirs: editing && value !== base, handlers, escape, takeTheirs: () => (setDraft(null), setBase(value)) };
+  return { value: draft ?? value, editing, error, theirs: editing && value !== base, handlers, escape, takeTheirs: () => (setDraft(null), setBase(value)) };
 }
 
 /** Someone else changed the text mid-edit: said, with Use theirs — or keep typing, and the save checks first. */
