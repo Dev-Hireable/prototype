@@ -862,14 +862,14 @@ function ModalHeading({ id, title, description, danger }: { id: string; title: s
 
 /**
  * A drawer (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
- * mount and unmount in a single frame. A title row with the close, then a scrolling body. The Sheet
+ * mount and unmount in a single frame. A title row led by the close (», top left), then a scrolling body. The Sheet
  * portals, traps focus and closes on Escape or a click outside.
  *
  * `header` swaps the visible title for other content in that row (the title stays the dialog's
- * accessible name), `actions` sit beside the close, and `footer` pins below the body — the task
+ * accessible name), `actions` sit at the row's right end, and `footer` pins below the body — the task
  * panel uses all three. A `header` may run to several lines (an eyebrow such as "#4", a name that
- * wraps), so its row aligns to the top, with the actions and the close centred on its first 20px
- * line, and a hairline under it: the body scrolls beneath it.
+ * wraps), so it goes under a row of its own for the close and the actions, and a hairline under
+ * it: the body scrolls beneath it.
  *
  * Opening moves the focus to the first control inside, unless one was already focused (autoFocus).
  * `initialFocus="close"` starts on the close button instead — for a header whose first control is a
@@ -900,28 +900,42 @@ export function Drawer({
   testId?: string;
   initialFocus?: "first" | "close" | RefObject<HTMLElement | null>;
 }) {
-  const Close = ICONS.close;
+  const Close = ICONS.sheetClose;
   const closeRef = useRef<HTMLButtonElement>(null);
-  const start = initialFocus === "first" ? true : initialFocus === "close" ? closeRef : () => initialFocus.current ?? closeRef.current;
+  /** The close leads the header, so "first" means the first control after it — or one that took the focus itself (autoFocus). */
+  const first = () => {
+    const sheet = closeRef.current?.closest<HTMLElement>('[data-slot="sheet-content"]');
+    if (!sheet) return closeRef.current;
+    const held = document.activeElement;
+    if (held instanceof HTMLElement && held !== closeRef.current && sheet.contains(held)) return held;
+    return tabStops(sheet).find((el) => el !== closeRef.current) ?? closeRef.current;
+  };
+  const start = initialFocus === "first" ? first : initialFocus === "close" ? closeRef : () => initialFocus.current ?? closeRef.current;
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent side="right" showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
-        <SheetHeader className={`flex-row justify-between gap-3 px-6 py-5 ${header ? "items-start border-b border-border" : "items-center"}`}>
-          {header ? (
-            <>
-              <SheetTitle className="sr-only">{title}</SheetTitle>
-              <div className="flex min-w-0 flex-1 items-center gap-2">{header}</div>
-            </>
-          ) : (
-            <SheetTitle className="font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
-          )}
-          <div className={`flex shrink-0 items-center gap-1 ${header ? "h-5" : ""}`}>
-            {actions}
-            {/* The negative margin gives the icon a hover box without making the row taller. */}
+        <SheetHeader className={`px-6 py-5 ${header ? "gap-3 border-b border-border" : "flex-row items-center gap-3"}`}>
+          {/* The close leads, top left, pointing the way the sheet slides out — the mirror of the
+              sidebar's «. With a `header` it shares a row with the actions above it, so the header
+              starts on the body's left edge. The negative margin gives the icon a hover box without
+              making the row taller. */}
+          <div className={header ? "flex h-5 items-center justify-between gap-3" : "flex shrink-0 items-center"}>
             <SheetClose ref={closeRef} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
               <Close size={20} aria-hidden />
             </SheetClose>
+            {header && actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
           </div>
+          {header ? (
+            <>
+              <SheetTitle className="sr-only">{title}</SheetTitle>
+              <div className="flex min-w-0 items-center gap-2">{header}</div>
+            </>
+          ) : (
+            <>
+              <SheetTitle className="min-w-0 flex-1 font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
+              {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
+            </>
+          )}
         </SheetHeader>
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
         {footer && <div className="shrink-0 border-t border-border px-6 py-4">{footer}</div>}

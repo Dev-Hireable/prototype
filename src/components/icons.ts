@@ -30,6 +30,7 @@ import {
   MdKeyboardArrowLeft,
   MdKeyboardArrowRight,
   MdKeyboardDoubleArrowLeft,
+  MdKeyboardDoubleArrowRight,
   MdLockOutline,
   MdOutlineVerifiedUser,
   MdLogout,
@@ -158,6 +159,8 @@ export const ICONS = {
   logout: MdLogout,
   // controls
   collapse: MdKeyboardDoubleArrowLeft,
+  /** A sheet's close: it slides back out to the right. */
+  sheetClose: MdKeyboardDoubleArrowRight,
   search: MdSearch,
   chevron: MdKeyboardArrowDown,
   chevronLeft: MdKeyboardArrowLeft,
