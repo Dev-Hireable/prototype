@@ -10,6 +10,7 @@ import { ContractTabs } from "@/components/portal/contract-tabs";
 import { PAIR } from "@/lib/demo/live";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { useQueryState } from "@/lib/portal/query-state";
+import { useQuickChat } from "@/lib/portal/quick-chat";
 import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 import { TrackerDialogs } from "./_components/dialogs";
@@ -79,10 +80,15 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
 function HeaderActions({ t, onFile }: { t: Tracker; onFile: () => void }) {
   /** Messages opened on this person's thread — only the live pair has one in the demo. */
   const withReturn = useWithReturn();
-  const thread = withReturn(t.contract.independent === PAIR.independent.slug ? "/team/messages?with=juan" : "/team/messages");
+  const chat = useQuickChat();
+  const pair = t.contract.independent === PAIR.independent.slug;
+  const thread = withReturn(pair ? "/team/messages?with=juan" : "/team/messages");
+  const person = byName(t.contract.independent);
+  // The live pair's thread opens on the spot, in the quick chat; nobody else has one in the demo.
+  const quick = pair ? () => chat.open({ name: person.name, sub: t.contract.role, avatar: person.avatar, href: thread }) : undefined;
   return (
     <>
-      <MessageButton size="md" href={thread}>
+      <MessageButton size="md" href={thread} onClick={quick}>
         Message {t.first}
       </MessageButton>
       <DisputeButton size="md" view={t.view} onFile={onFile} />

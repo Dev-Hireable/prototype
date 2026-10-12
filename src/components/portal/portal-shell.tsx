@@ -9,6 +9,7 @@ import { Button, Modal } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
 import { TourHelp } from "@/components/portal/tour/tour-help";
 import { TourProvider } from "@/components/portal/tour/tour-provider";
+import { QuickChat } from "@/components/portal/quick-chat";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
 import { useContractClock } from "@/lib/demo/contract";
@@ -77,6 +78,8 @@ export function PortalShell({
         </div>
 
         <LogoutDialog to={logout} onClose={() => setLogout(null)} />
+        {/* A "Message …" button on a work screen opens the thread here, over the page. */}
+        <QuickChat />
       </div>
     </TourProvider>
   );

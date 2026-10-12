@@ -53,11 +53,10 @@ function contractSteps(task: string): TourStep[] {
   ];
 }
 
-/** Messages, the same on both sides: the conversations, a call, and the composer. `who` is the other side. */
+/** Messages, the same on both sides: the conversations and the composer. `who` is the other side. */
 function messageSteps(who: string): TourStep[] {
   return [
     { target: "aside", title: "Your conversations", body: `A thread opens with each ${who} once an interview is booked, and stays through the contract. Search by name or by what was said.` },
-    { target: 'button[aria-label="Start call"]', title: "Talk it through", body: "Start a voice or video call from the thread when typing won't do." },
     { target: 'form:has(input[aria-label="Message"])', title: "Send a message", body: "Type a reply or attach a file. Each message shows when it's been sent and when it's been seen." },
   ];
 }

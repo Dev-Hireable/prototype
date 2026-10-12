@@ -3,11 +3,14 @@
 import { Initials } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { MessagesPage } from "@/components/portal/messages-page";
+import { CompanyProfileDrawer } from "@/components/independent/company-profile";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { conversationsFor } from "@/lib/independent/data";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useDeal } from "@/lib/demo/deal";
+import { PAIR } from "@/lib/demo/live";
+import { storedWorkStyle, traitTagsFor } from "@/lib/demo/work-style";
 import { threadStage } from "@/lib/portal/stages";
 
 /** The company's initials at each size the inbox draws a face. */
@@ -38,7 +41,10 @@ export default function Messages() {
           TRIAL · {trial.day}
         </Badge>
       )}
-      video
+      // The name in the thread's header opens the company's profile, the sheet its contract opens.
+      profile={({ open, onClose }) => (
+        <CompanyProfileDrawer company={{ company: PAIR.team.company, initials: PAIR.team.initials, manager: PAIR.team.name }} tags={traitTagsFor(storedWorkStyle("team"), "team")} open={open} onClose={onClose} />
+      )}
     />
   );
 }

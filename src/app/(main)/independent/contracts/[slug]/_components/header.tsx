@@ -5,8 +5,12 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import type { CONTRACT_TABS, ContractView } from "@/lib/contract/view";
 import { caseHref } from "@/lib/demo/disputes";
 import type { Contract } from "@/lib/independent/data";
+import { useQuickChat, type QuickChatTarget } from "@/lib/portal/quick-chat";
 
 type Section = (typeof CONTRACT_TABS)[number];
+
+/** The contract's company as the quick chat heads its thread. */
+export const companyChat = (contract: Contract, thread: string): QuickChatTarget => ({ name: contract.company, sub: `${contract.manager} · Hiring manager`, initials: contract.initials, href: thread });
 
 const SECTION_LABEL: Record<Exclude<Section, "tasks">, string> = { evaluation: "Evaluation", overview: "Overview", contract: "Contract & Payment" };
 
@@ -47,9 +51,11 @@ export function Crumbs({ contract, tab }: { contract: Contract; tab: Section }) 
 /** IN-037 / IN-032 — on every tab: the conversation, and the one dispute a contract can have. */
 export function HeaderActions({ contract, thread, view, onFile }: { contract: Contract; thread: string; view: ContractView; onFile: () => void }) {
   const { block, running, fileHint } = view;
+  const chat = useQuickChat();
   return (
     <>
-      <MessageButton size="md" href={thread}>
+      {/* The thread opens on the spot, in the quick chat, with the full one in Messages a click away. */}
+      <MessageButton size="md" href={thread} onClick={() => chat.open(companyChat(contract, thread))}>
         Message {contract.managerFirst}
       </MessageButton>
       {/* Hidden once they have filed on this contract (one per contract). While any dispute is

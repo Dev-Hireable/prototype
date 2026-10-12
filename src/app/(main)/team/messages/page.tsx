@@ -3,9 +3,10 @@
 import { Badge } from "@/components/portal/badge";
 import { MessagesPage } from "@/components/portal/messages-page";
 import { Avatar } from "@/components/portal/ui";
+import { ProfileDrawer } from "@/components/team/ui";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useTeamContracts } from "@/lib/team/contracts";
-import { conversationsFor } from "@/lib/team/data";
+import { byName, conversationsFor } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useRoles } from "@/lib/team/roles";
 import { useDeal } from "@/lib/demo/deal";
@@ -45,6 +46,8 @@ export default function Messages() {
           TRIAL · {trial.day}
         </Badge>
       )}
+      // The name in the thread's header opens the Independent's profile, the sheet Discover and the pipeline open.
+      profile={({ open, onClose }) => <ProfileDrawer person={open ? byName("juan-dela-cruz") : null} onClose={onClose} />}
     />
   );
 }

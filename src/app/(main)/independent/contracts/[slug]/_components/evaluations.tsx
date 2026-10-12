@@ -7,6 +7,8 @@ import type { ContractView } from "@/lib/contract/view";
 import type { DealEvaluation } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";
 import { keyed } from "@/lib/portal/keys";
+import { useQuickChat } from "@/lib/portal/quick-chat";
+import { companyChat } from "./header";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
@@ -103,7 +105,7 @@ function Evaluation({ evaluation, company, contract, thread, due }: { evaluation
             <p className="text-[13px] leading-[1.4] text-ink-2">Average score {average.toFixed(1)} of 5 · submitted once, and read-only for both of you.</p>
           </div>
         </Card>
-        <ScoresCard evaluation={evaluation} company={company} thread={thread} />
+        <ScoresCard evaluation={evaluation} contract={contract} thread={thread} />
       </div>
       {/* IN-034 — the finalised score, from the contract. Same widget the Team Builder reads. */}
       <aside className={SIDE_COLUMN}>
@@ -127,7 +129,8 @@ function NoEvaluationYet({ company, contract, due }: { company: string; contract
 }
 
 /** Each criterion's score on the 1–5 scale, the recommendation, the employer's comments, and the way to reply. */
-function ScoresCard({ evaluation, company, thread }: { evaluation: DealEvaluation; company: string; thread: string }) {
+function ScoresCard({ evaluation, contract, thread }: { evaluation: DealEvaluation; contract: Contract; thread: string }) {
+  const chat = useQuickChat();
   return (
     <Card className="flex flex-col gap-4 p-5">
       {(evaluation.scores ?? []).map((s) => (
@@ -158,8 +161,8 @@ function ScoresCard({ evaluation, company, thread }: { evaluation: DealEvaluatio
         <p className="rounded-md bg-[#fafafa] p-3 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">{evaluation.feedback}</p>
       </div>
       <div className="flex justify-end">
-        <MessageButton size="lg" href={thread}>
-          Message {company}
+        <MessageButton size="lg" href={thread} onClick={() => chat.open(companyChat(contract, thread))}>
+          Message {contract.company}
         </MessageButton>
       </div>
     </Card>

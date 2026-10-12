@@ -96,9 +96,9 @@ test.describe("guided tours", () => {
   test("the contract workspace and Messages have their own tours on both sides, each step on its element", async ({ page }) => {
     const screens = [
       ["/team/independents/juan-dela-cruz", "Hiro", 5],
-      ["/team/messages", "Hiro", 3],
+      ["/team/messages", "Hiro", 2],
       ["/independent/contracts/brand-designer", "Hira", 5],
-      ["/independent/messages", "Hira", 3],
+      ["/independent/messages", "Hira", 2],
     ] as const;
     for (const [path, guide, steps] of screens) {
       await page.goto(path);

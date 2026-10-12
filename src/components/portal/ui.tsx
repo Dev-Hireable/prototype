@@ -249,13 +249,27 @@ export function LinkButton({
   );
 }
 
-/** Every "Message …" action: the conversation icon plus the label, never a bare text button. */
-export function MessageButton({ href, children = "Message", size = "md", className = "" }: { href: string; children?: ReactNode; size?: "sm" | "md" | "lg" | "xl"; className?: string }) {
+/**
+ * Every "Message …" action: the conversation icon plus the label, never a bare text button. With
+ * `onClick` it opens the thread on the spot (a work screen's quick chat) instead of going to Messages.
+ */
+export function MessageButton({ href, onClick, children = "Message", size = "md", className = "" }: { href: string; onClick?: () => void; children?: ReactNode; size?: "sm" | "md" | "lg" | "xl"; className?: string }) {
   const Chat = ICONS.messages;
-  return (
-    <LinkButton href={href} size={size} className={className}>
+  const label = (
+    <>
       <Chat size={size === "sm" ? 16 : 18} aria-hidden />
       {children}
+    </>
+  );
+  if (onClick)
+    return (
+      <Button size={size} onClick={onClick} className={className}>
+        {label}
+      </Button>
+    );
+  return (
+    <LinkButton href={href} size={size} className={className}>
+      {label}
     </LinkButton>
   );
 }
