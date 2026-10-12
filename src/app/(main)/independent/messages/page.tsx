@@ -38,7 +38,6 @@ export default function Messages() {
           TRIAL · {trial.day}
         </Badge>
       )}
-      video
     />
   );
 }

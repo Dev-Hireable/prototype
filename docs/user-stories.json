@@ -78,12 +78,6 @@
   "ac": "- File attachment button available in the message composer - Supported file types: PDF, DOC, DOCX, PNG, JPG (max 10MB) - Attached file previewed before sending - Recipient can download the attachment from the thread"
  },
  {
-  "id": "TB-011",
-  "title": "Start / Join Call",
-  "story": "As an employer, I want to attach or share a meeting link in a conversation, so that I can easily schedule or start a call with a talent or candidate without leaving the platform.",
-  "ac": "- Call button available within an active conversation - Clicking initiates or joins a call session - Notification sent to the other party when call starts - While the call window is open, the call banner is hidden; the thread keeps \"You started a call\" as the log - Header buttons are named Voice call and Video call on hover; Mute uses a microphone icon and the status reads \"Camera on · Mic on\""
- },
- {
   "id": "TB-012",
   "title": "Browse Independents",
   "story": "As an employer, I want to browse a list of available independent talents, so that I can find candidates that fit my role and requirements.",
@@ -760,12 +754,6 @@
   "title": "Attach Files in Messages",
   "story": "As an Independent Contractor, I want to attach files in my messages, so that I can share documents, portfolios, or deliverables with Team Builders directly in the chat.",
   "ac": "- File attachment button available in message composer - Supported types: PDF, DOC, DOCX, PNG, JPG (max 10MB) - Attached file previewed before sending - Recipient can download from message thread"
- },
- {
-  "id": "IN-011",
-  "title": "Start / Join Call",
-  "story": "As an Independent Contractor, I want to start or join a call from within the messaging interface, so that I can communicate with Team Builders in real time without leaving the platform.",
-  "ac": "- Call button available within an active conversation - Clicking initiates or joins a call session - Call interface includes mute, camera toggle, and end call - Notification sent to other party when call starts - While the call window is open, the call banner is hidden; the thread keeps \"You started a call\" as the log - Header buttons are named Voice call and Video call on hover; Mute uses a microphone icon and the status reads \"Camera on · Mic on\""
  },
  {
   "id": "IN-012",

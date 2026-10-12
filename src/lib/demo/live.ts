@@ -41,8 +41,6 @@ export type ChatMsg = {
   /** TB-007 / IN-007 — something that happened rather than something said: logged in the thread, with where to see it. */
   event?: ChatEvent;
   file?: { name: string; meta: string };
-  /** TB-011 / IN-011 — a meeting link shared in the thread. */
-  call?: { link: string };
   /** Where it was written, when that wasn't the thread itself — the inbox links back to it. */
   source?: ChatSource;
 };
@@ -659,14 +657,13 @@ export function sendChat(from: Side, text: string, source?: ChatSource): string 
 
 /**
  * Raise the "new message" notification for the OTHER side (TB-007 / IN-007). Consecutive
- * messages collapse into the one unread entry so a back-and-forth doesn't flood the feed —
- * except a call, which always announces itself.
+ * messages collapse into the one unread entry so a back-and-forth doesn't flood the feed.
  */
-function noteMessage(from: Side, body: string, force = false) {
+function noteMessage(from: Side, body: string) {
   refresh();
   const to: Side = from === "team" ? "independent" : "team";
   const sender = from === "team" ? PAIR.team.name : PAIR.independent.name;
-  if (!force && snapshot[to].some((n) => n.unread && n.title.startsWith("New message"))) return;
+  if (snapshot[to].some((n) => n.unread && n.title.startsWith("New message"))) return;
 
   if (to === "independent") {
     const note: IndNote = { id: uid(), group: "Today", title: `New message from ${sender}`, body, time: clock(), at: Date.now(), unread: true, kind: "messages", href: "/independent/messages", avatar: PAIR.team.avatar };
@@ -701,16 +698,6 @@ export function sendFile(from: Side, file: File, source?: ChatSource): string {
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
   noteMessage(from, `Sent an attachment: ${file.name}`);
   return msgId;
-}
-
-/** TB-011 / IN-011 — share a meeting link; the other party is notified that the call started. */
-export function startCall(from: Side) {
-  refresh();
-  const link = `https://meet.hireable.ph/${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 6)}`;
-  const chat = [...snapshot.chat, { id: uid(), from, time: clock(), at: Date.now(), call: { link } }];
-  write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, "Started a call. The meeting link is in your thread.", true);
-  return link;
 }
 
 /** TB-008 / IN-008 — the count clears when the conversation is opened, along with its notification. */

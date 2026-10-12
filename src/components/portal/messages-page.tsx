@@ -5,21 +5,17 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Highlight, SearchBox } from "@/components/portal/ui";
-import { CallDialog } from "@/components/portal/call-dialog";
 import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { ChatSourceLink } from "@/components/portal/chat-source-link";
 import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
-import { Tip } from "@/components/portal/tip";
 import { MONTHS } from "@/lib/portal/dates";
-import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, startCall, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
+import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
 import { slotAt } from "@/lib/portal/timezones";
 import type { Side } from "@/lib/work/model";
 
 const DoneAll = ICONS.doneAll;
 const Check = ICONS.check;
-const Call = ICONS.call;
-const Video = ICONS.video;
 const Attach = ICONS.attach;
 const Pdf = ICONS.pdf;
 const Download = ICONS.download;
@@ -46,8 +42,6 @@ type MessagesPageProps<K extends string, C extends Thread<K>> = {
   face: Face<C>;
   /** Beside the name in the thread's header: the trial's day. */
   badge?: ReactNode;
-  /** A video call button beside the call button. */
-  video?: boolean;
   /** #152 — where the engagement stands, tagged on the thread's row: Applied, Interview, Trial… */
   stage?: string;
 };
@@ -57,7 +51,7 @@ type MessagesPageProps<K extends string, C extends Thread<K>> = {
  * from @/lib/demo/live, so what one side sends lands in the other's portal (TB-006 / IN-006 send,
  * TB-007 / IN-007 receive, TB-008 / IN-008 unread).
  */
-export function MessagesPage<K extends string, C extends Thread<K>>({ side, conversations, tabs, emptyTab, emptyThread, face, badge, video = false, stage }: MessagesPageProps<K, C>) {
+export function MessagesPage<K extends string, C extends Thread<K>>({ side, conversations, tabs, emptyTab, emptyThread, face, badge, stage }: MessagesPageProps<K, C>) {
   const other: Side = side === "team" ? "independent" : "team";
   const back = useReturnTo();
   const live = useLive();
@@ -67,7 +61,6 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
   const [q, setQ] = useState("");
   const view = useThreadView(conversations[0]?.id);
   const composer = useComposer(side);
-  const call = useCall(side);
   const conv = conversations.find((c) => c.id === view.active) ?? conversations[0];
   const chat: Chat = { live, side, other };
   /** TB-007 / IN-007 — the thread entry a notification opened (`?msg=`). */
@@ -80,8 +73,7 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
 
   return (
     // A chat app, not a page with a card in it: the list and the thread are panels of their own beside the rail (@/components/portal/Inbox).
-    <>
-      <Inbox
+    <Inbox
         open={view.opened}
         nav={back ? <ReturnNav /> : undefined}
         list={
@@ -105,17 +97,13 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
             <NoConversations text={emptyThread} entry={focus ? live.chat.find((m) => m.id === focus && m.event) : undefined} side={side} />
           ) : (
             <>
-              <ConversationHeader avatar={face(conv, 36)} name={conv.name} sub={conv.sub} badge={badge} video={video} onCall={call.start} onBack={view.back} />
-              {/* While the call window is open the banner would only repeat it. */}
-              {call.link && !call.inCall && <CallBanner name={conv.name} onJoin={call.enter} onDismiss={call.dismiss} />}
-              <ChatLog conv={conv} face={face} chat={chat} q={q} focus={focus} onJoin={call.join} />
+              <ConversationHeader avatar={face(conv, 36)} name={conv.name} sub={conv.sub} badge={badge} onBack={view.back} />
+              <ChatLog conv={conv} face={face} chat={chat} q={q} focus={focus} />
               <Composer {...composer} />
             </>
           )
         }
-      />
-      <CallDialog open={call.inCall} link={call.link} withWhom={conv?.name ?? ""} onEnd={call.end} />
-    </>
+    />
   );
 }
 
@@ -167,29 +155,6 @@ function useComposer(side: Side) {
   };
 
   return { draft, onDraft: setDraft, pending, onRemove: () => setPending(null), fileError, onPick: pick, onSend: send };
-}
-
-/**
- * TB-011 / IN-011 — the call: its link once one is started or joined, whether this side is on it,
- * and the ways in and out.
- */
-function useCall(side: Side) {
-  const [link, setLink] = useState<string | null>(null);
-  const [inCall, setInCall] = useState(false);
-
-  /** TB-011 / IN-011: starts a call session and notifies the other party. */
-  const start = () => {
-    setLink(startCall(side));
-    setInCall(true);
-  };
-
-  /** Joins a call from the thread, the one a call message links to. */
-  const join = (to: string) => {
-    setLink(to);
-    setInCall(true);
-  };
-
-  return { link, inCall, start, join, enter: () => setInCall(true), dismiss: () => setLink(null), end: () => setInCall(false) };
 }
 
 /**
@@ -263,8 +228,8 @@ type Latest = { time?: string; text: string; receipt?: Receipt; unread: number }
 /** Whether `side` sees a message: everything, but a step logged for the other side only. */
 const seenBy = (m: ChatMsg, side: Side) => !m.event?.only || m.event.only === side;
 
-/** What a message says in one line: its text, its file, its logged step, or the call. */
-const previewOf = (m: ChatMsg) => m.text ?? m.file?.name ?? m.event?.text ?? (m.call ? "Call" : "");
+/** What a message says in one line: its text, its file, or its logged step. */
+const previewOf = (m: ChatMsg) => m.text ?? m.file?.name ?? m.event?.text ?? "";
 
 /** The latest message, read once for every row (the demo has the one shared thread). Its time is the thread's last. */
 function latestOf({ live, side, other }: Chat): Latest {
@@ -305,8 +270,8 @@ function ConversationRow({ name, sub, stage, avatar, on, q, latest, onOpen }: { 
   );
 }
 
-/** The thread's top bar: who it's with, the badge beside them, and the call buttons. */
-function ConversationHeader({ avatar, name, sub, badge, video, onCall, onBack }: { avatar: ReactNode; name: string; sub: string; badge?: ReactNode; video: boolean; onCall: () => void; onBack: () => void }) {
+/** The thread's top bar: who it's with, and the badge beside them. */
+function ConversationHeader({ avatar, name, sub, badge, onBack }: { avatar: ReactNode; name: string; sub: string; badge?: ReactNode; onBack: () => void }) {
   return (
     <ThreadHeader onBack={onBack}>
       {avatar}
@@ -315,41 +280,14 @@ function ConversationHeader({ avatar, name, sub, badge, video, onCall, onBack }:
         <p className="truncate text-[11.5px] text-muted">{sub}</p>
       </div>
       {badge}
-      <Tip label="Voice call">
-        <button type="button" aria-label="Start call" onClick={onCall} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
-          <Call size={20} aria-hidden />
-        </button>
-      </Tip>
-      {video && (
-        <Tip label="Video call">
-          <button type="button" aria-label="Start video call" onClick={onCall} className="flex size-9 items-center justify-center rounded-lg border border-border text-ink hover:bg-surface-alt">
-            <Video size={20} aria-hidden />
-          </button>
-        </Tip>
-      )}
     </ThreadHeader>
   );
 }
 
-/** Under the header once a call is started: the other side has been told, with Join call and Dismiss. */
-function CallBanner({ name, onJoin, onDismiss }: { name: string; onJoin: () => void; onDismiss: () => void }) {
-  return (
-    <p className="flex items-center gap-2 border-b border-line bg-[#f0f7ff] px-[18px] py-2.5 text-[12.5px] leading-[1.45] text-ink-deep">
-      Call started. {name} has been notified.
-      {/* IN-011 / TB-011 — opens the in-call surface with mute, camera and end call. */}
-      <button type="button" onClick={onJoin} className="font-semibold text-primary underline underline-offset-2">
-        Join call
-      </button>
-      <button type="button" onClick={onDismiss} className="ml-auto text-muted hover:text-ink">
-        Dismiss
-      </button>
-    </p>
-  );
-}
-
-/** The thread, oldest first, under a divider for each day: logged steps, calls to join, files to download, and bubbles with their receipts. */
-function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, focus, onJoin }: { conv: C; face: Face<C>; chat: Chat; q: string; focus: string | null; onJoin: (link: string) => void }) {
-  const rows = live.chat.map((m, i) => ({ m, i })).filter(({ m }) => seenBy(m, side));
+/** The thread, oldest first, under a divider for each day: logged steps, files to download, and bubbles with their receipts. */
+function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, focus }: { conv: C; face: Face<C>; chat: Chat; q: string; focus: string | null }) {
+  // Messages has no calls any more: one saved before they went isn't shown.
+  const rows = live.chat.map((m, i) => ({ m, i })).filter(({ m }) => seenBy(m, side) && !("call" in m));
   // The thread scrolls to its end as it opens; a notification's entry is then brought into view.
   useEffect(() => {
     if (focus) document.getElementById(`msg-${focus}`)?.scrollIntoView({ block: "center" });
@@ -374,9 +312,7 @@ function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { l
             {divider}
             <div className={`flex items-end gap-2 ${me ? "justify-end" : ""}`}>
               {!me && face(conv, 30)}
-              {m.call ? (
-                <CallCard mine={me} name={conv.name} link={m.call.link} onJoin={onJoin} />
-              ) : m.file ? (
+              {m.file ? (
                 <FileCard id={m.id} file={m.file} source={m.source} side={side} />
               ) : (
                 <ChatBubble mine={me} time={m.time} receipt={readBy(live, other, i) ? "seen" : "sent"} className="max-w-[420px]" /* hugs its text; a note from a proposal says so, and opens it */ header={m.source && <ChatSourceLink source={m.source} side={side} mine={me} />}>
@@ -450,24 +386,6 @@ function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boo
         </Link>
       )}
     </p>
-  );
-}
-
-/** A call in the thread: who started it, its link, and Join. */
-function CallCard({ mine, name, link, onJoin }: { mine: boolean; name: string; link: string; onJoin: (link: string) => void }) {
-  return (
-    <div className="flex w-[420px] min-w-0 items-center gap-3 rounded-xl bg-white px-3.5 py-2.5 outline -outline-offset-1 outline-line">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-[#eef6ff] text-primary">
-        <Call size={20} aria-hidden />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col leading-[1.45]">
-        <span className="text-[13px] font-semibold text-ink-deep">{mine ? "You started a call" : `${name} started a call`}</span>
-        <span className="truncate text-[10.5px] text-muted">{link}</span>
-      </span>
-      <button type="button" onClick={() => onJoin(link)} className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-[12px] leading-none font-semibold text-white">
-        Join
-      </button>
-    </div>
   );
 }
 
