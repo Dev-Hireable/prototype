@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, test } from "./fixtures";
+import { closePanel, expect, panel, test } from "./fixtures";
 
 // The guided tours (src/lib/portal/tours.ts). Every other spec starts with all of them seen; these
 // start with none, as a new account does.
@@ -112,5 +112,15 @@ test.describe("guided tours", () => {
     }
     const seen = await record(page);
     for (const id of ["team.contract", "team.messages", "independent.contract", "independent.messages"]) expect(seen[id]?.status, id).toBe("done");
+  });
+
+  test("a task a notification opened keeps the screen: the tour waits for its sheet to close", async ({ page }) => {
+    await page.goto("/team/independents/juan-dela-cruz?task=t-logos&focus=comments");
+    await expect(panel(page)).toBeVisible();
+    await page.waitForTimeout(1200);
+    await expect(overlay(page)).toHaveCount(0);
+    await closePanel(page);
+    await expect(progress(page)).toHaveText("Step 1 of 5");
+    await expect(overlay(page)).toHaveAttribute("data-tour-overlay", "highlight");
   });
 });

@@ -90,10 +90,15 @@ type AutoStart = {
   setRunning: (run: Running | null) => void;
 };
 
+/** A sheet or modal over the screen (an item a notification opened, say), other than the tour's own card. */
+const MODAL = '[data-slot="sheet-content"], [role="dialog"][aria-modal="true"], [role="alertdialog"]';
+const modalOpen = () => [...document.querySelectorAll(MODAL)].some((el) => !el.closest("[data-tour-overlay]"));
+
 /**
  * Starts a tour once a screen has settled: the one asked for from another screen, or else this
  * screen's own the first time it opens. A tour left open on the screen before is recorded as
- * skipped where it stopped.
+ * skipped where it stopped. While a sheet or modal is up the tour waits for it to close: what's
+ * behind it is dimmed and blurred, so there'd be nothing to point at.
  */
 function useAutoStart({ pathname, hydrated, running, queued, setRunning }: AutoStart) {
   const runningRef = useRef(running);
@@ -105,7 +110,7 @@ function useAutoStart({ pathname, hydrated, running, queued, setRunning }: AutoS
     if (!hydrated) return;
     const left = runningRef.current;
     if (left && !onTourPath(left.tour.path, pathname)) recordTour(left.tour.id, { status: "skipped", step: left.step });
-    const timer = setTimeout(() => {
+    const begin = () => {
       const ask = queued.current;
       queued.current = null;
       const asked = ask && tourById(ask.id);
@@ -114,7 +119,22 @@ function useAutoStart({ pathname, hydrated, running, queued, setRunning }: AutoS
       if (open && onTourPath(open.tour.path, pathname)) return;
       const here = tourFor(pathname);
       setRunning(here && !tourRecord(here.id) ? { tour: here, step: 0 } : null);
-    }, SETTLE_MS);
-    return () => clearTimeout(timer);
+    };
+    let timer = 0;
+    // Watched only while a sheet is up: once it's gone the screen settles again, then the tour starts.
+    const observer = new MutationObserver(() => {
+      if (modalOpen()) return;
+      observer.disconnect();
+      settle();
+    });
+    const settle = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(() => (modalOpen() ? observer.observe(document.body, { childList: true, subtree: true }) : begin()), SETTLE_MS);
+    };
+    settle();
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
   }, [pathname, hydrated, queued, setRunning]);
 }
