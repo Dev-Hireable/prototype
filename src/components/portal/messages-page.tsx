@@ -24,10 +24,10 @@ const Download = ICONS.download;
 type Thread<K extends string> = { id: string; name: string; sub: string; kind: K };
 
 /** The other side's face at 38 (list), 36 (header) and 30 (beside their messages) pixels. */
-type Face<C> = (c: C, size: 38 | 36 | 30) => ReactNode;
+export type Face<C> = (c: C, size: 38 | 36 | 30) => ReactNode;
 
 /** The shared thread as this portal reads it: the live store, whose portal it is, and the other side. */
-type Chat = { live: Live; side: Side; other: Side };
+export type Chat = { live: Live; side: Side; other: Side };
 
 /** What each portal's Messages page passes in: its conversations and tabs, and what the empty panes say. */
 type MessagesPageProps<K extends string, C extends Thread<K>> = {
@@ -44,6 +44,8 @@ type MessagesPageProps<K extends string, C extends Thread<K>> = {
   badge?: ReactNode;
   /** #152 — where the engagement stands, tagged on the thread's row: Applied, Interview, Trial… */
   stage?: string;
+  /** The other side's profile in a sheet, opened from the name in the thread's header. */
+  profile?: (sheet: { open: boolean; onClose: () => void }) => ReactNode;
 };
 
 /**
@@ -51,7 +53,7 @@ type MessagesPageProps<K extends string, C extends Thread<K>> = {
  * from @/lib/demo/live, so what one side sends lands in the other's portal (TB-006 / IN-006 send,
  * TB-007 / IN-007 receive, TB-008 / IN-008 unread).
  */
-export function MessagesPage<K extends string, C extends Thread<K>>({ side, conversations, tabs, emptyTab, emptyThread, face, badge, stage }: MessagesPageProps<K, C>) {
+export function MessagesPage<K extends string, C extends Thread<K>>({ side, conversations, tabs, emptyTab, emptyThread, face, badge, stage, profile }: MessagesPageProps<K, C>) {
   const other: Side = side === "team" ? "independent" : "team";
   const back = useReturnTo();
   const live = useLive();
@@ -65,6 +67,7 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
   const chat: Chat = { live, side, other };
   /** TB-007 / IN-007 — the thread entry a notification opened (`?msg=`). */
   const focus = useSearchParams().get("msg");
+  const [profileOpen, setProfileOpen] = useState(false);
 
   // TB-008 / IN-008: the count clears when the conversation is opened.
   useEffect(() => {
@@ -73,7 +76,8 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
 
   return (
     // A chat app, not a page with a card in it: the list and the thread are panels of their own beside the rail (@/components/portal/Inbox).
-    <Inbox
+    <>
+      <Inbox
         open={view.opened}
         nav={back ? <ReturnNav /> : undefined}
         list={
@@ -97,13 +101,15 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
             <NoConversations text={emptyThread} entry={focus ? live.chat.find((m) => m.id === focus && m.event) : undefined} side={side} />
           ) : (
             <>
-              <ConversationHeader avatar={face(conv, 36)} name={conv.name} sub={conv.sub} badge={badge} onBack={view.back} />
+              <ConversationHeader avatar={face(conv, 36)} name={conv.name} sub={conv.sub} badge={badge} onBack={view.back} onProfile={profile && (() => setProfileOpen(true))} />
               <ChatLog conv={conv} face={face} chat={chat} q={q} focus={focus} />
               <Composer {...composer} />
             </>
           )
         }
-    />
+      />
+      {profile?.({ open: profileOpen, onClose: () => setProfileOpen(false) })}
+    </>
   );
 }
 
@@ -131,7 +137,7 @@ function useThreadView(first: string | undefined) {
  * message, the attachment waiting to go with it (or why it can't), and sending both. Its keys are
  * the Composer's props.
  */
-function useComposer(side: Side) {
+export function useComposer(side: Side) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
@@ -270,14 +276,27 @@ function ConversationRow({ name, sub, stage, avatar, on, q, latest, onOpen }: { 
   );
 }
 
-/** The thread's top bar: who it's with, and the badge beside them. */
-function ConversationHeader({ avatar, name, sub, badge, onBack }: { avatar: ReactNode; name: string; sub: string; badge?: ReactNode; onBack: () => void }) {
+/** The thread's top bar: who it's with — their face and name open their profile — and the badge beside them. */
+function ConversationHeader({ avatar, name, sub, badge, onBack, onProfile }: { avatar: ReactNode; name: string; sub: string; badge?: ReactNode; onBack: () => void; onProfile?: () => void }) {
+  const who = (
+    <>
+      {avatar}
+      <span className="flex min-w-0 flex-col gap-px text-left leading-[1.45] whitespace-nowrap">
+        <span className={`truncate text-[14px] font-semibold text-ink-deep ${onProfile ? "group-hover:text-primary group-hover:underline" : ""}`}>{name}</span>
+        <span className="truncate text-[11.5px] text-muted">{sub}</span>
+      </span>
+    </>
+  );
   return (
     <ThreadHeader onBack={onBack}>
-      {avatar}
-      <div className="flex min-w-0 flex-1 flex-col gap-px leading-[1.45] whitespace-nowrap">
-        <p className="truncate text-[14px] font-semibold text-ink-deep">{name}</p>
-        <p className="truncate text-[11.5px] text-muted">{sub}</p>
+      <div className="flex min-w-0 flex-1">
+        {onProfile ? (
+          <button type="button" onClick={onProfile} aria-label={`View ${name}'s profile`} className="group -m-1 flex min-w-0 items-center gap-3 rounded-lg p-1 focus-visible:outline-2 focus-visible:outline-primary">
+            {who}
+          </button>
+        ) : (
+          <div className="flex min-w-0 items-center gap-3">{who}</div>
+        )}
       </div>
       {badge}
     </ThreadHeader>
@@ -285,7 +304,7 @@ function ConversationHeader({ avatar, name, sub, badge, onBack }: { avatar: Reac
 }
 
 /** The thread, oldest first, under a divider for each day: logged steps, files to download, and bubbles with their receipts. */
-function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, focus }: { conv: C; face: Face<C>; chat: Chat; q: string; focus: string | null }) {
+export function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, focus }: { conv: C; face: Face<C>; chat: Chat; q: string; focus: string | null }) {
   // Messages has no calls any more: one saved before they went isn't shown.
   const rows = live.chat.map((m, i) => ({ m, i })).filter(({ m }) => seenBy(m, side) && !("call" in m));
   // The thread scrolls to its end as it opens; a notification's entry is then brought into view.
@@ -392,7 +411,7 @@ function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boo
 /** A file in the thread: its name and size, the note it came from, and its download — greyed out once the file is gone from this browser. */
 function FileCard({ id, file, source, side }: { id: string; file: { name: string; meta: string }; source?: ChatSource; side: Side }) {
   return (
-    <div className="flex w-[420px] min-w-0 items-center gap-3 rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white px-3.5 py-2.5 outline -outline-offset-1 outline-line">
+    <div className="flex w-[420px] max-w-full min-w-0 items-center gap-3 rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white px-3.5 py-2.5 outline -outline-offset-1 outline-line">
       <span className="flex size-9 items-center justify-center rounded-lg bg-[#fdf2f2] text-danger">
         <Pdf size={20} aria-hidden />
       </span>
@@ -416,7 +435,7 @@ function FileCard({ id, file, source, side }: { id: string; file: { name: string
 }
 
 /** The composer: the attachment waiting to go with the next send (or why it can't), attach, the message and Send. */
-function Composer({
+export function Composer({
   draft,
   onDraft,
   pending,

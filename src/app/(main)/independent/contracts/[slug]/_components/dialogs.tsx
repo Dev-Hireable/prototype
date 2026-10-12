@@ -6,7 +6,7 @@ import { caseHref, fileDispute } from "@/lib/demo/disputes";
 import type { SetToast } from "@/lib/portal/toast";
 import { endToast } from "../_lib/copy";
 import type { Dialogs, Tracker } from "../_lib/tracker";
-import { CompanyDialog } from "./company";
+import { CompanyProfileDrawer } from "@/components/independent/company-profile";
 import { EndDialog } from "./ending";
 
 /**
@@ -20,7 +20,7 @@ export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tra
   return (
     <>
       {/* IN-049 — the company behind the contract, read-only. */}
-      <CompanyDialog contract={contract} tags={t.companyTags} open={d.companyOpen} onClose={() => d.setCompanyOpen(false)} />
+      <CompanyProfileDrawer company={contract} tags={t.companyTags} open={d.companyOpen} onClose={() => d.setCompanyOpen(false)} />
 
       {/* IN-059 — the shared form: a reason must be chosen, and the amount has to be a real sum no
           bigger than what is at stake. Filing sends it to Hireable's queue and tells the Team Builder. */}
