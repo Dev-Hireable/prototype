@@ -73,6 +73,24 @@ test.describe("inviting to interview", () => {
   });
 });
 
+test.describe("a candidate's name on the board", () => {
+  test.use({ seedOptions: { empty: true } });
+
+  test("opens their profile in a sheet over the board, with the candidate page one click on", async ({ page }) => {
+    await pipeline(page, "applied");
+    await page.goto(`/team/hire/roles/${ROLE.slug}`);
+    await page.getByRole("button", { name: /^Juan D\./ }).click();
+    const sheet = page.getByRole("dialog", { name: "Independent profile" });
+    await expect(sheet).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/team/hire/roles/${ROLE.slug}$`));
+    // Messaging opens at the interview, so an applicant's sheet only offers Save.
+    await expect(sheet.getByRole("link", { name: "Message" })).toHaveCount(0);
+    await expect(sheet.getByRole("button", { name: "Save" })).toBeVisible();
+    await sheet.getByRole("link", { name: "View profile" }).click();
+    await expect(page).toHaveURL(new RegExp(`/team/hire/roles/${ROLE.slug}/candidates/c1`));
+  });
+});
+
 test.describe("deleting from Dropped, so it doesn't pile up", () => {
   test.use({ seedOptions: { empty: true } });
 
