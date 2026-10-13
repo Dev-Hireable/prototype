@@ -253,9 +253,10 @@ test.describe("offers · declining a trial offer", () => {
     await expect(acceptButton(page)).toHaveCount(0);
     await expect(nameField(page)).toBeDisabled();
     expect((await savedDeal(page)).offer).toMatchObject({ status: "declined", declineReason: REASON });
-    // The notification opens the step in the thread, whose View details opens the candidate.
+    // The notification opens the candidate, as the step's View details in the thread does.
     const declined = (await notes(page, "team")).find((n) => n.title === "Juan Dela Cruz declined your offer");
-    expect((await entryOf(page, declined?.href ?? ""))?.event?.href.team).toBe(CANDIDATE);
+    expect(declined?.href).toBe(CANDIDATE);
+    expect((await entryOf(page, CANDIDATE))?.event?.href.team).toBe(CANDIDATE);
 
     await teamSeesTheDecline(await secondPage());
   });

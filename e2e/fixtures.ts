@@ -185,12 +185,14 @@ export async function notes(page: Page, side: "team" | "independent"): Promise<{
 }
 
 /**
- * The thread entry a notification opens (its href is `/<side>/messages?msg=<id>`): the step logged in
- * the shared thread, with where each side's View details goes.
+ * The thread entry behind a notification: the step logged in the shared thread whose View details
+ * goes where the notification does (`href`, the item itself), with where each side's goes.
  */
 export async function entryOf(page: Page, href: string): Promise<{ id: string; event?: { text: string; href: Partial<Record<"team" | "independent", string>>; only?: string } } | undefined> {
-  const id = new URL(href, "http://x").searchParams.get("msg");
-  return page.evaluate((i) => JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}")?.chat?.find((m: { id: string }) => m.id === i), id);
+  return page.evaluate(
+    (h) => JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}")?.chat?.findLast((m: { event?: { href: Record<string, string> } }) => m.event && Object.values(m.event.href).includes(h)),
+    href,
+  );
 }
 
 /** A board card by its reference and name, as it's announced. */
