@@ -117,6 +117,8 @@ import {
   MdHelpOutline,
   MdRestartAlt,
   MdPlayArrow,
+  MdMinimize,
+  MdOutlineCropSquare,
 } from "react-icons/md";
 import type { IconType } from "react-icons";
 
@@ -165,6 +167,9 @@ export const ICONS = {
   chevronLeft: MdKeyboardArrowLeft,
   chevronRight: MdKeyboardArrowRight,
   close: MdClose,
+  /** A popup window folded to its header, and unfolded again — a desktop window's minimise and restore. */
+  minimize: MdMinimize,
+  restore: MdOutlineCropSquare,
   moreH: MdMoreHoriz,
   moreV: MdMoreVert,
   add: MdAdd,

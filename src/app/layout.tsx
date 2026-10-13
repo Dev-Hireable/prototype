@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import { DemoReset } from "@/components/portal/demo-reset";
+import { Toaster } from "@/components/portal/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {/* The laptop UI scale (globals.css .ui-zoom); portalled popups scale themselves. */}
           <div className="ui-zoom flex min-h-full flex-1 flex-col">{children}</div>
           <DemoReset />
+          <Toaster />
         </TooltipProvider>
       </body>
     </html>

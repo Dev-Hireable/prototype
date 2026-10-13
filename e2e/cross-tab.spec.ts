@@ -1,4 +1,4 @@
-import { card, column, drag, expect, open, panel, savedItem, test } from "./fixtures";
+import { card, column, drag, expect, open, panel, savedItem, test, toast } from "./fixtures";
 
 // Two people — or one person in two tabs — on the same contract.
 test.describe("two tabs on one contract", () => {
@@ -38,7 +38,7 @@ test.describe("two tabs on one contract", () => {
     await expect(panel(other).getByText(/changed this while you were editing/)).toBeVisible();
     await expect(mine).toHaveValue("Share the style tiles — second draft");
     await mine.press("Enter");
-    const alert = other.getByRole("alert").filter({ hasText: "changed the name while you were editing" });
+    const alert = toast(other, "changed the name while you were editing");
     await expect(alert).toBeVisible();
     expect((await savedItem(other, "t-share")).title).toBe("Share the style tiles with marketing");
     await alert.getByRole("button", { name: "Use mine" }).click();

@@ -59,9 +59,9 @@ const imageOn = (page: Page, camera: string) => page.getByRole("button", { name:
 /** Offers a GIF, then a PNG over the limit: each is turned away with the reason, in a danger toast (an alert). */
 async function refusesWrongFiles(page: Page, camera: string) {
   await pick(page, camera, FILES.gif);
-  await expect(page.getByRole("alert").filter({ hasText: "That file has to be a JPG or a PNG." })).toBeVisible();
+  await expect(toast(page, "That file has to be a JPG or a PNG.")).toBeVisible();
   await pick(page, camera, FILES.big);
-  await expect(page.getByRole("alert").filter({ hasText: "That file is 5.6MB — the limit is 5MB." })).toBeVisible();
+  await expect(toast(page, "That file is 5.6MB — the limit is 5MB.")).toBeVisible();
 }
 
 /* ------------------------------------------------------------ the talent profile */

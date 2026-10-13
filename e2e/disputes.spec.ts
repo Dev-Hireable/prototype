@@ -1,4 +1,4 @@
-import { entryOf, EVALUATED, expect, NOW, notes, open, PATH, savedDispute, savedEscrow, test, toast } from "./fixtures";
+import { entryOf, EVALUATED, expect, NOW, notes, PATH, savedDispute, savedEscrow, test, toast } from "./fixtures";
 
 // Disputes as cases worked in turns — filed on one side, answered on the other within five days,
 // reviewed by Hireable support, settled between the two or ruled on — with the files both sides
@@ -52,8 +52,9 @@ test.describe("filing and responding", () => {
   test.use({ seedOptions: OVER });
 
   test("the other side has five days to respond, and both read the same case with each other's screenshots", async ({ page, secondPage }) => {
-    await open(page, "team");
-    await page.getByRole("button", { name: "File a Dispute" }).first().click();
+    // Filing is on the contract's dispute card, under Contract & Payment.
+    await page.goto(`${PATH.team}?tab=contract`);
+    await page.getByRole("button", { name: "File a Dispute" }).click();
     const form = page.getByRole("dialog", { name: /File a dispute about Juan Dela Cruz/ });
     await form.getByRole("button", { name: "Reason" }).click();
     await page.getByRole("option", { name: "Missed Deadline" }).click();

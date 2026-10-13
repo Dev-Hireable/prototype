@@ -14,7 +14,7 @@ import { useQuickChat } from "@/lib/portal/quick-chat";
 import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 import { TrackerDialogs } from "./_components/dialogs";
-import { Crumbs, DisputeButton } from "./_components/header";
+import { Crumbs } from "./_components/header";
 import { TabContent } from "./_components/tab-content";
 import { useTrackerActions } from "./_lib/actions";
 import { useEvaluationDraft } from "./_lib/forms";
@@ -66,8 +66,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
       }
       tabs={<ContractTabs value={tab} onChange={setTab} />}
       nav={<ReturnNav fallback={<Crumbs name={name} />} />}
-      /* TB-058: both stay in the header at every tab and stage of the contract. */
-      navActions={<HeaderActions t={t} onFile={on.openDispute} />}
+      /* TB-058: Message stays in the header at every tab and stage; File a Dispute is on the dispute card. */
+      navActions={<HeaderActions t={t} />}
     >
       <TabContent tab={tab} t={t} draft={draft} on={on} onTab={setTab} />
       <TrackerDialogs t={t} on={on} onToast={setToast} />
@@ -76,8 +76,8 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
   );
 }
 
-/** Message and File a Dispute, beside the page title. */
-function HeaderActions({ t, onFile }: { t: Tracker; onFile: () => void }) {
+/** Message, beside the page title. */
+function HeaderActions({ t }: { t: Tracker }) {
   /** Messages opened on this person's thread — only the live pair has one in the demo. */
   const withReturn = useWithReturn();
   const chat = useQuickChat();
@@ -87,11 +87,8 @@ function HeaderActions({ t, onFile }: { t: Tracker; onFile: () => void }) {
   // The live pair's thread opens on the spot, in the quick chat; nobody else has one in the demo.
   const quick = pair ? () => chat.open({ name: person.name, sub: t.contract.role, avatar: person.avatar, href: thread }) : undefined;
   return (
-    <>
-      <MessageButton size="md" href={thread} onClick={quick}>
-        Message {t.first}
-      </MessageButton>
-      <DisputeButton size="md" view={t.view} onFile={onFile} />
-    </>
+    <MessageButton size="md" href={thread} onClick={quick}>
+      Message {t.first}
+    </MessageButton>
   );
 }
