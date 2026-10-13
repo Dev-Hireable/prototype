@@ -145,10 +145,26 @@ const emit = () => {
 function parse(raw: string | null): Live {
   if (!raw) return SEED;
   try {
-    return { ...SEED, ...(JSON.parse(raw) as Live) };
+    return toItems({ ...SEED, ...(JSON.parse(raw) as Live) });
   } catch {
     return SEED;
   }
+}
+
+/**
+ * Notifications saved when they opened their step in Messages (`/messages?msg=<id>`) open the item
+ * the step is about instead, as new ones do: the entry's link for that side.
+ */
+function toItems(live: Live): Live {
+  const item = (side: Side, href: string) => {
+    const id = /\/messages\?msg=([^&#]+)/.exec(href)?.[1];
+    return (id && live.chat.find((m) => m.id === id)?.event?.href[side]) || href;
+  };
+  return {
+    ...live,
+    team: live.team.map((n) => (n.href ? { ...n, href: item("team", n.href) } : n)),
+    independent: live.independent.map((n) => (n.href ? { ...n, href: item("independent", n.href) } : n)),
+  };
 }
 
 /**
@@ -477,9 +493,6 @@ const LOG: Record<MoveKind, (role: string, x?: MoveExtra) => string> = {
   withdrawn: (r) => `${PAIR.independent.name} withdrew their application for ${r}`,
 };
 
-/** A side's inbox, opened on one entry of the thread. */
-const inboxEntry = (side: Side, id: string) => `/${side === "team" ? "team" : "independent"}/messages?msg=${id}`;
-
 /** The thread with `event` logged at the end: its id, and the new chat (written by the caller with the notification). */
 function withEvent(from: Side, event: ChatEvent): { id: string; chat: ChatMsg[] } {
   const id = uid();
@@ -524,15 +537,15 @@ function withNote(side: Side, draft: NoteDraft): Pick<Live, "team" | "independen
 
 /**
  * A notification that isn't a pipeline movement (a payment, a dispute, a contract reminder). It's
- * logged in the thread for `side` only and opens there; the entry's View details opens `href`.
+ * logged in the thread for `side` only, and the notification, like the entry's View details, opens `href`.
  * On the independent's side it comes from the company, so it carries the company's initials.
  */
 export function notify(side: Side, n: { title: string; body: string; href: string; avatar?: string; kind?: NoteCategory }) {
   refresh();
   const other: Side = side === "team" ? "independent" : "team";
-  const { id, chat } = withEvent(other, { text: n.title, href: { [side]: n.href }, only: side });
+  const { chat } = withEvent(other, { text: n.title, href: { [side]: n.href }, only: side });
   const face = side === "independent" ? { initials: PAIR.team.initials } : { avatar: n.avatar };
-  write({ ...snapshot, chat, ...withNote(side, { title: n.title, body: n.body, href: inboxEntry(side, id), kind: n.kind ?? "payments", ...face }) });
+  write({ ...snapshot, chat, ...withNote(side, { title: n.title, body: n.body, href: n.href, kind: n.kind ?? "payments", ...face }) });
 }
 
 /** The one engagement's id in both portals (DEAL_ID): its application, its tracker card. */
@@ -596,16 +609,16 @@ const FROM_COMPANY = new Set<MoveKind>(["invite", "proposal_declined", "offer_se
 
 /**
  * Record a movement: it's logged in the thread both sides share, with where each side opens it, and
- * the OTHER side gets the notification the spec says, which opens that entry (TB-007 / IN-007).
+ * the OTHER side gets the notification the spec says, which opens the item itself (TB-007 / IN-007).
  */
 export function move(kind: MoveKind, role: { slug: string; title: string }, extra?: MoveExtra) {
   refresh();
   const m = MOVES[kind];
   const from: Side = m.to === "team" ? "independent" : "team";
   const href = { team: teamTarget(kind, role.slug, extra), independent: independentTarget(kind, role.slug, extra) };
-  const { id, chat } = withEvent(from, { text: LOG[kind](role.title, extra), href, slot: extra?.slot });
+  const { chat } = withEvent(from, { text: LOG[kind](role.title, extra), href, slot: extra?.slot });
   const face = m.to === "team" ? { avatar: PAIR.independent.avatar } : FROM_COMPANY.has(kind) ? { initials: PAIR.team.initials } : { avatar: PAIR.team.avatar };
-  write({ ...snapshot, chat, ...withNote(m.to, { title: m.title(role.title, extra), body: m.body(role.title, extra), href: inboxEntry(m.to, id), kind: categoryOfMove(kind), ...face }) });
+  write({ ...snapshot, chat, ...withNote(m.to, { title: m.title(role.title, extra), body: m.body(role.title, extra), href: href[m.to], kind: categoryOfMove(kind), ...face }) });
 }
 
 /** A comment for a notification: one line, cut at a word — the item has the rest. */

@@ -71,13 +71,13 @@ test.describe("filing and responding", () => {
     await expect(page.getByText(/Waiting on Juan Dela Cruz to respond — they have until .*5 days left/)).toBeVisible();
     expect(await savedDispute(page, id)).toMatchObject({ status: "Pending", amount: 800, turn: { who: "independent", due: T + 5 * DAY, why: "respond" } });
 
-    // Juan is told: the notification opens the step in his thread, whose View details opens the case, with Alex's screenshot on it.
+    // Juan is told: the notification opens the case itself, with Alex's screenshot on it; the step is logged in his thread too.
     const [told] = await notes(page, "independent");
     expect(told.title).toBe("Nairobi Solutions Inc. filed a dispute");
-    expect((await entryOf(page, told.href))?.event).toMatchObject({ href: { independent: `/independent/wallet/disputes/${id}` }, only: "independent" });
+    expect(told.href).toBe(`/independent/wallet/disputes/${id}`);
+    expect((await entryOf(page, told.href))?.event).toMatchObject({ href: { independent: told.href }, only: "independent" });
     const juan = await secondPage();
     await juan.goto(told.href);
-    await juan.getByRole("link", { name: "View details" }).last().click();
     await expect(juan).toHaveURL(new RegExp(`/independent/wallet/disputes/${id}`));
     await expect(juan.getByText("It's your turn to respond")).toBeVisible();
     await expect(juan.getByRole("button", { name: /Open late-drafts\.png/ })).toBeVisible();
