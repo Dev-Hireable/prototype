@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { nextPay, noticeLastDay, type Notice, type PayPeriod, payPeriods } from "@/lib/contract/lifecycle";
+import { type Lifecycle, nextPay, noticeLastDay, type Notice, type PayPeriod, payPeriods } from "@/lib/contract/lifecycle";
 import type { Dispute } from "@/lib/disputes/case";
 import { dayLabel, isoDay, parseDay, today } from "@/lib/portal/dates";
 import { contractTypeOf, type Deal, type DealEvaluation, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, type RoleHold, settleEscrow, startedAsTrial, trialEvaluationOf, updateDeal } from "@/lib/demo/deal";
@@ -365,6 +365,31 @@ function payUpTo(d: Deal, until: Date, closing = false): number {
 const fired = (d: Deal, key: string) => d.contract?.fired?.includes(key) ?? false;
 const fire = (key: string) => updateDeal((x) => (x.contract ? { ...x, contract: { ...x.contract, fired: [...(x.contract.fired ?? []), key] } } : x));
 
+/** The trial's escrow, once it's settled which way it goes: evaluated, or the window passed. */
+function releaseSettledTrial(d: Deal, l: Lifecycle, who: string) {
+  const settledTrial = !!l.trial?.over && !d.contract?.cancelled && (!!trialEvaluationOf(d) || !!l.trial?.evaluationOverdue);
+  if (!settledTrial || l.phase === "starts") return;
+  const e = escrowOf(d, getDisputes());
+  if (e && e.held - e.onHold > 0) {
+    const overdue = l.phase === "evaluation";
+    const released = releaseEscrow(d);
+    if (released > 0 && overdue && !fired(d, "escrow-released")) {
+      fire("escrow-released");
+      notify("team", { title: `${who}'s trial budget was released`, body: `The evaluation window closed on ${dayLabel(l.trial?.evaluationDue)} with no evaluation, so the ${usd(released)} held in escrow${e.onHold > 0 ? ` (less ${usd(e.onHold)} a dispute is keeping)` : ""} went to ${who}. You can still send your evaluation.`, href: teamHref("contract"), avatar: PAIR.independent.avatar, kind: "payments" });
+    }
+  }
+}
+
+/** TB-072 — an offer nobody answered by its start date. */
+function expireOffer(d: Deal, l: Lifecycle, who: string) {
+  if (d.conversion?.status !== "sent" || l.phase !== "decision" || !l.expired) return;
+  const kind = JOB_TYPE_LABEL[d.conversion.type].toLowerCase();
+  const start = dayLabel(d.conversion.start);
+  updateDeal((x) => (x.conversion?.status === "sent" ? { ...x, conversion: { ...x.conversion, status: "expired" } } : x));
+  notify("team", { title: `Your ${kind} offer to ${who} expired`, body: `${who} didn't answer it by ${start}, its start date, so it can't be accepted any more. Send a new one with a later start, or end the contract.`, href: teamHref(), avatar: PAIR.independent.avatar, kind: "payments" });
+  notify("independent", { title: "Offer expired", body: `The ${kind} offer for ${d.title} passed its start date, ${start}, without an answer. ${d.company} can send you a new one.`, href: talentHref(d), avatar: PAIR.team.avatar, kind: "payments" });
+}
+
 /**
  * What time does on its own:
  *   the evaluation reminder the day before it's due, and the escrow paying out once the evaluation
@@ -400,28 +425,8 @@ export function sweepContract(now = new Date()) {
       }
     }
 
-    // The trial's escrow, once it's settled which way it goes: evaluated, or the window passed.
-    const settledTrial = !!l.trial?.over && !c.cancelled && (!!trialEvaluationOf(d) || !!l.trial?.evaluationOverdue);
-    if (settledTrial && l.phase !== "starts") {
-      const e = escrowOf(d, getDisputes());
-      if (e && e.held - e.onHold > 0) {
-        const overdue = l.phase === "evaluation";
-        const released = releaseEscrow(d);
-        if (released > 0 && overdue && !fired(d, "escrow-released")) {
-          fire("escrow-released");
-          notify("team", { title: `${who}'s trial budget was released`, body: `The evaluation window closed on ${dayLabel(l.trial?.evaluationDue)} with no evaluation, so the ${usd(released)} held in escrow${e.onHold > 0 ? ` (less ${usd(e.onHold)} a dispute is keeping)` : ""} went to ${who}. You can still send your evaluation.`, href: teamHref("contract"), avatar: PAIR.independent.avatar, kind: "payments" });
-        }
-      }
-    }
-
-    // TB-072 — an offer nobody answered by its start date.
-    if (d.conversion?.status === "sent" && l.phase === "decision" && l.expired) {
-      const kind = JOB_TYPE_LABEL[d.conversion.type].toLowerCase();
-      const start = dayLabel(d.conversion.start);
-      updateDeal((x) => (x.conversion?.status === "sent" ? { ...x, conversion: { ...x.conversion, status: "expired" } } : x));
-      notify("team", { title: `Your ${kind} offer to ${who} expired`, body: `${who} didn't answer it by ${start}, its start date, so it can't be accepted any more. Send a new one with a later start, or end the contract.`, href: teamHref(), avatar: PAIR.independent.avatar, kind: "payments" });
-      notify("independent", { title: "Offer expired", body: `The ${kind} offer for ${d.title} passed its start date, ${start}, without an answer. ${d.company} can send you a new one.`, href: talentHref(d), avatar: PAIR.team.avatar, kind: "payments" });
-    }
+    releaseSettledTrial(d, l, who);
+    expireOffer(d, l, who);
 
     // Notice ran out: the role ends, paid through its last day (below).
     const noticeOver = !!c.notice && !c.ended && l.phase === "ended";

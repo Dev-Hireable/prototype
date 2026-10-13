@@ -161,22 +161,11 @@ type CardDialogs = ReturnType<typeof useCardDialogs>;
 /** The confirmations the cards open, each for the card it came from: drop, delete, invite, mark the interview done, request and review the proposal. */
 function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: CardDialogs; onToast: SetToast }) {
   const { interviews, requestProposal, deleteCandidate, completeInterview } = usePipeline();
-  const { dropping, deleting, inviting, completing, requesting, reviewing, previewing } = dialogs;
-  const withReturn = useWithReturn();
+  const { dropping, deleting, inviting, completing, requesting, reviewing } = dialogs;
   return (
     <>
       {/* A name opens the profile over the board; its View profile leads on to the candidate's own page. */}
-      <ProfileDrawer
-        person={previewing ? byName(previewing.independent) : null}
-        onClose={() => dialogs.setPreviewing(null)}
-        href={() => (previewing ? `/team/hire/roles/${role.slug}/candidates/${previewing.id}` : "")}
-        actions={(p) => (
-          <>
-            {previewing && stageCanMessage(previewing.stage) && <MessageButton href={withReturn("/team/messages")} />}
-            <SaveButton person={p} />
-          </>
-        )}
-      />
+      <CandidateSheet role={role} dialogs={dialogs} />
       <DropDialog candidate={dropping} role={role.title} onClose={() => dialogs.setDropping(null)} onDone={onToast} />
       {deleting && (
         <DeleteDialog
@@ -219,6 +208,25 @@ function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: Car
       {/* TB-104 — looked up by id, so it follows the candidate as a revision or decline moves them. */}
       {reviewing && <ProposalReviewDialog candidate={reviewing} role={role} open onClose={() => dialogs.setReviewing(null)} onToast={onToast} />}
     </>
+  );
+}
+
+/** The previewed candidate's profile in a sheet over the board, with Message once their stage allows it, and Save. */
+function CandidateSheet({ role, dialogs }: { role: RoleData; dialogs: CardDialogs }) {
+  const { previewing } = dialogs;
+  const withReturn = useWithReturn();
+  return (
+    <ProfileDrawer
+      person={previewing ? byName(previewing.independent) : null}
+      onClose={() => dialogs.setPreviewing(null)}
+      href={() => (previewing ? `/team/hire/roles/${role.slug}/candidates/${previewing.id}` : "")}
+      actions={(p) => (
+        <>
+          {previewing && stageCanMessage(previewing.stage) && <MessageButton href={withReturn("/team/messages")} />}
+          <SaveButton person={p} />
+        </>
+      )}
+    />
   );
 }
 

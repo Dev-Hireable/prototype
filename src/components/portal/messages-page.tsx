@@ -434,6 +434,20 @@ function FileCard({ id, file, source, side }: { id: string; file: { name: string
   );
 }
 
+/** The attachment waiting to go with the next send: its name and size, and its remove. */
+function PendingFile({ file, onRemove }: { file: File; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-2.5 self-start rounded-lg bg-surface-alt px-3 py-2 text-[12px] leading-[1.45]">
+      <Pdf size={16} aria-hidden className="text-danger" />
+      <span className="font-semibold text-ink-deep">{file.name}</span>
+      <span className="text-muted">{fileMeta(file)}</span>
+      <button type="button" aria-label="Remove attachment" onClick={onRemove} className="text-muted hover:text-ink">
+        ✕
+      </button>
+    </div>
+  );
+}
+
 /** The composer: the attachment waiting to go with the next send (or why it can't), attach, the message and Send. */
 export function Composer({
   draft,
@@ -462,16 +476,7 @@ export function Composer({
       }}
     >
       {/* TB-010 / IN-010: the attachment is previewed here before it is sent. */}
-      {pending && (
-        <div className="flex items-center gap-2.5 self-start rounded-lg bg-surface-alt px-3 py-2 text-[12px] leading-[1.45]">
-          <Pdf size={16} aria-hidden className="text-danger" />
-          <span className="font-semibold text-ink-deep">{pending.name}</span>
-          <span className="text-muted">{fileMeta(pending)}</span>
-          <button type="button" aria-label="Remove attachment" onClick={onRemove} className="text-muted hover:text-ink">
-            ✕
-          </button>
-        </div>
-      )}
+      {pending && <PendingFile file={pending} onRemove={onRemove} />}
       {fileError && <p className="self-start text-[12px] leading-[1.45] text-danger">{fileError}</p>}
       {/* One box: attach at its start, Send at its end, the message between them. */}
       <div className="flex h-11 items-center gap-1 rounded-lg border border-border px-1.5 focus-within:border-primary">

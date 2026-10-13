@@ -21,18 +21,14 @@ const ROLE_CHOICES = [
  * rather than being two copies of it.
  */
 export default function SignUp() {
-  const { role, step, name, setName, email, setEmail, password, setPassword, detail, setDetail, error, setError, chooseRole, createAccount } =
-    useSignUpForm();
-
-  const detailLabel = role === "team" ? "Company name" : "Job title";
-  const ready = name.trim() !== "" && emailOk(email) && passwordOk(password) && detail.trim() !== "";
+  const form = useSignUpForm();
 
   // Both steps are the one AuthShell, so going on to the next changes the heading and what's under
   // it, and the mark above them stays as it is.
-  if (step === "verify")
+  if (form.step === "verify")
     return (
-      <AuthShell title="Check your email" subtitle={`We sent a verification link to ${email}. Confirm it to secure the account — in this demo it is already confirmed for you.`}>
-        <VerifyEmailStep email={email} role={role} />
+      <AuthShell title="Check your email" subtitle={`We sent a verification link to ${form.email}. Confirm it to secure the account — in this demo it is already confirmed for you.`}>
+        <VerifyEmailStep email={form.email} role={form.role} />
       </AuthShell>
     );
 
@@ -42,43 +38,55 @@ export default function SignUp() {
       subtitle="Hire through a 30-day Trial Drive, or get hired through one."
       footer={<AuthLink prompt="Already have an account?" linkText="Login" href="/login" />}
     >
-      <form
-        className="flex flex-col gap-4 [@media(max-height:760px)]:gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          createAccount();
-        }}
-      >
-        <RoleToggle role={role} onChoose={chooseRole} />
-        {/* OB-002 / OB-003 — a duplicate email is refused with the reason. */}
-        {error && <AuthError>{error}</AuthError>}
-        <Field label="Full name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Juan Dela Cruz" />
-        </Field>
-        <Field label="Email" error={email.trim() !== "" && !emailOk(email) ? "That does not look like an email address." : ""}>
-          <Input
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setError("");
-            }}
-            placeholder="you@company.com"
-          />
-        </Field>
-        <Field label={detailLabel}>
-          <Input value={detail} onChange={(e) => setDetail(e.target.value)} placeholder={role === "team" ? "Nairobi Solutions Inc." : "Sales Manager"} />
-        </Field>
-        <Field label="Password">
-          <PasswordInput value={password} autoComplete="new-password" onChange={setPassword} placeholder="Create a password" />
-        </Field>
-        <PasswordRules password={password} rules={PASSWORD_RULES} />
-        <Button size="xl" variant="primary" type="submit" disabled={!ready}>
-          Create account
-        </Button>
-      </form>
+      <DetailsForm form={form} />
     </AuthShell>
+  );
+}
+
+/** The first step: the account type, name, email, company name or job title, and password. */
+function DetailsForm({ form }: { form: ReturnType<typeof useSignUpForm> }) {
+  const { role, name, setName, email, setEmail, password, setPassword, detail, setDetail, error, setError, chooseRole, createAccount } = form;
+
+  const detailLabel = role === "team" ? "Company name" : "Job title";
+  const ready = name.trim() !== "" && emailOk(email) && passwordOk(password) && detail.trim() !== "";
+
+  return (
+    <form
+      className="flex flex-col gap-4 [@media(max-height:760px)]:gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        createAccount();
+      }}
+    >
+      <RoleToggle role={role} onChoose={chooseRole} />
+      {/* OB-002 / OB-003 — a duplicate email is refused with the reason. */}
+      {error && <AuthError>{error}</AuthError>}
+      <Field label="Full name">
+        <Input value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Juan Dela Cruz" />
+      </Field>
+      <Field label="Email" error={email.trim() !== "" && !emailOk(email) ? "That does not look like an email address." : ""}>
+        <Input
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setError("");
+          }}
+          placeholder="you@company.com"
+        />
+      </Field>
+      <Field label={detailLabel}>
+        <Input value={detail} onChange={(e) => setDetail(e.target.value)} placeholder={role === "team" ? "Nairobi Solutions Inc." : "Sales Manager"} />
+      </Field>
+      <Field label="Password">
+        <PasswordInput value={password} autoComplete="new-password" onChange={setPassword} placeholder="Create a password" />
+      </Field>
+      <PasswordRules password={password} rules={PASSWORD_RULES} />
+      <Button size="xl" variant="primary" type="submit" disabled={!ready}>
+        Create account
+      </Button>
+    </form>
   );
 }
 

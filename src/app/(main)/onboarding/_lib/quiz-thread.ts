@@ -6,8 +6,8 @@
 export const FINAL_ASSISTANT_WRAP_UP_DELAY_MS = 2000;
 export const FINAL_SPOTLIGHT_DELAY_MS = 450;
 
-export const READY_ANSWER = "Yes, I'm ready";
-export const EXPLAIN_ANSWER = 'Explain further';
+const READY_ANSWER = "Yes, I'm ready";
+const EXPLAIN_ANSWER = 'Explain further';
 const ASKING_OPTIONS: readonly string[] = [READY_ANSWER, EXPLAIN_ANSWER];
 const EXPLAINED_OPTIONS: readonly string[] = [READY_ANSWER];
 
