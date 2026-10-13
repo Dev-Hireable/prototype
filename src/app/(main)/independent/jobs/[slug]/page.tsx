@@ -4,6 +4,7 @@ import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { Page, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
+import { SIDE_COLUMN } from "@/components/portal/page-parts";
 import { ReturnNav } from "@/components/portal/return";
 import { usePostings } from "@/lib/demo/deal";
 import { PAIR } from "@/lib/demo/live";
@@ -60,15 +61,16 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
     <Page title="Discover roles" nav={<ReturnNav fallback={<BreadcrumbBack href="/independent/jobs">Back to roles</BreadcrumbBack>} />}>
       {/* pt-4: both columns start 24px down, where the sidebar sticks (below the scroller's top fade),
           so they line up at rest and the sidebar doesn't jump when it catches. */}
-      <div className="flex items-start gap-10 pt-4">
+      <div className="flex items-start gap-10 pt-4 max-lg:flex-col">
         <div className="flex min-w-0 flex-1 flex-col gap-10">
           <RoleHeader role={role} />
           <RoleSections role={role} theirs={theirs} mine={workStyle} tasks={tasks} tasksShared={tasksShared} />
         </div>
 
-        {/* The company card, with the actions: it stays in view while the role scrolls — 24px down,
-            below the scroller's top fade (ScrollFade's RAMP), so the fade never thins it. */}
-        <aside className="sticky top-6 flex w-[300px] shrink-0 flex-col gap-4">
+        {/* The company card, with the actions, in the app's side column (SIDE_COLUMN): it stays in view
+            while the role scrolls — 24px down, below the scroller's top fade (ScrollFade's RAMP), so the
+            fade never thins it. */}
+        <aside className={`${SIDE_COLUMN} lg:sticky lg:top-6`}>
           <CompanyCard role={role} site={posting.website} standing={standing} isSaved={isSaved} onApply={() => setOpen(true)} onToggleSaved={() => toggleSaved(role.slug)} />
         </aside>
       </div>
