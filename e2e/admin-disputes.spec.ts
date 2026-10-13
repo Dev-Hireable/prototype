@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { card, expect, notes, NOW, open, savedDispute, savedEscrow, test, toast } from "./fixtures";
+import { card, expect, notes, NOW, PATH, savedDispute, savedEscrow, test, toast } from "./fixtures";
 
 // AD-032 – AD-035 — disputes as Hireable support works them: every case on the platform in one list,
 // newest first, with support's queue against the SLA, the money held and a New flag on what support
@@ -151,8 +151,9 @@ async function openCase(page: Page, id: string, title: string) {
 
 /** Alex files an $800 Missed Deadline dispute from Juan's contract, in his own tab. */
 async function alexFiles(alex: Page) {
-  await open(alex, "team");
-  await alex.getByRole("button", { name: "File a Dispute" }).first().click();
+  // Filing is on the contract's dispute card, under Contract & Payment.
+  await alex.goto(`${PATH.team}?tab=contract`);
+  await alex.getByRole("button", { name: "File a Dispute" }).click();
   const form = alex.getByRole("dialog", { name: /File a dispute about Juan Dela Cruz/ });
   await form.getByRole("button", { name: "Reason" }).click();
   await alex.getByRole("option", { name: "Missed Deadline" }).click();

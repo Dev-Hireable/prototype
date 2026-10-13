@@ -3,8 +3,9 @@
 import { Tip } from "@/components/portal/tip";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useSyncExternalStore, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { gooeyToast } from "goey-toast";
 import { ICONS } from "@/components/icons";
 import { Badge } from "@/components/portal/badge";
 import type { Tone } from "@/lib/portal/tone";
@@ -522,14 +523,17 @@ export function Checkbox({ checked, onChange, children, disabled, className = ""
  * Rounded pill tabs — "Upcoming (2) / Past (3)", "All / Unread / …", List / Board. One is
  * always chosen: shadcn's ToggleGroup underneath (arrow keys move between them), drawn as pills.
  */
-export function Pills<T extends string>({ value, onChange, options, "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[]; "aria-label"?: string }) {
+/** A filter row's pills are small; a choice a form turns on (Full-time or Part-time) is a button's height. */
+const PILL_SIZE = { sm: "h-auto px-3 py-1.5 text-[13px]", lg: "h-10 px-5 text-[14px]" } as const;
+
+export function Pills<T extends string>({ value, onChange, options, size = "sm", "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[]; size?: keyof typeof PILL_SIZE; "aria-label"?: string }) {
   return (
-    <ToggleGroup value={[value]} onValueChange={(next) => next[0] && onChange(next[0] as T)} aria-label={ariaLabel} className="flex-wrap">
+    <ToggleGroup value={[value]} onValueChange={(next) => next[0] && onChange(next[0] as T)} aria-label={ariaLabel} className={`flex-wrap ${size === "lg" ? "gap-2" : ""}`}>
       {options.map((o) => (
         <ToggleGroupItem
           key={o.value}
           value={o.value}
-          className="h-auto gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-[13px] leading-[1.4] font-medium text-ink hover:bg-[#e5e5e5] aria-pressed:bg-primary aria-pressed:text-white aria-pressed:hover:bg-primary aria-pressed:hover:text-white"
+          className={`${PILL_SIZE[size]} gap-1.5 rounded-full bg-surface-2 leading-[1.4] font-medium text-ink hover:bg-[#e5e5e5] aria-pressed:bg-primary aria-pressed:text-white aria-pressed:hover:bg-primary aria-pressed:hover:text-white`}
         >
           {o.label}
         </ToggleGroupItem>
@@ -957,56 +961,67 @@ export function Drawer({
 /* ---------------------------------------------------------------- toast --- */
 
 const TOAST_TONE = {
-  success: { bg: "bg-[#e4f5ea]", icon: ICONS.checkCircle, ink: "text-ok" },
-  danger: { bg: "bg-[#fcf2f2]", icon: ICONS.warning, ink: "text-danger" },
-  info: { bg: "bg-[#ebf8fe]", icon: ICONS.info, ink: "text-primary" },
+  success: { fill: "#e4f5ea", type: "success", icon: ICONS.checkCircle, ink: "text-ok" },
+  danger: { fill: "#fcf2f2", type: "error", icon: ICONS.warning, ink: "text-danger" },
+  info: { fill: "#ebf8fe", type: "info", icon: ICONS.info, ink: "text-primary" },
 } as const;
 
 /**
- * A page's toast (`useToast` in @/lib/portal/toast), in the corner. A `danger` one explains something
- * that was refused or didn't work and is announced at once (role="alert"); `action` offers the one
- * thing to do about it — Undo, Retry, Use mine — and keeps the toast up longer so there's time to
- * click it. While the pointer is on it or it has focus, the countdown waits (WCAG 2.2.1): reaching
+ * goey-toast's pill in our type: the message in 14px ink, our action link — drawn larger by the Toaster's zoom. Its stylesheet isn't
+ * in a cascade layer, so it outranks Tailwind's utilities unless they're marked important.
+ */
+const TOAST_CLASSES = {
+  wrapper: "!font-sans",
+  content: "!px-3",
+  header: "!gap-2.5",
+  icon: "!size-5",
+  title: "!p-0 !pr-1 !text-[14px] !leading-[1.4] !font-medium !text-ink",
+  actionButton: "!bg-white/70 !text-[14px] !font-semibold !text-primary hover:!bg-white",
+};
+
+/**
+ * A page's toast (`useToast` in @/lib/portal/toast), shown by goey-toast in the app's one Toaster
+ * (@/components/portal/toaster), top right; the page itself renders nothing. A `danger` one explains
+ * something that was refused or didn't work and is announced at once (goey-toast makes it an alert);
+ * `action` offers the one thing to do about it — Undo, Retry, Use mine — and keeps the toast up longer
+ * so there's time to click it. While the pointer is on it, the countdown waits (WCAG 2.2.1): reaching
  * for Undo never loses it.
  */
 export function Toast({ toast, onClose, action }: { toast: PageToast | null; onClose: () => void; action?: { label: string; onClick: () => void } }) {
-  const tone = toast?.tone ?? "success";
-  const t = TOAST_TONE[tone];
-  const X = ICONS.close;
-  const lasts = action || tone === "danger" ? 8000 : 3500;
-  /** Held while it's hovered or focused; the countdown starts again from the top once it's let go. */
-  const [held, setHeld] = useState(false);
-  const mounted = useSyncExternalStore(NOOP_SUBSCRIBE, CLIENT_MOUNTED, SERVER_MOUNTED);
+  /** The toast this page has up: one taken down to make way for the next mustn't clear the page's. */
+  const current = useRef<string | number | null>(null);
+  const closed = useEffectEvent((id: string | number) => {
+    if (id === current.current) onClose();
+  });
+  const act = useEffectEvent(() => action?.onClick());
+  const actionLabel = action?.label;
   useEffect(() => {
-    if (!toast || held) return;
-    const timer = setTimeout(onClose, lasts);
-    return () => clearTimeout(timer);
-  }, [toast, onClose, lasts, held]);
-  if (!toast || !mounted) return null;
-  return createPortal(
-    // aria-live spelled out, not just implied by the role: a modal (an item's sheet, say) hides
-    // the rest of the page from screen readers, except live regions it can find by that attribute.
-    <div onPointerEnter={() => setHeld(true)} onPointerLeave={() => setHeld(false)} onFocus={() => setHeld(true)} onBlur={() => setHeld(false)} role={tone === "danger" ? "alert" : "status"} aria-live={tone === "danger" ? "assertive" : "polite"} className={`ui-zoom fixed top-5 right-5 z-[70] flex max-w-[min(480px,calc(100vw-40px))] items-center gap-3 rounded-lg ${t.bg} px-4 py-3 text-[14px] leading-[1.4] text-ink shadow-[0_8px_24px_rgba(0,0,0,.12)]`}>
-      <t.icon size={20} aria-hidden className={`shrink-0 ${t.ink}`} />
-      <span className="min-w-0">{toast.message}</span>
-      {action && (
-        <button
-          type="button"
-          onClick={() => {
-            action.onClick();
-            onClose();
-          }}
-          className="shrink-0 rounded-md px-2 py-1 text-[14px] font-semibold text-primary hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          {action.label}
-        </button>
-      )}
-      <button type="button" onClick={onClose} aria-label="Dismiss" className={`${ICON_BUTTON} -my-1 -mr-1.5 ml-0.5 size-7`}>
-        <X size={16} aria-hidden />
-      </button>
-    </div>,
-    document.body,
-  );
+    if (!toast) return;
+    const t = TOAST_TONE[toast.tone];
+    const id = gooeyToast[t.type](toast.message, {
+      icon: <t.icon size={20} aria-hidden className={t.ink} />,
+      fillColor: t.fill,
+      duration: actionLabel || toast.tone === "danger" ? 8000 : 3500,
+      classNames: TOAST_CLASSES,
+      showTimestamp: false,
+      action: actionLabel
+        ? {
+            label: actionLabel,
+            onClick: () => {
+              act();
+              gooeyToast.dismiss(id);
+            },
+          }
+        : undefined,
+      onDismiss: (dismissed) => closed(dismissed),
+    });
+    current.current = id;
+    return () => {
+      current.current = null;
+      gooeyToast.dismiss(id);
+    };
+  }, [toast, actionLabel]);
+  return null;
 }
 
 /* ------------------------------------------------------------- stepper ---- */

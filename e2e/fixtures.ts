@@ -207,8 +207,12 @@ export const projectPicker = (page: Page, showing: string) => page.getByRole("bu
 /** The toolbar's Filter button, matched by its start: while filters are on it's "Filter, 2 active". */
 export const filterButton = (page: Page) => page.getByRole("button", { name: /^Filter/ });
 
-/** A toast (status or alert) with this text — not the screen-reader announcer that repeats it. */
-export const toast = (page: Page, text: string | RegExp) => page.getByRole("status").or(page.getByRole("alert")).filter({ hasText: text });
+/** A toast (status or alert) with this text — the pill on screen, not the screen-reader announcer that repeats it. */
+export const toast = (page: Page, text: string | RegExp) => {
+  const pill = page.locator("[data-sonner-toast]");
+  // The same message again replaces the toast, but the old pill animates out while the new one comes in.
+  return pill.getByRole("status").or(pill.getByRole("alert")).filter({ hasText: text }).first();
+};
 
 /** An item's panel: the sheet that slides in over the view. */
 export const panel = (page: Page) => page.getByTestId("task-panel");

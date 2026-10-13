@@ -15,11 +15,11 @@ import { SOURCES } from "@/lib/team/role-catalogue";
  * They live in a dialog behind "Use a template", so the form itself stays uncluttered.
  */
 
-/** The most-used roles lead the unfiltered list. */
-const BY_POPULARITY = [...ROLE_TEMPLATES.filter((t) => t.popular), ...ROLE_TEMPLATES.filter((t) => !t.popular)];
+/** Popular roles always lead a list — a category, All or a search — each group keeping its own order. */
+const popularFirst = (list: RoleTemplate[]) => [...list.filter((t) => t.popular), ...list.filter((t) => !t.popular)];
 
-/** The templates under a category pill: all of them, most-used first, or the category's own. */
-const inCategory = (c: TemplateCategory | "All") => (c === "All" ? BY_POPULARITY : ROLE_TEMPLATES.filter((t) => t.category === c));
+/** The templates under a category pill: all of them, or the category's own. */
+const inCategory = (c: TemplateCategory | "All") => (c === "All" ? ROLE_TEMPLATES : ROLE_TEMPLATES.filter((t) => t.category === c));
 
 /**
  * The library: search it, narrow it by category, open a template to see what it fills in, or go
@@ -28,7 +28,7 @@ const inCategory = (c: TemplateCategory | "All") => (c === "All" ? BY_POPULARITY
 export function TemplateBrowser({ open, onClose, onPick, onClear, applied, trial }: { open: boolean; onClose: () => void; onPick: (t: RoleTemplate) => void; onClear: () => void; applied: RoleTemplate | null; trial: boolean }) {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<TemplateCategory | "All">("All");
-  const list = searchTemplates(q, inCategory(category));
+  const list = popularFirst(searchTemplates(q, inCategory(category)));
   const close = () => {
     setQ("");
     setCategory("All");

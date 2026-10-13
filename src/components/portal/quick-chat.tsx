@@ -67,7 +67,7 @@ function QuickChatWindow({ side, target }: { side: Side; target: QuickChatTarget
         </Tip>
         <Tip label={minimized ? "Open" : "Minimise"}>
           <button type="button" onClick={toggle} aria-label={minimized ? "Open chat" : "Minimise chat"} className={HEAD_BUTTON}>
-            <ICONS.chevron size={20} aria-hidden className={minimized ? "rotate-180" : ""} />
+            {minimized ? <ICONS.restore size={16} aria-hidden /> : <ICONS.minimize size={18} aria-hidden className="-translate-y-1" />}
           </button>
         </Tip>
         <Tip label="Close">

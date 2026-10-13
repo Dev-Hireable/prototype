@@ -37,6 +37,7 @@ export function DetailsStep({ f, t, type, editing, templates, onType, cta }: { f
           {type !== "trial" && (
             <Block label="Employment type" helper={[type === "full-time" ? "A full working week, with exclusive benefits." : "Set hours a week, paid a monthly rate.", ""]}>
               <Pills<OngoingType>
+                size="lg"
                 aria-label="Employment type"
                 value={type}
                 onChange={onType}

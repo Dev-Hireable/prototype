@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { Button, LinkButton, MessageButton } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
+import { MessageButton } from "@/components/portal/ui";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import type { CONTRACT_TABS, ContractView } from "@/lib/contract/view";
-import { caseHref } from "@/lib/demo/disputes";
+import type { CONTRACT_TABS } from "@/lib/contract/view";
 import type { Contract } from "@/lib/independent/data";
 import { useQuickChat, type QuickChatTarget } from "@/lib/portal/quick-chat";
 
@@ -48,31 +46,13 @@ export function Crumbs({ contract, tab }: { contract: Contract; tab: Section }) 
   );
 }
 
-/** IN-037 / IN-032 — on every tab: the conversation, and the one dispute a contract can have. */
-export function HeaderActions({ contract, thread, view, onFile }: { contract: Contract; thread: string; view: ContractView; onFile: () => void }) {
-  const { block, running, fileHint } = view;
+/** IN-037 — on every tab: the conversation. Filing a dispute is on the contract's dispute card, not up here. */
+export function HeaderActions({ contract, thread }: { contract: Contract; thread: string }) {
   const chat = useQuickChat();
   return (
-    <>
-      {/* The thread opens on the spot, in the quick chat, with the full one in Messages a click away. */}
-      <MessageButton size="md" href={thread} onClick={() => chat.open(companyChat(contract, thread))}>
-        Message {contract.managerFirst}
-      </MessageButton>
-      {/* Hidden once they have filed on this contract (one per contract). While any dispute is
-          open on it, from either side, it opens that one instead. */}
-      {block === "open" && running ? (
-        <LinkButton size="md" href={caseHref("independent", running.id)}>
-          View dispute
-        </LinkButton>
-      ) : (
-        block !== "filed" && (
-          <Tip label={fileHint} wrap>
-            <Button size="md" disabled={!!block} onClick={onFile}>
-              File a dispute
-            </Button>
-          </Tip>
-        )
-      )}
-    </>
+    /* The thread opens on the spot, in the quick chat, with the full one in Messages a click away. */
+    <MessageButton size="md" href={thread} onClick={() => chat.open(companyChat(contract, thread))}>
+      Message {contract.managerFirst}
+    </MessageButton>
   );
 }

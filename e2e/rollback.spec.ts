@@ -1,4 +1,4 @@
-import { card, column, drag, expect, fault, open, ROLE, saved, savedItem, test } from "./fixtures";
+import { card, column, drag, expect, fault, open, ROLE, saved, savedItem, test, toast } from "./fixtures";
 
 // Scenario J — a save that fails: the change shows at once, then goes back, and says why.
 test.describe("when a save fails · rollback and Retry", () => {
@@ -11,7 +11,7 @@ test.describe("when a save fails · rollback and Retry", () => {
     await expect(column(page, "In progress").getByRole("group", { name: /#6 Kickoff/ })).toHaveAttribute("data-pending", "true");
     // …then back where it was, with the reason.
     await expect(column(page, "To do").getByRole("group", { name: /#6 Kickoff/ })).toBeVisible();
-    const alert = page.getByRole("alert").filter({ hasText: "couldn't save" });
+    const alert = toast(page, "couldn't save");
     await expect(alert).toBeVisible();
     expect((await savedItem(page, "t-kickoff")).status).toBe("todo");
     // Retry goes through now the fault has passed.
@@ -32,7 +32,7 @@ test.describe("when a save fails · an add, on a role", () => {
     await todo.getByRole("textbox", { name: "New task name" }).fill("Will need a retry");
     await todo.getByRole("textbox", { name: "New task name" }).press("Enter");
     await expect(card(page, /Will need a retry/)).toBeVisible();
-    const alert = page.getByRole("alert").filter({ hasText: "couldn't save" });
+    const alert = toast(page, "couldn't save");
     await expect(alert).toBeVisible();
     await expect(card(page, /Will need a retry/)).toHaveCount(0);
     await alert.getByRole("button", { name: "Retry" }).click();
@@ -54,7 +54,7 @@ test.describe("when a save fails · saved data stays consistent", () => {
     });
     await page.getByRole("button", { name: /More actions for #7/ }).click();
     await page.getByRole("menuitem", { name: "Delete task" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "storage is full or blocked" })).toBeVisible();
+    await expect(toast(page, "storage is full or blocked")).toBeVisible();
     await expect(page.getByTestId("list").getByRole("row", { name: /#7 Share the style tiles/ })).toBeVisible();
     expect(await saved(page)).toEqual(before);
   });
@@ -68,7 +68,7 @@ test.describe("when a save fails · saved data stays consistent", () => {
     await page.getByRole("menuitemradio", { name: "Alex" }).click();
     await row.getByRole("button", { name: /Work type: Review/ }).click();
     await page.getByRole("menuitemradio", { name: /Meeting/ }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "couldn't save" })).toBeVisible();
+    await expect(toast(page, "couldn't save")).toBeVisible();
     await expect.poll(async () => savedItem(page, "t-share").then((t) => [t.assignee, t.type])).toEqual([null, "review"]);
     await expect(row.getByText("Unassigned")).toBeVisible();
   });

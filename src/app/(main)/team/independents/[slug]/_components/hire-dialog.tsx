@@ -32,6 +32,7 @@ export function HireDialog({ open, first, hire, setHire, onClose, onSend }: { op
     >
       <div className="flex flex-col gap-4">
         <Pills
+          size="lg"
           aria-label="Kind of role"
           value={hire.type}
           onChange={(type) => setHire((h) => ({ ...h, type }))}
