@@ -45,7 +45,7 @@ const USER_ROW_CLASS =
  * Where a row sits in a run of the assistant's rows, Messenger style: the name heads the run and
  * the avatar closes it, so back-to-back lines don't repeat either.
  */
-export type AssistantRowPlace = { first: boolean; last: boolean };
+type AssistantRowPlace = { first: boolean; last: boolean };
 
 type AssistantRowShellProps = {
   assistantName: string;

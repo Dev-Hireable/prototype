@@ -878,6 +878,21 @@ function ModalHeading({ id, title, description, danger }: { id: string; title: s
 
 /* --------------------------------------------------------------- drawer --- */
 
+/** The drawer's close button, and where its focus starts on opening (see `initialFocus` on Drawer). */
+function useDrawerFocus(initialFocus: "first" | "close" | RefObject<HTMLElement | null>) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  /** The close leads the header, so "first" means the first control after it — or one that took the focus itself (autoFocus). */
+  const first = () => {
+    const sheet = closeRef.current?.closest<HTMLElement>('[data-slot="sheet-content"]');
+    if (!sheet) return closeRef.current;
+    const held = document.activeElement;
+    if (held instanceof HTMLElement && held !== closeRef.current && sheet.contains(held)) return held;
+    return tabStops(sheet).find((el) => el !== closeRef.current) ?? closeRef.current;
+  };
+  const start = initialFocus === "first" ? first : initialFocus === "close" ? closeRef : () => initialFocus.current ?? closeRef.current;
+  return { closeRef, start };
+}
+
 /**
  * A drawer (800 wide, right-anchored) on shadcn's Sheet, so it slides in and out — it used to
  * mount and unmount in a single frame. A title row led by the close (», top left), then a scrolling body. The Sheet
@@ -919,16 +934,7 @@ export function Drawer({
   initialFocus?: "first" | "close" | RefObject<HTMLElement | null>;
 }) {
   const Close = ICONS.sheetClose;
-  const closeRef = useRef<HTMLButtonElement>(null);
-  /** The close leads the header, so "first" means the first control after it — or one that took the focus itself (autoFocus). */
-  const first = () => {
-    const sheet = closeRef.current?.closest<HTMLElement>('[data-slot="sheet-content"]');
-    if (!sheet) return closeRef.current;
-    const held = document.activeElement;
-    if (held instanceof HTMLElement && held !== closeRef.current && sheet.contains(held)) return held;
-    return tabStops(sheet).find((el) => el !== closeRef.current) ?? closeRef.current;
-  };
-  const start = initialFocus === "first" ? first : initialFocus === "close" ? closeRef : () => initialFocus.current ?? closeRef.current;
+  const { closeRef, start } = useDrawerFocus(initialFocus);
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent side="right" showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>

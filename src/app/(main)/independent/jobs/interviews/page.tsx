@@ -50,17 +50,7 @@ export default function Interviews() {
   return (
     <Page title="Interviews">
       {/* The same 36px switch as every list's toolbar. */}
-      <div className="flex items-center gap-2" role="toolbar" aria-label="Interviews">
-        <ViewSwitch
-          label="Show"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: "upcoming", label: `Upcoming (${upcoming.length})`, icon: "schedule" },
-            { value: "past", label: `Past (${past.length})`, icon: "history" },
-          ]}
-        />
-      </div>
+      <InterviewsToolbar tab={tab} onTab={setTab} upcoming={upcoming.length} past={past.length} />
       <Table cols={COLS} head={["Role", "Company", "Date and time", "Format", "Status", "Actions"]}>
         {rows.map((iv) => (
           <InterviewRow key={iv.id} iv={iv} href={withReturn(iv.roleHref)} onAccept={() => accept(iv)} onDecline={() => setDeclining(iv)} onReschedule={() => setRescheduling(iv)} />
@@ -94,6 +84,23 @@ export default function Interviews() {
       />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
+  );
+}
+
+/** Upcoming or past interviews, each with how many there are. */
+function InterviewsToolbar({ tab, onTab, upcoming, past }: { tab: "upcoming" | "past"; onTab: (tab: "upcoming" | "past") => void; upcoming: number; past: number }) {
+  return (
+    <div className="flex items-center gap-2" role="toolbar" aria-label="Interviews">
+      <ViewSwitch
+        label="Show"
+        value={tab}
+        onChange={onTab}
+        options={[
+          { value: "upcoming", label: `Upcoming (${upcoming})`, icon: "schedule" },
+          { value: "past", label: `Past (${past})`, icon: "history" },
+        ]}
+      />
+    </div>
   );
 }
 

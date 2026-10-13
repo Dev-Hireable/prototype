@@ -42,6 +42,35 @@ const copyFor = (first: string, rescheduling: boolean) =>
     ? { title: `${first} asked for a new time`, description: "Confirm the slot they asked for, or pick another from your availability for them to accept." }
     : { title: `Invite ${first} to interview`, description: "Pick a slot from your availability. They get the invite by email and in-app and can accept or ask for a new time." };
 
+/** The slot's date and time, side by side. */
+function SlotFields({ date, time, setDate, setTime }: { date: Date | undefined; time: string; setDate: (date: Date | undefined) => void; setTime: (time: string) => void }) {
+  return (
+    <div className="flex gap-3">
+      {/* It was a free-text box, so anything typed became the interview date. Past days can't be picked. */}
+      <Field label="Date" className="flex-1" hint={!date ? "Required" : undefined}>
+        <DatePicker value={date} onChange={setDate} disabled={{ before: startOfToday() }} placeholder="Pick a date" />
+      </Field>
+      <Field label="Time" className="flex-1">
+        <Select options={["", ...INTERVIEW_TIMES]} placeholder="Pick a time" value={time} onChange={(e) => setTime(e.target.value)} />
+      </Field>
+    </div>
+  );
+}
+
+/** Cancel, and Send — which confirms the slot when it's the one they asked for. */
+function InterviewActions({ ready, asked, onCancel, onSend }: { ready: boolean; asked: boolean; onCancel: () => void; onSend: () => void }) {
+  return (
+    <>
+      <Button size="lg" onClick={onCancel}>
+        Cancel
+      </Button>
+      <Button size="lg" variant="primary" disabled={!ready} onClick={onSend}>
+        {asked ? "Confirm this time" : "Send invitation"}
+      </Button>
+    </>
+  );
+}
+
 export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Candidate | null; onClose: () => void; onSent: (name: string) => void }) {
   const { inviteToInterview } = usePipeline();
   const { requested, date, time, setDate, setTime, asked, reset: resetSlot } = useSlot(candidate);
@@ -76,16 +105,7 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
       onClose={close}
       title={copy.title}
       description={copy.description}
-      footer={
-        <>
-          <Button size="lg" onClick={close}>
-            Cancel
-          </Button>
-          <Button size="lg" variant="primary" disabled={!ready} onClick={send}>
-            {asked ? "Confirm this time" : "Send invitation"}
-          </Button>
-        </>
-      }
+      footer={<InterviewActions ready={ready} asked={asked} onCancel={close} onSend={send} />}
     >
       <div className="flex flex-col gap-3">
         {requested && (
@@ -93,15 +113,7 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
             {first} asked for {requested.when}.{requested.note ? ` “${requested.note}”` : ""}
           </InfoBanner>
         )}
-        <div className="flex gap-3">
-          {/* It was a free-text box, so anything typed became the interview date. Past days can't be picked. */}
-          <Field label="Date" className="flex-1" hint={!date ? "Required" : undefined}>
-            <DatePicker value={date} onChange={setDate} disabled={{ before: startOfToday() }} placeholder="Pick a date" />
-          </Field>
-          <Field label="Time" className="flex-1">
-            <Select options={["", ...INTERVIEW_TIMES]} placeholder="Pick a time" value={time} onChange={(e) => setTime(e.target.value)} />
-          </Field>
-        </div>
+        <SlotFields date={date} time={time} setDate={setDate} setTime={setTime} />
         {/* A blank link used to go out, and the talent had nothing to join. */}
         <Field label="Meeting link" error={linkOk ? undefined : "Add the meeting link, starting with https://"}>
           <Input value={link} onChange={(e) => setLink(e.target.value)} />

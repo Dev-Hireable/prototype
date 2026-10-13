@@ -9,7 +9,7 @@ const progress = (page: Page) => card(page).getByText(/^Step \d+ of \d+$/);
 const overlay = (page: Page) => page.locator("[data-tour-overlay]");
 const record = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("hireable.demo.tours") ?? "{}"));
 
-test.describe("guided tours", () => {
+test.describe("guided tours · the dashboard tour", () => {
   test.use({ seedOptions: { stores: { tours: {} } } });
 
   test("Hiro's tour starts on a first visit, steps by button and keyboard, and once finished doesn't start again", async ({ page }) => {
@@ -45,6 +45,10 @@ test.describe("guided tours", () => {
     await page.waitForTimeout(1200);
     await expect(card(page)).toHaveCount(0);
   });
+});
+
+test.describe("guided tours · skipping and Help", () => {
+  test.use({ seedOptions: { stores: { tours: {} } } });
 
   test("skipping keeps the step, and Help resumes there or restarts from the top", async ({ page }) => {
     await page.goto("/team");
@@ -82,6 +86,10 @@ test.describe("guided tours", () => {
     await expect(page).toHaveURL(/\/team$/);
     await expect(progress(page)).toHaveText("Step 1 of 7");
   });
+});
+
+test.describe("guided tours · other screens", () => {
+  test.use({ seedOptions: { stores: { tours: {} } } });
 
   test("Hira's tour on the Independent dashboard ends on its first key action", async ({ page }) => {
     await page.goto("/independent");
@@ -93,6 +101,7 @@ test.describe("guided tours", () => {
     await expect(page).toHaveURL(/\/independent\/jobs$/);
     expect((await record(page))["independent.home"]).toEqual({ status: "done", step: 6 });
   });
+
   test("the contract workspace and Messages have their own tours on both sides, each step on its element", async ({ page }) => {
     const screens = [
       ["/team/independents/juan-dela-cruz", "Hiro", 5],

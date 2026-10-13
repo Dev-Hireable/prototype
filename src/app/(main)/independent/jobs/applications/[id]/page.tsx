@@ -17,7 +17,7 @@ import { storedWorkStyle } from "@/lib/demo/work-style";
 import { useJobView, type JobView } from "@/lib/independent/job-view";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentAccount } from "@/lib/independent/account";
-import { useToast } from "@/lib/portal/toast";
+import { useToast, type SetToast } from "@/lib/portal/toast";
 import { ReturnNav } from "@/components/portal/return";
 import { NextStep } from "./_components/next-step";
 import type { InterviewActions, StepProps } from "./_lib/steps";
@@ -35,7 +35,7 @@ const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-de
 export default function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { workStyle } = useIndependentAccount();
-  const { applications, setStage, declineInterview, requestReschedule } = useApplications();
+  const { applications, setStage } = useApplications();
   const app = applications.find((a) => a.id === id);
   if (!app) notFound();
   const job = useJobView(app);
@@ -67,34 +67,52 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
+      <InvitationDialogs appId={app.id} job={job} declining={declining} rescheduling={rescheduling} onDeclining={setDeclining} onRescheduling={setRescheduling} onToast={setToast} />
+      {/* The same Review proposal dialog the Team Builder opens: one layout, one history, both sides. */}
+      <ApplicationProposalDialog app={app} open={reading} onClose={() => setReading(false)} onToast={setToast} />
+      <Toast toast={toast} onClose={() => setToast(null)} />
+    </Page>
+  );
+}
+
+/** Answering the interview invitation other than with Accept: declining it, or asking for a new time. */
+function InvitationDialogs({ appId, job, declining, rescheduling, onDeclining, onRescheduling, onToast }: {
+  appId: string;
+  job: JobView;
+  declining: boolean;
+  rescheduling: boolean;
+  onDeclining: (open: boolean) => void;
+  onRescheduling: (open: boolean) => void;
+  onToast: SetToast;
+}) {
+  const { declineInterview, requestReschedule } = useApplications();
+  return (
+    <>
       <DeclineInvitation
         open={declining}
         company={job.company}
-        onClose={() => setDeclining(false)}
+        onClose={() => onDeclining(false)}
         onDecline={() => {
-          declineInterview(app.id);
-          setDeclining(false);
-          setToast("Invitation declined");
+          declineInterview(appId);
+          onDeclining(false);
+          onToast("Invitation declined");
         }}
         onReschedule={() => {
-          setDeclining(false);
-          setRescheduling(true);
+          onDeclining(false);
+          onRescheduling(true);
         }}
       />
       <RescheduleDialog
         open={rescheduling}
         company={job.company}
         when={`${job.interview.date}, ${job.interview.time}`}
-        onClose={() => setRescheduling(false)}
+        onClose={() => onRescheduling(false)}
         onSend={(when, note) => {
-          requestReschedule(app.id, when, note);
-          setToast(`New time sent to ${job.company}`);
+          requestReschedule(appId, when, note);
+          onToast(`New time sent to ${job.company}`);
         }}
       />
-      {/* The same Review proposal dialog the Team Builder opens: one layout, one history, both sides. */}
-      <ApplicationProposalDialog app={app} open={reading} onClose={() => setReading(false)} onToast={setToast} />
-      <Toast toast={toast} onClose={() => setToast(null)} />
-    </Page>
+    </>
   );
 }
 

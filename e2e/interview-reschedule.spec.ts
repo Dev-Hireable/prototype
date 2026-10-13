@@ -54,7 +54,7 @@ async function askForNewTime(juan: Page) {
   await expect(dialog).toHaveCount(0);
 }
 
-test.describe("an interview the talent can't make", () => {
+test.describe("an interview the talent can't make · declining", () => {
   test.use({ seedOptions: CONFIRMED });
 
   test("declining a confirmed interview stops the hire: the Team Builder can only offer a new time", async ({ page, secondPage }) => {
@@ -84,6 +84,10 @@ test.describe("an interview the talent can't make", () => {
     await askForNewTime(juan);
     await expect(juan.getByText(`You asked Nairobi Solutions Inc. for ${ASKED}.`, { exact: false })).toBeVisible();
   });
+});
+
+test.describe("an interview the talent can't make · asking for a new time", () => {
+  test.use({ seedOptions: CONFIRMED });
 
   test("asking for a new time: the Team Builder confirms the slot asked for, and it's booked as confirmed", async ({ page, secondPage }) => {
     const juan = await secondPage();

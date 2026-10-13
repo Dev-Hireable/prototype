@@ -11,7 +11,7 @@ export const LEVELS = ["Select experience level", ...EXPERIENCE_LEVELS];
 const [, BEGINNER, INTERMEDIATE, ADVANCED, EXPERT] = LEVELS;
 
 /** Step one takes 1 to 5 skills; a template fills in its first five, the role's core ones. */
-export const MAX_SKILLS = 5;
+const MAX_SKILLS = 5;
 
 /**
  * A starting point for the Create Role wizard: a role from the catalogue (its description,
