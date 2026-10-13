@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent, type ReactNode } from "react";
-import { Button, Card, Checkbox, Field, Input, Select, Toast } from "@/components/portal/ui";
+import { Button, Card, Checkbox, Field, Input, Toast } from "@/components/portal/ui";
 import { DEMO_PASSWORD, PASSWORD_RULES as AUTH_RULES } from "@/lib/demo/auth";
 import { ImagePicker } from "@/components/portal/profile-editor";
 import { TimeZonePicker, useDeviceTimeZone } from "@/components/portal/time-zone-picker";
@@ -18,14 +18,13 @@ function SettingsHeading({ children }: { children: ReactNode }) {
   );
 }
 
-export type AccountSettingsValues = { first: string; last: string; email: string; phone: string; tz: string; lang: string };
+export type AccountSettingsValues = { first: string; last: string; email: string; phone: string; tz: string };
 
 /** What each portal's settings page gives its account card. */
 export type AccountSettingsCardProps = {
   initial: AccountSettingsValues;
   avatar: ReactNode;
   emailLabel: string;
-  languageOptions: readonly string[];
   /** TB-099 — shown read-only beside the editable fields. */
   accountType?: string;
   /** Lets the page push the saved name somewhere the rest of the app reads. */
@@ -51,11 +50,11 @@ export function AccountSettingsCard(props: AccountSettingsCardProps) {
 }
 
 /** The account's photo and fields, with Cancel and Save; what they did is said in the card's toast. */
-function AccountForm({ initial, avatar, emailLabel, languageOptions, accountType, onSave, onPhoto, onToast }: AccountSettingsCardProps & { onToast: SetToast }) {
+function AccountForm({ initial, avatar, emailLabel, accountType, onSave, onPhoto, onToast }: AccountSettingsCardProps & { onToast: SetToast }) {
   const [form, setForm] = useState(initial);
   /** TB-099 — the new address only takes effect once the code that went to it is entered. */
   const [pending, setPending] = useState<string | null>(null);
-  const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
   return (
     <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
       <SettingsHeading>Account</SettingsHeading>
@@ -70,12 +69,8 @@ function AccountForm({ initial, avatar, emailLabel, languageOptions, accountType
       <Field label="Phone">
         <Input value={form.phone} onChange={set("phone")} />
       </Field>
-      <div className="flex gap-4 max-sm:flex-col">
-        <TimeZoneField value={form.tz} onChange={(tz) => setForm((current) => ({ ...current, tz }))} />
-        <Field label="Language" className="flex-1">
-          <Select options={languageOptions} value={form.lang} onChange={set("lang")} />
-        </Field>
-      </div>
+      {/* No Language: the app is in English only, so there's nothing to choose. */}
+      <TimeZoneField value={form.tz} onChange={(tz) => setForm((current) => ({ ...current, tz }))} />
       <CardActions
         submit="Save changes"
         disabled={!!pending}
