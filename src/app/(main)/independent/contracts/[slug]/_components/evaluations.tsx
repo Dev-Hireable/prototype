@@ -8,7 +8,7 @@ import type { DealEvaluation } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";
 import { keyed } from "@/lib/portal/keys";
 import { useQuickChat } from "@/lib/portal/quick-chat";
-import { companyChat } from "./header";
+import { companyChat } from "../_lib/chat";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 

@@ -473,7 +473,8 @@ export function Composer({
         </div>
       )}
       {fileError && <p className="self-start text-[12px] leading-[1.45] text-danger">{fileError}</p>}
-      <div className="flex items-center gap-2.5">
+      {/* One box: attach at its start, Send at its end, the message between them. */}
+      <div className="flex h-11 items-center gap-1 rounded-lg border border-border px-1.5 focus-within:border-primary">
         <input
           ref={fileInput}
           type="file"
@@ -484,11 +485,11 @@ export function Composer({
             e.target.value = "";
           }}
         />
-        <button type="button" aria-label="Attach file" onClick={() => fileInput.current?.click()} className="flex size-11 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
+        <button type="button" aria-label="Attach file" onClick={() => fileInput.current?.click()} className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
           <Attach size={20} aria-hidden />
         </button>
-        <input value={draft} onChange={(e) => onDraft(e.target.value)} aria-label="Message" placeholder="Send a message…" className="h-11 min-w-0 flex-1 rounded-lg border border-border px-4 text-[14px] tracking-[0.2px] outline-none placeholder:text-ink-2 focus:border-primary" />
-        <button type="submit" aria-label="Send" disabled={!draft.trim() && !pending} className="flex size-9 items-center justify-center rounded-full bg-primary text-[16px] leading-[1.45] font-semibold text-white disabled:bg-ink-2">
+        <input value={draft} onChange={(e) => onDraft(e.target.value)} aria-label="Message" placeholder="Send a message…" className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-[14px] tracking-[0.2px] outline-none placeholder:text-ink-2" />
+        <button type="submit" aria-label="Send" disabled={!draft.trim() && !pending} className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-[16px] leading-[1.45] font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:bg-ink-2">
           ↑
         </button>
       </div>

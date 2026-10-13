@@ -106,6 +106,8 @@ function useCardPosition(cardRef: RefObject<HTMLDivElement | null>, box: Box | n
   return pos;
 }
 
+const NOOP_SUBSCRIBE = () => () => {};
+
 /**
  * The tour on screen: the page dimmed, a cut-out round the step's element, and the step's card
  * beside it. The page under it can't be clicked while it's up; the card is the dialog, and keeps
@@ -123,6 +125,9 @@ export function TourOverlay({ tour, step, ...controls }: { tour: Tour; step: num
   const view = { width: typeof innerWidth === "number" ? innerWidth : 0, height: typeof innerHeight === "number" ? innerHeight : 0 };
   const moves = reduced ? "" : "transition-[left,top,width,height] duration-300 ease-out";
   const hole = box ? spotlightBox(box, view) : null;
+  // <body> is only there to portal into once the page is in the browser.
+  const mounted = useSyncExternalStore(NOOP_SUBSCRIBE, () => true, () => false);
+  if (!mounted) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[80]" data-tour-overlay={hole ? "highlight" : "centred"}>

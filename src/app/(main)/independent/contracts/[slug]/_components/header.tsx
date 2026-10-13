@@ -3,12 +3,10 @@ import { MessageButton } from "@/components/portal/ui";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import type { CONTRACT_TABS } from "@/lib/contract/view";
 import type { Contract } from "@/lib/independent/data";
-import { useQuickChat, type QuickChatTarget } from "@/lib/portal/quick-chat";
+import { useQuickChat } from "@/lib/portal/quick-chat";
+import { companyChat } from "../_lib/chat";
 
 type Section = (typeof CONTRACT_TABS)[number];
-
-/** The contract's company as the quick chat heads its thread. */
-export const companyChat = (contract: Contract, thread: string): QuickChatTarget => ({ name: contract.company, sub: `${contract.manager} · Hiring manager`, initials: contract.initials, href: thread });
 
 const SECTION_LABEL: Record<Exclude<Section, "tasks">, string> = { evaluation: "Evaluation", overview: "Overview", contract: "Contract & Payment" };
 

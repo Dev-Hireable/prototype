@@ -16,8 +16,8 @@ import { formatDate, INTERVIEW_TIMES, parseDay, startOfToday } from "@/lib/porta
  * how a declined or cancelled interview is offered again: a new slot replaces the old one. When
  * the talent asked for a new time (IN-093), it opens on that slot, so confirming it is one click.
  */
-export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Candidate | null; onClose: () => void; onSent: (name: string) => void }) {
-  const { inviteToInterview } = usePipeline();
+/** The slot being picked: the live talent's asked-for one until the Team Builder picks another. */
+function useSlot(candidate: Candidate | null) {
   const deal = useDeal();
   /** The slot the live talent asked for, split back into the picker's date and time. */
   const requested = candidate?.id === DEAL_ID && deal?.interview?.outcome === "reschedule" ? deal.interview.requested : undefined;
@@ -27,14 +27,33 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
   /** What the Team Builder picked, or else the slot asked for. */
   const date = picked ?? parseDay(askedDay);
   const time = pickedTime || askedTime;
+  /** Sending the slot they asked for confirms it; any other goes to them to accept. */
+  const asked = !!requested && !!date && `${formatDate(date)}, ${time}` === requested.when;
+  const reset = () => {
+    setDate(undefined);
+    setTime("");
+  };
+  return { requested, date, time, setDate, setTime, asked, reset };
+}
+
+/** The dialog's heading and lead: answering a time they asked for, or a fresh invitation. */
+const copyFor = (first: string, rescheduling: boolean) =>
+  rescheduling
+    ? { title: `${first} asked for a new time`, description: "Confirm the slot they asked for, or pick another from your availability for them to accept." }
+    : { title: `Invite ${first} to interview`, description: "Pick a slot from your availability. They get the invite by email and in-app and can accept or ask for a new time." };
+
+export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Candidate | null; onClose: () => void; onSent: (name: string) => void }) {
+  const { inviteToInterview } = usePipeline();
+  const { requested, date, time, setDate, setTime, asked, reset: resetSlot } = useSlot(candidate);
   const [link, setLink] = useState("https://meet.google.com/yxw-vuts-rqp");
   /** Sent with the invite — it used to be an uncontrolled box whose text went nowhere. */
   const [note, setNote] = useState("");
   const first = candidate ? byName(candidate.independent).name.split(" ")[0] : "them";
   const linkOk = /^https?:\/\/\S+\.\S+/.test(link.trim());
+  const ready = !!date && !!time && linkOk;
+  const copy = copyFor(first, !!requested);
   const reset = () => {
-    setDate(undefined);
-    setTime("");
+    resetSlot();
     setNote("");
   };
   const close = () => {
@@ -43,7 +62,7 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
   };
 
   const send = () => {
-    if (!candidate || !date || !time || !linkOk) return;
+    if (!candidate || !date || !ready) return;
     // "Tue 6 Jan 2026, 10:00 AM (PHT)" — the lists split the date from the time on ", ".
     inviteToInterview(candidate.id, { when: `${formatDate(date)}, ${time}`, format: link.includes("zoom") ? "Zoom" : "Google Meet", link: link.trim(), note });
     reset();
@@ -51,21 +70,18 @@ export function InterviewDialog({ candidate, onClose, onSent }: { candidate: Can
     onClose();
   };
 
-  /** Sending the slot they asked for confirms it; any other goes to them to accept. */
-  const asked = !!requested && !!date && `${formatDate(date)}, ${time}` === requested.when;
-
   return (
     <Modal
       open={!!candidate}
       onClose={close}
-      title={requested ? `${first} asked for a new time` : `Invite ${first} to interview`}
-      description={requested ? "Confirm the slot they asked for, or pick another from your availability for them to accept." : "Pick a slot from your availability. They get the invite by email and in-app and can accept or ask for a new time."}
+      title={copy.title}
+      description={copy.description}
       footer={
         <>
           <Button size="lg" onClick={close}>
             Cancel
           </Button>
-          <Button size="lg" variant="primary" disabled={!date || !time || !linkOk} onClick={send}>
+          <Button size="lg" variant="primary" disabled={!ready} onClick={send}>
             {asked ? "Confirm this time" : "Send invitation"}
           </Button>
         </>
