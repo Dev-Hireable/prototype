@@ -13,11 +13,10 @@ export default function AccountSettings() {
     <Page title="Settings">
       {/* The card starts its form over whenever these saved values change: when the stored profile arrives after hydration, and after a save. */}
       <AccountSettingsCard
-        initial={{ first, last: rest.join(" "), email: profile.email, phone: profile.phone, tz: profile.timezone, lang: "English" }}
+        initial={{ first, last: rest.join(" "), email: profile.email, phone: profile.phone, tz: profile.timezone }}
         avatar={<Image src={profile.photo} alt="" width={128} height={128} className="size-16 rounded-full bg-white object-cover" />}
         emailLabel="Email"
         accountType="Independent"
-        languageOptions={["English", "Filipino"]}
         /* IN-067 — a name saved here is the name on the profile Team Builders read. */
         onSave={(v) => setProfile({ name: `${v.first} ${v.last}`.trim(), email: v.email, phone: v.phone, timezone: v.tz })}
         onPhoto={(photo) => setProfile({ photo })}
