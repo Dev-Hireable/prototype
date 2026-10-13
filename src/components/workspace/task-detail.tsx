@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { ICONS } from "@/components/icons";
 import { Avatar, Button, Checkbox, Drawer, InfoBanner, KebabMenu, Pills, Textarea } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
@@ -736,20 +736,22 @@ function WrappingText({ value, editable, lock, onSave, label, multiline = false,
 }
 
 /**
- * Whether the text in `ref`'s element is cut short, measured again as its width or `value` changes,
- * so a tooltip that holds the whole of it is already on before the pointer arrives.
+ * Whether the text in `ref`'s element is cut short: read from the element itself, again whenever it
+ * resizes or the component redraws (a new `value`), so a tooltip that holds the whole of it is already
+ * on before the pointer arrives.
  */
-function useCut(value: string) {
+function useCut() {
   const [el, ref] = useState<HTMLElement | null>(null);
-  const [cut, setCut] = useState(false);
-  useEffect(() => {
-    if (!el) return;
-    const measure = () => setCut(el.scrollWidth > el.clientWidth + 1);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [el, value]);
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      if (!el) return () => {};
+      const observer = new ResizeObserver(notify);
+      observer.observe(el);
+      return () => observer.disconnect();
+    },
+    [el],
+  );
+  const cut = useSyncExternalStore(subscribe, () => !!el && el.scrollWidth > el.clientWidth + 1, () => false);
   return { ref, cut };
 }
 
@@ -759,7 +761,7 @@ function useCut(value: string) {
  */
 function OneLineText({ value, editable, lock, onSave, label, empty, className = "", autoFocus, updatedBy, validate }: DraftTextProps) {
   const draft = useTextDraft(value, onSave, validate);
-  const { ref: measure, cut } = useCut(value);
+  const { ref: measure, cut } = useCut();
   const box = `min-w-0 flex-1 truncate rounded-md px-1 py-0.5 ${className}`;
   if (!editable && lock)
     return (
