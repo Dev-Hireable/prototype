@@ -49,9 +49,10 @@ export function TourHelp() {
 }
 
 /** The guide's hello and the tours to take here: the rail's Help popover, and on a phone a part of the Menu sheet. */
-export function TourMenu({ onPick }: { onPick: () => void }) {
+export function TourMenu({ onPick, collapsible = false }: { onPick: () => void; /** The phone's Menu sheet: the hello is a row that opens the tours, which start folded away. */ collapsible?: boolean }) {
   const menu = useTourMenu();
   const records = useTourRecords();
+  const [open, setOpen] = useState(!collapsible);
   if (!menu) return null;
   const { side, pathname, start: onStart } = menu;
   const guide = GUIDES[side];
@@ -62,20 +63,32 @@ export function TourMenu({ onPick }: { onPick: () => void }) {
     onPick();
     onStart(id, step);
   };
+  const hello = (
+    <span className="flex min-w-0 flex-1 items-center gap-3">
+      <Image src={guide.avatar} alt="" width={40} height={40} unoptimized className="size-10 shrink-0 rounded-full" />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-[14px] leading-[1.2] font-semibold text-ink">Need a hand?</span>
+        <span className="text-[13px] leading-[1.3] text-ink-2">{side === "team" ? `I'm ${guide.name}. Pick a tour and I'll walk you through it.` : `I'm ${guide.name}! Pick a tour and I'll show you around.`}</span>
+      </span>
+    </span>
+  );
   return (
     <>
-      <div className="flex items-center gap-3">
-        <Image src={guide.avatar} alt="" width={40} height={40} unoptimized className="size-10 shrink-0 rounded-full" />
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <p className="text-[14px] leading-[1.2] font-semibold text-ink">Need a hand?</p>
-          <p className="text-[13px] leading-[1.3] text-ink-2">{side === "team" ? `I'm ${guide.name}. Pick a tour and I'll walk you through it.` : `I'm ${guide.name}! Pick a tour and I'll show you around.`}</p>
-        </div>
-      </div>
-      <ul className="flex flex-col gap-2">
-        {tours.map((t) => (
-          <TourRow key={t.id} tour={t} record={records[t.id]} here={t.id === here?.id} onGo={go} />
-        ))}
-      </ul>
+      {collapsible ? (
+        <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="-m-1 flex items-center gap-2 rounded-lg p-1 text-left focus-visible:outline-2 focus-visible:outline-primary">
+          {hello}
+          <ICONS.chevron size={22} aria-hidden className={`shrink-0 text-ink-2 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      ) : (
+        hello
+      )}
+      {open && (
+        <ul className="flex flex-col gap-2">
+          {tours.map((t) => (
+            <TourRow key={t.id} tour={t} record={records[t.id]} here={t.id === here?.id} onGo={go} />
+          ))}
+        </ul>
+      )}
     </>
   );
 }

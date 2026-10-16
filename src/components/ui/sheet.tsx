@@ -49,7 +49,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
       data-slot="sheet-overlay"
       className={cn(
         // Fades with the swipe: the further the sheet is dragged, the lighter the page behind it.
-        "fixed inset-0 z-50 bg-black/10 opacity-[calc(1-var(--drawer-swipe-progress,0))] transition-opacity duration-300 data-swiping:duration-0 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs",
+        "fixed inset-0 z-50 bg-black/10 opacity-[calc(1-var(--drawer-swipe-progress,0))] transition-opacity duration-[450ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs",
         className
       )}
       {...props}
@@ -57,14 +57,22 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
   )
 }
 
-/* Each side: where it sits, how it follows the finger, and where it slides in from and out to. */
+/*
+ * Each side: where it sits, how it follows the finger, and where it slides in from and out to. The
+ * popup's motion is Base UI's reference drawer's: will-change: transform and a 450ms ease-out (400ms
+ * out, quicker after a flick). On its own layer the slide runs on the compositor and starts from the
+ * first frame the sheet is drawn; at 300ms off the main thread, the first open — when the sheet's
+ * contents are drawn for the first time — had most of its slide over before anything showed.
+ */
 const SIDE: Record<Side, string> = {
   right:
     "inset-y-0 right-0 h-[calc(100dvh/var(--ui-scale))] w-3/4 border-l sm:max-w-sm [transform:translateX(var(--drawer-swipe-movement-x,0px))] data-ending-style:[transform:translateX(100%)] data-starting-style:[transform:translateX(100%)]",
   left:
     "inset-y-0 left-0 h-[calc(100dvh/var(--ui-scale))] w-3/4 border-r sm:max-w-sm [transform:translateX(var(--drawer-swipe-movement-x,0px))] data-ending-style:[transform:translateX(-100%)] data-starting-style:[transform:translateX(-100%)]",
   bottom:
-    "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)] [transform:translateY(var(--drawer-swipe-movement-y,0px))] data-ending-style:[transform:translateY(100%)] data-starting-style:[transform:translateY(100%)]",
+    // No blurred shadow: over the dimmed page it hardly showed, and drawing it took the first open
+    // ~60ms — long enough to swallow most of the slide. A 1px edge marks the top instead.
+    "inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_0_rgba(0,0,0,0.08)] [transform:translateY(var(--drawer-swipe-movement-y,0px))] data-ending-style:[transform:translateY(100%)] data-starting-style:[transform:translateY(100%)]",
   top: "inset-x-0 top-0 border-b [transform:translateY(var(--drawer-swipe-movement-y,0px))] data-ending-style:[transform:translateY(-100%)] data-starting-style:[transform:translateY(-100%)]",
 }
 
@@ -86,7 +94,7 @@ function SheetContent({
           data-slot="sheet-content"
           data-side={side}
           className={cn(
-            "ui-zoom fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg outline-none transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-swiping:select-none data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*300ms)]",
+            "ui-zoom fixed z-50 flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg outline-none will-change-transform transition-transform duration-[450ms] ease-[cubic-bezier(0.32,0.72,0,1)] data-swiping:duration-0 data-swiping:select-none data-ending-style:duration-[calc(var(--drawer-swipe-strength,1)*400ms)]",
             SIDE[side],
             className
           )}
