@@ -35,6 +35,7 @@ import {
   MdLogout,
   MdMoreHoriz,
   MdMoreVert,
+  MdMenu,
   MdNorthEast,
   MdOutlineAssignment,
   MdOutlineAttachFile,
@@ -172,6 +173,8 @@ export const ICONS = {
   restore: MdOutlineCropSquare,
   moreH: MdMoreHoriz,
   moreV: MdMoreVert,
+  /** The phone's Menu tab: the sections the tab bar has no room for, Help and Log out. */
+  menu: MdMenu,
   add: MdAdd,
   check: MdCheck,
   checkCircle: MdCheckCircle,

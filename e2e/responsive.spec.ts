@@ -14,3 +14,52 @@ test.describe("on a phone", () => {
     await expect(page.getByRole("dialog")).toBeVisible();
   });
 });
+
+// Phone navigation: the rail gives way to a tab bar along the bottom edge, and the open section's
+// pages and everything else to the Menu sheet. The page carries no nav strip of its own.
+test.describe("on a phone · navigation", () => {
+  test("the tab bar and the Menu sheet reach every page", async ({ page }) => {
+    await page.goto("/team");
+    const tabs = page.getByRole("navigation", { name: "Sections" });
+    await expect(tabs.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
+    // It sits along the bottom edge, in reach of the thumb.
+    const box = (await tabs.boundingBox())!;
+    expect(box.y + box.height).toBeGreaterThan((page.viewportSize()?.height ?? 0) - 2);
+    await expect(page.getByRole("navigation", { name: "Home" })).toHaveCount(0);
+
+    const menu = page.getByRole("dialog", { name: "Menu" });
+    await tabs.getByRole("button", { name: "Menu" }).click();
+    await menu.getByRole("link", { name: "Messages" }).click();
+    await expect(page).toHaveURL(/\/team\/messages/);
+    await expect(menu).toBeHidden();
+
+    await tabs.getByRole("link", { name: "Hire" }).click();
+    await expect(page).toHaveURL(/\/team\/hire$/);
+
+    await tabs.getByRole("button", { name: "Menu" }).click();
+    await menu.getByRole("link", { name: "Payments" }).click();
+    await expect(page).toHaveURL(/\/team\/payments$/);
+    await expect(menu).toBeHidden();
+
+    await tabs.getByRole("button", { name: "Menu" }).click();
+    await menu.getByRole("button", { name: "Log out" }).click();
+    await expect(page.getByRole("dialog", { name: "Log out?" })).toBeVisible();
+  });
+});
+
+test.describe("on a phone · sheets", () => {
+  test("a side sheet comes up from the bottom and a swipe down closes it", async ({ page }) => {
+    await open(page, "team");
+    await page.getByTestId("board").getByRole("group", { name: /^#4/ }).click();
+    const sheet = page.locator("[data-slot=sheet-content]");
+    await expect(sheet).toHaveAttribute("data-side", "bottom");
+    const box = (await sheet.boundingBox())!;
+    // A finger on the sheet's grab bar, dragged most of the way down the screen.
+    const touch = await page.context().newCDPSession(page);
+    const x = box.x + box.width / 2;
+    await touch.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: box.y + 8 }] });
+    for (let i = 1; i <= 12; i++) await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: box.y + 8 + 40 * i }] });
+    await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect(sheet).toHaveCount(0);
+  });
+});

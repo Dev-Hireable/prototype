@@ -134,13 +134,13 @@ function ScoresCard({ evaluation, contract, thread }: { evaluation: DealEvaluati
   return (
     <Card className="flex flex-col gap-4 p-5">
       {(evaluation.scores ?? []).map((s) => (
-        <div key={s.label} className="flex items-center justify-between">
+        <div key={s.label} className="flex items-center justify-between max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
           <p className="text-[14px] leading-[1.4] font-medium text-ink">{s.label}</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-sm:grid max-sm:grid-cols-5">
             {[1, 2, 3, 4, 5].map((n) => (
               <span
                 key={n}
-                className={`flex h-9 w-11 items-center justify-center rounded-md text-[14px] leading-[1.4] font-medium ${
+                className={`flex h-9 w-11 items-center max-sm:w-auto justify-center rounded-md text-[14px] leading-[1.4] font-medium ${
                   n === s.value ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"
                 }`}
               >

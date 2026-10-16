@@ -44,13 +44,15 @@ type Props = {
 };
 
 export function Toolbar({ query, setQuery, assigneeLabel, tags, shown, total, groupable, projects = false, sortable }: Props) {
+  // A phone fits it on one row: search, then Filter, Sort and Group as their icons (each keeps its
+  // name in its aria-label), the count left to screen readers.
   return (
     <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Search, filter, sort and group">
       <Search value={query.q} onChange={(q) => setQuery({ q })} />
       <FilterMenu query={query} setQuery={setQuery} assigneeLabel={assigneeLabel} tags={tags} />
       {sortable && <SortMenu query={query} setQuery={setQuery} />}
       {groupable && <GroupMenu query={query} setQuery={setQuery} projects={projects} />}
-      <span className="ml-auto text-[13px] leading-[1.4] whitespace-nowrap text-ink-2 tabular-nums" aria-live="polite">
+      <span className="ml-auto text-[13px] leading-[1.4] whitespace-nowrap text-ink-2 tabular-nums max-sm:sr-only" aria-live="polite">
         {shown === total ? `${total} ${total === 1 ? "item" : "items"}` : `${shown} of ${total} items`}
         {query.archived && " · deleted"}
       </span>
@@ -68,7 +70,7 @@ function FilterMenu({ query, setQuery, assigneeLabel, tags }: Pick<Props, "query
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className={BUTTON} aria-label={active ? `Filter, ${active} active` : "Filter"}>
-        <ICONS.filter size={17} aria-hidden /> Filter
+        <ICONS.filter size={17} aria-hidden /> <span className="max-sm:hidden">Filter</span>
         {/* A round 20px count, its number centred — it was a text-height pill that sat off the button's middle. */}
         {active > 0 && <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] leading-none font-semibold text-white"><span className="badge-count">{active}</span></span>}
       </DropdownMenuTrigger>
@@ -129,7 +131,7 @@ function SortMenu({ query, setQuery }: Pick<Props, "query" | "setQuery">) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className={BUTTON} aria-label={`Sort: ${SORT_LABEL[query.sort]}${query.sort === "manual" ? "" : `, ${query.dir === "asc" ? "ascending" : "descending"}`}`}>
-        <ICONS.sort size={17} aria-hidden /> <span className="hidden sm:inline">Sort:</span> {SORT_LABEL[query.sort]}
+        <ICONS.sort size={17} aria-hidden /> <span className="max-sm:hidden">Sort: {SORT_LABEL[query.sort]}</span>
         {query.sort !== "manual" && <ICONS.arrowUp size={14} aria-hidden className={query.dir === "desc" ? "rotate-180" : ""} />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-52">
@@ -171,7 +173,7 @@ function GroupMenu({ query, setQuery, projects }: Pick<Props, "query" | "setQuer
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className={BUTTON} aria-label={`Group by: ${GROUP_LABEL[shownGroup]}`}>
-        <ICONS.group size={17} aria-hidden /> <span className="hidden sm:inline">Group:</span> {GROUP_LABEL[shownGroup]}
+        <ICONS.group size={17} aria-hidden /> <span className="max-sm:hidden">Group: {GROUP_LABEL[shownGroup]}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-52">
         <DropdownMenuGroup>
@@ -226,7 +228,7 @@ function Search({ value, onChange }: { value: string; onChange: (v: string) => v
       }, 250);
   };
   return (
-    <label className="flex h-9 w-full max-w-[280px] min-w-40 flex-1 items-center gap-2 rounded-lg border border-border bg-white px-3 text-ink-2 focus-within:border-primary sm:w-auto">
+    <label className="flex h-9 w-full max-w-[280px] min-w-32 flex-1 items-center gap-2 rounded-lg border border-border bg-white px-3 text-ink-2 focus-within:border-primary max-sm:max-w-none sm:w-auto">
       <ICONS.search size={17} aria-hidden />
       <input
         type="search"

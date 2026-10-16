@@ -8,7 +8,7 @@ export function WizardHeader({ t, kind, step }: { t: PathCopy; kind: string; ste
   const review = kind === "review";
   return (
     <>
-      <div className="flex w-[720px] flex-col gap-2 tracking-[0.2px]">
+      <div className="flex w-full max-w-[720px] flex-col gap-2 tracking-[0.2px]">
         {review ? (
           <h2 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{t.reviewTitle}</h2>
         ) : (
@@ -18,7 +18,7 @@ export function WizardHeader({ t, kind, step }: { t: PathCopy; kind: string; ste
         )}
         <p className="text-[14px] leading-[1.2] text-ink-2">{review ? "This is how your role will appear to Independents." : t.intro}</p>
       </div>
-      <div className="w-[720px] px-4 py-10">
+      <div className="w-full max-w-[720px] px-4 py-10 max-md:px-0 max-md:py-4">
         <Steps steps={[...t.steps]} current={step} />
       </div>
     </>
@@ -27,8 +27,8 @@ export function WizardHeader({ t, kind, step }: { t: PathCopy; kind: string; ste
 
 export function StepCard({ title, body, bodySize = 14, action, children }: { title: string; body: string; bodySize?: 14 | 16; /** A button beside the heading, e.g. Use a template. */ action?: ReactNode; children: ReactNode }) {
   return (
-    <Card className="flex w-[720px] flex-col gap-10 rounded-2xl p-10">
-      <div className="flex items-start justify-between gap-4">
+    <Card className="flex w-full max-w-[720px] flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
+      <div className="flex items-start justify-between gap-4 max-sm:flex-col max-sm:gap-3">
         <div className="flex flex-col gap-1">
           <h3 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{title}</h3>
           <p className={`leading-[1.5] tracking-[0.2px] text-ink-2 ${bodySize === 16 ? "text-[16px]" : "text-[14px] leading-[1.2]"}`}>{body}</p>
@@ -40,9 +40,14 @@ export function StepCard({ title, body, bodySize = 14, action, children }: { tit
   );
 }
 
+/**
+ * Save as draft and the next step. On a phone they stay pinned to the bottom of the screen while the
+ * step scrolls under them, full width, so the next step is always under the thumb. The bar stops 1px
+ * inside the card on every side, so the card's own outline still shows around it.
+ */
 export function Cta({ next, disabled, onNext, onDraft }: { next: string; disabled: boolean; onNext: () => void; onDraft: () => void }) {
   return (
-    <div className="flex items-center justify-end gap-3">
+    <div className="flex items-center justify-end gap-3 max-md:sticky max-md:bottom-0 max-md:z-10 max-md:-mx-[19px] max-md:-mb-[19px] max-md:rounded-b-[15px] max-md:border-t max-md:border-border max-md:bg-white max-md:p-3 max-md:*:flex-1">
       <Button size="lg" className="!px-5" onClick={onDraft}>
         Save as draft
       </Button>

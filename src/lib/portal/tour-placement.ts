@@ -41,3 +41,19 @@ export function spotlightBox(target: Box, view: Size, pad = 6): Box {
   const y = Math.max(target.y - pad, 0);
   return { x, y, width: Math.min(target.x + target.width + pad, view.width) - x, height: Math.min(target.y + target.height + pad, view.height) - y };
 }
+
+/**
+ * The step's element, if it's on screen: there, laid out, and not in a part of the page that's
+ * switched off. The first such match — a section's rail tab and its phone tab bar twin share a
+ * selector, and only one of them is shown at a time.
+ */
+export function findTarget(selector: string | undefined): HTMLElement | null {
+  if (!selector) return null;
+  return (
+    [...document.querySelectorAll<HTMLElement>(selector)].find((el) => {
+      if (el.closest("[inert]")) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    }) ?? null
+  );
+}

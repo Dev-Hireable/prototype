@@ -53,7 +53,8 @@ function BreadcrumbLink({
     defaultTagName: "a",
     props: mergeProps<"a">(
       {
-        className: cn("transition-colors hover:text-foreground", className),
+        // Hireable: truncates with its item, so a long trail on a phone ends in "…" instead of running over the separator.
+        className: cn("min-w-0 truncate transition-colors hover:text-foreground", className),
       },
       props
     ),
@@ -87,7 +88,7 @@ function BreadcrumbSeparator({
       data-slot="breadcrumb-separator"
       role="presentation"
       aria-hidden="true"
-      className={cn("[&>svg]:size-4", className)}
+      className={cn("shrink-0 [&>svg]:size-4", className)}
       {...props}
     >
       {children ?? (

@@ -1,0 +1,235 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+import { ICONS } from "@/components/icons";
+import { ResetDemoDialog } from "@/components/portal/demo-reset";
+import { TourMenu } from "@/components/portal/tour/tour-help";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import type { MenuItem, Section } from "@/lib/portal/nav";
+
+/*
+ * A phone's navigation, below 768px where the rail and section panel don't fit beside a page.
+ * Everything you reach for sits in the thumb's half of the screen:
+ *   tab bar     the first four sections and Menu along the bottom edge, 64px tall (+ the home
+ *               indicator's inset), each tab a full fifth of the width
+ *   Menu sheet  rises from the bottom: My profile, the open section's pages (Dashboard · Messages,
+ *               Create Role · All Roles), the sections the bar has no room for, Help's tours,
+ *               Reset demo and Log out — every row 52px. The page itself carries no nav strip.
+ * A tablet keeps the rail: it's held in both hands, and the rail is in reach of the left one.
+ */
+
+/** How many sections the tab bar holds before the rest go into Menu. */
+const TABS = 4;
+
+type Props = {
+  sections: Section[];
+  section: Section;
+  activeMenuHref: string | undefined;
+  profileHref: string;
+  avatar: string;
+  /** Unread counts by href: `badges` for menu items, `railBadges` for sections. */
+  badges: Record<string, number>;
+  railBadges: Record<string, number>;
+  onLogout: (href: string) => void;
+};
+
+/** The bottom tab bar and its Menu sheet. */
+export function MobileTabBar({ sections, section, activeMenuHref, profileHref, avatar, badges, railBadges, onLogout }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const rail = sections.filter((s) => !s.hidden);
+  // Five fit: then every section is a tab and Menu holds the rest of the chrome only.
+  const tabs = rail.length <= TABS + 1 ? rail : rail.slice(0, TABS);
+  // The tabs are the rail's first few, so Menu's are the rest of it.
+  const more = rail.slice(tabs.length);
+  const menuBadge = more.reduce((n, s) => n + (railBadges[s.href] ?? 0), 0);
+  const menuActive = !tabs.includes(section);
+
+  return (
+    <>
+      <nav aria-label="Sections" className="shrink-0 border-t border-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+        <ul className="flex">
+          {tabs.map((s) => (
+            <li key={s.href} className="min-w-0 flex-1">
+              <Link href={s.href} aria-current={s === section ? "page" : undefined} className={TAB}>
+                <TabFace icon={s.icon} label={s.label} active={s === section} badge={railBadges[s.href] ?? 0} />
+              </Link>
+            </li>
+          ))}
+          <li className="min-w-0 flex-1">
+            <button type="button" data-tour="help" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className={TAB}>
+              <TabFace icon="menu" label="Menu" active={menuActive} badge={menuBadge} />
+            </button>
+          </li>
+        </ul>
+      </nav>
+      <MenuSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        sections={sections}
+        more={more}
+        section={section}
+        activeMenuHref={activeMenuHref}
+        profileHref={profileHref}
+        avatar={avatar}
+        pageBadges={badges}
+        badges={railBadges}
+        onLogout={onLogout}
+      />
+    </>
+  );
+}
+
+const TAB =
+  "group relative flex h-16 w-full items-center justify-center px-0.5 text-[10.5px] leading-[1.2] tracking-[-0.1px] text-ink-2 outline-none select-none [-webkit-tap-highlight-color:transparent] focus-visible:text-ink";
+
+/** A tab's glyph over its label, with its unread count; the open one is filled in, a card around both. */
+function TabFace({ icon, label, active, badge }: { icon: Section["icon"] | "menu"; label: string; active: boolean; badge: number }) {
+  return (
+    <span
+      className={`relative flex h-[46px] w-full max-w-[84px] flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 transition-colors group-active:bg-black/8 group-focus-visible:outline-2 group-focus-visible:outline-primary ${
+        active ? "bg-accent-bg font-semibold text-accent-ink" : ""
+      }`}
+    >
+      {icon === "logo" ? (
+        <Image src="/hireable-mark.svg" alt="" width={22} height={22} className={`size-[22px] ${active ? "" : "grayscale"}`} />
+      ) : (
+        <Glyph icon={icon} size={22} />
+      )}
+      <span className="max-w-full truncate">{label}</span>
+      {badge > 0 && <Count n={badge} className="absolute -top-1 left-1/2 ml-1.5" />}
+    </span>
+  );
+}
+
+function Glyph({ icon, size = 24 }: { icon: keyof typeof ICONS; size?: number }) {
+  const G = ICONS[icon];
+  return <G size={size} aria-hidden className="shrink-0" />;
+}
+
+function Count({ n, className = "" }: { n: number; className?: string }) {
+  return (
+    <span aria-label={`${n} unread`} className={`pointer-events-none flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1.5 text-[10.5px] leading-none font-semibold text-white ${className}`}>
+      <span className="badge-count">{n > 9 ? "9+" : n}</span>
+    </span>
+  );
+}
+
+type MenuSheetProps = {
+  open: boolean;
+  onClose: () => void;
+  sections: Section[];
+  more: Section[];
+  section: Section;
+  activeMenuHref: string | undefined;
+  profileHref: string;
+  avatar: string;
+  pageBadges: Record<string, number>;
+  badges: Record<string, number>;
+  onLogout: (href: string) => void;
+};
+
+/**
+ * Menu, from the bottom edge: the profile, the sections the tab bar left out, Help's tours, and the
+ * demo's Reset and Log out at the foot, where the thumb already is.
+ */
+
+function MenuSheet({ open, onClose, sections, more, section, activeMenuHref, profileHref, avatar, pageBadges, badges, onLogout }: MenuSheetProps) {
+  const [resetting, setResetting] = useState(false);
+  const profileOpen = !!section.hidden;
+  return (
+    <>
+      <Sheet side="bottom" open={open} onOpenChange={(next) => !next && onClose()}>
+        <SheetContent showCloseButton={false} className="max-h-[88dvh] gap-0 overflow-y-auto border-0">
+          <SheetTitle className="sr-only">Menu</SheetTitle>
+          <nav aria-label="More" className="flex flex-col px-3 pt-2">
+            <Link href={profileHref} onClick={onClose} aria-current={profileOpen ? "page" : undefined} className={`${ROW} h-16`}>
+              <Image src={avatar} alt="" width={80} height={80} className="size-10 shrink-0 rounded-full bg-[#d2d8db] object-cover" />
+              <span className="flex-1">My profile</span>
+              <Glyph icon="chevronRight" size={20} />
+            </Link>
+            <SectionPages section={section} activeMenuHref={activeMenuHref} badges={pageBadges} onClose={onClose} />
+            <MoreSections more={more} section={section} badges={badges} onClose={onClose} />
+          </nav>
+          <section aria-label="Help" className="mx-3 mt-3 flex flex-col gap-3 rounded-xl bg-surface-2 p-3 [&_li]:bg-white">
+            <TourMenu onPick={onClose} />
+          </section>
+          <MenuFoot
+            sections={sections}
+            onReset={() => {
+              onClose();
+              setResetting(true);
+            }}
+            onLogout={(href) => {
+              onClose();
+              onLogout(href);
+            }}
+          />
+        </SheetContent>
+      </Sheet>
+      {/* Outside the sheet: it opens as the sheet closes. */}
+      <ResetDemoDialog open={resetting} onClose={() => setResetting(false)} />
+    </>
+  );
+}
+
+/** The open section's own pages, when it has more than one (Dashboard · Messages, Personal · Company profile). */
+function SectionPages({ section, activeMenuHref, badges, onClose }: { section: Section; activeMenuHref: string | undefined; badges: Record<string, number>; onClose: () => void }) {
+  const pages = section.menu.filter((m: MenuItem) => !m.action);
+  if (pages.length < 2) return null;
+  return (
+    <>
+      <hr className="my-2 border-border" />
+      <p className="px-3 pt-1 pb-1 text-[12px] leading-[1.2] font-semibold tracking-[0.4px] text-ink-2 uppercase">{section.title}</p>
+      {pages.map((m) => (
+        <Link key={m.href} href={m.href} onClick={onClose} aria-current={m.href === activeMenuHref ? "page" : undefined} className={ROW}>
+          <Glyph icon={m.icon} size={22} />
+          <span className="flex-1">{m.label}</span>
+          {(badges[m.href] ?? 0) > 0 && <Count n={badges[m.href]} />}
+        </Link>
+      ))}
+    </>
+  );
+}
+
+/** The sections the tab bar had no room for, each with its unread count. */
+function MoreSections({ more, section, badges, onClose }: { more: Section[]; section: Section; badges: Record<string, number>; onClose: () => void }) {
+  if (more.length === 0) return null;
+  return (
+    <>
+      <hr className="my-2 border-border" />
+      {more.map((s) => (
+        <Link key={s.href} href={s.href} onClick={onClose} aria-current={s === section ? "page" : undefined} className={ROW}>
+          {s.icon === "logo" ? <Image src="/hireable-mark.svg" alt="" width={22} height={22} className="size-[22px]" /> : <Glyph icon={s.icon} size={22} />}
+          <span className="flex-1">{s.label}</span>
+          {(badges[s.href] ?? 0) > 0 && <Count n={badges[s.href]} />}
+          <Glyph icon="chevronRight" size={20} />
+        </Link>
+      ))}
+    </>
+  );
+}
+
+/** The sheet's foot: Reset demo and Log out side by side, under the thumb. */
+function MenuFoot({ sections, onReset, onLogout }: { sections: Section[]; onReset: () => void; onLogout: (href: string) => void }) {
+  const logout = sections.flatMap((s) => s.menu).find((m) => m.action === "logout");
+  return (
+    <div className="flex gap-3 p-3">
+      <button type="button" onClick={onReset} className={FOOT}>
+        <Glyph icon="restart" size={20} /> Reset demo
+      </button>
+      {logout && (
+        <button type="button" onClick={() => onLogout(logout.href)} className={FOOT}>
+          <Glyph icon="logout" size={20} /> Log out
+        </button>
+      )}
+    </div>
+  );
+}
+
+const ROW =
+  "flex h-[52px] items-center gap-3 rounded-xl px-3 text-[15px] leading-[1.2] text-ink active:bg-black/8 aria-[current=page]:bg-accent-bg aria-[current=page]:font-semibold aria-[current=page]:text-accent-ink [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-primary";
+
+const FOOT =
+  "flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-border text-[14px] font-medium text-ink active:bg-black/8 [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-primary";

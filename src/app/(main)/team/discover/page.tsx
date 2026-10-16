@@ -6,7 +6,7 @@ import { IndependentCard } from "@/components/team/ui";
 import { useToast } from "@/lib/portal/toast";
 import { liveIndependents } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
-import { ReturnNav } from "@/components/portal/return";
+import { ReturnNav, useReturnTo } from "@/components/portal/return";
 import { TalentBrowser } from "./_components/talent-browser";
 import { TalentOverlays } from "./_components/talent-overlays";
 import { useTalentFilters } from "./_lib/filters";
@@ -17,9 +17,11 @@ export default function Discover() {
   const [preview, setPreview] = useState<Independent | null>(null);
   const [toast, setToast] = useToast();
   const matched = filters.results.length;
+  // The back link's row only when there's somewhere to go back to, so Discover sits like Saved (ReturnNav).
+  const back = useReturnTo();
 
   return (
-    <Page title="Discover independents" nav={<ReturnNav />}>
+    <Page title="Discover independents" nav={back ? <ReturnNav /> : undefined}>
       <TalentBrowser
         filters={filters}
         placeholder="Search by name, title or skill"

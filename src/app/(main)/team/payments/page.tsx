@@ -151,7 +151,8 @@ function Totals({ all }: { all: Transaction[] }) {
   // What is still in escrow: deposits less what has since been released or refunded out of them.
   const held = Math.max(0, all.filter((t) => t.type === "Payment Deposited").reduce((n, t) => n + money(t.amount), 0) - spent - refunded);
   return (
-    <div className="flex gap-4 whitespace-nowrap">
+    // Side by side; a tablet or a phone wraps them two to a row, the odd one out across the full width.
+    <div className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
       {(
         [
           [usd(spent), "Total spent", `${all.filter((t) => t.type === "Payment Released").length} released across ${plural(new Set(all.map((t) => t.contract)).size, "contract")}`],
@@ -159,7 +160,7 @@ function Totals({ all }: { all: Transaction[] }) {
           [usd(refunded), "Refunded", `${all.filter((t) => t.type === "Payment Refunded").length} returned to your card`],
         ] as const
       ).map(([v, l, s]) => (
-        <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4">
+        <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4 max-lg:basis-[150px]">
           <p className="font-display text-[22px] leading-[1.5] font-semibold text-ink" style={DM}>
             {v}
           </p>

@@ -7,9 +7,9 @@ import { BADGE, type PathCopy } from "../_lib/wizard";
 export function Published({ t, slug }: { t: PathCopy; slug: string }) {
   return (
     <Page title="Create Role" padded={false}>
-      <div className="flex h-full flex-col items-center justify-center gap-6 px-10 py-20">
+      <div className="flex h-full flex-col items-center justify-center gap-6 px-(--page-gutter) py-20">
         <PublishedBadge />
-        <div className="flex w-[733px] flex-col items-center gap-10 px-10">
+        <div className="flex w-full max-w-[733px] flex-col items-center gap-10 px-(--page-gutter)">
           <div className="flex w-[378px] flex-col items-center gap-2 text-center text-ink">
             <h2 className="font-display text-[32px] leading-[1.5] font-semibold" style={{ fontVariationSettings: '"opsz" 14' }}>
               {t.publishedTitle}

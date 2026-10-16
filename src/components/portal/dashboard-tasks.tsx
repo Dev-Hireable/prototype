@@ -111,22 +111,25 @@ function TaskRow({ row: { item: t, reason }, side, href, today, counterpart }: {
       {/* No tooltip on the circle: a tooltip trigger can't sit inside a link. Its status is said in words instead. */}
       <StatusCircle status={t.status} size={16} />
       <span className="sr-only">{STATUS_META[t.status].label}:</span>
-      <span className="flex min-w-0 flex-1 items-baseline gap-1.5 leading-[1.3] tracking-[0.2px]">
-        <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
-        <span className="truncate text-[14px] font-medium text-ink">{t.title}</span>
-      </span>
-      {/* Why it's here, in the words and chips the board uses. */}
-      <span className="flex shrink-0 items-center gap-3">
-        {reason === "changes" && <ChangesChip />}
-        {side === "team" && t.assignee === null && <span className="text-[12px] leading-[1.2] text-ink-2">Unassigned</span>}
-        {reason !== "review" && <DueChip item={t} today={today} />}
-        {reason === "review" &&
-          (side === "team" ? (
-            // The row is the link; this only says what it leads to, the way the board card's Review button does.
-            <span className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-[12px] leading-none font-medium text-white">Review</span>
-          ) : (
-            <span className="text-[12px] leading-[1.2] text-ink-2">With {counterpart} for review</span>
-          ))}
+      {/* On a phone why it's here drops under the title, so neither is cut short. */}
+      <span className="flex min-w-0 flex-1 items-center gap-3 max-sm:flex-col max-sm:items-start max-sm:gap-1">
+        <span className="flex min-w-0 flex-1 items-baseline gap-1.5 leading-[1.3] tracking-[0.2px] max-sm:w-full">
+          <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+          <span className="truncate text-[14px] font-medium text-ink">{t.title}</span>
+        </span>
+        {/* Why it's here, in the words and chips the board uses. */}
+        <span className="flex shrink-0 items-center gap-3">
+          {reason === "changes" && <ChangesChip />}
+          {side === "team" && t.assignee === null && <span className="text-[12px] leading-[1.2] text-ink-2">Unassigned</span>}
+          {reason !== "review" && <DueChip item={t} today={today} />}
+          {reason === "review" &&
+            (side === "team" ? (
+              // The row is the link; this only says what it leads to, the way the board card's Review button does.
+              <span className="inline-flex h-8 items-center rounded-lg bg-primary px-3 text-[12px] leading-none font-medium text-white">Review</span>
+            ) : (
+              <span className="text-[12px] leading-[1.2] text-ink-2">With {counterpart} for review</span>
+            ))}
+        </span>
       </span>
       <ICONS.chevronRight size={16} aria-hidden className="shrink-0 text-ink-2" />
     </Link>

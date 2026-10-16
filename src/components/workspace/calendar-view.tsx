@@ -87,7 +87,8 @@ export function CalendarView({ items, query, setQuery, narrow }: { items: readon
   if (narrow) return <Agenda items={items} loose={loose} y={y} m={m} header={header("")} />;
 
   return (
-    <div className="flex min-h-0 flex-1 gap-3 px-[var(--ws-gutter,1rem)] pt-3 pb-4">
+    // Below a laptop Unscheduled goes under the month, so the month keeps the full width.
+    <div className="flex min-h-0 flex-1 gap-3 px-[var(--ws-gutter,1rem)] pt-3 pb-4 max-lg:flex-col">
       {/* Bordered frame, scroller inside: the day cells are positioned, so they painted over an outline on the scroller. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-white">
         {header("border-b border-border px-3 py-2")}
@@ -182,7 +183,7 @@ const movable = (t: WorkItem, { actor, access, names }: Pick<WorkspaceEnv, "acto
 /** The month as a grid, Sunday first: the weekdays, then a row per week — its days, and its items as bars across them. */
 function MonthGrid({ layouts, y, month }: { layouts: WeekLayout[]; y: number; month: MonthState }) {
   return (
-    <div role="grid" aria-label={`${MONTH_LONG[month.m - 1]} ${y}`} className="flex min-w-[720px] flex-1 flex-col">
+    <div role="grid" aria-label={`${MONTH_LONG[month.m - 1]} ${y}`} className="flex min-w-[720px] flex-1 flex-col max-lg:min-w-0">
       <div role="row" className="sticky top-0 z-20 grid grid-cols-7 border-b border-border bg-surface-2">
         {WEEKDAY_SHORT.map((d) => (
           <span key={d} role="columnheader" className="px-2 py-1.5 text-[12px] font-medium text-ink-2">
@@ -344,7 +345,7 @@ function SegmentBar({ segment: s, days, dnd }: { segment: Segment; days: Day[]; 
 function UnscheduledList({ loose, dnd }: { loose: WorkItem[]; dnd: DayDrag }) {
   const env = useWorkspace();
   return (
-    <aside className="flex w-64 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-[#fafafa]" aria-label="Unscheduled">
+    <aside className="flex w-64 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-[#fafafa] max-lg:max-h-44 max-lg:w-full" aria-label="Unscheduled">
       <h3 className="flex items-center justify-between border-b border-border px-3 py-2.5 text-[13.5px] font-semibold text-ink">
         Unscheduled
         <span className="rounded bg-surface-2 px-1.5 text-[12px] font-medium text-ink-2 tabular-nums">{loose.length}</span>
@@ -397,42 +398,111 @@ function MorePopover({ day, items, count }: { day: Day; items: WorkItem[]; count
   );
 }
 
-/** A phone-width month: the days that have something on them, as a list, then what's unscheduled. */
+/**
+ * A phone-width month: a small month grid on top, a dot under each day with something on it (a tap
+ * scrolls to that day), then the schedule — each day as a date block beside its items as cards — and
+ * last what's unscheduled. A day's heading stays for screen readers ("Fri 25 Sep 2026 · Today").
+ */
 function Agenda({ items, loose, y, m, header }: { items: readonly WorkItem[]; loose: WorkItem[]; y: number; m: number; header: ReactNode }) {
-  const { openTask, today } = useWorkspace();
+  const { today } = useWorkspace();
   const days = useMemo(() => {
     const byDay = new Map<Day, WorkItem[]>();
     for (const w of monthWeeks(y, m))
       for (const [day, list] of layoutWeek(w, items, 99).all) if (partsOf(day).m === m) byDay.set(day, list);
     return [...byDay.entries()].sort((a, b) => a[0] - b[0]);
   }, [items, y, m]);
-  const row = (t: WorkItem) => (
-    <li key={t.id}>
-      <button type="button" data-item-id={t.id} onClick={() => openTask(t.id)} className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[14px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary">
-        <StatusCircle status={t.status} size={14} />
-        <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
-      </button>
-    </li>
-  );
+  const busy = new Set(days.map(([day]) => day));
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="calendar">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="calendar">
       {header}
-      {days.length === 0 && <p className="text-[13px] text-ink-2">Nothing is scheduled in {MONTH_LONG[m - 1]}.</p>}
-      {days.map(([day, list]) => (
-        <section key={day} aria-label={longLabel(day)}>
-          <h3 className={`text-[13px] font-semibold ${day === today ? "text-primary" : "text-ink"}`}>
-            {longLabel(day)}
-            {day === today && " · Today"}
-          </h3>
-          <ul>{list.map(row)}</ul>
-        </section>
-      ))}
+      <MiniMonth y={y} m={m} today={today} busy={busy} />
+      {days.length === 0 && <p className="rounded-lg bg-surface-2 px-4 py-6 text-center text-[13px] text-ink-2">Nothing is scheduled in {MONTH_LONG[m - 1]}.</p>}
+      <div className="flex flex-col gap-3">
+        {days.map(([day, list]) => (
+          <AgendaDay key={day} day={day} today={today} list={list} />
+        ))}
+      </div>
       {loose.length > 0 && (
-        <section aria-label="Unscheduled">
-          <h3 className="text-[13px] font-semibold text-ink">Unscheduled</h3>
-          <ul>{loose.map(row)}</ul>
+        <section aria-label="Unscheduled" className="flex flex-col gap-2">
+          <h3 className="text-[13px] font-semibold text-ink-2">Unscheduled</h3>
+          <ul className="flex flex-col gap-2">{loose.map((t) => <AgendaCard key={t.id} t={t} />)}</ul>
         </section>
       )}
     </div>
+  );
+}
+
+/** The month as a small grid: today ringed, a dot under each day with work on it, a tap to jump there. */
+function MiniMonth({ y, m, today, busy }: { y: number; m: number; today: Day; busy: ReadonlySet<Day> }) {
+  const jump = (day: Day) => document.getElementById(`agenda-${day}`)?.scrollIntoView({ block: "start", behavior: "smooth" });
+  return (
+    <div aria-hidden className="grid grid-cols-7 gap-y-1 rounded-xl border border-border bg-white p-2 text-center">
+      {WEEKDAY_SHORT.map((d) => (
+        <span key={d} className="pb-1 text-[11px] font-medium text-ink-2">
+          {d.slice(0, 1)}
+        </span>
+      ))}
+      {monthWeeks(y, m).flat().map((day) => {
+        const inMonth = partsOf(day).m === m;
+        const has = inMonth && busy.has(day);
+        return (
+          <button
+            key={day}
+            type="button"
+            tabIndex={-1}
+            disabled={!has}
+            onClick={() => jump(day)}
+            className={`mx-auto flex size-9 flex-col items-center justify-center rounded-full text-[13px] tabular-nums ${
+              day === today ? "bg-primary font-semibold text-white" : !inMonth ? "text-[#c3c3c3]" : has ? "font-semibold text-ink active:bg-surface-2" : "text-ink-2"
+            }`}
+          >
+            {partsOf(day).d}
+            <span className={`size-1 rounded-full ${has ? (day === today ? "bg-white" : "bg-primary") : "bg-transparent"}`} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** One day of the schedule: its date block, then its items as cards. */
+function AgendaDay({ day, today, list }: { day: Day; today: Day; list: WorkItem[] }) {
+  const { d } = partsOf(day);
+  const isToday = day === today;
+  return (
+    <section id={`agenda-${day}`} aria-label={longLabel(day)} className="flex scroll-mt-3 gap-3">
+      <h3 className="sr-only">
+        {longLabel(day)}
+        {isToday && " · Today"}
+      </h3>
+      <div aria-hidden className={`flex w-11 shrink-0 flex-col items-center pt-1.5 ${isToday ? "text-primary" : "text-ink"}`}>
+        <span className="text-[11px] font-medium uppercase">{WEEKDAY_SHORT[(day + 4) % 7]}</span>
+        <span className={`flex size-9 items-center justify-center rounded-full text-[18px] font-semibold tabular-nums ${isToday ? "bg-primary text-white" : ""}`}>{d}</span>
+      </div>
+      <ul className="flex min-w-0 flex-1 flex-col gap-2">
+        {list.map((t) => (
+          <AgendaCard key={t.id} t={t} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** An item in the schedule: a card with its status, number and name, that opens it. */
+function AgendaCard({ t }: { t: WorkItem }) {
+  const { openTask } = useWorkspace();
+  return (
+    <li>
+      <button
+        type="button"
+        data-item-id={t.id}
+        onClick={() => openTask(t.id)}
+        className="flex min-h-12 w-full items-center gap-2.5 rounded-lg border border-border bg-white px-3 py-2 text-left text-[14px] active:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        <StatusCircle status={t.status} size={16} />
+        <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+        <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
+      </button>
+    </li>
   );
 }

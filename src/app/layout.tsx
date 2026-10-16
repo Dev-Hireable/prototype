@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { DM_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import { DemoReset } from "@/components/portal/demo-reset";
@@ -20,6 +20,13 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Hireable",
   description: "Hiring, made human.",
+};
+
+// A phone draws the app edge to edge, under the notch and the home indicator; the tab bar and the
+// sheets pad themselves by env(safe-area-inset-*) to keep their controls clear of them.
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

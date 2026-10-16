@@ -21,7 +21,7 @@ export function ReviewStep({ f, t, type, weeks, edits, canPublish, onDraft, onPu
   const busy = edits.editing ? "Save or cancel your edit first" : undefined;
   const publishTip = busy ?? (!canPublish ? "Finish your company profile first" : undefined);
   return (
-    <div className="flex w-[720px] flex-col gap-6">
+    <div className="flex w-full max-w-[720px] flex-col gap-6">
       <InfoBanner>{t.reviewNote}</InfoBanner>
       <MainFacts f={f} t={t} type={type} item={edits.item} />
       {/* The paths carry different extras: a trial has expectations + attachments, a
@@ -50,7 +50,7 @@ export function ReviewStep({ f, t, type, weeks, edits, canPublish, onDraft, onPu
 /** The post's main facts, each with its pencil: the role, the pay, the description, the skills, when, the level, the hours and how many. */
 function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobType; item: Item }) {
   return (
-    <Card className="flex flex-col gap-10 rounded-2xl p-10">
+    <Card className="flex flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
       <ReviewItem
         label="Role"
         {...item("title")}
@@ -108,7 +108,7 @@ function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobTy
 /** A trial's tasks, its notes and its link, under one pencil. */
 function TrialExtras({ f, t, weeks, item }: { f: RoleForm; t: PathCopy; weeks: number; item: Item }) {
   return (
-    <Card className="flex flex-col gap-10 rounded-2xl p-10">
+    <Card className="flex flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
       <ReviewItem
         label={t.field2}
         {...item("expectations")}
@@ -145,7 +145,7 @@ function TrialExtras({ f, t, weeks, item }: { f: RoleForm; t: PathCopy; weeks: n
 function BenefitExtras({ f, item }: { f: RoleForm; item: Item }) {
   const benefits = Object.entries(f.benefits);
   return (
-    <Card className="flex flex-col gap-6 rounded-2xl p-10">
+    <Card className="flex flex-col gap-6 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
       <ReviewItem label="Exclusive Benefits" {...item("benefits")} editor={<BenefitsEditor value={f.benefits} onChange={f.setBenefits} />}>
         {benefits.length === 0 ? (
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">None added.</p>

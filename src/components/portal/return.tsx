@@ -70,8 +70,10 @@ export function useReturnTo(): { href: string; label: string } | null {
 
 /**
  * The page's `nav` slot content: a back link to the origin when there is one, else the page's usual
- * breadcrumb or back link — or nothing. Pass it even when there's no fallback: the slot is a fixed
- * row, so reserving it keeps the page from jumping when a back link does appear.
+ * breadcrumb or back link. A page with no fallback passes it only when `useReturnTo()` finds an
+ * origin: the slot is a 40px row, and left empty it pushed that page's content below its sibling
+ * pages' (Discover sat lower than Saved). The origin comes with the URL, so the row never appears
+ * after the page has drawn.
  */
 export function ReturnNav({ fallback }: { fallback?: ReactNode }) {
   const back = useReturnTo();

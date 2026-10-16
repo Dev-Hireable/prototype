@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Children, isValidElement, type ReactNode } from "react";
+import { Children, isValidElement, type CSSProperties, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { PORTAL_CONTENT_CLASS } from "@/components/portal/layout";
 import { dayLabel } from "@/lib/portal/dates";
@@ -15,11 +15,11 @@ const Close = ICONS.close;
 export { DashboardSetupCard, type DashboardChecklistItem } from "@/components/portal/setup-card";
 
 export function DashboardFrame({ children }: { children: ReactNode }) {
-  return <div className={`${PORTAL_CONTENT_CLASS} flex flex-col gap-10 p-10`}>{children}</div>;
+  return <div className={`${PORTAL_CONTENT_CLASS} flex flex-col gap-10 p-(--page-gutter) max-md:gap-6`}>{children}</div>;
 }
 
 /**
- * Greeting | setup card, side by side at every width. Both tracks are minmax(0, …) so they
+ * Greeting | setup card, side by side down to a tablet; a phone stacks them. Both tracks are minmax(0, …) so they
  * shrink instead of wrapping — a grid column can go narrower than its content, which is what
  * `flex-wrap` refused to do (the card's 604px minimum kept bumping it onto its own row).
  *
@@ -29,7 +29,7 @@ export function DashboardFrame({ children }: { children: ReactNode }) {
 export function DashboardHero({ children }: { children: ReactNode }) {
   // items-stretch so the greeting column matches the setup card's height and can distribute its
   // content over it, rather than sitting top-aligned above a block of empty space.
-  return <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] items-stretch gap-6">{children}</div>;
+  return <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] items-stretch gap-6 max-md:grid-cols-1">{children}</div>;
 }
 
 const cardKey = (card: ReactNode) => (isValidElement(card) ? String(card.key) : String(card));
@@ -48,10 +48,11 @@ export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: 
   // toArray drops the cards that aren't there and keeps the keys the callers name them by.
   const columns = [Children.toArray(main), Children.toArray(side)];
   const rows = Math.max(...columns.map((c) => c.length), 1);
+  // A phone has room for one column: the cards stack, main's first.
   if (columns[0].length < columns[1].length) {
     const cards = columns.flat();
     return (
-      <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${cards.length}, minmax(0, 1fr))` }}>
+      <div className="grid grid-cols-(--cols) gap-4 max-md:grid-cols-1" style={{ "--cols": `repeat(${cards.length}, minmax(0, 1fr))` } as CSSProperties}>
         {cards.map((card) => (
           <div key={cardKey(card)} className="flex min-w-0 flex-col">
             {card}
@@ -61,12 +62,11 @@ export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: 
     );
   }
   return (
-    // Inline, not a Tailwind arbitrary class, like the rows (the dev CSS misses new arbitrary classes).
-    <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gridTemplateRows: `repeat(${rows}, auto)` }}>
+    <div className="grid grid-cols-2 grid-rows-(--rows) gap-4 max-md:grid-cols-1 max-md:grid-rows-none" style={{ "--rows": `repeat(${rows}, auto)` } as CSSProperties}>
       {columns.flatMap((cards, col) =>
         cards.map((card, row) => (
           // flex-col so the card (grow, shrink-0) fills the cell's height and never shrinks below its content.
-          <div key={cardKey(card)} className="flex min-w-0 flex-col" style={{ gridColumn: col + 1, gridRow: row === cards.length - 1 ? `${row + 1} / ${rows + 1}` : row + 1 }}>
+          <div key={cardKey(card)} className="col-(--col) row-(--row) flex min-w-0 flex-col max-md:col-auto max-md:row-auto" style={{ "--col": col + 1, "--row": row === cards.length - 1 ? `${row + 1} / ${rows + 1}` : row + 1 } as CSSProperties}>
             {card}
           </div>
         )),
@@ -189,7 +189,7 @@ export function DashboardBanner({ banner, dismissed, onDismiss }: { banner: Dash
   if (!banner || dismissed) return null; // no active banner → the banner space is hidden
   // pr-14 keeps the CTA clear of the absolutely-positioned dismiss button in the corner.
   return (
-    <section className="relative flex items-center gap-6 overflow-hidden rounded-lg bg-gradient-to-r from-[#0b2a43] to-[#17557f] py-5 pr-14 pl-6 text-white">
+    <section className="relative flex items-center gap-6 overflow-hidden rounded-lg bg-gradient-to-r from-[#0b2a43] to-[#17557f] py-5 pr-14 pl-6 text-white max-md:flex-col max-md:items-start max-md:gap-4 max-md:pl-5">
       <div className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.3] tracking-[0.2px]">
         <p className="text-[16px] font-semibold">{banner.title}</p>
         <p className="max-w-[560px] text-[13px] text-white/75">{banner.body}</p>

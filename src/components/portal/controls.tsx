@@ -233,7 +233,8 @@ export function Select({ options: all, placeholder = "Select", value, defaultVal
             openMenu();
           }
         }}
-        className={`${FORM_CONTROL} appearance-none pr-11 text-left focus-visible:ring-2 focus-visible:ring-primary/30 ${className}`}
+        // A phone's filter rows size the box, not the button (PHONE_FILTER_ROW), so it fills it there.
+        className={`${FORM_CONTROL} appearance-none pr-11 text-left focus-visible:ring-2 focus-visible:ring-primary/30 ${className} max-md:w-full!`}
       >
         <span className={`block truncate ${selected ? "" : "text-muted-2"}`}>{selected || placeholder}</span>
       </button>

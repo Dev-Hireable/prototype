@@ -57,7 +57,8 @@ function StatusRow({ icon, title, status, action }: { icon: ReactNode; title: st
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2">{icon}</span>
-      <span className="flex min-w-0 flex-1 flex-col gap-1 leading-[1.3] tracking-[0.2px]">
+      {/* No min-w-0: the status badge doesn't wrap, so a narrow row moves the button under it instead of running the badge beneath the button. */}
+      <span className="flex flex-1 flex-col gap-1 leading-[1.3] tracking-[0.2px]">
         <span className="text-[14px] font-semibold text-ink">{title}</span>
         <span className="text-[13px] text-ink-2">{status}</span>
       </span>

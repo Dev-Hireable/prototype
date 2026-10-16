@@ -33,7 +33,8 @@ export function IndependentCard({
 }) {
   return (
     <article className="flex flex-col gap-3 rounded-lg bg-white p-5 outline -outline-offset-1 outline-border">
-      <div className="flex items-center gap-3">
+      {/* On a phone the actions drop under the name, full width. */}
+      <div className="flex items-center gap-3 max-sm:flex-wrap">
         <Avatar src={person.avatar} size={48} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           {onOpen ? (
@@ -45,7 +46,7 @@ export function IndependentCard({
               {person.name}
             </Link>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-[18px] leading-[1.4] font-semibold text-ink">{person.role}</span>
             <MatchPill pct={person.match} coded title={MATCH_TOOLTIP.team} />
           </div>
@@ -76,7 +77,7 @@ function IndependentCardActions({ person, variant, onInvite, onRemove }: { perso
   const isSaved = saved.includes(person.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
-    <div className="flex shrink-0 items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2 max-sm:w-full max-sm:[&>a]:h-10 max-sm:[&>a]:flex-1 max-sm:[&>button]:h-10 max-sm:[&>button:last-child]:flex-1">
       {variant === "saved" ? (
         <Button size="sm" variant="danger" onClick={() => (onRemove ? onRemove() : toggleSaved(person.slug))}>
           Remove
@@ -87,7 +88,7 @@ function IndependentCardActions({ person, variant, onInvite, onRemove }: { perso
           aria-label={isSaved ? "Unsave independent" : "Save independent"}
           aria-pressed={isSaved}
           onClick={() => toggleSaved(person.slug)}
-          className="flex size-7 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary max-sm:size-10"
         >
           <Mark size={16} aria-hidden />
         </button>

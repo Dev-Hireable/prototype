@@ -281,7 +281,7 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
        columns up with the back link; scrolled, cards fade out at the edge rather than stopping
        short. overflow-y-hidden stops a nested vertical scrollbar. */
     <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
-      <div ref={boardRef} className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-10 pb-10">
+      <div ref={boardRef} className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
         {columns.map((col) => {
           /** A dropped candidate sits in Dropped (TB-037) and a closed trial in Trial Ended, not their stage's column. */
           const cards = list.filter((c) => columnOf(c) === col.key);
@@ -476,7 +476,7 @@ function InterviewButton({ c, actions }: { c: Candidate; actions: CardActions })
  */
 function JobDetails({ role }: { role: RoleData }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-10 pb-10">
+    <div className="min-h-0 flex-1 overflow-y-auto px-(--page-gutter) pb-10">
       <div className="mx-auto flex w-[640px] flex-col gap-4 pb-6">
         <Card className="flex flex-col gap-4 p-4">
           <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-black" style={{ fontVariationSettings: '"opsz" 14' }}>

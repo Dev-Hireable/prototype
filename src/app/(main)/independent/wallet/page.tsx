@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
 import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/portal/ui";
+import { PHONE_FILTER_ROW } from "@/components/portal/styles";
 import { MenuAction } from "@/components/portal/controls";
 import { useDeal } from "@/lib/demo/deal";
 import { escrowOf, useDisputes, type Dispute } from "@/lib/demo/disputes";
@@ -245,14 +246,15 @@ function Balances({ all, available, escrowHeld }: { all: Transaction[]; availabl
   const releases = all.filter((t) => t.type === "Payment Released");
   const payingContracts = new Set(releases.map((t) => t.contract)).size;
   return (
-    <div className="flex gap-4 whitespace-nowrap">
+    // Side by side; a tablet or a phone wraps them two to a row, the odd one out across the full width.
+    <div className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
       {[
         [money(received), "Received, all time", `${releases.length} ${releases.length === 1 ? "payment" : "payments"} received from ${payingContracts} ${payingContracts === 1 ? "contract" : "contracts"}`],
         [money(available), "Available to withdraw", available ? "released and not yet withdrawn" : received ? "withdrawn already" : "nothing released yet"],
         [money(held), "Held in escrow", `${heldTrials} ${heldTrials === 1 ? "trial" : "trials"} funded and not yet released`],
         [money(withdrawn), "Withdrawn to payout method", `${withdrawals.length === 1 ? "one payout" : `${withdrawals.length} payouts`} so far`],
       ].map(([v, l, s]) => (
-        <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4">
+        <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4 max-lg:basis-[150px]">
           <p className="font-display text-[22px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
             {v}
           </p>
@@ -269,7 +271,7 @@ function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { 
   const [menu, setMenu] = useState<string | null>(null);
   return (
     <Card className="flex flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
           Payout methods
         </h2>
@@ -280,7 +282,7 @@ function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { 
       <p className="text-[13px] leading-[1.4] text-ink-2">
         Trial, full-time and part-time payments are released to your default method at the end of each payment cycle. The ⋮ menu on each card opens Set as default, View payout history and Remove.
       </p>
-      <div className="grid grid-cols-3 gap-4 pt-3.5">
+      <div className="grid grid-cols-3 gap-4 pt-3.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
         {payouts.map((m) => (
           <PayoutCard
             key={m.id}
@@ -312,7 +314,7 @@ function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { 
           <span className="text-[11px] leading-[1.3] text-ink-2">Bank · GCash · Maya</span>
         </button>
       </div>
-      <div className="w-[530px]">
+      <div className="w-[530px] max-w-full">
         <InfoBanner>Bank (InstaPay / PESONet), GCash and Maya are supported. Payouts usually land within one working day of release.</InfoBanner>
       </div>
     </Card>
@@ -372,7 +374,7 @@ function PayoutCard({ method: m, open, onOpenChange, removable, onSetDefault, on
 function FilterBar({ filters: f, total, children }: { filters: Filters; total: number; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-3">
+      <div className={`flex flex-wrap items-center gap-3 ${PHONE_FILTER_ROW}`}>
         <SearchBox value={f.q} onChange={f.setQ} placeholder="Search by contract or company" className="w-[280px]" />
         <Select options={f.contractOptions} value={f.contractOptions.includes(f.contract) ? f.contract : "All contracts"} onChange={(e) => f.pickContract(e.target.value)} className="!w-[230px]" />
         <Select options={["All types", ...EARNINGS_TYPES]} value={f.type} onChange={(e) => f.pickType(e.target.value)} className="!w-[190px]" />

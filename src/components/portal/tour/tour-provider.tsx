@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useHydrated } from "@/lib/demo/deal";
 import { recordTour, tourRecord } from "@/lib/demo/tours";
 import { onTourPath, sideOf, tourById, tourFor, type Tour, type TourSide } from "@/lib/portal/tours";
+import { findTarget } from "@/lib/portal/tour-placement";
 import { TourOverlay } from "./tour-overlay";
 
 /** How long a screen gets to draw its content before its tour starts on it. */
@@ -40,7 +41,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     recordTour(run.tour.id, { status: record, step: run.step });
     setRunning(null);
     // Started from the help menu, the button pressed has gone with the menu: Help itself takes it back.
-    const back = returnFocus.current?.isConnected ? returnFocus.current : document.querySelector<HTMLElement>('[data-tour="help"]');
+    const back = returnFocus.current?.isConnected ? returnFocus.current : findTarget('[data-tour="help"]');
     back?.focus({ preventScroll: true });
   };
   const start = useCallback(

@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ICONS, type IconName } from "@/components/icons";
 import { Button, InfoBanner, Toast } from "@/components/portal/ui";
+import { PHONE_FAB } from "@/components/portal/styles";
 import { ViewTabsList } from "@/components/portal/view-switch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { writeParams } from "@/lib/portal/query-state";
@@ -296,7 +297,8 @@ function emptyStateOf({ live$, sorted, scopedLive }: WorkList, query: WorkQuery,
 function SummaryLine({ context, counts, split, scope }: { context?: ReactNode; counts: WorkList["counts"]; split: boolean; scope: Scope }) {
   const { access } = useWorkspace();
   return (
-    <p className="flex flex-wrap items-center gap-y-1 text-[13px] leading-[1.4] text-ink-2 [&>*]:border-l [&>*]:border-border [&>*]:px-3 [&>*:first-child]:border-l-0 [&>*:first-child]:pl-0" aria-label="Summary">
+    // A phone leaves the counts to Overview, so the views below get the screen.
+    <p className="flex flex-wrap items-center gap-y-1 text-[13px] leading-[1.4] text-ink-2 max-md:hidden [&>*]:border-l [&>*]:border-border [&>*]:px-3 [&>*:first-child]:border-l-0 [&>*:first-child]:pl-0" aria-label="Summary">
       {context}
       {counts.total === 0 ? (
         // A trial takes no new tasks, so an empty one isn't waiting on any.
@@ -330,7 +332,7 @@ function SummaryLine({ context, counts, split, scope }: { context?: ReactNode; c
 function ViewBar({ split, setQuery, inReview, onAdd }: { split: boolean; setQuery: (p: Partial<WorkQuery>) => void; inReview: WorkItem[]; onAdd: () => void }) {
   const env = useWorkspace();
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:gap-x-2">
       {split && <ProjectPicker setQuery={setQuery} />}
       <ViewTabsList options={VIEW_OPTIONS} />
       <span className="flex-1" />
@@ -340,7 +342,7 @@ function ViewBar({ split, setQuery, inReview, onAdd }: { split: boolean; setQuer
         </Button>
       )}
       {env.canCreate && (
-        <Button size="md" variant="primary" onClick={onAdd}>
+        <Button size="md" variant="primary" onClick={onAdd} className={PHONE_FAB}>
           <ICONS.add size={18} aria-hidden /> Add task
         </Button>
       )}

@@ -70,7 +70,7 @@ export function DashboardSetupCard({
       {/* Sized as a share of the card and anchored right, so it scales with the card instead of
           drifting over the header copy — a fixed 330px-from-left offset put it on top of the
           text as the card grew. The header text is capped below so the two never meet. */}
-      <Image src="/independent/complete-profile.png" alt="" width={600} height={600} preload className="pointer-events-none absolute -top-10 right-2 aspect-square w-[40%] max-w-[330px] rotate-[6.6deg] opacity-80" />
+      <Image src="/independent/complete-profile.png" alt="" width={600} height={600} preload className="pointer-events-none absolute -top-10 right-2 aspect-square w-[40%] max-w-[330px] rotate-[6.6deg] opacity-80 max-md:-top-6 max-md:-right-2 max-md:w-[32%]" />
       <Image src="/independent/complete-profile-blur.svg" alt="" width={1009} height={386} className="pointer-events-none absolute top-[53px] left-[-213px] max-w-none" />
 
       <SetupHeading avatarSrc={avatarSrc} avatarClassName={avatarClassName} title={complete ? "You're all set" : title} description={complete ? completeDescription : description} percent={percent} />
@@ -93,12 +93,13 @@ export function DashboardSetupCard({
 /** The card's head: the avatar, what's left to do (or that it's done), and the progress bar. */
 function SetupHeading({ avatarSrc, avatarClassName, title, description, percent }: { avatarSrc: string; avatarClassName: string; title: string; description: string; percent: number }) {
   return (
-    <div className="relative flex items-center gap-4 pr-20">
-      <Image src={avatarSrc} alt="" width={96} height={96} className={`size-12 shrink-0 rounded-full bg-[#d2d8db] object-cover ${avatarClassName}`} />
+    // On a phone the art takes the card's top-right third, so the copy keeps to the rest of the width.
+    <div className="relative flex items-center gap-4 pr-20 max-md:items-start max-md:gap-3 max-md:pr-[34%]">
+      <Image src={avatarSrc} alt="" width={96} height={96} className={`size-12 shrink-0 rounded-full bg-[#d2d8db] object-cover max-md:size-10 ${avatarClassName}`} />
       {/* Capped so the copy wraps before it runs under the decorative art on the right. */}
-      <div className="flex min-w-0 max-w-[50%] flex-1 flex-col gap-1.5 leading-[1.25] tracking-[0.2px]">
-        <p className="text-[18px] font-semibold text-ink">{title}</p>
-        <p className="text-[14px] text-ink-2">{description}</p>
+      <div className="flex min-w-0 max-w-[50%] flex-1 flex-col gap-1.5 leading-[1.25] tracking-[0.2px] max-md:max-w-none">
+        <p className="text-[18px] font-semibold text-ink max-md:text-[16px]">{title}</p>
+        <p className="text-[14px] text-ink-2 max-md:text-[13px]">{description}</p>
         <div role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label="Account setup progress" className="mt-1 h-1.5 w-full max-w-48 overflow-hidden rounded-full bg-white/70">
           <span className="block h-full rounded-full bg-primary transition-[width] duration-500" style={{ width: `${percent}%` }} />
         </div>

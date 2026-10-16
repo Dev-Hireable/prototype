@@ -52,7 +52,7 @@ export default function ContractOffer({ params }: { params: Promise<{ slug: stri
 
   return (
     <Page title={`${kind} offer`} heading="modal" onClose={() => router.push(back)} padded={false}>
-      <div className="mx-auto flex w-[1080px] flex-col gap-10 pt-10 pb-20">
+      <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-10 pt-10 pb-20">
         <OfferIntro kind={kind} company={contract.company} offer={offer} open={open} expired={expired} releasing={releasing} ended={deal?.contract?.ended} />
 
         <div className="flex items-start gap-6">

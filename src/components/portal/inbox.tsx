@@ -20,7 +20,7 @@ export function Inbox({ nav, list, thread, open }: { nav?: ReactNode; list: Reac
     <div className="flex min-h-0 min-w-0 flex-1 gap-1">
       <aside className={`${PANEL} w-[360px] shrink-0 max-lg:w-[300px] max-md:w-auto max-md:flex-1 ${open ? "max-md:hidden" : ""}`}>
         {nav && <div className="shrink-0 px-4 pt-3">{nav}</div>}
-        <h1 className="flex h-14 shrink-0 items-center px-4 font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink max-md:pr-36" style={{ fontVariationSettings: '"opsz" 14' }}>
+        <h1 className="flex h-14 shrink-0 items-center px-4 font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink max-md:text-[20px]" style={{ fontVariationSettings: '"opsz" 14' }}>
           Messages
         </h1>
         {list}
@@ -31,14 +31,14 @@ export function Inbox({ nav, list, thread, open }: { nav?: ReactNode; list: Reac
 }
 
 /**
- * The thread's top bar. It ends short of the Reset demo button floating in the corner; on a phone,
- * where that would leave the name no room, it drops below the button instead, and leads back to the list.
- * md:pr-36 / max-md:pr-36 are CLEAR_DEMO_RESET (@/components/portal/styles), written out so Tailwind sees them.
+ * The thread's top bar. It ends short of the Reset demo button floating in the corner (md:pr-36 is
+ * CLEAR_DEMO_RESET, @/components/portal/styles); a phone has no corner button, and there the bar
+ * leads back to the list.
  */
 export function ThreadHeader({ onBack, children }: { onBack: () => void; children: ReactNode }) {
   const Back = ICONS.chevronLeft;
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line pl-[18px] max-md:mt-11 max-md:pr-3 md:pr-36">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line pl-[18px] max-md:pr-3 md:pr-36">
       <button type="button" aria-label="Back to conversations" onClick={onBack} className="-ml-1.5 flex size-8 items-center justify-center rounded-lg text-ink hover:bg-surface-alt md:hidden">
         <Back size={20} aria-hidden />
       </button>

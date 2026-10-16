@@ -33,7 +33,7 @@ export default function Subscription() {
         </div>
 
         {/* Read-only otherwise: upgrade, or the billing portal for cancelling and billing changes. */}
-        <div className="flex justify-end gap-3">
+        <div className="flex justify-end gap-3 max-sm:flex-col-reverse max-sm:*:w-full">
           <Button size="lg" onClick={() => setToast("Billing portal opens here", "info")}>
             Cancel or change billing
           </Button>
