@@ -144,16 +144,17 @@ function MenuSheet({ open, onClose, sections, more, section, activeMenuHref, pro
         <SheetContent showCloseButton={false} className="max-h-[88dvh] gap-0 overflow-y-auto border-0">
           <SheetTitle className="sr-only">Menu</SheetTitle>
           <nav aria-label="More" className="flex flex-col px-3 pt-2">
-            <Link href={profileHref} onClick={onClose} aria-current={profileOpen ? "page" : undefined} className={`${ROW} h-16`}>
+            <Link href={profileHref} prefetch={false} onClick={onClose} aria-current={profileOpen ? "page" : undefined} className={`${ROW} h-16`}>
               <Image src={avatar} alt="" width={80} height={80} className="size-10 shrink-0 rounded-full bg-[#d2d8db] object-cover" />
               <span className="flex-1">My profile</span>
               <Glyph icon="chevronRight" size={20} />
             </Link>
-            <SectionPages section={section} activeMenuHref={activeMenuHref} badges={pageBadges} onClose={onClose} />
-            <MoreSections more={more} section={section} badges={badges} onClose={onClose} />
+            {/* A section in Menu's own list shows its pages there instead. */}
+            {!more.includes(section) && <SectionPages section={section} activeMenuHref={activeMenuHref} badges={pageBadges} onClose={onClose} />}
+            <MoreSections more={more} section={section} activeMenuHref={activeMenuHref} badges={badges} pageBadges={pageBadges} onClose={onClose} />
           </nav>
           <section aria-label="Help" className="mx-3 mt-3 flex flex-col gap-3 rounded-xl bg-surface-2 p-3 [&_li]:bg-white">
-            <TourMenu onPick={onClose} />
+            <TourMenu onPick={onClose} collapsible />
           </section>
           <MenuFoot
             sections={sections}
@@ -183,7 +184,7 @@ function SectionPages({ section, activeMenuHref, badges, onClose }: { section: S
       <hr className="my-2 border-border" />
       <p className="px-3 pt-1 pb-1 text-[12px] leading-[1.2] font-semibold tracking-[0.4px] text-ink-2 uppercase">{section.title}</p>
       {pages.map((m) => (
-        <Link key={m.href} href={m.href} onClick={onClose} aria-current={m.href === activeMenuHref ? "page" : undefined} className={ROW}>
+        <Link key={m.href} href={m.href} prefetch={false} onClick={onClose} aria-current={m.href === activeMenuHref ? "page" : undefined} className={ROW}>
           <Glyph icon={m.icon} size={22} />
           <span className="flex-1">{m.label}</span>
           {(badges[m.href] ?? 0) > 0 && <Count n={badges[m.href]} />}
@@ -194,19 +195,52 @@ function SectionPages({ section, activeMenuHref, badges, onClose }: { section: S
 }
 
 /** The sections the tab bar had no room for, each with its unread count. */
-function MoreSections({ more, section, badges, onClose }: { more: Section[]; section: Section; badges: Record<string, number>; onClose: () => void }) {
+function MoreSections({ more, section, activeMenuHref, badges, pageBadges, onClose }: { more: Section[]; section: Section; activeMenuHref: string | undefined; badges: Record<string, number>; pageBadges: Record<string, number>; onClose: () => void }) {
   if (more.length === 0) return null;
   return (
     <>
       <hr className="my-2 border-border" />
       {more.map((s) => (
-        <Link key={s.href} href={s.href} onClick={onClose} aria-current={s === section ? "page" : undefined} className={ROW}>
-          {s.icon === "logo" ? <Image src="/hireable-mark.svg" alt="" width={22} height={22} className="size-[22px]" /> : <Glyph icon={s.icon} size={22} />}
-          <span className="flex-1">{s.label}</span>
-          {(badges[s.href] ?? 0) > 0 && <Count n={badges[s.href]} />}
-          <Glyph icon="chevronRight" size={20} />
-        </Link>
+        <MoreSection key={s.href} s={s} current={s === section} activeMenuHref={activeMenuHref} badge={badges[s.href] ?? 0} pageBadges={pageBadges} onClose={onClose} />
       ))}
+    </>
+  );
+}
+
+/**
+ * One of them: a link to it, or — when it has several pages (Settings: Account, Security, Payment
+ * method…) — a row that opens to list them, open already while you're in that section.
+ */
+function MoreSection({ s, current, activeMenuHref, badge, pageBadges, onClose }: { s: Section; current: boolean; activeMenuHref: string | undefined; badge: number; pageBadges: Record<string, number>; onClose: () => void }) {
+  const pages = s.menu.filter((m: MenuItem) => !m.action);
+  const [open, setOpen] = useState(current);
+  const face = (
+    <>
+      {s.icon === "logo" ? <Image src="/hireable-mark.svg" alt="" width={22} height={22} className="size-[22px]" /> : <Glyph icon={s.icon} size={22} />}
+      <span className="flex-1">{s.label}</span>
+      {badge > 0 && <Count n={badge} />}
+    </>
+  );
+  if (pages.length < 2)
+    return (
+      <Link href={s.href} prefetch={false} onClick={onClose} aria-current={current ? "page" : undefined} className={ROW}>
+        {face}
+        <Glyph icon="chevronRight" size={20} />
+      </Link>
+    );
+  return (
+    <>
+      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className={`${ROW} w-full text-left ${current ? "font-semibold" : ""}`}>
+        {face}
+        <ICONS.chevron size={22} aria-hidden className={`shrink-0 text-ink-2 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open &&
+        pages.map((m) => (
+          <Link key={m.href} href={m.href} prefetch={false} onClick={onClose} aria-current={m.href === activeMenuHref ? "page" : undefined} className={`${ROW} h-11 pl-[46px] text-[14px]`}>
+            <span className="flex-1">{m.label}</span>
+            {(pageBadges[m.href] ?? 0) > 0 && <Count n={pageBadges[m.href]} />}
+          </Link>
+        ))}
     </>
   );
 }

@@ -36,9 +36,28 @@ test.describe("on a phone · navigation", () => {
     await tabs.getByRole("link", { name: "Hire" }).click();
     await expect(page).toHaveURL(/\/team\/hire$/);
 
+    // A section with several pages opens to list them; one with a single page is a plain link.
     await tabs.getByRole("button", { name: "Menu" }).click();
-    await menu.getByRole("link", { name: "Payments" }).click();
-    await expect(page).toHaveURL(/\/team\/payments$/);
+    const payments = menu.getByRole("button", { name: "Payments" });
+    await expect(payments).toHaveAttribute("aria-expanded", "false");
+    await payments.click();
+    await menu.getByRole("link", { name: "Disputes" }).click();
+    await expect(page).toHaveURL(/\/team\/payments\/disputes$/);
+    await expect(menu).toBeHidden();
+    // Back in Menu, the open section is open already.
+    await tabs.getByRole("button", { name: "Menu" }).click();
+    await expect(menu.getByRole("button", { name: "Payments" })).toHaveAttribute("aria-expanded", "true");
+    await menu.getByRole("link", { name: "Notifications" }).click();
+    await expect(page).toHaveURL(/\/team\/notifications$/);
+
+    // Help's tours are folded under its row until it's opened.
+    await tabs.getByRole("button", { name: "Menu" }).click();
+    const help = menu.getByRole("button", { name: /Need a hand/ });
+    await expect(help).toHaveAttribute("aria-expanded", "false");
+    await expect(menu.getByRole("button", { name: /Restart|Start/ })).toHaveCount(0);
+    await help.click();
+    await expect(menu.getByRole("button", { name: /Restart|Start/ }).first()).toBeVisible();
+    await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
 
     await tabs.getByRole("button", { name: "Menu" }).click();

@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 
 /** The shell's panel: white, 8px corners, the 1px #c3c3c3 stroke inside — the same as the section panel and the page panel. */
-const PANEL = "flex min-h-0 flex-col overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]";
+/** A phone shows one panel edge to edge: no frame or corners against the screen's own edges. */
+const PANEL = "flex min-h-0 flex-col overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] max-md:rounded-none max-md:shadow-none";
 
 /**
  * Messages, laid out like a chat app rather than a page: beside the Home panel, the conversation
@@ -18,7 +19,7 @@ const PANEL = "flex min-h-0 flex-col overflow-clip rounded-lg bg-white shadow-[i
 export function Inbox({ nav, list, thread, open }: { nav?: ReactNode; list: ReactNode; thread: ReactNode; open: boolean }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 gap-1">
-      <aside className={`${PANEL} w-[360px] shrink-0 max-lg:w-[300px] max-md:w-auto max-md:flex-1 ${open ? "max-md:hidden" : ""}`}>
+      <aside className={`${PANEL} w-[360px] shrink-0 max-lg:w-[300px] max-md:w-auto max-md:min-w-0 max-md:flex-1 ${open ? "max-md:hidden" : ""}`}>
         {nav && <div className="shrink-0 px-4 pt-3">{nav}</div>}
         <h1 className="flex h-14 shrink-0 items-center px-4 font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink max-md:text-[20px]" style={{ fontVariationSettings: '"opsz" 14' }}>
           Messages
