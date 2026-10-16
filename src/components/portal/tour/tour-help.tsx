@@ -24,23 +24,11 @@ function standing(tour: Tour, record: TourRecord | undefined): string {
  * Help, the "?" in the sidebar's rail above the profile avatar, on every portal screen: opens a
  * menu with this screen's tour and the getting-started one, each to resume where it stopped or
  * start again from the top. In the rail it never covers a page's own controls (a corner button
- * sat on Messages' Send), and a phone keeps the rail.
+ * sat on Messages' Send). A phone has no rail: the same menu is in its Menu sheet (TourMenu).
  */
 export function TourHelp() {
-  const menu = useTourMenu();
   const [open, setOpen] = useState(false);
-  const records = useTourRecords();
-  if (!menu) return null;
-  const { side, pathname, start: onStart } = menu;
-  const guide = GUIDES[side];
-  const here = tourFor(pathname);
-  const home = homeTour(side);
-  const tours = here && here.id !== home.id ? [here, home] : [home];
-  const go = (id: string, step?: number) => {
-    setOpen(false);
-    onStart(id, step);
-  };
-
+  if (!useTourMenu()) return null;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
@@ -54,20 +42,41 @@ export function TourHelp() {
         Help
       </PopoverTrigger>
       <PopoverContent side="right" align="end" sideOffset={8} className="w-80 gap-3 p-4">
-        <div className="flex items-center gap-3">
-          <Image src={guide.avatar} alt="" width={40} height={40} unoptimized className="size-10 shrink-0 rounded-full" />
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <p className="text-[14px] leading-[1.2] font-semibold text-ink">Need a hand?</p>
-            <p className="text-[13px] leading-[1.3] text-ink-2">{side === "team" ? `I'm ${guide.name}. Pick a tour and I'll walk you through it.` : `I'm ${guide.name}! Pick a tour and I'll show you around.`}</p>
-          </div>
-        </div>
-        <ul className="flex flex-col gap-2">
-          {tours.map((t) => (
-            <TourRow key={t.id} tour={t} record={records[t.id]} here={t.id === here?.id} onGo={go} />
-          ))}
-        </ul>
+        <TourMenu onPick={() => setOpen(false)} />
       </PopoverContent>
     </Popover>
+  );
+}
+
+/** The guide's hello and the tours to take here: the rail's Help popover, and on a phone a part of the Menu sheet. */
+export function TourMenu({ onPick }: { onPick: () => void }) {
+  const menu = useTourMenu();
+  const records = useTourRecords();
+  if (!menu) return null;
+  const { side, pathname, start: onStart } = menu;
+  const guide = GUIDES[side];
+  const here = tourFor(pathname);
+  const home = homeTour(side);
+  const tours = here && here.id !== home.id ? [here, home] : [home];
+  const go = (id: string, step?: number) => {
+    onPick();
+    onStart(id, step);
+  };
+  return (
+    <>
+      <div className="flex items-center gap-3">
+        <Image src={guide.avatar} alt="" width={40} height={40} unoptimized className="size-10 shrink-0 rounded-full" />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="text-[14px] leading-[1.2] font-semibold text-ink">Need a hand?</p>
+          <p className="text-[13px] leading-[1.3] text-ink-2">{side === "team" ? `I'm ${guide.name}. Pick a tour and I'll walk you through it.` : `I'm ${guide.name}! Pick a tour and I'll show you around.`}</p>
+        </div>
+      </div>
+      <ul className="flex flex-col gap-2">
+        {tours.map((t) => (
+          <TourRow key={t.id} tour={t} record={records[t.id]} here={t.id === here?.id} onGo={go} />
+        ))}
+      </ul>
+    </>
   );
 }
 

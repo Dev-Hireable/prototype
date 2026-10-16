@@ -3,18 +3,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { Button, Modal } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
 import { TourHelp } from "@/components/portal/tour/tour-help";
 import { TourProvider } from "@/components/portal/tour/tour-provider";
 import { QuickChat } from "@/components/portal/quick-chat";
+import { MobileTabBar } from "@/components/portal/mobile-nav";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
 import { useContractClock } from "@/lib/demo/contract";
 import { unseenByAdmin, useDisputeDeadlines, useDisputes } from "@/lib/demo/disputes";
 import { unreadChat, useLive } from "@/lib/demo/live";
+import { useMedia } from "@/lib/portal/media";
 import { menuItemFor, sectionFor } from "@/lib/portal/nav";
 import type { MenuItem, Section } from "@/lib/portal/nav";
 
@@ -59,6 +61,7 @@ export function PortalShell({
   useContractClock();
   /** A bare page (Messages) draws its own panels, so the shell draws no page panel around them. */
   const bare = section.menu.find((m) => m.href === activeMenuHref)?.bare;
+  const { badges, railBadges } = useNavBadges(pathname);
 
   return (
     // The guided tours (@/lib/portal/tours) ride with every page of the portal; their Help sits in the rail.
@@ -66,10 +69,12 @@ export function PortalShell({
       {/* min-h keeps the rail (up to 6 sections, Help and the avatar, 8 × 68) intact on short viewports; 560
           lets a 14" laptop window (600–650 tall once the browser toolbars take theirs) fit without the
           whole app scrolling */}
-      <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink">
-        <Sidebar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} onLogout={setLogout} />
+      {/* On a phone (below md) the sidebar gives way to a tab bar along the bottom edge (MobileTabBar)
+          and the frame's 4px border goes, so the page has the whole width. */}
+      <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink max-md:min-h-0 max-md:flex-col max-md:gap-0 max-md:p-0">
+        <Sidebar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} badges={badges} railBadges={railBadges} onLogout={setLogout} />
 
-        <div className={`flex h-full min-w-0 flex-1 flex-col ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3]"}`}>
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col md:h-full ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] max-md:rounded-none max-md:shadow-none"}`}>
           {/* The demo's records live in localStorage, so the page waits one paint for them rather
               than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
           {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
@@ -77,6 +82,7 @@ export function PortalShell({
           <Suspense>{hydrated ? children : null}</Suspense>
         </div>
 
+        <MobileTabBar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} badges={badges} railBadges={railBadges} onLogout={setLogout} />
         <LogoutDialog to={logout} onClose={() => setLogout(null)} />
         {/* A "Message …" button on a work screen opens the thread here, over the page. */}
         <QuickChat />
@@ -86,27 +92,17 @@ export function PortalShell({
 }
 
 /**
- * The sidebar: the icon rail, the open section's tab, and its panel — at full width, folded to its
- * icons, or (on a phone) left out so the rail stands alone.
+ * The sidebar: the icon rail, the open section's tab, and its panel — at full width or folded to its
+ * icons. A phone has none: MobileTabBar and its Menu sheet stand in for it.
  */
-function Sidebar({ sections, section, activeMenuHref, profileHref, avatar, onLogout }: { sections: Section[]; section: Section; activeMenuHref: string | undefined; profileHref: string; avatar: string; onLogout: (href: string) => void }) {
-  const pathname = usePathname();
+function Sidebar({ sections, section, activeMenuHref, profileHref, avatar, badges, railBadges, onLogout }: { sections: Section[]; section: Section; activeMenuHref: string | undefined; profileHref: string; avatar: string; badges: Record<string, number>; railBadges: Record<string, number>; onLogout: (href: string) => void }) {
   const rail = sections.filter((s) => !s.hidden);
   const activeIndex = rail.indexOf(section); // -1 when a hidden section (Profile) is open
-  const { collapsed, railOnly, toggle } = useSidebarFold();
-  const { badges, railBadges } = useNavBadges(pathname);
+  const { collapsed, toggle } = useSidebarFold();
 
   return (
-    // Sidebar width eases 336 ↔ 152, or just the rail on a phone; main is flex-1 so it follows the same curve.
-    // Rail only, there's no section panel for the active tab to join, so main's own panel takes its
-    // place: the sidebar keeps the tab's 12px reach (108) and main tucks under it (-mr-4 undoes that
-    // and the 4px gap), so main's edge sits on x 96 where the section panel's would, and the tab runs
-    // into it. The sidebar floats above main there, click-through except the rail itself.
-    <div
-      className={`relative h-full shrink-0 overflow-hidden transition-[width,margin] ${EASE} ${
-        railOnly ? "pointer-events-none z-10 -mr-4 w-[108px]" : collapsed ? "w-[152px]" : "w-[336px]"
-      }`}
-    >
+    // Sidebar width eases 336 ↔ 152; main is flex-1 so it follows the same curve.
+    <div className={`relative h-full shrink-0 overflow-hidden transition-[width] ${EASE} ${collapsed ? "w-[152px]" : "w-[336px]"} max-md:hidden`}>
       {/* Icon rail */}
       <SectionRail rail={rail} activeIndex={activeIndex} badges={railBadges} profileHref={profileHref} avatar={avatar} />
 
@@ -114,26 +110,22 @@ function Sidebar({ sections, section, activeMenuHref, profileHref, avatar, onLog
           they join. Profile (hidden section, reached from the avatar) is the same shape flipped to the bottom. */}
       <ActiveTab index={activeIndex >= 0 ? activeIndex : "profile"} />
 
-      {/* Section panel — ONE set of DOM nodes for both states so items morph instead of swapping.
-          On a phone it stays mounted at no width. */}
-      <SectionPanel section={section} activeMenuHref={activeMenuHref} badges={badges} collapsed={collapsed} railOnly={railOnly} onToggle={toggle} onLogout={onLogout} />
+      {/* Section panel — ONE set of DOM nodes for both states so items morph instead of swapping. */}
+      <SectionPanel section={section} activeMenuHref={activeMenuHref} badges={badges} collapsed={collapsed} onToggle={toggle} onLogout={onLogout} />
     </div>
   );
 }
 
-/** Whether the section panel is folded to its icons or (on a phone) left out, and the toggle that folds and unfolds it. */
+/** Whether the section panel is folded to its icons, and the toggle that folds and unfolds it. */
 function useSidebarFold() {
   // Collapsed by default below 1440px — 14" laptops at 125–150% scaling (1280–1400 wide), where
   // the full 336px panel left the page ~930px and boards, tables and workspaces scrolled sideways.
   // A 1512-wide window (a 14" MacBook) keeps it open. The toggle overrides that for the session.
-  // On a phone only the rail is left.
+  // A tablet (768–1023) has the rail and the folded panel.
   const narrow = useMedia("(max-width: 1439px)");
-  const tiny = useMedia("(max-width: 639px)");
   const [chosen, setChosen] = useState<boolean | null>(null);
   const collapsed = chosen ?? narrow;
-  /** On a phone the sidebar is just the rail. */
-  const railOnly = tiny;
-  return { collapsed, railOnly, toggle: () => setChosen(!collapsed) };
+  return { collapsed, toggle: () => setChosen(!collapsed) };
 }
 
 /** Log out's confirm, in neutral styling (nothing is lost but unsaved edits): Log out signs out and follows the menu item's link; Cancel stays. */
@@ -240,13 +232,12 @@ function SectionRail({ rail, activeIndex, badges, profileHref, avatar }: { rail:
   );
 }
 
-/** The open section's panel beside the rail: its title, the collapse button and its menu, at full width, folded to icons, or none. */
+/** The open section's panel beside the rail: its title, the collapse button and its menu, at full width or folded to icons. */
 function SectionPanel({
   section,
   activeMenuHref,
   badges,
   collapsed,
-  railOnly,
   onToggle,
   onLogout,
 }: {
@@ -254,17 +245,11 @@ function SectionPanel({
   activeMenuHref: string | undefined;
   badges: Record<string, number>;
   collapsed: boolean;
-  railOnly: boolean;
   onToggle: () => void;
   onLogout: (href: string) => void;
 }) {
   return (
-    <div
-      inert={railOnly}
-      className={`absolute top-0 left-24 h-full overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] ${EASE} transition-[width] ${
-        railOnly ? "w-0" : collapsed ? "w-14" : "w-60"
-      }`}
-    >
+    <div className={`absolute top-0 left-24 h-full overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] ${EASE} transition-[width] ${collapsed ? "w-14" : "w-60"}`}>
       <h2
         className={`absolute top-4 left-4 text-[16px] leading-[1.5] font-semibold tracking-[0.2px] whitespace-nowrap text-ink ${EASE} transition-opacity ${
           collapsed ? "opacity-0" : "opacity-100"
@@ -362,19 +347,6 @@ function ItemFace({ item, collapsed }: { item: MenuItem; collapsed: boolean }) {
         {item.label}
       </span>
     </>
-  );
-}
-
-/** Whether a media query matches — false on the server and the first paint, then live. */
-function useMedia(query: string) {
-  return useSyncExternalStore(
-    (fn) => {
-      const m = matchMedia(query);
-      m.addEventListener("change", fn);
-      return () => m.removeEventListener("change", fn);
-    },
-    () => matchMedia(query).matches,
-    () => false,
   );
 }
 

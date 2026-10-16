@@ -7,6 +7,7 @@ import { ICONS } from "@/components/icons";
 import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, Row, SearchBox, Select, StatusDot, Table, Toast, Toolbar } from "@/components/portal/ui";
 import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
 import { Tip } from "@/components/portal/tip";
+import { PHONE_FAB } from "@/components/portal/styles";
 import { columnOf, ROLE_STATUS } from "@/lib/team/data";
 import type { Candidate, Role, RoleStatus } from "@/lib/team/data";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
@@ -267,7 +268,9 @@ function RolesToolbar({ roles, filters }: { roles: Role[]; filters: RoleFilters 
           <span className="text-[14px] leading-[1.4] text-ink-2">
             {count("Active")} active · {count("Draft")} draft · {count("Closed")} closed
           </span>
-          <LinkButton size="lg" variant="primary" href="/team/hire">
+          {/* On a phone it floats in the thumb's corner, like Add task, and the counts keep the row. */}
+          <LinkButton size="lg" variant="primary" href="/team/hire" className={`max-md:flex-none ${PHONE_FAB}`}>
+            <ICONS.add size={20} aria-hidden className="md:hidden" />
             Create role
           </LinkButton>
         </>

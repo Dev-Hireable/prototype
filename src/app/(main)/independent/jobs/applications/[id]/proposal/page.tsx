@@ -31,7 +31,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
 
   return (
     <Page title={pageTitle(revise, reviewOnly, trial)} heading="modal" onClose={close} padded={false}>
-      <div className="mx-auto flex w-[720px] flex-col gap-10 pt-10 pb-20">
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-10 pt-10 pb-20">
         <Intro job={job} revise={revise} reviewOnly={reviewOnly} previous={wizard.previous} />
         <Notes live={wizard.live} revise={revise} reviewOnly={reviewOnly} company={job.company} fromDraft={wizard.form.fromDraft} />
 
@@ -55,7 +55,7 @@ export default function ProposalWizard({ params }: { params: Promise<{ id: strin
 function NothingToSubmit({ stage, company, back, onClose }: { stage: Application["stage"]; company: string; back: string; onClose: () => void }) {
   return (
     <Page title="Submit proposal" heading="modal" onClose={onClose} padded={false}>
-      <div className="mx-auto flex w-[720px] flex-col gap-4 pt-10">
+      <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4 pt-10">
         <InfoBanner tone="warn">
           {stage === "proposal_sent"
             ? `Your proposal is with ${company} — you can revise it if they ask for changes.`

@@ -452,7 +452,7 @@ function ProposalPane({ withActivity, banner, notice, actions, children }: { wit
           after it (stretched, it overflowed its own box and the padding was lost); the edges
           fade while there is more to scroll. */}
       <ScrollFade className="flex min-h-0 flex-1 flex-col">
-        <div className="edge-fade flex min-h-0 flex-1 items-start overflow-y-auto px-10 py-8">{children}</div>
+        <div className="edge-fade flex min-h-0 flex-1 items-start overflow-y-auto px-(--page-gutter) py-8">{children}</div>
       </ScrollFade>
 
       {actions && <div className="flex shrink-0 items-center gap-2.5 border-t border-border p-4">{actions}</div>}

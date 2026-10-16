@@ -13,9 +13,9 @@ export default function AdminDashboard() {
         ))}
       </StatGrid>
 
-      <div className="flex w-full items-start gap-4 overflow-clip">
+      <div className="flex w-full items-start gap-4 overflow-clip max-md:flex-col max-md:items-stretch">
         <Card className="flex min-w-0 flex-1 flex-col gap-[14px] overflow-clip p-[18px]">
-          <div className="flex w-full items-center gap-4 overflow-clip">
+          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 overflow-clip">
             <h2 className="text-[14px] leading-[1.45] font-semibold whitespace-nowrap text-ink-deep">
               Sign-ups — last 8 months
             </h2>
@@ -24,7 +24,7 @@ export default function AdminDashboard() {
           <BarChart {...signups} />
         </Card>
 
-        <Card className="flex h-[276px] w-[380px] shrink-0 flex-col gap-[25px] overflow-clip p-[18px]">
+        <Card className="flex h-[276px] w-[380px] shrink-0 flex-col gap-[25px] overflow-clip p-[18px] max-md:h-auto max-md:w-full">
           <h2 className="text-[14px] leading-[1.45] font-semibold whitespace-nowrap text-ink-deep">
             Trial outcomes — 41 completed
           </h2>

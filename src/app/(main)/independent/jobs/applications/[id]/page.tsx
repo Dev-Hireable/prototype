@@ -61,7 +61,7 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
       <div className="flex flex-col gap-10 pb-14">
         {/* pt-4: both columns start 24px down, where the right one sticks (below the scroller's top
             fade), so they line up at rest and the right one doesn't jump when it catches. */}
-        <div className="flex items-start justify-center gap-6 pt-4">
+        <div className="flex items-start justify-center gap-6 pt-4 max-lg:flex-col max-lg:items-stretch">
           <RoleColumn job={job} tasksShared={job.type === "trial" && app.stage !== "applied"} mine={workStyle} />
           <ActionColumn app={app} job={job} live={live} onAccept={accept} onDecline={() => setDeclining(true)} onReschedule={() => setRescheduling(true)} onToast={setToast} onReadProposal={() => setReading(true)} />
         </div>
@@ -121,7 +121,7 @@ function RoleColumn({ job, tasksShared, mine }: { job: JobView; tasksShared: boo
   /** The company's quiz answers, from the Team Builder's portal — what its badges say about how it works. */
   const theirs = job.company === PAIR.team.company ? storedWorkStyle("team") : [];
   return (
-    <div className="flex w-[576px] flex-col gap-4">
+    <div className="flex w-[576px] min-w-0 flex-col gap-4 max-lg:w-full">
       <Card className="flex min-h-[223px] flex-col gap-4 p-4">
         <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
           {job.title}
@@ -174,7 +174,7 @@ function ActionColumn({ app, job, live, onReadProposal, ...actions }: StepProps 
   return (
     // The next step stays in view while the application scrolls — 24px down, below the scroller's
     // top fade (ScrollFade's RAMP), so the fade never thins it.
-    <div className="sticky top-6 flex w-[385px] shrink-0 flex-col gap-4">
+    <div className="sticky top-6 flex w-[385px] shrink-0 flex-col gap-4 max-lg:static max-lg:order-first max-lg:w-full">
       <NextStep app={app} job={job} live={live} {...actions} />
 
       {/* TB-106 — the proposal they sent, as the Team Builder reads it, with its history: every

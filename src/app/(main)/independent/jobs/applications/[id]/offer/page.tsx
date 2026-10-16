@@ -51,7 +51,7 @@ export default function Offer({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <Page title="Offer" heading="modal" onClose={() => router.push(back)} padded={false}>
-      <div className="mx-auto flex w-[1080px] flex-col gap-10 pt-10 pb-20">
+      <div className="mx-auto flex w-full max-w-[1080px] flex-col gap-10 pt-10 pb-20">
         <OfferIntro from={from} sent={sent} />
 
         <div className="flex items-start gap-6">

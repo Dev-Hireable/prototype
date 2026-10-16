@@ -12,7 +12,7 @@ import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Application, Role } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
 import { useToast } from "@/lib/portal/toast";
-import { ReturnNav, useWithReturn } from "@/components/portal/return";
+import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
 
 export default function MyApplications() {
   const { applications, withdraw, canWithdraw, canChat } = useApplications();
@@ -21,9 +21,11 @@ export default function MyApplications() {
   const [target, setTarget] = useState<Application | null>(null);
   const [toast, setToast] = useToast();
   const withReturn = useWithReturn();
+  // The back link's row only when there's somewhere to go back to (ReturnNav).
+  const back = useReturnTo();
 
   return (
-    <Page title="My Applications" padded={false} nav={<ReturnNav />}>
+    <Page title="My Applications" padded={false} nav={back ? <ReturnNav /> : undefined}>
       <Board applications={applications} roles={roles} canWithdraw={canWithdraw} canChat={canChat} chatHref={withReturn("/independent/messages?with=c1")} onWithdraw={setTarget} />
 
       <Modal
@@ -71,7 +73,7 @@ function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw
       <ScrollFade className="flex w-full min-w-0">
         {/* overflow-y-hidden is load-bearing: `overflow-x: auto` alone implicitly turns the y axis
             into a second scrollbar nested inside the shell's. Columns take the vertical scroll. */}
-        <div className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-10 pb-10">
+        <div className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
           {COLUMNS.map((col) => {
             const cards = applications.filter((a) => col.stages.includes(a.stage));
             return (

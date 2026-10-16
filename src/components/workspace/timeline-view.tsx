@@ -1,7 +1,8 @@
 "use client";
 
 import { uiZoom } from "@/lib/portal/zoom";
-import { memo, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { PHONE, useMedia } from "@/lib/portal/media";
+import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { ICONS } from "@/components/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/tip";
@@ -28,8 +29,14 @@ import { groupColors } from "./labels";
  * it, dashed red where the waiting work starts too soon.
  */
 
-/** The item column: wide enough that most titles fit in the two lines a row allows. */
-const LEFT = 340;
+/**
+ * The item column: wide enough that most titles fit in the two lines a row allows — or, on a phone,
+ * narrow enough to leave most of the width to the chart (the names truncate; a tap opens the item).
+ * The chart's parts read it from LeftWidth.
+ */
+const LEFT_WIDE = 340;
+const LEFT_PHONE = 132;
+const LeftWidth = createContext(LEFT_WIDE);
 const ROW_H = 38;
 const GROUP_H = 32;
 const HEAD_H = 52;
@@ -99,42 +106,45 @@ export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[
   const hint = useMemo(() => dragHint(all, env), [all, env]);
   const range = useMemo(() => timelineRange(all, today, scale), [all, today, scale]);
   const from = range.from;
-  const { scroller, frameW, scrollToToday } = useChartScroller(today, from, px, scale);
+  const LEFT = useMedia(PHONE) ? LEFT_PHONE : LEFT_WIDE;
+  const { scroller, frameW, scrollToToday } = useChartScroller(today, from, px, scale, LEFT);
   // Whole days up to the edge, then the width to the exact pixel — a part-day more would scroll.
   const to = Math.max(range.to, from + Math.floor((frameW - LEFT) / px) - 1);
   const width = Math.max((to - from + 1) * px, frameW - LEFT);
   const { rows, visibleRows, sentinel, rowY, links } = useTimelineRows(groups, byId);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col px-[var(--ws-gutter,1rem)] pt-3 pb-4">
-      <ScaleBar scale={scale} setQuery={setQuery} onToday={scrollToToday} hidden={links.hidden} hint={hint} />
-      {/* Bordered frame, scroller inside: an outline on the scroller sat under its pinned header and item column. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-white">
-        <div ref={scroller} className="relative min-h-0 flex-1 overflow-auto" data-testid="timeline">
-          <div className="relative" style={{ width: LEFT + width }}>
-            <TimelineHead from={from} to={to} px={px} width={width} scale={scale} today={today} />
-            <div className="relative">
-              <DayMarks from={from} to={to} px={px} width={width} scale={scale} today={today} />
-              <DependencyLines links={links.links} byId={byId} rowY={rowY} from={from} px={px} width={width} />
-              {visibleRows.map((r) =>
-                r.kind === "group" ? (
-                  <GroupBand key={`g-${r.group.key}`} group={r.group} width={width} />
-                ) : (
-                  <TimelineRow key={r.item.id} item={r.item} from={from} px={px} width={width} scale={scale} violated={links.links.some((l) => l.to === r.item.id && l.violated)} />
-                ),
-              )}
-              {sentinel && <ul className="sticky left-0 h-px">{sentinel}</ul>}
-              {rows.length === 0 && <p className="sticky left-0 px-4 py-6 text-[13px] text-ink-2">Nothing to show.</p>}
+    <LeftWidth.Provider value={LEFT}>
+      <div className="flex min-h-0 flex-1 flex-col px-[var(--ws-gutter,1rem)] pt-3 pb-4">
+        <ScaleBar scale={scale} setQuery={setQuery} onToday={scrollToToday} hidden={links.hidden} hint={hint} />
+        {/* Bordered frame, scroller inside: an outline on the scroller sat under its pinned header and item column. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-white">
+          <div ref={scroller} className="relative min-h-0 flex-1 overflow-auto" data-testid="timeline">
+            <div className="relative" style={{ width: LEFT + width }}>
+              <TimelineHead from={from} to={to} px={px} width={width} scale={scale} today={today} />
+              <div className="relative">
+                <DayMarks from={from} to={to} px={px} width={width} scale={scale} today={today} />
+                <DependencyLines links={links.links} byId={byId} rowY={rowY} from={from} px={px} width={width} />
+                {visibleRows.map((r) =>
+                  r.kind === "group" ? (
+                    <GroupBand key={`g-${r.group.key}`} group={r.group} width={width} />
+                  ) : (
+                    <TimelineRow key={r.item.id} item={r.item} from={from} px={px} width={width} scale={scale} violated={links.links.some((l) => l.to === r.item.id && l.violated)} />
+                  ),
+                )}
+                {sentinel && <ul className="sticky left-0 h-px">{sentinel}</ul>}
+                {rows.length === 0 && <p className="sticky left-0 px-4 py-6 text-[13px] text-ink-2">Nothing to show.</p>}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </LeftWidth.Provider>
   );
 }
 
 /** The chart's scroller: how wide it is inside, kept current as it resizes, and a scroll back to today. */
-function useChartScroller(today: Day, from: Day, px: number, scale: Scale) {
+function useChartScroller(today: Day, from: Day, px: number, scale: Scale, LEFT: number) {
   const scroller = useRef<HTMLDivElement>(null);
   /** The frame's inner width. The grid runs at least that far, so its header, bands and row rules reach the
    *  frame's right edge instead of stopping where the items' dates run out. */
@@ -212,6 +222,7 @@ function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; se
 
 /** The pinned header: the item column's heading, then the months over the scale's ticks, today's in bold. */
 function TimelineHead({ from, to, px, width, scale, today }: { from: Day; to: Day; px: number; width: number; scale: Scale; today: Day }) {
+  const LEFT = useContext(LeftWidth);
   const ticks = ticksOf(from, to, scale);
   const months = scale === "month" ? [] : ticksOf(from, to, "month");
   return (
@@ -238,6 +249,7 @@ function TimelineHead({ from, to, px, width, scale, today }: { from: Day; to: Da
 
 /** Behind the rows: the weekends shaded (not at a month's scale), and today's line with its label at the top. */
 function DayMarks({ from, to, px, width, scale, today }: { from: Day; to: Day; px: number; width: number; scale: Scale; today: Day }) {
+  const LEFT = useContext(LeftWidth);
   return (
     <>
       <div aria-hidden className="pointer-events-none absolute top-0 bottom-0" style={{ left: LEFT, width }}>
@@ -258,6 +270,7 @@ function DayMarks({ from, to, px, width, scale, today }: { from: Day; to: Day; p
 
 /** The lines from each shown item to the shown work that waits on it; `rowY` is where each row sits. */
 function DependencyLines({ links, byId, rowY, from, px, width }: { links: DependencyLink[]; byId: ReadonlyMap<string, WorkItem>; rowY: { map: Map<string, number>; height: number }; from: Day; px: number; width: number }) {
+  const LEFT = useContext(LeftWidth);
   return (
     <svg aria-hidden className="pointer-events-none absolute top-0 z-10 overflow-visible" style={{ left: LEFT, width, height: rowY.height }}>
       <defs>
@@ -289,6 +302,7 @@ function DependencyLines({ links, byId, rowY, from, px, width }: { links: Depend
  * so it paints over the weekend stripes; the today line and dependency lines stay on top.
  */
 function GroupBand({ group, width }: { group: Group; width: number }) {
+  const LEFT = useContext(LeftWidth);
   const colors = groupColors(group);
   // The rule is an inset shadow on the band and a border on the pinned label, which covers its own
   // full height — a border on the band alone left a 1px slit the today line showed through.
@@ -465,6 +479,7 @@ function BarTag({ id, x, problem, dates }: { id: string; x: number; problem?: st
 
 /** The item column of a row: its status, number and name, and a mark when it starts too soon. */
 function RowLabel({ item: t, violated }: { item: WorkItem; violated: boolean }) {
+  const LEFT = useContext(LeftWidth);
   const { openTask } = useWorkspace();
   return (
     <div className="sticky left-0 z-[25] flex shrink-0 items-center gap-2 border-r border-b border-r-[#eeeeee] border-b-[#f0f0f0] bg-white px-4" style={{ width: LEFT }}>

@@ -56,16 +56,17 @@ function EvaluationForm({ t, draft }: { t: Tracker; draft: Draft }) {
   return (
     <>
       {SCORES.map((label, i) => (
-        <div key={label} className="flex items-center justify-between">
+        // On a phone the label sits over its five scores, which share the width as 44px targets.
+        <div key={label} className="flex items-center justify-between max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
           <p className="text-[14px] leading-[1.4] font-medium text-ink">{label}</p>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-sm:grid max-sm:grid-cols-5">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
                 type="button"
                 disabled={locked}
                 onClick={() => draft.setScores((s) => s.map((v, k) => (k === i ? n : v)))}
-                className={`flex h-9 w-11 items-center justify-center rounded-md text-[14px] leading-[1.4] font-medium ${n === shownScores[i] ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"}`}
+                className={`flex h-9 w-11 items-center max-sm:h-11 max-sm:w-auto justify-center rounded-md text-[14px] leading-[1.4] font-medium ${n === shownScores[i] ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"}`}
               >
                 {n}
               </button>

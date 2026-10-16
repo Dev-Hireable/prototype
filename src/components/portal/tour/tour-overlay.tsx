@@ -5,7 +5,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalSto
 import { createPortal } from "react-dom";
 import { ICONS } from "@/components/icons";
 import { Button } from "@/components/portal/ui";
-import { placeCard, spotlightBox, type Box } from "@/lib/portal/tour-placement";
+import { findTarget, placeCard, spotlightBox, type Box } from "@/lib/portal/tour-placement";
 import { GUIDES, type Tour } from "@/lib/portal/tours";
 
 const Forward = ICONS.arrowForward;
@@ -40,15 +40,6 @@ function useReducedMotion() {
     () => matchMedia("(prefers-reduced-motion: reduce)").matches,
     () => false,
   );
-}
-
-/** The step's element, if it's on screen: there, laid out, and not in a part of the page that's switched off. */
-function findTarget(selector: string | undefined): HTMLElement | null {
-  if (!selector) return null;
-  const el = document.querySelector<HTMLElement>(selector);
-  if (!el || el.closest("[inert]")) return null;
-  const r = el.getBoundingClientRect();
-  return r.width > 0 && r.height > 0 ? el : null;
 }
 
 /** Brings the element into view unless all of it already is. */

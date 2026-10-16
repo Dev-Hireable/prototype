@@ -62,7 +62,7 @@ function Wizard({ editing, type: param }: { editing: Role | undefined; type: str
   const cta = <Cta next={t.next[f.step]} disabled={!stepDone(kind, f)} onNext={() => goTo(f.step + 1)} onDraft={saveDraft} />;
   return (
     <Page title="Create Role" padded={false} nav={<BreadcrumbBack onClick={back}>{f.step === 0 ? "Back to role type" : `Back to ${t.steps[f.step - 1]}`}</BreadcrumbBack>}>
-      <div className="flex flex-col items-center gap-6 px-10 pt-4 pb-20">
+      <div className="flex flex-col items-center gap-6 px-(--page-gutter) pt-4 pb-20 max-md:pb-8">
         <WizardHeader t={t} kind={kind} step={f.step} />
         {kind === "details" && <DetailsStep f={f} t={t} type={type} editing={!!editing} templates={templates} onType={setOngoing} cta={cta} />}
         {kind === "expectations" && <TasksStep f={f} t={t} weeks={weeks} cta={cta} />}

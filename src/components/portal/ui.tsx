@@ -13,9 +13,9 @@ import { PIPELINE, type Stage } from "@/lib/portal/stages";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
-import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses } from "@/components/portal/styles";
+import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses, PHONE_FILTER_ROW } from "@/components/portal/styles";
 import { Checkbox as CheckboxControl } from "@/components/ui/checkbox";
-import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, useSheetSide } from "@/components/ui/sheet";
 import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { JobType } from "@/lib/contract/job-types";
@@ -59,18 +59,17 @@ export function Page({
 }) {
   /**
    * The page's one side gutter: the title, the tabs, the back link and the content all start on
-   * the same line — the 40px the content has always used. A filled page (a workspace) tightens it
-   * to 16px on a phone.
+   * the same line — --page-gutter (globals.css), 40px on a laptop, 24px on a tablet, 16px on a phone.
    */
-  const inset = fill ? "pl-10 max-sm:pl-4" : "pl-10";
+  const inset = "pl-(--page-gutter)";
   return (
     <>
       <PageHeader title={title} badge={badge} onClose={onClose} tabs={tabs} inset={inset} heading={heading} />
-      {nav && <PageNavRow nav={nav} actions={navActions} fill={fill} />}
+      {nav && <PageNavRow nav={nav} actions={navActions} />}
       {/* A filled page's content lines up with the nav row: --ws-gutter is the side gutter a
-          workspace pads its toolbar and views with — the same 40px, or 16px on a phone. */}
+          workspace pads its toolbar and views with — the page's own. */}
       {fill ? (
-        <div className={`flex min-h-0 min-w-0 flex-1 flex-col [--ws-gutter:2.5rem] max-sm:[--ws-gutter:1rem] ${nav ? "pt-3" : ""}`}>{children}</div>
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col [--ws-gutter:var(--page-gutter)] ${nav ? "pt-3" : ""}`}>{children}</div>
       ) : (
         <PageScroller padded={padded} underNav={!!nav}>
           {children}
@@ -87,12 +86,13 @@ function PageHeader({ title, badge, onClose, tabs, inset, heading }: { title: Re
     <header className="shrink-0 shadow-[inset_0_-1px_0_#c3c3c3]">
       {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it.
           It ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
-      <div className={`flex h-14 items-center justify-between gap-3 ${inset} ${CLEAR_DEMO_RESET}`}>
+      {/* A phone lets a long title (a role and its company) wrap, the badges after it, rather than clip. */}
+      <div className={`flex h-14 min-w-0 items-center justify-between gap-3 ${inset} ${CLEAR_DEMO_RESET} max-md:h-auto max-md:min-h-14 max-md:py-2`}>
         <h1
-          className={`flex items-center gap-2 text-ink ${
+          className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-ink max-md:leading-[1.3] ${
             heading === "display"
-              ? "font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px]"
-              : "text-[20px] leading-[1.5] font-semibold tracking-[0.4px]"
+              ? "font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] max-md:text-[20px]"
+              : "text-[20px] leading-[1.5] font-semibold tracking-[0.4px] max-md:text-[18px]"
           }`}
           style={heading === "display" ? { fontVariationSettings: '"opsz" 14' } : undefined}
         >
@@ -106,7 +106,7 @@ function PageHeader({ title, badge, onClose, tabs, inset, heading }: { title: Re
         )}
       </div>
       {/* No bottom padding: the active tab's 2px underline has to sit on the header's own rule, not float above it. */}
-      {tabs && <div className={`${inset} pr-10`}>{tabs}</div>}
+      {tabs && <div className={`${inset} pr-(--page-gutter)`}>{tabs}</div>}
     </header>
   );
 }
@@ -118,9 +118,9 @@ function PageHeader({ title, badge, onClose, tabs, inset, heading }: { title: Re
  * column, so it moved between pages (and the wizard drew its own). Pages whose back link only
  * sometimes appears still pass `nav`, so the row is always reserved.
  */
-function PageNavRow({ nav, actions, fill }: { nav: ReactNode; actions?: ReactNode; fill: boolean }) {
+function PageNavRow({ nav, actions }: { nav: ReactNode; actions?: ReactNode }) {
   return (
-    <div className={`shrink-0 px-10 pt-4 ${fill ? "max-sm:px-4" : ""}`}>
+    <div className="shrink-0 px-(--page-gutter) pt-4">
       <PageNav actions={actions}>{nav}</PageNav>
     </div>
   );
@@ -142,13 +142,13 @@ function PageScroller({ padded, underNav, children }: { padded: boolean; underNa
     // portal page sits the same distance from the shell. `padded={false}` pages set their own
     // (wizards, the kanban, the dashboards). Under a nav row the top gutter shrinks: the row already
     // spaces it.
-    <div className={`flex min-h-0 flex-1 ${padded ? (underNav ? "pt-4" : "pt-10") : ""}`}>
+    <div className={`flex min-h-0 flex-1 ${padded ? (underNav ? "pt-4" : "pt-(--page-gutter)") : ""}`}>
       <ScrollFade className="flex w-full min-w-0">
         {/* Full-bleed pages get a flex column, so a full-height child (the kanban boards) grows into
             the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
             gutter plus the column's own 8px, as before; `min-h-full` counts it (border-box), so a
             page that fits doesn't gain any scroll. */}
-        <div className={`edge-fade w-full overflow-y-auto ${padded ? "px-10" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
+        <div className={`edge-fade w-full overflow-y-auto ${padded ? "px-(--page-gutter)" : "flex flex-col"}`}>{padded ? <PortalContent className="min-h-full pb-12">{children}</PortalContent> : children}</div>
       </ScrollFade>
     </div>
   );
@@ -549,11 +549,12 @@ export function Pills<T extends string>({ value, onChange, options, size = "sm",
  */
 export function Tabs<T extends string>({ value, onChange, options, className = "", "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; className?: string; "aria-label"?: string }) {
   return (
-    <TabsRoot value={value} onValueChange={(v) => onChange(v as T)} className="gap-0">
+    <TabsRoot value={value} onValueChange={(v) => onChange(v as T)} className="min-w-0 gap-0">
       {/* As tall as its tabs, so the open tab's underline lands on the divider under the row. shadcn's
           own height is scoped (group-data-horizontal/tabs:h-8) and outranked a plain h-auto: the 32px
           list left the 36px tabs hanging 2px below it, the underline under the divider. */}
-      <TabsList variant="line" activateOnFocus={false} aria-label={ariaLabel} className={`h-auto gap-6 rounded-none p-0 group-data-horizontal/tabs:h-auto ${className}`}>
+      {/* A phone scrolls a row of tabs that doesn't fit sideways, rather than cutting the last ones off. */}
+      <TabsList variant="line" activateOnFocus={false} aria-label={ariaLabel} className={`h-auto gap-6 rounded-none p-0 group-data-horizontal/tabs:h-auto max-md:max-w-full max-md:justify-start max-md:gap-3.5 max-md:overflow-x-auto max-md:[scrollbar-width:none] ${className}`}>
         {options.map((o) => (
           <TabsTrigger key={o.value} value={o.value} className={UNDERLINE_TAB}>
             {o.label}
@@ -598,8 +599,9 @@ export function Table({ cols, head, children }: { cols: string[]; head: string[]
     <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
       <div style={{ minWidth: minWidthOf(cols) }}>
         <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 ${CELLS}`}>
+          {/* A heading wider than its column ends in "…" rather than running into the next one. */}
           {head.map((h, i) => (
-            <span key={h} className={cols[i]}>
+            <span key={h} className={`${cols[i]} truncate`}>
               {h}
             </span>
           ))}
@@ -614,12 +616,12 @@ export function Row({ children, className = "" }: { children: ReactNode; classNa
   return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${className}`}>{children}</div>;
 }
 
-/** Search + dropdowns on the left, a count or a button on the right. */
+/** Search + dropdowns on the left, a count or a button on the right; they wrap when they don't fit, and on a phone the search takes a row of its own. */
 export function Toolbar({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
-    <div className="flex items-center gap-3">
+    <div className={`flex flex-wrap items-center gap-3 ${PHONE_FILTER_ROW}`}>
       {children}
-      <span className="flex-1" />
+      <span className="flex-1 max-md:hidden" />
       {right}
     </div>
   );
@@ -813,8 +815,10 @@ export function Modal({ open, onClose, title, description, children, footer, ton
   if (!open || !mounted || typeof document === "undefined") return null;
   // Portalled to <body>: page content sits inside ScrollFade's `isolate`, which would otherwise
   // trap this overlay in a stacking context that the shell's sidebar paints over.
+  // On a phone it's a sheet on the bottom edge, its buttons full width under the thumb, the main
+  // one on top and Cancel below it, the way a phone's own action sheets are.
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4 max-md:items-end max-md:p-0" onClick={onClose}>
       {/* Not a native <dialog>: showModal() makes everything outside it inert, and the Select menus
           and date pickers inside portal to <body>. The focus is kept inside by hand instead. */}
       {/* react-doctor-disable-next-line react-doctor/prefer-html-dialog */}
@@ -826,7 +830,7 @@ export function Modal({ open, onClose, title, description, children, footer, ton
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={keepTabInside}
-        className={`ui-zoom relative flex max-h-[calc(90vh/var(--ui-scale))] w-full flex-col rounded-xl bg-white outline-none ${bare ? "overflow-hidden" : "gap-5 overflow-y-auto p-6"}`}
+        className={`ui-zoom relative flex max-h-[calc(90vh/var(--ui-scale))] w-full flex-col rounded-xl bg-white outline-none max-md:max-h-[92dvh] max-md:rounded-b-none max-md:rounded-t-2xl ${bare ? "overflow-hidden max-md:pb-[env(safe-area-inset-bottom)]" : "gap-5 overflow-y-auto p-6 max-md:px-4 max-md:pt-5 max-md:pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}
         style={{ maxWidth: width }}
       >
         {bare ? (
@@ -847,7 +851,7 @@ export function Modal({ open, onClose, title, description, children, footer, ton
               )}
             </div>
             {children}
-            {footer && <div className="flex justify-end gap-3">{footer}</div>}
+            {footer && <div className="flex justify-end gap-3 max-md:flex-col-reverse max-md:*:w-full">{footer}</div>}
           </>
         )}
       </div>
@@ -933,18 +937,17 @@ export function Drawer({
   testId?: string;
   initialFocus?: "first" | "close" | RefObject<HTMLElement | null>;
 }) {
-  const Close = ICONS.sheetClose;
   const { closeRef, start } = useDrawerFocus(initialFocus);
   return (
-    <Sheet open={open} onOpenChange={(next) => !next && onClose()}>
-      <SheetContent side="right" showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
+    <Sheet side="right" open={open} onOpenChange={(next) => !next && onClose()}>
+      <SheetContent showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
         <SheetHeader className={`flex-row gap-3 px-6 py-5 ${header ? "items-start border-b border-border" : "items-center"}`}>
           {/* The close leads, top left, pointing the way the sheet slides out — the mirror of the
               sidebar's «. Beside a `header` it sits on the header's first 32px line. The negative
               margin gives the icon a hover box without making the row taller. */}
           <div className={`flex shrink-0 items-center ${header ? "h-8" : ""}`}>
             <SheetClose ref={closeRef} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
-              <Close size={20} aria-hidden />
+              <DrawerCloseGlyph />
             </SheetClose>
           </div>
           {header ? (
@@ -962,6 +965,12 @@ export function Drawer({
       </SheetContent>
     </Sheet>
   );
+}
+
+/** The close's glyph points the way the sheet leaves: », or down where a phone shows it as a bottom sheet. */
+function DrawerCloseGlyph() {
+  const Glyph = useSheetSide() === "bottom" ? ICONS.chevron : ICONS.sheetClose;
+  return <Glyph size={20} aria-hidden />;
 }
 
 /* ---------------------------------------------------------------- toast --- */
@@ -1044,7 +1053,8 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
             {/* 4px tall at top 14px: centred on the 32px disc. */}
             {i < steps.length - 1 && <span aria-hidden className="pointer-events-none absolute top-[14px] left-1/2 h-1 w-full bg-border" />}
             <span className={`relative z-10 size-8 rounded-full ${done ? "bg-primary" : i === current ? "bg-border" : "border-2 border-border bg-white"}`} />
-            <span className={`relative z-10 h-4 text-center text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${done ? "text-ink" : "text-ink-2"}`}>{s}</span>
+            {/* A phone has room for one label: the current step's. The others stay for screen readers. */}
+            <span className={`relative z-10 h-4 text-center text-[12px] leading-[1.2] tracking-[0.2px] whitespace-nowrap ${done ? "text-ink" : "text-ink-2"} ${i === current ? "max-sm:font-semibold max-sm:text-ink" : "max-sm:sr-only"}`}>{s}</span>
           </li>
         );
       })}

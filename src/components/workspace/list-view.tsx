@@ -11,7 +11,7 @@ import { AssigneeField, DateField, EffortField, PriorityField, StatusField, Type
 import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "./group-actions";
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./item-menu";
 import { itemData } from "./item-data";
-import { BlockedChip, ChangesChip, GroupLabel, LockChip, PlaceChip, TagChip } from "./meta";
+import { AssigneeChip, BlockedChip, ChangesChip, DueChip, GroupLabel, LockChip, PlaceChip, TagChip } from "./meta";
 import { QuickAdd } from "./quick-add";
 import { ago, useProgressive, useWidth } from "./util";
 import { groupColors } from "./labels";
@@ -44,8 +44,12 @@ const COLS: Col[] = [
  */
 const DROP_ORDER: ColKey[] = ["updated", "progress", "start"];
 
+/** Narrower than this (a phone), the list is one column: each item's name over its status, due date and assignee. */
+const COMPACT = 560;
+
 /** The columns that fit `width` (0 while it's unmeasured: all of them). */
 function visibleCols(width: number): Col[] {
+  if (width && width < COMPACT) return [{ ...COLS[0], width }];
   let cols = COLS;
   for (const key of DROP_ORDER) {
     if (!width || cols.reduce((n, c) => n + c.width, 0) <= width) break;
@@ -253,7 +257,16 @@ const Row = memo(function Row({ item: t, blockers, pending, handle, onKeyMove, s
       }}
       className={`group/row cursor-pointer hover:bg-surface-alt focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${pending ? "opacity-80" : ""} ${isArchived(t) ? "bg-surface-alt" : ""}`}
     >
-      <NameCell item={t} blockers={blockers} handle={handle} />
+      <NameCell item={t} blockers={blockers} handle={handle} compact={!shown.has("status")} />
+      {shown.has("status") && <WideCells item={t} shown={shown} />}
+    </tr>
+  );
+});
+
+/** The cells after the name, from Status on — all but the name's, which a phone's one-column list leaves to the row's second line. */
+function WideCells({ item: t, shown }: { item: WorkItem; shown: ReadonlySet<ColKey> }) {
+  return (
+    <>
       <td className={CELL} onClick={(e) => e.stopPropagation()}>
         <StatusField item={t} />
       </td>
@@ -279,19 +292,19 @@ const Row = memo(function Row({ item: t, blockers, pending, handle, onKeyMove, s
       </td>
       {shown.has("progress") && <ProgressCell item={t} />}
       {shown.has("updated") && <td className={`${CELL} text-[12.5px] text-ink-2`}>{t.version ? ago(t.updatedAt) : "Saving…"}</td>}
-    </tr>
+    </>
   );
-});
+}
 
 /**
  * The row's first cell, pinned on the left: the status circle, the number and name, what's in the
  * way, its first tag, where it sits — and the item's menu at the end.
  */
-function NameCell({ item: t, blockers, handle }: { item: WorkItem; blockers: number; handle: ItemMenuHandle }) {
+function NameCell({ item: t, blockers, handle, compact }: { item: WorkItem; blockers: number; handle: ItemMenuHandle; compact: boolean }) {
   const env = useWorkspace();
   const circle = circleStep(t, env);
   return (
-    <td className={`${CELL} sticky left-0 z-10 bg-white pl-4 group-hover/row:bg-surface-alt`}>
+    <td className={`${CELL} sticky left-0 z-10 bg-white pl-4 group-hover/row:bg-surface-alt ${compact ? "py-2.5 pl-3" : ""}`}>
       <span className="flex min-w-0 items-center gap-2">
         <span className="flex" onClick={(e) => e.stopPropagation()}>
           <StatusCircle status={t.status} onClick={circle?.run} label={circle?.label ?? STATUS_META[t.status].label} />
@@ -312,7 +325,20 @@ function NameCell({ item: t, blockers, handle }: { item: WorkItem; blockers: num
           <ItemMenuTrigger handle={handle} item={t} className="opacity-60 group-hover/row:opacity-100 focus-visible:opacity-100" />
         </span>
       </span>
+      {compact && <CompactMeta item={t} />}
     </td>
+  );
+}
+
+/** A phone's second line under the name: where it stands, when it's due and who has it. */
+function CompactMeta({ item: t }: { item: WorkItem }) {
+  const { today, people } = useWorkspace();
+  return (
+    <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pl-7 text-[12px]">
+      <span className="text-ink-2">{STATUS_META[t.status].label}</span>
+      <DueChip item={t} today={today} />
+      <AssigneeChip assignee={t.assignee} people={people} size={18} />
+    </span>
   );
 }
 

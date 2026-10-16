@@ -223,7 +223,7 @@ function ReviewStep({
 
 function StepCard({ title, body, children }: { title: string; body: string; children: ReactNode }) {
   return (
-    <Card className="flex flex-col gap-10 rounded-2xl p-10">
+    <Card className="flex flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
       <div className="flex flex-col gap-1 leading-[1.5]">
         <h3 className="text-[20px] font-semibold tracking-[0.4px] text-ink">{title}</h3>
         <p className="text-[16px] tracking-[0.2px] text-ink-2">{body}</p>

@@ -417,13 +417,14 @@ function PreferenceBox({ checked, locked, label, onChange }: { checked: boolean;
 
 export function PaymentMethodRow({ brand, title, subtitle, actions }: { brand: ReactNode; title: ReactNode; subtitle: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="flex items-center gap-4 rounded-lg p-4 outline -outline-offset-1 outline-border">
-      <span className="flex items-start rounded bg-surface-2 px-2.5 py-1.5">{brand}</span>
+    // On a phone the buttons drop to a row of their own under the method, sharing its width.
+    <div className="flex items-center gap-4 rounded-lg p-4 outline -outline-offset-1 outline-border max-sm:flex-wrap max-sm:gap-3">
+      <span className="flex shrink-0 items-start rounded bg-surface-2 px-2.5 py-1.5">{brand}</span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="flex items-center gap-2 text-[14px] leading-[1.4] font-medium text-ink">{title}</span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] leading-[1.4] font-medium text-ink">{title}</span>
         <span className="text-[12px] leading-[1.4] text-ink-2">{subtitle}</span>
       </span>
-      {actions && <div className="flex items-center gap-4">{actions}</div>}
+      {actions && <div className="flex items-center gap-4 max-sm:w-full max-sm:gap-2 max-sm:*:flex-1 max-sm:[&_button]:h-10 max-sm:[&_button]:w-full">{actions}</div>}
     </div>
   );
 }

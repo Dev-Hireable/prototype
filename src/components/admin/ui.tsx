@@ -4,7 +4,7 @@ import { Card } from "@/components/portal/ui";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
-import { CLEAR_DEMO_RESET } from "@/components/portal/styles";
+import { CLEAR_DEMO_RESET, PHONE_FILTER_ROW } from "@/components/portal/styles";
 import { keyed } from "@/lib/portal/keys";
 import { ICONS } from "@/components/icons";
 
@@ -76,7 +76,7 @@ export function AdminPage({
 
 export function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <Card className="flex min-w-0 flex-1 flex-col gap-1 overflow-clip p-[18px] leading-[1.45] whitespace-nowrap">
+    <Card className="flex min-w-0 flex-1 flex-col gap-1 overflow-clip p-[18px] leading-[1.45] whitespace-nowrap max-lg:basis-[150px] max-lg:whitespace-normal">
       <p className="text-[12.5px] text-muted">{label}</p>
       <p className="text-[24px] font-semibold tracking-[-0.48px] text-ink-deep">{value}</p>
       {sub && <p className="text-[11.5px] text-muted">{sub}</p>}
@@ -85,20 +85,21 @@ export function StatCard({ label, value, sub }: { label: string; value: string; 
 }
 
 export function StatGrid({ children }: { children: ReactNode }) {
-  return <div className="flex w-full gap-4">{children}</div>;
+  // A tablet or a phone wraps the cards two to a row.
+  return <div className="flex w-full gap-4 max-lg:flex-wrap max-lg:gap-3">{children}</div>;
 }
 
 /* -------------------------------------------------------------- controls -- */
 
 export function Toolbar({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center gap-4">{children}</div>;
+  return <div className={`flex flex-wrap items-center gap-4 ${PHONE_FILTER_ROW}`}>{children}</div>;
 }
 
 /** Uncontrolled unless `value`/`onChange` are passed — the static list screens don't filter yet. */
 export function SearchInput({ placeholder, value, onChange }: { placeholder: string; value?: string; onChange?: (v: string) => void }) {
   const SearchIcon = ICONS.search;
   return (
-    <label className="flex h-11 w-[316px] items-center gap-2 rounded-lg border border-border bg-white px-4 text-ink-2">
+    <label className="flex h-11 w-[316px] max-w-full items-center gap-2 rounded-lg border border-border bg-white px-4 text-ink-2 max-md:w-full">
       <SearchIcon size={18} aria-hidden />
       <input
         type="search"
@@ -117,7 +118,7 @@ export function Select({ label, options, value, onChange }: { label: string; opt
       <span className="sr-only">{label}</span>
       <select
         {...(onChange ? { value: value ?? options[0], onChange: (e: React.ChangeEvent<HTMLSelectElement>) => onChange(e.target.value) } : { defaultValue: options[0] })}
-        className="h-11 w-[180px] appearance-none rounded-lg border border-border bg-white pr-10 pl-4 text-[13px] text-ink-2 outline-none"
+        className="h-11 w-[180px] appearance-none rounded-lg border border-border bg-white pr-10 pl-4 text-[13px] text-ink-2 outline-none max-md:w-full"
       >
         {options.map((o) => (
           <option key={o}>{o}</option>
@@ -174,11 +175,13 @@ export function DataTable<T>({
             flexible column 32px wide at a 1280 window, so names broke a letter per line into 300px
             rows. The min-width keeps that column at least FLEX_MIN wide: a narrow window scrolls the
             table sideways instead of crushing it. */}
+        {/* A phone has no room for the columns: each row becomes a card, its first cell the title
+            and every other cell a "header · value" line, labelled from data-label. */}
         <table
-          className="w-full table-fixed border-separate border-spacing-0"
+          className="w-full table-fixed border-separate border-spacing-0 max-md:block max-md:min-w-0!"
           style={{ minWidth: columns.reduce((n, c) => n + (typeof c.width === "number" ? c.width : 0), 0) + (columns.some((c) => c.width === undefined) ? FLEX_MIN : 0) }}
         >
-          <colgroup>
+          <colgroup className="max-md:hidden">
             {columns.map((c) => (
               <col key={c.header} style={{ width: c.width }} />
             ))}
@@ -194,7 +197,7 @@ export function DataTable<T>({
 /** The header row: each column's name, right-aligned over a right-aligned column. */
 function DataTableHead<T>({ columns }: { columns: Column<T>[] }) {
   return (
-    <thead>
+    <thead className="max-md:hidden">
       <tr className="bg-surface-alt text-left">
         {columns.map((c) => (
           <th
@@ -218,22 +221,23 @@ function DataTableHead<T>({ columns }: { columns: Column<T>[] }) {
  */
 function DataTableBody<T>({ columns, rows, rowHref, empty }: { columns: Column<T>[]; rows: T[]; rowHref?: (row: T) => string; empty: string }) {
   return (
-    <tbody>
+    <tbody className="max-md:block">
       {rows.length === 0 && (
         <tr>
-          <td colSpan={columns.length} className="px-4 py-10 text-center shadow-[inset_0_1px_0_#e3e8ed] text-[13px] text-muted">
+          <td colSpan={columns.length} className="px-4 py-10 text-center shadow-[inset_0_1px_0_#e3e8ed] text-[13px] text-muted max-md:block">
             {empty}
           </td>
         </tr>
       )}
       {keyed(rows, (row) => rowHref?.(row) ?? rowText(row)).map(({ item: row, key }) => (
-        <tr key={key} className="bg-white even:bg-row-alt hover:bg-surface-alt">
+        <tr key={key} className="bg-white even:bg-row-alt hover:bg-surface-alt max-md:block max-md:px-4 max-md:py-3 max-md:shadow-[inset_0_1px_0_#e3e8ed]">
           {columns.map((c, j) => (
             <td
               key={c.header}
+              data-label={c.header}
               className={`${GRID} py-[13px] align-middle text-[13px] leading-[1.45] break-words ${
                 c.align === "right" ? "text-right" : ""
-              } ${j === 0 ? "text-ink-deep" : "text-muted"}`}
+              } ${j === 0 ? "text-ink-deep max-md:block max-md:pb-1 max-md:text-[14px] max-md:font-semibold" : "text-muted max-md:flex max-md:items-start max-md:justify-between max-md:gap-4 max-md:py-1 max-md:text-right max-md:before:shrink-0 max-md:before:text-left max-md:before:text-[12px] max-md:before:content-[attr(data-label)]"} max-md:px-0 max-md:shadow-none max-md:[&:not(:first-child)]:shadow-none`}
             >
               {j === 0 && rowHref ? <Link href={rowHref(row)}>{c.cell(row)}</Link> : c.cell(row)}
             </td>
