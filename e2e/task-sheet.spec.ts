@@ -135,7 +135,8 @@ test.describe("task sheet · comments", () => {
     await p.getByRole("button", { name: "Send", exact: true }).click();
     const alex = p.getByRole("article", { name: "Comment from Alex Rivera" });
     await expect(alex).toContainText("Could you try a serif for the headings?");
-    await expect(alex).toContainText("25 Sep 2026");
+    // The day is said once, on the stream's divider; the comment carries its time.
+    await expect(p.getByRole("list", { name: "Activity history" })).toContainText("Today");
 
     const [note] = await notes(page, "independent");
     expect(note).toMatchObject({ title: "Alex Rivera commented on a task", href: "/independent/contracts/brand-designer?task=t-type&focus=comments", unread: true });

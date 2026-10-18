@@ -279,7 +279,7 @@
   "id": "TB-065",
   "title": "Comment on a Task",
   "story": "As a Team Builder, I want to comment on a task so that I can discuss the work with the Independent Contractor right where it happens.",
-  "ac": "- The task details panel has a comment box under its activity feed - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a comment thread, not a chat: each in its own box with the author's photo, name and time above the text, in time order with the task's history - The Independent Contractor is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - An empty comment can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
+  "ac": "- The task details panel keeps a comment box pinned at its foot, in reach however far the panel is scrolled - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a work chat in one Activity stream with the task's history, in time order: each turn shows the author's photo, name and time above the words; one person's comments within five minutes run on under one header; a divider marks each new day; Comments only hides the history - The Independent Contractor is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - An empty comment can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
  },
  {
   "id": "TB-109",
@@ -381,7 +381,7 @@
   "id": "TB-112",
   "title": "View Task Activity",
   "story": "As a Team Builder, I want to see a task's activity so that I know what happened to it and when.",
-  "ac": "- The task details panel shows one activity feed with the task's history and its comments, in time order - History covers when the task was added and by whom, status changes, submissions for review, approvals, and requested changes with their notes - Each entry shows who did it and when - Activity entries can't be edited or removed - The feed stays visible on Done tasks and on ended contracts"
+  "ac": "- The task details panel shows one activity feed with the task's history and its comments, in time order - History covers when the task was added and by whom, status changes, submissions for review, approvals, and requested changes with their notes - Each entry shows who did it and when - What happened reads as quiet one-line entries between the comments; three or more moves in a row by one person fold into one line that opens onto each move - Activity entries can't be edited or removed - The feed stays visible on Done tasks and on ended contracts"
  },
  {
   "id": "TB-113",
@@ -927,7 +927,7 @@
   "id": "IN-043",
   "title": "Comment on a Task",
   "story": "As an Independent Contractor, I want to comment on a task so that I can ask questions and share updates with the Team Builder right on the task.",
-  "ac": "- The task details panel has a comment box under its activity feed - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a comment thread, not a chat: each in its own box with the author's photo, name and time above the text, in time order with the task's history - The Team Builder is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - An empty comment can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
+  "ac": "- The task details panel keeps a comment box pinned at its foot, in reach however far the panel is scrolled - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a work chat in one Activity stream with the task's history, in time order: each turn shows the author's photo, name and time above the words; one person's comments within five minutes run on under one header; a divider marks each new day; Comments only hides the history - The Team Builder is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - An empty comment can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
  },
  {
   "id": "IN-044",
