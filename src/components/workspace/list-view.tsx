@@ -78,11 +78,11 @@ export function ListView({ groups, byId, query, setQuery, pendingIds }: { groups
 
   const onKeyMove = useCallback(
     (t: WorkItem, e: KeyboardEvent) => {
-      if (!e.altKey || !e.shiftKey || !reorderable || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      if (!e.altKey || !e.shiftKey || !reorderable || !env.canPlace(t) || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
       const g = groups.find((x) => x.items.some((y) => y.id === t.id));
       if (g) stepByKey(t, g.items, e, actions);
     },
-    [groups, reorderable, actions],
+    [groups, reorderable, actions, env],
   );
 
   const menuModel = useMenuModel(byId, groups, env, reorderable);

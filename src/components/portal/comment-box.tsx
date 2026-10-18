@@ -39,7 +39,7 @@ export function CommentBox({
   };
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border drop-shadow-[0px_2px_4px_rgba(0,0,0,0.1)]">
+    <div className="flex flex-col gap-4 rounded-lg bg-white p-4 outline -outline-offset-1 outline-border">
       <textarea
         rows={1}
         value={text}

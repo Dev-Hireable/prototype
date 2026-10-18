@@ -2,7 +2,7 @@ import { dayOf, isoOf, stampLabel, type Day } from "./dates";
 import { WorkError } from "./errors";
 import { datesOf, hearsComments, indexById, isArchived, isCompleted, isTagColor, PRIORITY_META, refOf, STATUS_META, TAG_COLORS, TYPE_META, type Assignee, type Side, type TagColor, type WorkItem, type WorkPriority, type WorkProject, type WorkStatus, type WorkType } from "./model";
 import { orderLast, placeBetween } from "./order";
-import { AGREED, agreedNow, canCreate, canPlanProjects, canReorder, capsFor, changeFor, lockedReason, PROJECTS_LATER, sideOf, tickRefusal, transitionFor, VIEWER_ONLY, type Actor, type Names, type TransitionKind, type WorkAccess, type WorkField } from "./permissions";
+import { AGREED, agreedNow, canCreate, canPlanProjects, capsFor, changeFor, lockedReason, PROJECTS_LATER, reorderFor, sideOf, tickRefusal, transitionFor, VIEWER_ONLY, type Actor, type Names, type TransitionKind, type WorkAccess, type WorkField } from "./permissions";
 import { checkComment, checkDates, checkDependency, checkDescription, checkEffort, checkNote, checkProjectName, checkSubtaskTitle, checkTag, checkTitle, normalizeTag, type Invalid } from "./validate";
 
 /**
@@ -627,7 +627,8 @@ function move(r: Repo, id: string, input: MoveInput) {
     }
     let items = state.items;
     if (input.after !== undefined || input.before !== undefined) {
-      need(r, canReorder(r.actor, access), () => refusal(access, `${r.names.team} sets the order of the work.`));
+      const may = reorderFor(t, r.actor, access, r.names);
+      need(r, may.ok, () => refusal(access, may.ok ? "" : may.reason));
       const live = state.items.filter((x) => !isArchived(x));
       const place = placeBetween(live, id, input.after, input.before);
       if ("order" in place) {

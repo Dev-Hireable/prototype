@@ -10,7 +10,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { writeParams } from "@/lib/portal/query-state";
 import { todayDay, type Day } from "@/lib/work/dates";
 import { countsOf, isArchived, type AssigneeKey, type WorkItem } from "@/lib/work/model";
-import { canCreate, canPlanProjects, canReorder, readOnlyReason, type Actor, type WorkAccess } from "@/lib/work/permissions";
+import { canCreate, canPlanProjects, canReorder, readOnlyReason, reorderFor, type Actor, type WorkAccess } from "@/lib/work/permissions";
 import { ALL, inScope, knownScope, NO_PROJECT, OPEN, projectCtx, projectKeyOf, summarize, type ProjectSummary, type Scope } from "@/lib/work/projects";
 import { activeFilterCount, applyFilters, EMPTY_FILTERS, groupItems, sortItems, VIEW_LABEL, VIEWS, type Group, type ViewKey, type WorkQuery } from "@/lib/work/query";
 import { onWorkMessage, useWork, useWorkActions, type WorkActions, type WorkMessage, type WorkSnapshot } from "@/lib/work/store";
@@ -117,7 +117,7 @@ function useWorkspaceEnv(actor: Actor, people: TaskPeople, work: WorkSnapshot, q
   // Kept by value, like `access`: every save re-reads the contract, and a new-but-equal map would re-render every card.
   const tagColors = useByValue(work.tagColors);
   const env = useMemo<WorkspaceEnv>(
-    () => ({ actor: who, names, people: who2, access, actions, today, canCreate: canCreate(who, access) && !closedPlace, canReorder: canReorder(who, access) && !closedPlace, openTask, assigneeLabel, tagColors, projects }),
+    () => ({ actor: who, names, people: who2, access, actions, today, canCreate: canCreate(who, access) && !closedPlace, canReorder: canReorder(who, access) && !closedPlace, canPlace: (t: WorkItem) => !closedPlace && reorderFor(t, who, access, names).ok, openTask, assigneeLabel, tagColors, projects }),
     [who, names, who2, access, actions, today, openTask, assigneeLabel, tagColors, projects, closedPlace],
   );
   return { env, projectScope };

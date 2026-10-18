@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useRef, useState, type DragEvent, type KeyboardEvent, type RefObject } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
 import { KanbanColumn, KanbanEmpty, KanbanList, type ColumnFrame } from "@/components/portal/board";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
@@ -8,12 +8,14 @@ import { Tip } from "@/components/portal/tip";
 import { dayOf } from "@/lib/work/dates";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, TYPE_META, type WorkItem } from "@/lib/work/model";
 import { capsFor, lockedReason, targetsFor, transitionFor } from "@/lib/work/permissions";
-import type { Group, WorkQuery } from "@/lib/work/query";
+import { sortItems, type Group, type WorkQuery } from "@/lib/work/query";
+import { uiZoom } from "@/lib/portal/zoom";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "./group-actions";
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./item-menu";
 import { itemData } from "./item-data";
 import { AssigneeChip, BlockedChip, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, PriorityFact, Ref, TagChip, TypeChip } from "./meta";
+import { liftCard, preloadDragImage } from "./drag-preview";
 import { dropPlan, placeAt, refusal, runPlan, type DropPlan } from "./moves";
 import { QuickAdd } from "./quick-add";
 import { useTimedMessage } from "./timed-message";
@@ -50,7 +52,7 @@ export function BoardView({ groups, byId, query, pendingIds }: { groups: Group[]
       {/* Positioned, like the List's scroller, so nothing a column places absolutely passes through it to stretch the page. */}
       <div className="relative flex min-h-0 flex-1 items-stretch gap-3 overflow-x-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="board">
         {groups.map((g) => (
-          <BoardColumn key={g.key} group={g} dnd={dnd} cards={cards} reorderable={reorderable} archived={query.archived} kit={kit} />
+          <BoardColumn key={g.key} group={g} dnd={dnd} cards={cards} reorderable={reorderable} sort={query} archived={query.archived} kit={kit} />
         ))}
       </div>
       <ItemMenu handle={handle} model={menuModel} />
@@ -58,41 +60,53 @@ export function BoardView({ groups, byId, query, pendingIds }: { groups: Group[]
   );
 }
 
-/** The card being dragged, and the column it was picked up from. */
-type Dragging = { id: string; from: string };
+/** The card being dragged, the column it was picked up from, and the room it takes in a column (its height and the gap after it). */
+type Dragging = { id: string; from: string; room: number };
 
 /** The column the dragged card is over, and the slot in it where it would land. */
 type Over = { key: string; index: number };
 
 /**
  * A card on the move: which one and the column it left, the column and slot it's over, and when
- * it fades. However the drag ends, it clears the lot — and the refusal said above the board.
+ * it lifts out of its place. However the drag ends, it clears the lot — and the refusal said above the board.
  */
 function useCardDrag(groups: Group[], byId: ReadonlyMap<string, WorkItem>, setHint: (hint: string | null) => void) {
   const [drag, setDrag] = useState<Dragging | null>(null);
-  /** The card being dragged fades once the browser has its drag image (not before, or the image fades too). */
-  const [fading, setFading] = useState<string | null>(null);
+  /** The card being dragged leaves its place once its solid copy is up under the pointer. */
+  const [lifted, setLifted] = useState<string | null>(null);
   const [over, setOver] = useState<Over | null>(null);
+  /** Puts the copy following the pointer away. */
+  const putAway = useRef<(() => void) | null>(null);
   const groupOf = useCallback((id: string) => groups.find((g) => g.items.some((t) => t.id === id)), [groups]);
+  useEffect(preloadDragImage, []);
 
   const onDragStart = useCallback(
     (t: WorkItem, e: DragEvent) => {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", t.id);
-      setDrag({ id: t.id, from: groupOf(t.id)?.key ?? "" });
-      setTimeout(() => setFading(t.id), 0);
+      putAway.current?.();
+      putAway.current = liftCard(e.currentTarget as HTMLElement, e.nativeEvent);
+      const from = groupOf(t.id);
+      setDrag({ id: t.id, from: from?.key ?? "", room: roomOf(e.currentTarget as HTMLElement) });
+      setTimeout(() => {
+        setLifted(t.id);
+        // Its slot stays open where it was, so nothing jumps as it lifts out; it closes once the card leaves the column.
+        if (from) setOver({ key: from.key, index: from.items.findIndex((x) => x.id === t.id) });
+      }, 0);
     },
     [groupOf],
   );
 
   const onDragEnd = useCallback(() => {
+    putAway.current?.();
+    putAway.current = null;
     setDrag(null);
-    setFading(null);
+    setLifted(null);
     setOver(null);
     setHint(null);
   }, [setHint]);
 
-  return { drag, dragged: drag ? byId.get(drag.id) : undefined, fading, over, setOver, onDragStart, onDragEnd };
+  return { drag, dragged: drag ? byId.get(drag.id) : undefined, lifted, over, setOver, onDragStart, onDragEnd };
 }
 
 type CardDrag = ReturnType<typeof useCardDrag>;
@@ -106,7 +120,7 @@ function keyMove(t: WorkItem, e: KeyboardEvent, keys: BoardKeys) {
   const at = keys.groups.findIndex((g) => g.items.some((x) => x.id === t.id));
   if (at < 0) return;
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") return keyAcross(t, e, at, keys);
-  if ((e.key === "ArrowUp" || e.key === "ArrowDown") && keys.reorderable) stepByKey(t, keys.groups[at].items, e, keys.env.actions);
+  if ((e.key === "ArrowUp" || e.key === "ArrowDown") && keys.reorderable && keys.env.canPlace(t)) stepByKey(t, keys.groups[at].items, e, keys.env.actions);
 }
 
 /** Alt+Shift+← or →: into the nearest column that way that takes the card — or, when none does, why not. */
@@ -116,7 +130,7 @@ function keyAcross(t: WorkItem, e: KeyboardEvent, at: number, { groups, env, reo
   for (let j = at + step; j >= 0 && j < groups.length; j += step) {
     const plan = dropPlan(t, groups[j].value, env);
     if (!plan || plan.kind === "reorder") continue;
-    runPlan(env, t, plan, reorderable ? { after: groups[j].items.at(-1)?.id } : null);
+    runPlan(env, t, plan, reorderable && env.canPlace(t) ? { after: groups[j].items.at(-1)?.id } : null);
     focusItem(t.id);
     return;
   }
@@ -145,7 +159,18 @@ function columnDrop({ drag, dragged, over }: CardDrag, g: Group, env: WorkspaceE
   return { plan, denied, frame, dimmed: !!drag && !target && drag.from !== g.key, state: drag ? (target ? "allowed" : "denied") : undefined };
 }
 
-/** The slot a card dragged to height `y` lands in: after every other card in the column whose middle is above it. */
+/** The room a card takes in its column: its height and the gap after it — what the others part by to let it in. */
+function roomOf(card: HTMLElement) {
+  const li = card.closest("li") ?? card;
+  const list = li.parentElement;
+  return li.offsetHeight + (list ? parseFloat(getComputedStyle(list).rowGap) || 0 : 0);
+}
+
+/**
+ * The slot a card dragged to height `y` lands in: after every other card in the column whose middle
+ * is above it. Measured where each card rests, not where it's sliding to make room — or the room
+ * opening would move the slot it opened for.
+ */
 function slotAt(g: Group, y: number, dragId: string | undefined, cards: ReadonlyMap<string, HTMLElement>) {
   let i = 0;
   for (const t of g.items) {
@@ -153,9 +178,20 @@ function slotAt(g: Group, y: number, dragId: string | undefined, cards: Readonly
     const el = cards.get(t.id);
     if (!el) continue;
     const r = el.getBoundingClientRect();
-    if (y > r.top + r.height / 2) i++;
+    // The slide is a CSS length, drawn at the app's scale; the rect is in screen pixels.
+    const slid = new DOMMatrixReadOnly(getComputedStyle(el.closest("li") ?? el).transform).m42 * uiZoom();
+    if (y > r.top - slid + r.height / 2) i++;
   }
   return i;
+}
+
+/**
+ * Where the card lands in column `g` when it isn't placed by hand (the order isn't manual, or isn't
+ * this person's to set): its place in the column's sort, the way the column will show it after the drop.
+ */
+function sortedSlot(g: Group, t: WorkItem, { sort, dir }: Pick<WorkQuery, "sort" | "dir">) {
+  const rest = g.items.filter((x) => x.id !== t.id);
+  return sortItems([...rest, t], sort, dir).findIndex((x) => x.id === t.id);
 }
 
 /** Drops the card at slot `index` of column `g`: the plan and the new place in one save — unless it's a reorder that leaves the card where it was. */
@@ -172,10 +208,12 @@ function dropCard(env: WorkspaceEnv, t: WorkItem, plan: DropPlan, g: Group, inde
  * One column: lit up where the dragged card may land, faded — saying why — where it may not; its
  * total effort (or that it's finished); its cards; and an add row at its foot where new work can start.
  */
-function BoardColumn({ group: g, dnd, cards, reorderable, archived, kit }: { group: Group; dnd: CardDrag; cards: RefObject<Map<string, HTMLElement>>; reorderable: boolean; archived: boolean; kit: CardKit }) {
+function BoardColumn({ group: g, dnd, cards, reorderable, sort, archived, kit }: { group: Group; dnd: CardDrag; cards: RefObject<Map<string, HTMLElement>>; reorderable: boolean; sort: Pick<WorkQuery, "sort" | "dir">; archived: boolean; kit: CardKit }) {
   const env = useWorkspace();
   const { drag, over, setOver } = dnd;
-  const { plan, denied, frame, dimmed, state } = columnDrop(dnd, g, env, reorderable);
+  // Placed by hand only when the order is manual and the card being dragged is this person's to place (TB-142).
+  const placeable = reorderable && !!dnd.dragged && env.canPlace(dnd.dragged);
+  const { plan, denied, frame, dimmed, state } = columnDrop(dnd, g, env, placeable);
   return (
     <KanbanColumn
       label={g.label}
@@ -189,7 +227,7 @@ function BoardColumn({ group: g, dnd, cards, reorderable, archived, kit }: { gro
         if (!plan) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        const index = reorderable ? slotAt(g, e.clientY, drag?.id, cards.current) : g.items.length;
+        const index = placeable ? slotAt(g, e.clientY, drag?.id, cards.current) : dnd.dragged ? sortedSlot(g, dnd.dragged, sort) : g.items.length;
         if (over?.key !== g.key || over.index !== index) setOver({ key: g.key, index });
       }}
       onDragLeave={(e) => {
@@ -199,7 +237,7 @@ function BoardColumn({ group: g, dnd, cards, reorderable, archived, kit }: { gro
         e.preventDefault();
         const t = dnd.dragged;
         dnd.onDragEnd();
-        if (t && plan) dropCard(env, t, plan, g, over?.key === g.key ? over.index : g.items.length, reorderable);
+        if (t && plan) dropCard(env, t, plan, g, over?.key === g.key ? over.index : g.items.length, placeable);
       }}
       aside={<ColumnAside group={g} />}
       notice={
@@ -211,7 +249,7 @@ function BoardColumn({ group: g, dnd, cards, reorderable, archived, kit }: { gro
       }
       footer={takesNewWork(env, g, archived) && <QuickAdd variant="card" onAdd={(title) => addToGroup(env, g, reorderable, title)} hint={g.value.field === "assignee" ? `Assigned to ${env.assigneeLabel(g.value.value)}` : g.value.field === "status" ? undefined : `In ${g.label}`} />}
     >
-      <Column items={g.items} over={over?.key === g.key ? over.index : null} dragId={drag?.id ?? null} fading={dnd.fading} showLine={reorderable} cards={cards} kit={kit} emptyLabel={archived ? "Nothing deleted here" : "Nothing here"} />
+      <Column items={g.items} over={over?.key === g.key ? over.index : null} drag={drag} lifted={dnd.lifted} cards={cards} kit={kit} emptyLabel={archived ? "Nothing deleted here" : "Nothing here"} />
     </KanbanColumn>
   );
 }
@@ -248,43 +286,39 @@ function ColumnAside({ group: g }: { group: Group }) {
  */
 type CardKit = Pick<WorkCardProps, "handle" | "onDragStart" | "onDragEnd" | "onKeyMove"> & { byId: ReadonlyMap<string, WorkItem>; pendingIds: ReadonlySet<string> };
 
-/** A column's cards, a slice at a time — and, when the order is manual, a line where the dragged card would land. */
-function Column({ items, over, dragId, fading, showLine, cards, kit, emptyLabel }: { items: WorkItem[]; over: number | null; dragId: string | null; fading: string | null; showLine: boolean; cards: RefObject<Map<string, HTMLElement>>; kit: CardKit; emptyLabel: string }) {
+/**
+ * A column's cards, a slice at a time. The card being dragged lifts out of its place, and the others
+ * part where it would land: every card from that slot on slides down by its room, and a spacer at
+ * the foot keeps the column long enough for them.
+ */
+function Column({ items, over, drag, lifted, cards, kit, emptyLabel }: { items: WorkItem[]; over: number | null; drag: Dragging | null; lifted: string | null; cards: RefObject<Map<string, HTMLElement>>; kit: CardKit; emptyLabel: string }) {
   const { shown, sentinel } = useProgressive(items.length, 60);
-  const rest = items.filter((t) => t.id !== dragId);
-  const line = <li aria-hidden className="h-0.5 shrink-0 rounded-full bg-primary" />;
+  const rest = items.filter((t) => t.id !== drag?.id);
+  const room = drag && over !== null ? drag.room : 0;
   return (
     <KanbanList>
-      {items.slice(0, shown).map((t) => {
-        const at = rest.indexOf(t);
-        return (
-          <FragmentWithLine key={t.id} line={showLine && over !== null && at === over ? line : null}>
-            <WorkCard item={t} blockers={openBlockers(t, kit.byId).length} pending={kit.pendingIds.has(t.id)} dragging={fading === t.id} handle={kit.handle} onDragStart={kit.onDragStart} onDragEnd={kit.onDragEnd} onKeyMove={kit.onKeyMove} cards={cards} />
-          </FragmentWithLine>
-        );
-      })}
-      {showLine && over !== null && over >= rest.length && line}
+      {items.slice(0, shown).map((t) => (
+        <WorkCard key={t.id} item={t} blockers={openBlockers(t, kit.byId).length} pending={kit.pendingIds.has(t.id)} lifted={lifted === t.id} slide={over !== null && rest.indexOf(t) >= over ? room : 0} moving={!!drag} handle={kit.handle} onDragStart={kit.onDragStart} onDragEnd={kit.onDragEnd} onKeyMove={kit.onKeyMove} cards={cards} />
+      ))}
+      {/* After a card, -mt-2 takes back the list's gap before it, so a closed spacer adds nothing. */}
+      {drag && <li aria-hidden className={`shrink-0 transition-[height] duration-200 ease-out ${items.length ? "-mt-2" : ""}`} style={{ height: room }} />}
       {sentinel}
       {items.length === 0 && <KanbanEmpty>{emptyLabel}</KanbanEmpty>}
     </KanbanList>
   );
 }
 
-function FragmentWithLine({ line, children }: { line: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <>
-      {line}
-      {children}
-    </>
-  );
-}
-
-/** A card's item and its state — how many open items it waits on, saving, being dragged — and what every card shares. */
+/** A card's item and its state — how many open items it waits on, saving, being dragged, sliding aside for one — and what every card shares. */
 type WorkCardProps = {
   item: WorkItem;
   blockers: number;
   pending: boolean;
-  dragging: boolean;
+  /** Being dragged: out of its place, which the others close or keep open. */
+  lifted: boolean;
+  /** How far it slides down to make room for the dragged card. */
+  slide: number;
+  /** A drag is on, so it slides rather than jumps; at the drop it takes its new place at once. */
+  moving: boolean;
   handle: ItemMenuHandle;
   onDragStart: (t: WorkItem, e: DragEvent) => void;
   onDragEnd: () => void;
@@ -296,7 +330,7 @@ type WorkCardProps = {
  * A card: the status circle (the next step for whoever's looking), the name, what's due and how
  * big it is, and who has it. Memoised — a change to another item doesn't re-render it.
  */
-const WorkCard = memo(function WorkCard({ item: t, blockers, pending, dragging, handle, onDragStart, onDragEnd, onKeyMove, cards }: WorkCardProps) {
+const WorkCard = memo(function WorkCard({ item: t, blockers, pending, lifted, slide, moving, handle, onDragStart, onDragEnd, onKeyMove, cards }: WorkCardProps) {
   const env = useWorkspace();
   const { openTask } = env;
   const { draggable, why } = dragRule(t, env);
@@ -324,7 +358,7 @@ const WorkCard = memo(function WorkCard({ item: t, blockers, pending, dragging, 
           openTask(t.id);
         } else onKeyMove(t, e);
       }}
-      className={`group/card flex cursor-pointer flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border transition [contain-intrinsic-size:auto_104px] [content-visibility:auto] hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${dragging ? "opacity-40" : ""} ${pending ? "opacity-80" : ""} ${isArchived(t) ? "bg-surface-alt" : ""}`}
+      className={`group/card flex cursor-pointer flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border transition [contain-intrinsic-size:auto_104px] [content-visibility:auto] hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${pending ? "opacity-80" : ""} ${isArchived(t) ? "bg-surface-alt" : ""}`}
     >
       {/* The name after its status circle, with its number ("#4") just before it. Everything under it starts where the name does. */}
       <CardHead item={t} handle={handle} />
@@ -336,17 +370,21 @@ const WorkCard = memo(function WorkCard({ item: t, blockers, pending, dragging, 
       </div>
     </div>
   );
-  return <li className="list-none">{why && !why.ok ? <Tip label={why.reason}>{body}</Tip> : body}</li>;
+  return (
+    <li hidden={lifted} className={`list-none ${moving ? "transition-transform duration-200 ease-out" : ""}`} style={slide ? { transform: `translateY(${slide}px)` } : undefined}>
+      {why && !why.ok ? <Tip label={why.reason}>{body}</Tip> : body}
+    </li>
+  );
 });
 
 /**
  * Whether this person can pick the card up — to another column, or to reorder it — and, when they
  * can't, what the status rules say about moving it on, which the card shows on hover.
  */
-function dragRule(t: WorkItem, { actor, access, names, canReorder }: Pick<WorkspaceEnv, "actor" | "access" | "names" | "canReorder">) {
+function dragRule(t: WorkItem, { actor, access, names, canReorder, canPlace }: Pick<WorkspaceEnv, "actor" | "access" | "names" | "canReorder" | "canPlace">) {
   const caps = capsFor(t, actor, access);
   const targets = isArchived(t) ? [] : targetsFor(t, actor, access);
-  const draggable = !isArchived(t) && (targets.length > 0 || canReorder || caps.assign || caps.plan);
+  const draggable = !isArchived(t) && (targets.length > 0 || (canReorder && canPlace(t)) || caps.assign || caps.plan);
   const why = !draggable && !isArchived(t) && actor.role !== "viewer" ? transitionFor(t, actor, access, t.status === "todo" ? "doing" : "todo", names) : null;
   return { draggable, why };
 }
