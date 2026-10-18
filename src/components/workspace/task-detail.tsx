@@ -1,20 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type Ref } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type Ref, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
-import { Avatar, Button, Checkbox, Drawer, InfoBanner, KebabMenu, Pills, Textarea } from "@/components/portal/ui";
+import { Button, Checkbox, Drawer, InfoBanner, KebabMenu, Textarea } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { MenuAction } from "@/components/portal/controls";
 import { CommentBox } from "@/components/portal/comment-box";
 import { Tip } from "@/components/portal/tip";
 import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, type Subtask, type WorkItem } from "@/lib/work/model";
-import { capsFor, changeFor, sideOf, tickRefusal, transitionFor, type AgreedField, type Caps } from "@/lib/work/permissions";
+import { capsFor, changeFor, tickRefusal, transitionFor, type AgreedField, type Caps } from "@/lib/work/permissions";
 import { checkComment, checkSubtaskTitle, checkTitle } from "@/lib/work/validate";
-import { keyed } from "@/lib/portal/keys";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
 import { AssigneeField, DateField, DependenciesField, EffortField, PriorityField, ProjectField, Prop, StatusField, TagsField, TypeField } from "./fields";
 import { AgreedNotice } from "./contract-lock";
 import { lockable, lockLabel } from "./lockable";
+import { ActivityStream } from "./activity-feed";
 import { QuickAdd } from "./quick-add";
 
 /**
@@ -27,11 +27,17 @@ import { QuickAdd } from "./quick-add";
  * isn't this person's to change reads as plain text.
  */
 export function TaskDetail({ open, item, items, byId, focus, pending, onClose }: { open: boolean; item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; pending: boolean; onClose: () => void }) {
-  const step = stepFor(item, useWorkspace());
+  const env = useWorkspace();
+  const step = stepFor(item, env);
+  const canComment = capsFor(item, env.actor, env.access).comment;
   /** The agreed part someone just tried to change on a task from the signed offer: its notice shows until they close it. */
   const [locked, setLocked] = useState<AgreedField | null>(null);
   /** The first date this person can change (PlanDates): where the sheet starts when it's opened to set dates. */
   const firstDate = useRef<HTMLButtonElement>(null);
+  /** The Activity section — where a comment's notification and a comment just sent scroll to. */
+  const activity = useRef<HTMLElement>(null);
+  /** A comment sent from the foot: the stream scrolls to it. */
+  const sent = () => requestAnimationFrame(() => activity.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
   return (
     <Drawer
       open={open}
@@ -45,9 +51,9 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
       initialFocus={focus === "dates" ? firstDate : "close"}
       header={<PanelHeading item={item} byId={byId} focus={focus} pending={pending} onLocked={setLocked} />}
       actions={<PanelActions item={item} />}
-      footer={step && <NextStep key={step} kind={step} item={item} focus={focus} />}
+      footer={(step || canComment) && <SheetFoot item={item} step={step} focus={focus} canComment={canComment} onSent={sent} />}
     >
-      <DetailBody item={item} items={items} byId={byId} focus={focus} firstDate={firstDate} locked={locked} onLocked={setLocked} />
+      <DetailBody item={item} items={items} byId={byId} focus={focus} firstDate={firstDate} locked={locked} onLocked={setLocked} activityRef={activity} />
     </Drawer>
   );
 }
@@ -134,48 +140,18 @@ function tagsInUse(items: readonly WorkItem[]): string[] {
   return [...uses].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([tag]) => tag);
 }
 
-/** How many of the newest entries the history opens with; the rest are one click away. */
-const FEED_LATEST = 6;
-
-/**
- * The history, newest at the foot, in the sheet's own scroll. It used to be a 320px box that
- * scrolled by itself inside the sheet, and held on to the wheel at its ends (overscroll-contain), so
- * scrolling stopped dead there. A long one opens on its latest entries instead, with the earlier
- * ones behind "Show earlier" — the comment box stays close, and one scroll moves the whole sheet.
- */
-function ActivityFeed({ items }: { items: ReactNode[] }) {
-  const [all, setAll] = useState(false);
-  const hidden = all ? 0 : Math.max(0, items.length - FEED_LATEST);
-  return (
-    <div className="flex flex-col gap-3">
-      {hidden > 0 && (
-        <button type="button" onClick={() => setAll(true)} className="flex items-center gap-1.5 self-start rounded-md px-1.5 py-1 text-[13px] font-medium text-accent-ink hover:bg-surface-2">
-          <ICONS.chevron size={16} aria-hidden className="rotate-180" />
-          Show {hidden} earlier
-        </button>
-      )}
-      <ol aria-label="Activity history" className="flex flex-col gap-3 empty:hidden">
-        {items.slice(hidden)}
-      </ol>
-    </div>
-  );
-}
-
-/** The Activity filter: everything, only what people said, or only what happened. */
-type FeedFilter = "all" | "comments" | "updates";
 
 /** How an item's creation reads in its history, whichever way it was made. */
 const CREATED = /^(Added by |Agreed in the signed offer)/;
 
-function DetailBody({ item: t, items, byId, focus, firstDate, locked, onLocked }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; firstDate: Ref<HTMLButtonElement>; locked: AgreedField | null; onLocked: (field: AgreedField | null) => void }) {
+function DetailBody({ item: t, items, byId, focus, firstDate, locked, onLocked, activityRef }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; firstDate: Ref<HTMLButtonElement>; locked: AgreedField | null; onLocked: (field: AgreedField | null) => void; activityRef: RefObject<HTMLElement | null> }) {
   const { actor, access, names } = useWorkspace();
   const caps = capsFor(t, actor, access);
   const canDescribe = changeFor(t, actor, access, "description", names).ok;
-  /** A comment's notification opens the item on its comments: the history comes into view. */
-  const activity = useRef<HTMLElement>(null);
+  /** A comment's notification opens the item on its comments: the conversation comes into view. */
   useEffect(() => {
-    if (focus === "comments") activity.current?.scrollIntoView({ block: "start" });
-  }, [focus]);
+    if (focus === "comments") activityRef.current?.scrollIntoView({ block: "start" });
+  }, [focus, activityRef]);
   const { changes, review } = neededNow(t);
 
   return (
@@ -200,7 +176,7 @@ function DetailBody({ item: t, items, byId, focus, firstDate, locked, onLocked }
         </Section>
       )}
 
-      <ActivitySection ref={activity} item={t} changes={changes} review={review} canComment={caps.comment} />
+      <ActivitySection ref={activityRef} item={t} changes={changes} review={review} canComment={caps.comment} />
     </>
   );
 }
@@ -441,87 +417,61 @@ function commentPlaceholder(t: WorkItem, talent: boolean, names: WorkspaceEnv["n
   return hearsComments(t, "independent") ? `Add a comment — ${names.independent} gets a notification` : `Add a comment — ${names.independent} can read it but won't be notified`;
 }
 
-/** The history, filtered by kind, and the comment box under it. `ref` is how a comment's notification scrolls here. */
+/**
+ * The item's activity: one stream of what people said and what happened, in time order, as in a
+ * work chat. "Comments only" hides what happened, when there's both to tell apart. `ref` is how a
+ * comment's notification, and a comment just sent from the foot, scroll here.
+ */
 function ActivitySection({ ref, item: t, changes, review, canComment }: { ref: Ref<HTMLElement>; item: WorkItem; canComment: boolean } & ReturnType<typeof neededNow>) {
-  const { actor, actions, people, names } = useWorkspace();
-  const talent = actor.role === "contributor";
-  /** Which part of the history is showing; back to all of it when another item opens. */
-  const [shown, setShown] = useState<{ id: string; kind: FeedFilter }>({ id: t.id, kind: "all" });
-  if (shown.id !== t.id) setShown({ id: t.id, kind: "all" });
+  const { actor, people, names } = useWorkspace();
+  /** Whether only the talk shows; back to everything when another item opens. */
+  const [only, setOnly] = useState<{ id: string; on: boolean }>({ id: t.id, on: false });
+  const onlyComments = only.id === t.id && only.on;
   const feed = historyOf(t, people, { changes, review });
   const comments = feed.filter((f) => f.kind === "comment").length;
-  const filter = shown.id === t.id ? shown.kind : "all";
-  const visible = filter === "all" ? feed : feed.filter((f) => (filter === "comments" ? f.kind === "comment" : f.kind === "event"));
-
+  const toggle = comments > 0 && comments < feed.length && (
+    <button type="button" aria-pressed={onlyComments} onClick={() => setOnly({ id: t.id, on: !onlyComments })} className={`ml-auto rounded-full px-2.5 py-1 text-[12px] leading-[1.2] font-medium transition-colors ${onlyComments ? "bg-accent-bg text-accent-ink" : "text-ink-2 hover:bg-surface-2"}`}>
+      Comments only
+    </button>
+  );
   return (
-    <Section title="Activity" ref={ref}>
-      {/* Only worth filtering when there's both talk and history to tell apart. */}
-      {comments > 0 && comments < feed.length && (
-        <Pills<FeedFilter>
-          aria-label="Show in activity"
-          value={filter}
-          onChange={(kind) => setShown({ id: t.id, kind })}
-          options={[
-            { value: "all", label: `All (${feed.length})` },
-            { value: "comments", label: `Comments (${comments})` },
-            { value: "updates", label: `Updates (${feed.length - comments})` },
-          ]}
-        />
-      )}
-      {feed.length === 0 && <p className="text-[13px] leading-[1.4] text-ink-2">Nothing yet.</p>}
-      <ActivityFeed
-        key={`${t.id}:${filter}`}
-        items={keyed(visible, (f) => (f.kind === "event" ? `e-${f.ts}` : (f.id ?? `c-${f.ts}`))).map(({ item: f, key }) => (f.kind === "event" ? <EventEntry key={key} event={f} /> : <CommentEntry key={key} comment={f} />))}
-      />
-      {canComment && (
-        <CommentBox
-          label="Add a comment"
-          placeholder={commentPlaceholder(t, talent, names)}
-          maxLength={2000}
-          validate={(v) => checkComment(v)?.message ?? null}
-          onSend={(text) => void actions.comment(t, text)}
-        />
-      )}
+    <Section title="Activity" ref={ref} aside={toggle}>
+      <ActivityStream key={t.id} feed={onlyComments ? feed.filter((f) => f.kind === "comment") : feed} empty={conversationEmpty(t, actor.role === "contributor", names, canComment)} />
     </Section>
   );
 }
 
-/** One entry in the history: something that happened, or a comment. */
-type HistoryEntry = ReturnType<typeof historyOf>[number];
-
-/** What happened: a quiet line, its dot on the avatars' centre line so the thread reads as one column. */
-function EventEntry({ event: f }: { event: Extract<HistoryEntry, { kind: "event" }> }) {
-  return (
-    <li className="flex gap-3 text-[12.5px] leading-[1.45] text-ink-2">
-      <span aria-hidden className="flex w-7 shrink-0 justify-center pt-[7px]">
-        <span className="size-1.5 rounded-full bg-[#c3c3c3]" />
-      </span>
-      <span className="min-w-0 flex-1">
-        {f.text} {f.at && <span className="whitespace-nowrap text-muted-2">· {f.at}</span>}
-      </span>
-    </li>
-  );
+/** An empty stream (a task nobody has touched or said anything on): who a first comment reaches — or, for someone who can't comment, just that there's none. */
+function conversationEmpty(t: WorkItem, talent: boolean, names: WorkspaceEnv["names"], canComment: boolean) {
+  if (!canComment) return "No comments on this task.";
+  if (talent) return `No comments yet. Ask ${names.team} a question or share an update — they'll get a notification.`;
+  return hearsComments(t, "independent")
+    ? `No comments yet. Ask ${names.independent} a question or share an update — they'll get a notification.`
+    : `No comments yet. ${names.independent} can read what you write here but won't be notified.`;
 }
 
-/** What someone said: a comment as work tools show one — who, when, then the words — the same for both sides. */
-function CommentEntry({ comment: f }: { comment: Extract<HistoryEntry, { kind: "comment" }> }) {
-  const { actor, people } = useWorkspace();
-  /** Which side the reader is on: their own comments say so. */
-  const me = sideOf(actor);
+/**
+ * The sheet's foot, pinned under the scroll: the next step on the item, if there is one, and the
+ * comment box — always in reach, as in a work chat, however far down the sheet is scrolled.
+ */
+function SheetFoot({ item: t, step, focus, canComment, onSent }: { item: WorkItem; step: Step | null; focus?: DetailFocus; canComment: boolean; onSent: () => void }) {
+  const { actor, actions, names } = useWorkspace();
   return (
-    <li>
-      <article aria-label={`Comment from ${f.name || people[f.side].name}`} className="flex gap-3">
-        <Avatar src={people[f.side].avatar} size={28} />
-        <div className="min-w-0 flex-1 rounded-lg bg-white px-3 py-2.5 outline -outline-offset-1 outline-border">
-          <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] leading-[1.3]">
-            <span className="font-semibold text-ink">{f.name || people[f.side].name}</span>
-            {f.side === me && <span className="text-[12px] text-ink-2">(you)</span>}
-            <span className="text-[12px] text-ink-2">{f.at}</span>
-          </p>
-          <p className="mt-1 text-[14px] leading-[1.45] whitespace-pre-line text-ink [overflow-wrap:anywhere]">{f.text}</p>
-        </div>
-      </article>
-    </li>
+    <div className="flex flex-col gap-3">
+      {step && <NextStep key={step} kind={step} item={t} focus={focus} />}
+      {canComment && (
+        <CommentBox
+          label="Add a comment"
+          placeholder={commentPlaceholder(t, actor.role === "contributor", names)}
+          maxLength={2000}
+          validate={(v) => checkComment(v)?.message ?? null}
+          onSend={(text) => {
+            void actions.comment(t, text);
+            onSent();
+          }}
+        />
+      )}
+    </div>
   );
 }
 
