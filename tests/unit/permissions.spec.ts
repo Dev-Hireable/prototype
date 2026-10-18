@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { taskFromOffer, type PlannedTask } from "../../src/lib/demo/tasks";
 import type { WorkStatus } from "../../src/lib/work/model";
-import { AGREED, AGREED_FIELDS, canCreate, canReorder, capsFor, changeFor, readOnlyReason, targetsFor, tickRefusal, transitionFor, type Role, type WorkField } from "../../src/lib/work/permissions";
+import { AGREED, AGREED_FIELDS, canCreate, capsFor, changeFor, readOnlyReason, reorderFor, targetsFor, tickRefusal, transitionFor, type Role, type WorkField } from "../../src/lib/work/permissions";
 import { ENDED, item, iso, OPEN, REVIEW_ONLY, TRIAL } from "./fixtures";
 
 const manager = { role: "manager" as Role };
@@ -100,9 +100,18 @@ test.describe("capabilities · roles and contracts", () => {
     expect(canCreate(contributor, OPEN)).toBe(false);
     expect(canCreate(manager, OPEN)).toBe(true);
     expect(canCreate(manager, REVIEW_ONLY)).toBe(false);
-    expect(canReorder(contributor, OPEN)).toBe(false);
+    expect(reorderFor(item(), viewer, OPEN, { team: "Alex", independent: "Juan" }).ok).toBe(false);
+    expect(reorderFor(item(), contributor, ENDED, { team: "Alex", independent: "Juan" }).ok).toBe(false);
     expect(readOnlyReason(viewer, OPEN)).toMatch(/read-only/);
     expect(readOnlyReason(manager, OPEN)).toBeNull();
+  });
+
+  test("TB-142: the Team Builder places any item in the order, the Independent only their own", () => {
+    const names = { team: "Alex", independent: "Juan" };
+    for (const assignee of ["independent", "team", null] as const) expect(reorderFor(item({ assignee }), manager, OPEN, names).ok).toBe(true);
+    expect(reorderFor(item({ assignee: "independent" }), contributor, OPEN, names).ok).toBe(true);
+    expect(reorderFor(item({ assignee: "team" }), contributor, OPEN, names)).toEqual({ ok: false, reason: "This is Alex's item, so only they place it." });
+    expect(reorderFor(item({ assignee: null }), contributor, OPEN, names)).toEqual({ ok: false, reason: "Nobody is assigned to it yet — Alex places it." });
   });
 
   test("a trial takes no new work: its tasks are the ones its signed offer agreed", () => {

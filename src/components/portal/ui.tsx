@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useId, useRef, useSyncExternalStore, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { gooeyToast } from "goey-toast";
 import { ICONS } from "@/components/icons";
+import { dismissToast, raiseToast, type ToastAction } from "@/components/portal/notify";
 import { Badge } from "@/components/portal/badge";
 import type { Tone } from "@/lib/portal/tone";
 import { PIPELINE, type Stage } from "@/lib/portal/stages";
@@ -975,34 +975,15 @@ function DrawerCloseGlyph() {
 
 /* ---------------------------------------------------------------- toast --- */
 
-const TOAST_TONE = {
-  success: { fill: "#e4f5ea", type: "success", icon: ICONS.checkCircle, ink: "text-ok" },
-  danger: { fill: "#fcf2f2", type: "error", icon: ICONS.warning, ink: "text-danger" },
-  info: { fill: "#ebf8fe", type: "info", icon: ICONS.info, ink: "text-primary" },
-} as const;
-
 /**
- * goey-toast's pill in our type: the message in 14px ink, our action link — drawn larger by the Toaster's zoom. Its stylesheet isn't
- * in a cascade layer, so it outranks Tailwind's utilities unless they're marked important.
- */
-const TOAST_CLASSES = {
-  wrapper: "!font-sans",
-  content: "!px-3",
-  header: "!gap-2.5",
-  icon: "!size-5",
-  title: "!p-0 !pr-1 !text-[14px] !leading-[1.4] !font-medium !text-ink",
-  actionButton: "!bg-white/70 !text-[14px] !font-semibold !text-primary hover:!bg-white",
-};
-
-/**
- * A page's toast (`useToast` in @/lib/portal/toast), shown by goey-toast in the app's one Toaster
+ * A page's toast (`useToast` in @/lib/portal/toast), drawn by raiseToast in the app's one Toaster
  * (@/components/portal/toaster), top right; the page itself renders nothing. A `danger` one explains
- * something that was refused or didn't work and is announced at once (goey-toast makes it an alert);
+ * something that was refused or didn't work and is announced at once (an alert);
  * `action` offers the one thing to do about it — Undo, Retry, Use mine — and keeps the toast up longer
  * so there's time to click it. While the pointer is on it, the countdown waits (WCAG 2.2.1): reaching
  * for Undo never loses it.
  */
-export function Toast({ toast, onClose, action }: { toast: PageToast | null; onClose: () => void; action?: { label: string; onClick: () => void } }) {
+export function Toast({ toast, onClose, action }: { toast: PageToast | null; onClose: () => void; action?: ToastAction }) {
   /** The toast this page has up: one taken down to make way for the next mustn't clear the page's. */
   const current = useRef<string | number | null>(null);
   const closed = useEffectEvent((id: string | number) => {
@@ -1012,28 +993,11 @@ export function Toast({ toast, onClose, action }: { toast: PageToast | null; onC
   const actionLabel = action?.label;
   useEffect(() => {
     if (!toast) return;
-    const t = TOAST_TONE[toast.tone];
-    const id = gooeyToast[t.type](toast.message, {
-      icon: <t.icon size={20} aria-hidden className={t.ink} />,
-      fillColor: t.fill,
-      duration: actionLabel || toast.tone === "danger" ? 8000 : 3500,
-      classNames: TOAST_CLASSES,
-      showTimestamp: false,
-      action: actionLabel
-        ? {
-            label: actionLabel,
-            onClick: () => {
-              act();
-              gooeyToast.dismiss(id);
-            },
-          }
-        : undefined,
-      onDismiss: (dismissed) => closed(dismissed),
-    });
+    const id = raiseToast(toast, actionLabel ? { label: actionLabel, onClick: () => act() } : undefined, (dismissed) => closed(dismissed));
     current.current = id;
     return () => {
       current.current = null;
-      gooeyToast.dismiss(id);
+      dismissToast(id);
     };
   }, [toast, actionLabel]);
   return null;

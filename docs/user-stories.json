@@ -657,7 +657,7 @@
   "id": "TB-142",
   "title": "Order Work by Hand",
   "story": "As a Team Builder, I want to set the order of the work so that the most important items come first.",
-  "ac": "- With Manual sort, the Team Builder drags cards within a column (or between columns) to where they belong - Keyboard: Alt+Shift+Up/Down on a focused card or row, or Move up, Move down, Move to top and Move to bottom in its ⋯ menu - The order is one list shared by every view and saved - The Independent Contractor sees the order but doesn't change it - Under another sort, dragging within a column doesn't reorder, and the board says so"
+  "ac": "- With Manual sort, the Team Builder drags cards within a column (or between columns) to where they belong - Keyboard: Alt+Shift+Up/Down on a focused card or row, or Move up, Move down, Move to top and Move to bottom in its ⋯ menu - The order is one list shared by every view and saved - The Independent Contractor places their own items in the order the same ways (drag, keyboard, ⋯ menu); the Team Builder's items and unassigned ones stay where the Team Builder put them, and moving one says why it can't - While a card is dragged it lifts out of its place and the cards part where it would land - Under another sort, dragging within a column doesn't reorder, and the board says so"
  },
  {
   "id": "TB-143",
@@ -867,7 +867,7 @@
   "id": "IN-028",
   "title": "Switch Between Work Views",
   "story": "As an Independent Contractor, I want to switch my contract's work between Board, List, Calendar, Timeline and Workload so that I can work from cards, rows, dates or a schedule.",
-  "ac": "- The Work tab shows the contract's work full width — the same items the Team Builder sees; Board is the default view - The five views, search, filters, sort and grouping work as for the Team Builder (TB-131, TB-132) and are kept in the address - In Board view, the Independent Contractor drags their own cards between To do, In progress and In review — dropping on In review sends the item for review - Cards can't be dropped on Done — an item only reaches Done when the Team Builder approves it - The Team Builder's items and unassigned ones can't be moved; hovering a card says why - Due dates, effort, priority, assignee and work type are the Team Builder's to set; they are shown but not editable — the Independent Contractor sets only when their own open work starts (IN-087) - There is no Add task — the Team Builder adds the work; the Independent Contractor breaks their items into subtasks"
+  "ac": "- The Work tab shows the contract's work full width — the same items the Team Builder sees; Board is the default view - The five views, search, filters, sort and grouping work as for the Team Builder (TB-131, TB-132) and are kept in the address - In Board view, the Independent Contractor drags their own cards between To do, In progress and In review — dropping on In review sends the item for review - With Manual sort, their own cards land where they're dropped, and they reorder them within a column too (TB-142) - Cards can't be dropped on Done — an item only reaches Done when the Team Builder approves it - The Team Builder's items and unassigned ones can't be moved; hovering a card says why - Due dates, effort, priority, assignee and work type are the Team Builder's to set; they are shown but not editable — the Independent Contractor sets only when their own open work starts (IN-087) - There is no Add task — the Team Builder adds the work; the Independent Contractor breaks their items into subtasks"
  },
  {
   "id": "IN-026",

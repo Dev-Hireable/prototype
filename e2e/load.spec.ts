@@ -83,7 +83,7 @@ test.describe("loading the workspace · the Overview tab", () => {
     await page.getByRole("tab", { name: "Overview" }).click();
     // Only #10: it was sent back with changes (and it's overdue). #2's review is Alex's to do.
     await expect(page.getByRole("region", { name: "Needs attention" }).getByRole("button")).toHaveCount(1);
-    await expect(page.getByText("Alex asked for changes on an item.")).toBeVisible();
+    await expect(page.getByText("Alex asked for changes on #10 Fix the icon grid.")).toBeVisible();
     await page.getByRole("button", { name: "Open", exact: true }).click();
     await expect(page).toHaveURL(/task=t-icons/);
     await expect(panel(page)).toBeVisible();

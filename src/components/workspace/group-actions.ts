@@ -68,7 +68,9 @@ function menuModelOf(id: string, byId: ReadonlyMap<string, WorkItem>, groups: re
   if (!t) return null;
   const at = groups.findIndex((g) => g.items.some((x) => x.id === id));
   const column = at >= 0 ? groups[at].items : [];
-  return { item: t, moves: movesOf(t, groups, at, env, reorderable), order: reorderable ? orderOf(t, column, env.actions) : undefined };
+  // Up, down and the rest only for an item this person places (TB-142).
+  const placed = reorderable && env.canPlace(t);
+  return { item: t, moves: movesOf(t, groups, at, env, placed), order: placed ? orderOf(t, column, env.actions) : undefined };
 }
 
 /** Move to: every other group the item may go to — a real change there, not just a new place in the order. */

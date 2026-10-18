@@ -552,14 +552,6 @@ summary {
 }
 
 /*
- * The toasts (goey-toast, @/components/portal/toaster) drawn larger: its pill is a fixed 34px, too
- * slight beside the page, and `zoom` scales the pill, its morph and its text together.
- */
-[data-sonner-toaster] {
-  zoom: 1.25;
-}
-
-/*
  * A count in a badge (unread, filters on): trimmed to the digits' cap height, so they sit in the
  * middle of the pill. With the font's full line box they sat off-centre — the box counts the
  * ascender and descender room digits don't use.

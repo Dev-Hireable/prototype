@@ -21,12 +21,18 @@ const SideContext = React.createContext<Side>("right")
  * Hireable: the side is set on the root (it decides which way a swipe dismisses), and on a phone a
  * side sheet comes up from the bottom edge instead — a full-width sheet the thumb can drag down.
  */
-function Sheet({ side = "right", ...props }: SheetPrimitive.Root.Props & { side?: Side }) {
+function Sheet({ side = "right", open, ...props }: SheetPrimitive.Root.Props & { side?: Side }) {
   const phone = useMedia(PHONE)
   const shown: Side = phone && (side === "left" || side === "right") ? "bottom" : side
+  // Base UI slides a sheet in only when `open` turns true after it mounted: one mounted already open
+  // (the task sheet, keyed by its item, mounts on each new item's first open) just appeared. So it
+  // mounts closed and opens a moment later, and slides in like every other open.
+  const [mounted, setMounted] = React.useState(false)
+  // oxlint-disable-next-line react/set-state-in-effect -- the second render is the point: it opens a sheet that has mounted closed
+  React.useEffect(() => setMounted(true), [])
   return (
     <SideContext.Provider value={shown}>
-      <SheetPrimitive.Root data-slot="sheet" swipeDirection={SWIPE[shown]} {...props} />
+      <SheetPrimitive.Root data-slot="sheet" swipeDirection={SWIPE[shown]} open={open === undefined ? undefined : open && mounted} {...props} />
     </SideContext.Provider>
   )
 }

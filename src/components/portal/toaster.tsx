@@ -1,13 +1,12 @@
 "use client";
 
-import { GooeyToaster } from "goey-toast";
-import "goey-toast/styles.css";
+import { Toaster as Sonner } from "sonner";
 
 /**
- * Where every page's toast (`Toast` in @/components/portal/ui) shows: goey-toast's morphing pill, top
- * right, once for the whole app. Escape is left to dialogs and sheets — a toast up beside an open
- * dialog shouldn't take the key that closes it.
+ * Where every toast shows (`raiseToast` in @/components/portal/notify draws them): Sonner, top right,
+ * once for the whole app — it stacks them, times them out, holds the countdown while one is hovered
+ * and lets one be swiped away. Each toast is our own card, so Sonner's look is off.
  */
 export function Toaster() {
-  return <GooeyToaster position="top-right" offset="20px" closeButton="top-right" closeOnEscape={false} showTimestamp={false} preset="smooth" />;
+  return <Sonner position="top-right" offset={20} gap={8} visibleToasts={3} toastOptions={{ unstyled: true }} />;
 }

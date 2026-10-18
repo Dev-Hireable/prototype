@@ -5,7 +5,7 @@ import type { ProjectCtx, ProjectSummary, Scope } from "@/lib/work/projects";
 import { useSearchParams } from "next/navigation";
 import type { TaskPeople } from "@/components/workspace/labels";
 import type { Day } from "@/lib/work/dates";
-import type { AssigneeKey } from "@/lib/work/model";
+import type { AssigneeKey, WorkItem } from "@/lib/work/model";
 import type { Actor, Names, WorkAccess } from "@/lib/work/permissions";
 import { DEFAULT_SORT_DIR, parseQuery, serializeQuery, type WorkQuery } from "@/lib/work/query";
 import type { WorkActions } from "@/lib/work/store";
@@ -25,7 +25,10 @@ export type WorkspaceEnv = {
   actions: WorkActions;
   today: Day;
   canCreate: boolean;
+  /** Whether this person orders any of the work by hand (TB-142) — the views offer manual moves at all. */
   canReorder: boolean;
+  /** Whether this item is theirs to place: all of it for the Team Builder, their own items for the Independent. */
+  canPlace: (t: WorkItem) => boolean;
   /** Opens an item's panel; `focus` puts the cursor where the reason for opening is. */
   openTask: (id: string, focus?: DetailFocus) => void;
   assigneeLabel: (k: AssigneeKey) => string;

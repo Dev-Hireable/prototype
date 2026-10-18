@@ -249,8 +249,19 @@ export const canCreate = (actor: Pick<Actor, "role">, access: WorkAccess) => act
  */
 export const canPlanProjects = (actor: Pick<Actor, "role">, access: WorkAccess) => actor.role === "manager" && access.open && !access.trial;
 
-/** Manual order is the Team Builder's plan. */
-export const canReorder = (actor: Pick<Actor, "role">, access: WorkAccess) => actor.role === "manager" && access.open;
+/**
+ * TB-142 — the manual order: the Team Builder sets it for all the work, and the Independent places
+ * their own items in it (where their work sits among the rest; the Team Builder's items and
+ * unassigned ones stay where the Team Builder put them). Whether this person orders anything at all.
+ */
+export const canReorder = (actor: Pick<Actor, "role">, access: WorkAccess) => (actor.role === "manager" || actor.role === "contributor") && access.open;
+
+/** Whether this person can move this item to a new place in the manual order — and, when they can't, why not. */
+export function reorderFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAccess, names: Names): { ok: true } | { ok: false; reason: string } {
+  if (!canReorder(actor, access)) return { ok: false, reason: `${names.team} sets the order of the work.` };
+  if (actor.role === "manager" || t.assignee === "independent") return { ok: true };
+  return { ok: false, reason: t.assignee === "team" ? `This is ${names.team}'s item, so only they place it.` : `Nobody is assigned to it yet — ${names.team} places it.` };
+}
 
 /* ------------------------------------------------------------ transitions */
 

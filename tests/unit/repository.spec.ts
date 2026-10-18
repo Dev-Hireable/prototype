@@ -303,9 +303,12 @@ test.describe("move", () => {
     expect(store.get("a").assignee).toBe("team");
   });
 
-  test("only the Team Builder reorders", async () => {
-    const { juan } = setup([item({ id: "x", order: 1 }), item({ id: "y", order: 2 })]);
-    expect((await rejection(juan.move("y", { before: "x" }))).message).toMatch(/order/);
+  test("the Independent places their own items in the order, and only theirs", async () => {
+    const { store, juan } = setup([item({ id: "x", order: 1024 }), item({ id: "y", order: 2048 }), item({ id: "t", order: 3072, assignee: "team" }), item({ id: "u", order: 4096, assignee: null })]);
+    await juan.move("y", { before: "x" });
+    expect(store.get("y").order).toBeLessThan(store.get("x").order);
+    expect((await rejection(juan.move("t", { before: "x" }))).message).toMatch(/only they place it/);
+    expect((await rejection(juan.move("u", { before: "x" }))).message).toMatch(/places it/);
   });
 });
 
