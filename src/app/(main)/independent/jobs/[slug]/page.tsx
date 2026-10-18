@@ -18,6 +18,7 @@ import { ApplyDialog } from "./_components/apply-dialog";
 import { CompanyCard } from "./_components/company-card";
 import { RoleHeader, RoleSections } from "./_components/role-post";
 import { standingOn } from "./_lib/standing";
+import { toggleSavedWithNote } from "@/components/portal/notify";
 
 /**
  * IN-012 / IN-017 — a role's detail page, and the confirm before applying to it.
@@ -71,7 +72,7 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
             while the role scrolls — 24px down, below the scroller's top fade (ScrollFade's RAMP), so the
             fade never thins it. */}
         <aside className={`${SIDE_COLUMN} lg:sticky lg:top-6`}>
-          <CompanyCard role={role} site={posting.website} standing={standing} isSaved={isSaved} onApply={() => setOpen(true)} onToggleSaved={() => toggleSaved(role.slug)} />
+          <CompanyCard role={role} site={posting.website} standing={standing} isSaved={isSaved} onApply={() => setOpen(true)} onToggleSaved={() => toggleSavedWithNote(role.title, isSaved, () => toggleSaved(role.slug))} />
         </aside>
       </div>
 

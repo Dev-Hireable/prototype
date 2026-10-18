@@ -10,6 +10,7 @@ import { useSavedTalent } from "@/lib/team/saved";
 import { TalentBrowser } from "../_components/talent-browser";
 import { TalentOverlays } from "../_components/talent-overlays";
 import { useTalentFilters } from "../_lib/filters";
+import { toggleSavedWithNote } from "@/components/portal/notify";
 
 /**
  * Saved independents, built to TB-019: the same search, filter panel and pagination as Discover,
@@ -53,8 +54,7 @@ export default function SavedIndependents() {
         person={removing}
         onClose={() => setRemoving(null)}
         onRemove={(p) => {
-          toggleSaved(p.slug);
-          setToast(`${p.name} removed from saved`);
+          toggleSavedWithNote(p.name, true, () => toggleSaved(p.slug));
         }}
       />
 

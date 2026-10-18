@@ -16,6 +16,7 @@ import { pipelineHref } from "@/lib/team/data";
 import type { Independent } from "@/lib/team/data";
 import { useSavedTalent } from "@/lib/team/saved";
 import { usePipeline } from "@/lib/team/pipeline";
+import { toggleSavedWithNote } from "@/components/portal/notify";
 
 export function IndependentCard({
   person,
@@ -79,7 +80,7 @@ function IndependentCardActions({ person, variant, onInvite, onRemove }: { perso
   return (
     <div className="flex shrink-0 items-center gap-2 max-sm:w-full max-sm:[&>a]:h-10 max-sm:[&>a]:flex-1 max-sm:[&>button]:h-10 max-sm:[&>button:last-child]:flex-1">
       {variant === "saved" ? (
-        <Button size="sm" variant="danger" onClick={() => (onRemove ? onRemove() : toggleSaved(person.slug))}>
+        <Button size="sm" variant="danger" onClick={() => (onRemove ? onRemove() : toggleSavedWithNote(person.name, true, () => toggleSaved(person.slug)))}>
           Remove
         </Button>
       ) : (
@@ -87,7 +88,7 @@ function IndependentCardActions({ person, variant, onInvite, onRemove }: { perso
           type="button"
           aria-label={isSaved ? "Unsave independent" : "Save independent"}
           aria-pressed={isSaved}
-          onClick={() => toggleSaved(person.slug)}
+          onClick={() => toggleSavedWithNote(person.name, isSaved, () => toggleSaved(person.slug))}
           className="flex size-7 shrink-0 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary max-sm:size-10"
         >
           <Mark size={16} aria-hidden />
@@ -275,7 +276,7 @@ export function SaveButton({ person }: { person: Independent }) {
   const isSaved = saved.includes(person.slug);
   const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
   return (
-    <Button onClick={() => toggleSaved(person.slug)}>
+    <Button onClick={() => toggleSavedWithNote(person.name, isSaved, () => toggleSaved(person.slug))}>
       <Mark size={18} aria-hidden className={isSaved ? "text-primary" : "text-ink-2"} />
       {isSaved ? "Saved" : "Save"}
     </Button>

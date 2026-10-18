@@ -9,6 +9,7 @@ import type { Application, Role } from "@/lib/independent/data";
 import { useSavedRoles } from "@/lib/independent/saved";
 import { useApplications } from "@/lib/independent/applications";
 import { useWithReturn } from "@/components/portal/return";
+import { toggleSavedWithNote } from "@/components/portal/notify";
 
 const Bookmark = ICONS.saved;
 const Bookmarked = ICONS.bookmark;
@@ -47,9 +48,9 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {variant === "saved" ? (
-            <SavedActions role={role} application={application} closed={closedButton(role, withdrawn, declined, engagedElsewhere, engagement?.title)} out={out} onRemove={() => toggleSaved(role.slug)} />
+            <SavedActions role={role} application={application} closed={closedButton(role, withdrawn, declined, engagedElsewhere, engagement?.title)} out={out} onRemove={() => toggleSavedWithNote(role.title, true, () => toggleSaved(role.slug))} />
           ) : (
-            <DiscoverActions slug={role.slug} isSaved={isSaved} onToggle={() => toggleSaved(role.slug)} />
+            <DiscoverActions slug={role.slug} isSaved={isSaved} onToggle={() => toggleSavedWithNote(role.title, isSaved, () => toggleSaved(role.slug))} />
           )}
         </div>
       </div>
