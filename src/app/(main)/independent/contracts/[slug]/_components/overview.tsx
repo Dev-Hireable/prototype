@@ -5,7 +5,7 @@ import { dayLabel } from "@/lib/portal/dates";
 import { usd } from "@/lib/demo/disputes";
 import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Contract } from "@/lib/independent/data";
-import { isArchived } from "@/lib/work/model";
+import { isArchived, refOf } from "@/lib/work/model";
 import { decisionNote } from "../_lib/copy";
 
 /** IN-084 — the full-time or part-time offer after the trial, one click from the contract it continues. */
@@ -85,7 +85,12 @@ function ChangesAsked({ contract, onOpen }: { contract: Contract; onOpen: (id: s
         </Button>
       }
     >
-      {contract.managerFirst} asked for changes on {changed.length === 1 ? "an item" : `${changed.length} items`}. Read the note, make the changes, then send {changed.length === 1 ? "it" : "them"} for review again.
+      {/* Says which item, not "an item": the button opens that one, with the note. */}
+      {contract.managerFirst} asked for changes on{" "}
+      <span className="font-semibold">
+        {refOf(changed[0])} {changed[0].title}
+      </span>
+      {changed.length > 1 && ` and ${changed.length - 1} more`}.
     </Callout>
   );
 }

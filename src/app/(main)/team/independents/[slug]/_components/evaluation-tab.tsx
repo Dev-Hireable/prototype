@@ -5,6 +5,7 @@ import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { Tip } from "@/components/portal/tip";
 import { usd } from "@/lib/demo/disputes";
 import { keyed } from "@/lib/portal/keys";
+import { refOf } from "@/lib/work/model";
 import { evaluationIntro, hireLabel } from "../_lib/copy";
 import { SCORES, type EvaluationDraft as Draft } from "../_lib/forms";
 import type { Tracker } from "../_lib/tracker";
@@ -143,7 +144,10 @@ function TrialPending({ t, ready, onEnd, onSend }: ActionProps) {
       </Button>
       {canEvaluate && waiting.length > 0 && (
         <p className="w-full text-right text-[13px] leading-[1.4] text-[#8e6f12]">
-          {waiting.length === 1 ? "An item is" : `${waiting.length} items are`} still waiting on your review. Approve {waiting.length === 1 ? "it" : "them"} first: the Trial Fit Score is final once this is sent.
+          <span className="font-semibold">
+            {refOf(waiting[0])} {waiting[0].title}
+          </span>
+          {waiting.length > 1 && ` and ${waiting.length - 1} more`} still {waiting.length === 1 ? "waits" : "wait"} on your review. Approve {waiting.length === 1 ? "it" : "them"} first: the Trial Fit Score is final once this is sent.
         </p>
       )}
       <Button size="lg" variant="primary" disabled={!canEvaluate || !ready} onClick={onSend}>
