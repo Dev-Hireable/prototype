@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Highlight, SearchBox } from "@/components/portal/ui";
-import { ChatBubble, TypingBubble, type Receipt } from "@/components/portal/chat-bubble";
+import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
+import { TypingDots } from "@/components/portal/typing-dots";
 import { ChatSourceLink, EntryDetails } from "@/components/portal/chat-source-link";
 import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
@@ -365,7 +366,7 @@ export function ChatLog<C extends { id: string; name: string }>({ conv, face, ch
       {typing && (
         <div className="flex items-end gap-2">
           {face(conv, 30)}
-          <TypingBubble name={conv.name} />
+          <TypingDots tone="message" label={`${conv.name} is typing`} />
         </div>
       )}
     </ThreadBody>
