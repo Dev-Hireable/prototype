@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Highlight, SearchBox } from "@/components/portal/ui";
-import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
+import { ChatBubble, TypingBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { ChatSourceLink, EntryDetails } from "@/components/portal/chat-source-link";
 import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
@@ -15,6 +15,7 @@ import { savedOffset } from "@/lib/demo/clocks";
 import { openChat, readBy, sendChat, taskHref, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
 import { useDeal } from "@/lib/demo/deal";
 import { fileDropHandlers, KEEP_FAILED, keepFiles, usePendingFiles } from "@/lib/demo/files";
+import { markTyping, stopTyping, useTyping } from "@/lib/demo/typing";
 import { AttachButton, FileTiles, PendingFiles } from "@/components/portal/attachments";
 import { SendButton } from "@/components/portal/comment-box";
 import { Tip } from "@/components/portal/tip";
@@ -158,10 +159,17 @@ export function useComposer(side: Side) {
       return pending.setError(KEEP_FAILED);
     }
     setDraft("");
+    stopTyping(side);
     pending.clear();
   };
+  // The other side sees typing dots while there's something in the box (@/lib/demo/typing).
+  const onDraft = (text: string) => {
+    setDraft(text);
+    if (text.trim()) markTyping(side);
+    else stopTyping(side);
+  };
 
-  return { draft, onDraft: setDraft, pending: pending.files, onRemove: pending.remove, fileError: pending.error, onPick: pending.add, onSend: () => void send() };
+  return { draft, onDraft, pending: pending.files, onRemove: pending.remove, fileError: pending.error, onPick: pending.add, onSend: () => void send() };
 }
 
 /**
@@ -308,12 +316,14 @@ function ConversationHeader({ avatar, name, sub, badge, onBack, onProfile }: { a
 export function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, focus }: { conv: C; face: Face<C>; chat: Chat; q: string; focus: string | null }) {
   // Messages has no calls any more: one saved before they went isn't shown.
   const rows = live.chat.map((m, i) => ({ m, i })).filter(({ m }) => seenBy(m, side) && !("call" in m));
+  const typing = useTyping(other);
   // The thread scrolls to its end as it opens; a notification's entry is then brought into view.
   useEffect(() => {
     if (focus) document.getElementById(`msg-${focus}`)?.scrollIntoView({ block: "center" });
   }, [focus, rows.length]);
   return (
-    <ThreadBody latest={`${conv.id}:${live.chat.length}`}>
+    // Its end moves with a new message and with the other side's typing dots, so both come into view.
+    <ThreadBody latest={`${conv.id}:${live.chat.length}:${typing}`}>
       {rows.length === 0 && <p className="py-6 text-center text-[12.5px] leading-[1.45] text-muted">No messages yet. Say hello. {conv.name} is notified.</p>}
       {rows.map(({ m, i }, n) => {
         const me = m.from === side;
@@ -345,6 +355,12 @@ export function ChatLog<C extends { id: string; name: string }>({ conv, face, ch
           </div>
         );
       })}
+      {typing && (
+        <div className="flex items-end gap-2">
+          {face(conv, 30)}
+          <TypingBubble name={conv.name} />
+        </div>
+      )}
     </ThreadBody>
   );
 }

@@ -45,3 +45,32 @@ test.describe("two tabs on one contract", () => {
     await expect.poll(async () => (await savedItem(other, "t-share")).title).toBe("Share the style tiles — second draft");
   });
 });
+
+test.describe("two tabs on one contract · typing", () => {
+  test("someone writing in one tab shows as typing dots in the other, gone once they send", async ({ page, secondPage }) => {
+    await page.goto("/team/messages");
+    const juan = await secondPage();
+    await juan.goto("/independent/messages");
+    const box = juan.getByRole("textbox", { name: "Message" });
+    await box.fill("On it, the logos are coming tonight");
+    // Sonner's toasts are statuses too: the dots are the one that says who's typing.
+    const dots = page.getByRole("status").filter({ hasText: "is typing" });
+    await expect(dots).toHaveText("Juan Dela Cruz is typing");
+    await box.press("Enter");
+    await expect(dots).toHaveCount(0);
+    await expect(page.getByText("On it, the logos are coming tonight")).toBeVisible();
+  });
+
+  test("emptying the box stops the dots, and nobody sees their own", async ({ page, secondPage }) => {
+    await page.goto("/team/messages");
+    const juan = await secondPage();
+    await juan.goto("/independent/messages");
+    const box = juan.getByRole("textbox", { name: "Message" });
+    await box.fill("Draft");
+    const dots = page.getByRole("status").filter({ hasText: "is typing" });
+    await expect(dots).toHaveCount(1);
+    await expect(juan.getByRole("status").filter({ hasText: "is typing" })).toHaveCount(0);
+    await box.fill("");
+    await expect(dots).toHaveCount(0);
+  });
+});

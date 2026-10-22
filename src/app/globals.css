@@ -505,6 +505,28 @@ summary {
   }
 }
 
+/* The other side's typing dots (TypingBubble): each brightens in turn, a beat apart, without moving.
+   Without motion they stay still, half lit. */
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+.typing-dot {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 /*
  * A heading that sticks to the top of its scroll (the task sheet's name): a hairline under it once
  * the content runs beneath, drawn by how far its scroller has scrolled rather than by a script.
