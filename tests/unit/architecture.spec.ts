@@ -56,7 +56,7 @@ test("the contract lifecycle is pure, and only its store moves the lifecycle's m
 });
 
 test("the domain layer is pure", () => {
-  const pure = ["dates", "model", "validate", "permissions", "order", "query", "calendar", "timeline", "workload", "migrate", "errors", "overlay", "repository"];
+  const pure = ["dates", "model", "validate", "permissions", "order", "query", "calendar", "timeline", "workload", "migrate", "errors", "overlay", "repository", "refs"];
   for (const name of pure) {
     const src = read(join("src", "lib", "work", `${name}.ts`));
     expect(src, name).not.toMatch(/from "react"|from "@\/|"use client"|window\.|localStorage|document\./);

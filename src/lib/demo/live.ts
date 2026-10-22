@@ -685,6 +685,9 @@ const excerpt = (text: string, max = 140) => {
   return line.length <= max ? line : `${line.slice(0, max).replace(/\s+\S*$/, "")}…`;
 };
 
+/** Where a work item opens on each side: its contract's Work tab, with the item's sheet open. */
+export const taskHref = (side: Side, roleSlug: string, taskId: string) => `${side === "independent" ? `/independent/contracts/${roleSlug}` : `/team/independents/${PAIR.independent.slug}`}?task=${encodeURIComponent(taskId)}`;
+
 /**
  * TB-065 / IN-043 — a comment on a work item tells the side that didn't write it, and opens the
  * item on its comments. Another comment on the same item while that notification is still unread
@@ -693,8 +696,7 @@ const excerpt = (text: string, max = 140) => {
 export function noteComment(from: Side, role: { slug: string; title: string }, task: { id: string; title: string }, text: string) {
   refresh();
   const to: Side = from === "team" ? "independent" : "team";
-  const at = `?task=${encodeURIComponent(task.id)}&focus=comments`;
-  const href = to === "independent" ? `/independent/contracts/${role.slug}${at}` : `/team/independents/${PAIR.independent.slug}${at}`;
+  const href = `${taskHref(to, role.slug, task.id)}&focus=comments`;
   const note = { id: uid(), group: "Today" as const, title: `${PAIR[from].name} commented on a task`, body: `On “${task.title}” for ${role.title}: “${excerpt(text)}”`, time: clock(), at: Date.now(), unread: true, href, avatar: PAIR[from].avatar };
   const fresh = (n: { unread: boolean; href: string }) => !(n.unread && n.href === href);
   if (to === "independent") {

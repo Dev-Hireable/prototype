@@ -12,6 +12,7 @@ import { KEEP_FAILED, keepFiles } from "@/lib/demo/files";
 import { hearsComments, isArchived, isCompleted, isOverdue, openBlockers, refOf, type WorkFile, type WorkItem } from "@/lib/work/model";
 import { capsFor, changeFor, type AgreedField } from "@/lib/work/permissions";
 import { checkComment, checkTitle } from "@/lib/work/validate";
+import { notice } from "@/lib/work/store";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
 import { DateField, StatusField } from "./fields";
 import { AgreedNotice } from "./contract-lock";
@@ -151,7 +152,7 @@ function TitleBlock({ item: t, focus, pending, firstDate, onLocked }: { item: Wo
       <DatesLine item={t} firstDate={firstDate} onLocked={onLocked} />
       {/* `-top-6`: a sticky box keeps clear of its scroller's padding, so it's pulled up by as much to sit flush under the top bar. */}
       <div className="stuck-edge sticky -top-6 z-10 -mx-6 -my-2 flex min-w-0 items-center gap-1 bg-white px-6 py-2">
-        {t.number ? <span className="shrink-0 font-display text-[20px] leading-none font-semibold text-ink-2 tabular-nums">{refOf(t)}</span> : null}
+        {t.number ? <CopyRef item={t} /> : null}
         <DraftText
           oneLine
           key={`title-${t.id}`}
@@ -173,6 +174,31 @@ function TitleBlock({ item: t, focus, pending, firstDate, onLocked }: { item: Wo
       </div>
     </>
   );
+}
+
+/**
+ * The item's number ("#4"), which copies on a click: pasted into a comment or a message, it opens the
+ * item there (TaskRefText, ChatText).
+ */
+function CopyRef({ item: t }: { item: WorkItem }) {
+  const ref = refOf(t);
+  return (
+    <Tip label="Copy task ID">
+      <button type="button" aria-label={`Copy task ID ${ref}`} onClick={() => void copyRef(ref)} className="shrink-0 rounded-md px-1 py-0.5 font-display text-[20px] leading-none font-semibold text-ink-2 tabular-nums hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
+        {ref}
+      </button>
+    </Tip>
+  );
+}
+
+/** Copies a task's reference and says so — or that this browser wouldn't let it. */
+async function copyRef(ref: string) {
+  try {
+    await navigator.clipboard.writeText(ref);
+    notice(`Copied ${ref}. Pasted in a comment or a message, it opens this task.`);
+  } catch {
+    notice(`Couldn't copy ${ref}: this browser didn't allow it.`, "danger");
+  }
 }
 
 /**
@@ -238,7 +264,7 @@ function DetailBody({ item: t, items, byId, focus, locked, onLocked, activityRef
 
       <TaskProps item={t} items={items} byId={byId} onLocked={onLocked} />
 
-      <ActivitySection ref={activityRef} item={t} changes={changes} review={review} canComment={caps.comment} />
+      <ActivitySection ref={activityRef} item={t} items={items} changes={changes} review={review} canComment={caps.comment} />
     </>
   );
 }
@@ -317,10 +343,11 @@ function historyOf(t: WorkItem, people: WorkspaceEnv["people"], { changes, revie
  * chat — set off from the properties by a band across the sheet, as the reference sets off its
  * comments. "Comments only" hides what happened, when there's both to tell apart. `ref` is how a
  * comment's notification, and a comment just sent from the foot, scroll here — clear of the name
- * that sticks at the top.
+ * that sticks at the top. A "#4" in a comment opens that item (`items`, by number).
  */
-function ActivitySection({ ref, item: t, changes, review, canComment }: { ref: Ref<HTMLElement>; item: WorkItem; canComment: boolean } & ReturnType<typeof neededNow>) {
+function ActivitySection({ ref, item: t, items, changes, review, canComment }: { ref: Ref<HTMLElement>; item: WorkItem; items: readonly WorkItem[]; canComment: boolean } & ReturnType<typeof neededNow>) {
   const { actor, people, names } = useWorkspace();
+  const byNumber = new Map(items.map((x) => [x.number, x]));
   /** Whether only the talk shows; back to everything when another item opens. */
   const [only, setOnly] = useState<{ id: string; on: boolean }>({ id: t.id, on: false });
   const onlyComments = only.id === t.id && only.on;
@@ -336,7 +363,7 @@ function ActivitySection({ ref, item: t, changes, review, canComment }: { ref: R
           </button>
         )}
       </h3>
-      <ActivityStream key={t.id} feed={onlyComments ? feed.filter((f) => f.kind === "comment") : feed} empty={conversationEmpty(t, actor.role === "contributor", names, canComment)} />
+      <ActivityStream key={t.id} feed={onlyComments ? feed.filter((f) => f.kind === "comment") : feed} byNumber={byNumber} empty={conversationEmpty(t, actor.role === "contributor", names, canComment)} />
     </section>
   );
 }

@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { api, closePanel, expect, filePicker, notes, open, panel, savedItem, test, upload } from "./fixtures";
+import { api, closePanel, expect, filePicker, notes, open, panel, savedItem, test, toast, upload } from "./fixtures";
 
 // The item's sheet: its name heads it; subtasks go in one after another from the keyboard, and a
 // box that can't be ticked says why; the Independent says what their own work waits on; and
@@ -226,5 +226,27 @@ test.describe("task sheet · files on comments", () => {
     await page.keyboard.press("Escape");
     await expect(viewer).toHaveCount(0);
     await expect(p).toBeVisible();
+  });
+});
+
+test.describe("task sheet · task IDs", () => {
+  test.use({ permissions: ["clipboard-read", "clipboard-write"] });
+
+  test("the number copies the task's ID; a #4 in a comment opens that task, and any other #number stays as written", async ({ page }) => {
+    await open(page, "team", "?task=t-kickoff");
+    const p = panel(page);
+    await p.getByRole("button", { name: "Copy task ID #6" }).click();
+    await expect(toast(page, "Copied #6. Pasted in a comment or a message, it opens this task.")).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("#6");
+
+    await p.getByRole("textbox", { name: "Add a comment" }).fill("Could you check #4 before Friday? Not #99.");
+    await p.getByRole("button", { name: "Send", exact: true }).click();
+    const comment = p.getByRole("article", { name: "Comment from Alex Rivera" });
+    await expect(comment).toContainText("Could you check #4 before Friday? Not #99.");
+    // Only the #4 of a task on this contract is a link.
+    await expect(comment.getByRole("button")).toHaveCount(1);
+    await comment.getByRole("button", { name: "#4 Pick a typography pairing" }).click();
+    await expect(page).toHaveURL(/[?&]task=t-type/);
+    await expect(p.getByRole("button", { name: "Copy task ID #4" })).toBeVisible();
   });
 });

@@ -1,4 +1,4 @@
-import { expect, filePicker, open, stored, test, upload } from "./fixtures";
+import { expect, filePicker, open, panel, stored, test, upload } from "./fixtures";
 
 // Messages and the quick chat: the thread's header opens the other side's profile in a sheet, and a
 // work screen's "Message …" opens the same thread in a small window over the page.
@@ -88,5 +88,21 @@ test.describe("messages · files", () => {
     const chat = (await stored(page, "live")).chat as { text?: string; files?: { name: string }[] }[];
     expect(chat.at(-1)).toMatchObject({ files: [{ name: "Type specimen.pdf" }] });
     expect(chat.at(-1)?.text).toBeUndefined();
+  });
+});
+
+test.describe("messages · task IDs", () => {
+  test("a #4 in a message links to that task, on each side's own contract page", async ({ page }) => {
+    await page.goto("/team/messages");
+    const message = page.getByRole("textbox", { name: "Message" });
+    await message.fill("Can you look at #4 before Friday?");
+    await message.press("Enter");
+    await expect(page.getByRole("link", { name: "#4 Pick a typography pairing" })).toHaveAttribute("href", "/team/independents/juan-dela-cruz?task=t-type");
+
+    await page.goto("/independent/messages");
+    const link = page.getByRole("link", { name: "#4 Pick a typography pairing" });
+    await expect(link).toHaveAttribute("href", "/independent/contracts/brand-designer?task=t-type");
+    await link.click();
+    await expect(panel(page).getByRole("button", { name: "Copy task ID #4" })).toBeVisible();
   });
 });

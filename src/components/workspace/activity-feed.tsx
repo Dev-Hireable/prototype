@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { FileTiles } from "@/components/portal/attachments";
+import { Tip } from "@/components/portal/tip";
 import { Avatar } from "@/components/portal/ui";
 import { keyed } from "@/lib/portal/keys";
 import { stampLabel, type Day } from "@/lib/work/dates";
-import type { WorkComment } from "@/lib/work/model";
+import { refOf, type WorkComment, type WorkItem } from "@/lib/work/model";
 import { sideOf } from "@/lib/work/permissions";
+import { taskRefParts } from "@/lib/work/refs";
 import { useWorkspace } from "./context";
 
 /** Something that happened to the item, from its log. */
@@ -68,8 +70,9 @@ const runsOn = (f: FeedRow, prev: FeedRow | undefined, newDay: boolean) => !newD
  * day starts. What people said are chat turns — photo, name and time over the words, which sit on
  * the panel, not in boxes; what happened runs between them as quiet one-line notes, with to-and-fro
  * moves folded into one. A long stream opens on its latest rows, the earlier ones behind "Show earlier".
+ * A "#4" in what someone said opens that item (`byNumber`, the contract's items by number).
  */
-export function ActivityStream({ feed, empty }: { feed: readonly (FeedEvent | FeedComment)[]; empty: string }) {
+export function ActivityStream({ feed, byNumber, empty }: { feed: readonly (FeedEvent | FeedComment)[]; byNumber: ReadonlyMap<number, WorkItem>; empty: string }) {
   const { today } = useWorkspace();
   const [all, setAll] = useState(false);
   const rows = foldMoves(feed);
@@ -92,7 +95,7 @@ export function ActivityStream({ feed, empty }: { feed: readonly (FeedEvent | Fe
           return (
             <li key={key} className={f.kind === "comment" ? (on ? "pt-1" : "pt-3") : "pt-2"}>
               {newDay && <DayDivider label={dayHeading(days[i], today)} />}
-              {f.kind === "comment" ? <Turn comment={f} runsOn={on} /> : f.kind === "moves" ? <MovesNote run={f} /> : <EventNote event={f} />}
+              {f.kind === "comment" ? <Turn comment={f} runsOn={on} byNumber={byNumber} /> : f.kind === "moves" ? <MovesNote run={f} /> : <EventNote event={f} />}
             </li>
           );
         })}
@@ -179,11 +182,31 @@ function MovesNote({ run }: { run: FeedMoves }) {
 }
 
 /**
+ * What someone wrote, with each "#4" of an item on this contract a link that opens it in its sheet,
+ * the item's name in the tip. Any other "#n" stays as written.
+ */
+function TaskRefText({ text, byNumber }: { text: string; byNumber: ReadonlyMap<number, WorkItem> }) {
+  const { openTask } = useWorkspace();
+  return keyed(taskRefParts(text), (p) => p.text).map(({ item: p, key }) => {
+    const t = p.number === undefined ? undefined : byNumber.get(p.number);
+    if (!t) return <Fragment key={key}>{p.text}</Fragment>;
+    const name = `${refOf(t)} ${t.title}`;
+    return (
+      <Tip key={key} label={name}>
+        <button type="button" aria-label={name} onClick={() => openTask(t.id)} className="rounded font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+          {p.text}
+        </button>
+      </Tip>
+    );
+  });
+}
+
+/**
  * What someone said, as a chat turn: photo, name and time over the words. A turn running on from the
  * same person's last one drops the header, its time showing in the photo's column on hover. Each
  * comment is its own article, so it's still found and read one by one.
  */
-function Turn({ comment: c, runsOn }: { comment: FeedComment; runsOn: boolean }) {
+function Turn({ comment: c, runsOn, byNumber }: { comment: FeedComment; runsOn: boolean; byNumber: ReadonlyMap<number, WorkItem> }) {
   const { actor, people } = useWorkspace();
   /** Which side the reader is on: their own turns say so. */
   const me = sideOf(actor);
@@ -204,7 +227,11 @@ function Turn({ comment: c, runsOn }: { comment: FeedComment; runsOn: boolean })
             <time className="text-[12px] text-muted-2 tabular-nums">{time}</time>
           </p>
         )}
-        {c.text && <p className={`text-[14px] leading-[1.5] whitespace-pre-line text-ink [overflow-wrap:anywhere] ${runsOn ? "" : "mt-0.5"}`}>{c.text}</p>}
+        {c.text && (
+          <p className={`text-[14px] leading-[1.5] whitespace-pre-line text-ink [overflow-wrap:anywhere] ${runsOn ? "" : "mt-0.5"}`}>
+            <TaskRefText text={c.text} byNumber={byNumber} />
+          </p>
+        )}
         {/* What was sent with it: an image or a PDF opens in the viewer, a document downloads. */}
         {c.files?.length ? (
           <div className={c.text ? "mt-2" : "mt-1"}>

@@ -186,6 +186,9 @@ function say(m: Omit<WorkMessage, "id">) {
 /** Says why something can't be changed, where no sheet is open to say it (a List cell's lock): a toast, and read out. */
 export const explain = (message: string) => say({ tone: "info", message });
 
+/** Says what a step outside the work's own actions did (a task's ID copied), or that it couldn't: a toast, and read out. */
+export const notice = (message: string, tone: ToastTone = "success") => say({ tone, message });
+
 /* --------------------------------------------------------------- queue */
 
 type Job = { run: () => Promise<boolean>; cancel: () => void };

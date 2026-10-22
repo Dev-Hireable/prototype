@@ -12,12 +12,16 @@ import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/retur
 import { MONTHS } from "@/lib/portal/dates";
 import { entryDialogOf } from "@/lib/portal/entry-dialog";
 import { savedOffset } from "@/lib/demo/clocks";
-import { openChat, readBy, sendChat, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
+import { openChat, readBy, sendChat, taskHref, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
+import { useDeal } from "@/lib/demo/deal";
 import { fileDropHandlers, KEEP_FAILED, keepFiles, usePendingFiles } from "@/lib/demo/files";
 import { AttachButton, FileTiles, PendingFiles } from "@/components/portal/attachments";
 import { SendButton } from "@/components/portal/comment-box";
+import { Tip } from "@/components/portal/tip";
+import { keyed } from "@/lib/portal/keys";
+import { taskRefParts } from "@/lib/work/refs";
 import { bothClocks } from "@/lib/portal/timezones";
-import { filesNote, type Side } from "@/lib/work/model";
+import { filesNote, refOf, type Side } from "@/lib/work/model";
 
 const DoneAll = ICONS.doneAll;
 const Check = ICONS.check;
@@ -334,7 +338,7 @@ export function ChatLog<C extends { id: string; name: string }>({ conv, face, ch
                 <ChatBubble mine={me} time={m.time} receipt={readBy(live, other, i) ? "seen" : "sent"} className="max-w-[420px]" /* hugs its text; a note from a proposal says so, and opens it */ header={m.source && <ChatSourceLink source={m.source} side={side} mine={me} />}>
                   {/* TB-010 / IN-010: what was sent with it opens (an image, a PDF) or downloads straight from the thread. */}
                   {m.files?.length ? <FileTiles files={m.files} /> : null}
-                  {m.text && <Highlight text={m.text} query={q} />}
+                  {m.text && <ChatText text={m.text} query={q} side={side} mine={me} />}
                 </ChatBubble>
               )}
             </div>
@@ -342,6 +346,33 @@ export function ChatLog<C extends { id: string; name: string }>({ conv, face, ch
         );
       })}
     </ThreadBody>
+  );
+}
+
+/**
+ * A message's words, with each "#4" of a task on the contract a link that opens it on this side's
+ * contract page, the task's name in its tip (a pasted task ID). Any other "#n" stays as written, and
+ * what's searched for is marked throughout.
+ */
+function ChatText({ text, query, side, mine }: { text: string; query: string; side: Side; mine: boolean }) {
+  const deal = useDeal();
+  const tasks = deal?.contract?.tasks ?? [];
+  // One inline run: the bubble stacks its children, so the words and their links share one span.
+  return (
+    <span>
+      {keyed(taskRefParts(text), (p) => p.text).map(({ item: p, key }) => {
+        const t = p.number === undefined || !deal ? undefined : tasks.find((x) => x.number === p.number);
+        if (!t || !deal) return <Highlight key={key} text={p.text} query={query} />;
+        const name = `${refOf(t)} ${t.title}`;
+        return (
+          <Tip key={key} label={name}>
+            <Link href={taskHref(side, deal.roleSlug, t.id)} aria-label={name} className={`rounded font-semibold underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 ${mine ? "text-white underline focus-visible:outline-white" : "text-accent-ink focus-visible:outline-primary"}`}>
+              <Highlight text={p.text} query={query} />
+            </Link>
+          </Tip>
+        );
+      })}
+    </span>
   );
 }
 
