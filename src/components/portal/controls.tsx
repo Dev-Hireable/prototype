@@ -343,6 +343,7 @@ export function KebabMenu({
   icon = "vertical",
   buttonClassName = "",
   menuClassName = "",
+  tip,
 }: {
   label: string;
   open?: boolean;
@@ -354,18 +355,22 @@ export function KebabMenu({
   icon?: "vertical" | "horizontal";
   buttonClassName?: string;
   menuClassName?: string;
+  /** The button's tooltip ("More actions"), where the kebab is the only way to its actions. */
+  tip?: string;
 }) {
   const More = icon === "vertical" ? ICONS.moreV : ICONS.moreH;
   return (
     <DropdownMenu open={open} onOpenChange={(next) => onOpenChange?.(next)}>
-      <DropdownMenuTrigger
-        aria-label={label}
-        // A kebab often sits on a clickable card or row; opening it shouldn't open that too.
-        onClick={(event) => event.stopPropagation()}
-        className={`${ICON_BUTTON} size-8 ${buttonClassName}`}
-      >
-        <More size={iconSize} aria-hidden />
-      </DropdownMenuTrigger>
+      <Tip label={tip}>
+        <DropdownMenuTrigger
+          aria-label={label}
+          // A kebab often sits on a clickable card or row; opening it shouldn't open that too.
+          onClick={(event) => event.stopPropagation()}
+          className={`${ICON_BUTTON} size-8 ${buttonClassName}`}
+        >
+          <More size={iconSize} aria-hidden />
+        </DropdownMenuTrigger>
+      </Tip>
       <DropdownMenuContent align="end" className={menuClassName} style={{ width: menuWidth }} onClick={(event) => event.stopPropagation()}>
         {children}
       </DropdownMenuContent>

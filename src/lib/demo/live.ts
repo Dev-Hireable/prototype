@@ -712,6 +712,52 @@ function markRead(side: Side, noteId?: string) {
   write({ ...snapshot, [side]: feed } as Live);
 }
 
+/** These notifications read, or unread again, on `side`'s feed: from a row's menu, or the ones picked in Select. */
+function markNotes(side: Side, ids: string[], unread: boolean) {
+  refresh();
+  const these = new Set(ids);
+  const feed = snapshot[side].map((n) => (these.has(n.id) && n.unread !== unread ? { ...n, unread } : n));
+  write({ ...snapshot, [side]: feed } as Live);
+}
+
+/** One notification, as either side's feed keeps it. */
+type Note = Live[Side][number];
+
+/** Notifications taken out of a feed, each with where it was, for an Undo. */
+type Deleted = { note: Note; index: number }[];
+
+/**
+ * Deleting takes these notifications out of `side`'s feed only (each side keeps its own), their unread
+ * with them, so the counts drop at once. It hands back how many went, and how to put them back for the
+ * toast's Undo; nothing when none of them was there.
+ */
+function deleteNotes(side: Side, ids: string[]): { count: number; undo: () => void } | undefined {
+  refresh();
+  const these = new Set(ids);
+  const feed: Note[] = snapshot[side];
+  const gone: Deleted = feed.flatMap((note, index) => (these.has(note.id) ? [{ note, index }] : []));
+  if (!gone.length) return;
+  write({ ...snapshot, [side]: feed.filter((n) => !these.has(n.id)) } as Live);
+  return { count: gone.length, undo: () => restoreNotes(side, gone) };
+}
+
+/**
+ * Undo: the notifications back as they were, each in its place by when it happened, since newer ones
+ * may have come in meanwhile. A record without a time goes back where it was.
+ */
+function restoreNotes(side: Side, gone: Deleted) {
+  refresh();
+  let feed: Note[] = snapshot[side];
+  for (const { note, index } of gone) {
+    if (feed.some((n) => n.id === note.id)) continue;
+    const when = note.at;
+    const older = when === undefined ? -1 : feed.findIndex((n) => n.at !== undefined && n.at < when);
+    const at = when === undefined ? Math.min(index, feed.length) : older < 0 ? feed.length : older;
+    feed = [...feed.slice(0, at), note, ...feed.slice(at)];
+  }
+  write({ ...snapshot, [side]: feed.slice(0, MAX_NOTES) } as Live);
+}
+
 /**
  * TB-006 / IN-006 — empty messages cannot be sent.
  * TB-007 / IN-007 — a new message triggers a notification for the receiver. Consecutive
@@ -852,8 +898,16 @@ export function useStored<T>(store: Stored<T>): T {
   return useSyncExternalStore(store.subscribe, store.get, store.seed);
 }
 
-/** A portal's notifications, and marking one read (or all of them, with no id). */
+/**
+ * A portal's notifications: marking one read (or all of them, with no id), marking some read or unread
+ * again, and deleting some, which hands back how many went and their Undo.
+ */
 export function useNotifications<S extends Side>(side: S) {
   const notifications: Live[S] = useLive()[side];
-  return { notifications, markRead: (id?: string) => markRead(side, id) };
+  return {
+    notifications,
+    markRead: (id?: string) => markRead(side, id),
+    mark: (ids: string[], unread: boolean) => markNotes(side, ids, unread),
+    remove: (ids: string[]) => deleteNotes(side, ids),
+  };
 }

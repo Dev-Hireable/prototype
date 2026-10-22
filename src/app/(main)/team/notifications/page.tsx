@@ -11,15 +11,15 @@ type Filter = "all" | "unread" | NoteCategory;
 const FILTERS: { value: Filter; label: string }[] = [{ value: "all", label: "All" }, { value: "unread", label: "Unread" }, ...NOTE_CATEGORIES];
 const VALUES = FILTERS.map((f) => f.value);
 
-/** The feed both portals share (@/components/portal/NotificationFeed). Every row opens the item it's about. */
+/** The feed both portals share (@/components/portal/NotificationFeed). Every row opens the item it's about, and can be marked or deleted. */
 export default function Notifications() {
-  const { notifications, markRead } = useNotifications("team");
+  const { notifications, markRead, mark, remove } = useNotifications("team");
   const [filter, setFilter] = useQueryState<Filter>("filter", "all", VALUES);
   const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : categoryOf(n) === filter));
 
   return (
     <Page title="Notifications">
-      <NotificationFeed items={list} unread={notifications.filter((n) => n.unread).length} filter={filter} filters={FILTERS} onFilter={setFilter} onRead={markRead} />
+      <NotificationFeed items={list} unread={notifications.filter((n) => n.unread).length} filter={filter} filters={FILTERS} onFilter={setFilter} onRead={markRead} onMark={mark} onDelete={remove} />
     </Page>
   );
 }
