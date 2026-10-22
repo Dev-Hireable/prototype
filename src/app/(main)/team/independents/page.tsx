@@ -47,7 +47,7 @@ export default function AllIndependents() {
   };
 
   return (
-    <Page title="All independents">
+    <Page title="All Independents">
       <ContractListToolbar
         q={q}
         onQ={setQ}
@@ -56,7 +56,7 @@ export default function AllIndependents() {
         onType={setType}
         showInactive={showInactive}
         onShowInactive={setShowInactive}
-        count={list.length === 1 ? "1 independent" : `${list.length} independents`}
+        count={list.length === 1 ? "1 Independent" : `${list.length} Independents`}
         layout={layout}
         onLayout={setLayout}
       />
@@ -73,25 +73,25 @@ export default function AllIndependents() {
   );
 }
 
-/** Before the first hire: where independents will appear, and the two ways to get one. */
+/** Before the first hire: where Independents will appear, and the two ways to get one. */
 function NoIndependents({ discoverHref }: { discoverHref: string }) {
   return (
     <div className="flex flex-col gap-3">
       <EmptyState
-        title="No independents yet"
-        body="When a candidate accepts an offer, their contract and tracker appear here."
+        title="No Independents yet"
+        body="When an Independent accepts your offer, they show up here."
         action={
           <div className="flex gap-2">
             <LinkButton href={discoverHref} variant="primary" size="lg">
-              Discover independents
+              Discover Independents
             </LinkButton>
             <LinkButton href="/team/hire" size="lg">
-              Create job post
+              Create a role
             </LinkButton>
           </div>
         }
       />
-      <InfoBanner>Independents appear here only after they accept an offer — for a trial, a full-time or a part-time role.</InfoBanner>
+      <InfoBanner>This covers trial, full-time and part-time offers.</InfoBanner>
     </div>
   );
 }
@@ -100,7 +100,7 @@ function NoIndependents({ discoverHref }: { discoverHref: string }) {
 function NoMatches({ filtering, showInactive, onClear, onShowInactive }: { filtering: boolean; showInactive: boolean; onClear: () => void; onShowInactive: () => void }) {
   return (
     <EmptyState
-      title="No independents match"
+      title="No Independents match"
       body={filtering ? "Try a different filter, or clear the search to see everyone." : "Turn on Show inactive to include ended contracts."}
       action={
         <div className="flex gap-2">
@@ -131,9 +131,11 @@ function summaryOf(c: Contract, withReturn: (href: string) => string): ContractS
     href: `/team/independents/${c.slug}`,
     messageHref: withReturn("/team/messages"),
     type: c.type,
-    tasks: c.tasks,
+    // TB-143 — the live contract counts what its Work tab shows (counted); a listed one, all its tasks.
+    tasks: c.counted ?? c.tasks,
     tfs: c.tfs?.overall ?? null,
     left: daysLeft(c),
+    over: c.over,
     inactive,
     ended: c.endedOn ?? c.ends,
     started: c.started,

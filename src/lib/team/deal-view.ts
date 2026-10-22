@@ -1,4 +1,5 @@
 import type { Posting } from "@/lib/demo/deal";
+import { today } from "@/lib/portal/dates";
 import { companyLocation, type CompanyProfile, type Role } from "@/lib/team/data";
 
 /** The id both portals use for the one shared engagement. */
@@ -22,12 +23,14 @@ export function postingFrom(role: Role, company: CompanyProfile): Posting {
     level: role.experience,
     description: [role.description],
     skills: role.skills,
-    expectation: role.expectation,
+    // #271 — a trial's notes are private until hired: not on the posting, the application or the
+    // proposal. A full-time or part-time role's are its responsibilities, which the post shows.
+    expectation: role.type === "trial" ? "" : role.expectation,
     tasks: role.type === "trial" && role.tasks?.length ? role.tasks : undefined,
     attachment: role.attachment || undefined,
     duration: role.duration,
     hires: role.hires,
-    posted: "Posted today",
-    closes: "Open until filled",
+    // #91 — the day it went up; publishing it again (an edit, a reopen) keeps the first one (publishPosting).
+    posted: `Posted ${today()}`,
   };
 }

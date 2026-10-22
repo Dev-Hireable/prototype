@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { migrateItems, migrateProjects } from "../../src/lib/work/migrate";
 import type { WorkProject } from "../../src/lib/work/model";
-import { ALL, inScope, NO_PROJECT, OPEN as OPEN_WORK, projectCtx, projectKeyOf, RECENT_DONE_DAYS, summarize, TRIAL as TRIAL_KEY } from "../../src/lib/work/projects";
+import { ALL, inScope, NO_PROJECT, OPEN as OPEN_WORK, openWorkOf, projectCtx, projectKeyOf, RECENT_DONE_DAYS, summarize, TRIAL as TRIAL_KEY, workCtx } from "../../src/lib/work/projects";
 import { capsFor, lockedReason } from "../../src/lib/work/permissions";
 import { createWorkRepository } from "../../src/lib/work/repository";
 import { clock, ENDED, item, memoryStore, OPEN, rejection, TRIAL } from "./fixtures";
@@ -43,6 +43,16 @@ test.describe("where work sits", () => {
     expect(projectKeyOf(item({ trial: true, status: "done", completedAt: NOW + DAY }), ctx)).toBe(NO_PROJECT);
     // Filed into a project, it's the project's.
     expect(projectKeyOf(item({ trial: true, status: "doing", project: "p1" }), projectCtx(true, [project()], NOW))).toBe("p1");
+  });
+
+  test("every summary counts the Work tab's open work: a converted role leaves out the trial's finished chapter", () => {
+    const since = new Date("2026-09-28T00:00:00").getTime();
+    const items = [item({ id: "chapter", trial: true, status: "done", completedAt: since - DAY }), item({ id: "carried", trial: true, status: "doing" }), item({ id: "new" })];
+    const role = workCtx({ trial: false, roleSince: "2026-09-28" }, []);
+    expect(role.roleSince).toBe(since);
+    expect(openWorkOf(items, role, since + DAY).map((t) => t.id)).toEqual(["carried", "new"]);
+    // On a trial there are no places: everything counts.
+    expect(openWorkOf(items, workCtx({ trial: true }, []), since + DAY)).toHaveLength(3);
   });
 
   test("the open work leaves out finished projects, the finished trial and backlog work done a while ago", () => {
@@ -126,7 +136,7 @@ test.describe("archiving and deleting projects", () => {
     expect(store.read().projects).toEqual([]);
     expect(store.get("a").project).toBeUndefined();
     expect(store.get("a")).toMatchObject({ status: "done", version: 2 });
-    expect(store.get("a").activity[0].text).toBe("Moved out of “Brand refresh” — the project was deleted by Alex Rivera");
+    expect(store.get("a").activity[0].text).toBe("Moved out of “Brand refresh”: Alex Rivera deleted the project");
     expect(store.get("b").version).toBe(1);
   });
 

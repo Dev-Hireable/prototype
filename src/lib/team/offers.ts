@@ -6,6 +6,7 @@ import { lifecycleOfDeal, readDeal, updateDeal, useDeal } from "@/lib/demo/deal"
 import type { ConversionStatus, Deal, DealOffer } from "@/lib/demo/deal";
 import type { OngoingType } from "@/lib/contract/job-types";
 import { move, PAIR, persisted, useStored } from "@/lib/demo/live";
+import { formatMoney } from "@/lib/portal/money";
 import { offers as seedOffers } from "./data";
 import type { Offer } from "./data";
 import { DEAL_ID } from "./deal-view";
@@ -110,7 +111,8 @@ function sendConversionOffer({ type, salary, start, benefits, hours }: { type: O
   if (!d?.contract || lifecycleOfDeal(d)?.phase !== "decision") return false;
   // It expires on its start date if unanswered, so a start already gone by would be dead on arrival.
   if (!start || start < isoDay()) return false;
-  updateDeal((x) => ({ ...x, conversion: { type, salary: `$${salary.replace(/^\$/, "")}`, start, benefits: type === "full-time" ? benefits : [], hours: type === "part-time" ? hours : undefined, status: "sent", sent: today() } }));
+  // With its thousands commas whatever was typed: "4000" read "$4000" beside every other "$4,000".
+  updateDeal((x) => ({ ...x, conversion: { type, salary: `$${formatMoney(salary)}`, start, benefits: type === "full-time" ? benefits : [], hours: type === "part-time" ? hours : undefined, status: "sent", sent: today() } }));
   move("hire_offer", talentSide(d), { type });
   return true;
 }

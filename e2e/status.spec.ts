@@ -30,7 +30,7 @@ test.describe("moving work through statuses · by drag", () => {
     const alex = await secondPage();
     await open(alex, "team");
     await drag(alex, card(alex, /#4 Pick a typography pairing/), column(alex, "Done"));
-    await expect(toast(alex, "Approved #4 — Juan has been told")).toBeVisible();
+    await expect(toast(alex, "Approved #4. Juan has been told.")).toBeVisible();
     expect(await savedItem(alex, "t-type")).toMatchObject({ status: "done", approved: { by: "Alex Rivera" } });
     expect((await notes(alex, "independent"))[0].title).toBe("Task approved");
   });
@@ -38,12 +38,13 @@ test.describe("moving work through statuses · by drag", () => {
   test("dropping submitted work back on In progress asks for a note first", async ({ page }) => {
     await open(page, "team");
     await drag(page, card(page, /#2 Draft two logo directions/), column(page, "In progress"));
-    const note = page.getByRole("textbox", { name: "What should change" });
+    const note = page.getByRole("textbox", { name: "What should Juan change?" });
     await expect(note).toBeFocused();
     expect((await savedItem(page, "t-logos")).status).toBe("review");
-    await expect(page.getByRole("button", { name: "Request changes" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Send request" })).toBeDisabled();
+    await expect(page.getByText("Write what should change first.")).toBeVisible();
     await note.fill("Try a heavier weight on the wordmark");
-    await page.getByRole("button", { name: "Request changes" }).click();
+    await page.getByRole("button", { name: "Send request" }).click();
     await expect(toast(page, "Sent #2 back to Juan with your note")).toBeVisible();
     expect(await savedItem(page, "t-logos")).toMatchObject({ status: "doing", changes: { note: "Try a heavier weight on the wordmark" } });
     expect((await notes(page, "independent"))[0].title).toBe("Changes requested on a task");

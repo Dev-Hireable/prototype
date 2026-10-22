@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Button, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
-import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board";
+import { Button, EmptyState, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { KanbanColumn, KanbanList } from "@/components/portal/board";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/scroll-fade";
 import { usePostings } from "@/lib/demo/deal";
@@ -11,11 +11,14 @@ import { COLUMNS, roleFromPosting } from "@/lib/independent/data";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Application, Role } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
+import { useInterviewTime } from "@/lib/independent/interview-time";
 import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
 
 export default function MyApplications() {
-  const { applications, withdraw, canWithdraw, canChat } = useApplications();
+  const { applications: live, withdrawnApplications, withdraw, canWithdraw, canChat } = useApplications();
+  /** #132 — the withdrawn ones stay on the board, under Closed. */
+  const applications = [...live, ...withdrawnApplications];
   /** The postings behind the cards — this read an empty seed, so every card said Trial. */
   const roles = usePostings().map(roleFromPosting);
   const [target, setTarget] = useState<Application | null>(null);
@@ -26,14 +29,28 @@ export default function MyApplications() {
 
   return (
     <Page title="My Applications" padded={false} nav={back ? <ReturnNav /> : undefined}>
-      <Board applications={applications} roles={roles} canWithdraw={canWithdraw} canChat={canChat} chatHref={withReturn("/independent/messages?with=c1")} onWithdraw={setTarget} />
+      {/* #87 — one empty state for the whole board, above columns left empty, rather than "Nothing here yet" in each. */}
+      {applications.length === 0 && (
+        <div className="px-(--page-gutter) pt-4">
+          <EmptyState
+            title="No applications yet"
+            body="Find a role to apply to."
+            action={
+              <LinkButton href="/independent/jobs" variant="primary">
+                Discover roles
+              </LinkButton>
+            }
+          />
+        </div>
+      )}
+      <Board applications={applications} roles={roles} canWithdraw={canWithdraw} canChat={(a) => canChat && live.includes(a)} chatHref={withReturn("/independent/messages?with=c1")} onWithdraw={setTarget} />
 
       <Modal
         open={!!target}
         onClose={() => setTarget(null)}
         tone="danger"
         title="Withdraw your application?"
-        description={`${target?.company ?? "The employer"} is notified and this application moves to Withdrawn. If a proposal is in progress it is cancelled too. You cannot apply again to this role.`}
+        description={`This cancels your application and any proposal. ${target?.company} will be notified. You can't apply to this role again.`}
         footer={
           <>
             <Button size="lg" onClick={() => setTarget(null)}>
@@ -60,9 +77,10 @@ export default function MyApplications() {
 
 /**
  * The board: a column for each group of stages, each application a card with its ⋮ menu — one menu
- * open at a time. `chatHref` is the thread Message Team Builder opens once `canChat`.
+ * open at a time. `chatHref` is the thread Message Team Builder opens, on a card with one (`canChat`):
+ * every application has its thread from the start, but a withdrawn one's engagement is gone.
  */
-function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw }: { applications: Application[]; roles: Role[]; canWithdraw: (a: Application) => boolean; canChat: boolean; chatHref: string; onWithdraw: (a: Application) => void }) {
+function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw }: { applications: Application[]; roles: Role[]; canWithdraw: (a: Application) => boolean; canChat: (a: Application) => boolean; chatHref: string; onWithdraw: (a: Application) => void }) {
   const [menu, setMenu] = useState<string | null>(null);
   return (
     // The 40px side and bottom gutters are padding inside the board, so its horizontal bar runs
@@ -75,7 +93,8 @@ function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw
             into a second scrollbar nested inside the shell's. Columns take the vertical scroll. */}
         <div className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
           {COLUMNS.map((col) => {
-            const cards = applications.filter((a) => col.stages.includes(a.stage));
+            // #132 — a closed application leaves its stage's column for Closed, whatever stage it stopped at.
+            const cards = applications.filter((a) => (col.closed ? !!a.closed : !a.closed && col.stages.includes(a.stage)));
             return (
               <KanbanColumn key={col.key} label={col.label} count={cards.length} colors={col} unit={["application", "applications"]} width="min-w-[320px] max-w-[420px] flex-1">
                 <KanbanList>
@@ -86,10 +105,9 @@ function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw
                       key={a.id}
                       app={a}
                       role={roles.find((r) => r.slug === a.roleSlug)}
-                      menu={<CardMenu app={a} open={menu === a.id} onOpenChange={(open) => setMenu(open ? a.id : null)} canChat={canChat} chatHref={chatHref} withdrawable={canWithdraw(a)} onWithdraw={() => { onWithdraw(a); setMenu(null); }} />}
+                      menu={<CardMenu app={a} open={menu === a.id} onOpenChange={(open) => setMenu(open ? a.id : null)} canChat={canChat(a)} chatHref={chatHref} withdrawable={canWithdraw(a)} onWithdraw={() => { onWithdraw(a); setMenu(null); }} />}
                     />
                   ))}
-                  {cards.length === 0 && <KanbanEmpty>Nothing here yet</KanbanEmpty>}
                 </KanbanList>
               </KanbanColumn>
             );
@@ -100,10 +118,10 @@ function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw
   );
 }
 
-/** One application: who and what, its ⋮ menu, the type and match, where it stands — and, with an offer out, the way to it. */
+/** One application: who and what, its ⋮ menu, the type and match, when it was sent, where it stands — and, with an offer out, the way to it. */
 function ApplicationCard({ app: a, role, menu }: { app: Application; role: Role | undefined; menu: ReactNode }) {
   return (
-    <li className={`relative flex flex-col gap-3 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${a.status?.label === "Not moving forward" ? "opacity-60" : ""}`}>
+    <li className={`relative flex flex-col gap-3 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${a.closed ? "opacity-60" : ""}`}>
       <div className="flex items-start gap-2">
         <Initials text={role?.initials ?? a.company.slice(0, 2).toUpperCase()} className="size-8 shrink-0 text-[11px]" />
         <Link href={`/independent/jobs/applications/${a.id}`} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] hover:text-primary">
@@ -112,29 +130,42 @@ function ApplicationCard({ app: a, role, menu }: { app: Application; role: Role 
         </Link>
         {menu}
       </div>
-      <div className="flex items-center justify-between text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
+      {/* #85 — the date has its own line, so it can't run into the match. */}
+      <div className="flex flex-col gap-2 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
         <span className="flex items-center gap-1">
           <JobBadge type={role?.type ?? "trial"} />
           <MatchPill pct={a.match} coded title={MATCH_TOOLTIP.independent} />
         </span>
         <span>{a.submitted}</span>
       </div>
-      {a.status && (
-        <>
-          <span aria-hidden className="h-px w-full bg-border" />
-          <div className="flex items-center justify-between text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
-            <StatusDot tone={a.status.tone}>{a.status.label}</StatusDot>
-            <span>{a.status.meta ?? ""}</span>
-          </div>
-        </>
-      )}
+      {a.status && <CardStatus status={a.status} />}
       {/* IN-018 — an offer on the table gets its own way in. */}
       {a.stage === "offer_received" && a.status?.label === "Offer received" && (
-        <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}/offer`} className="justify-center">
+        <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}?offer=1`} className="justify-center">
           Review offer
         </LinkButton>
       )}
     </li>
+  );
+}
+
+/**
+ * Where the application stands, under a rule: the status, and what it's about. #84 — an interview's
+ * time reads in the talent's own clock with the Team Builder's beside it, on a line of its own.
+ */
+function CardStatus({ status }: { status: NonNullable<Application["status"]> }) {
+  const clock = useInterviewTime();
+  return (
+    <>
+      <span aria-hidden className="h-px w-full bg-border" />
+      <div className="flex flex-col gap-2 text-[12px] leading-[1.3] tracking-[0.2px] text-ink-2">
+        <span className="flex items-center justify-between gap-2">
+          <StatusDot tone={status.tone}>{status.label}</StatusDot>
+          {status.meta && <span>{status.meta}</span>}
+        </span>
+        {status.slot && <span>{clock.both(status.slot, status.slot.theirs)}</span>}
+      </div>
+    </>
   );
 }
 
@@ -145,21 +176,16 @@ function CardMenu({ app, open, onOpenChange, canChat, chatHref, withdrawable, on
       <MenuLink density="compact" href={`/independent/jobs/applications/${app.id}`}>
         View application
       </MenuLink>
-      {/* IN-022 — on every card. It opens the conversation in Messages, like every
-          other Message button, and waits for the interview invite that opens the
-          thread (IN-006) instead of sending into a thread that doesn't exist yet. */}
-      {canChat ? (
+      {/* IN-022 — on every card with a thread, which is every application from the first contact
+          (IN-006). It opens the conversation in Messages, like every other Message button. */}
+      {canChat && (
         <MenuLink density="compact" href={chatHref}>
           Message Team Builder
         </MenuLink>
-      ) : (
-        <MenuAction density="compact" disabled title="Messaging opens once you're invited to interview">
-          Message Team Builder
-        </MenuAction>
       )}
       {/* A signed offer is a contract: it is ended or disputed, never withdrawn —
-          withdrawing used to delete the funded contract outright. */}
-      <MenuAction density="compact" destructive disabled={!withdrawable} title={withdrawable ? undefined : "You've accepted the offer — the contract can be ended, not withdrawn"} onClick={onWithdraw}>
+          withdrawing used to delete the funded contract outright. A closed one has nothing to withdraw. */}
+      <MenuAction density="compact" destructive disabled={!withdrawable} title={withdrawable ? undefined : app.closed ? "This application is closed" : "You've accepted the offer. The contract can be ended, not withdrawn."} onClick={onWithdraw}>
         Withdraw application
       </MenuAction>
     </KebabMenu>

@@ -1,4 +1,4 @@
-import { Button, LinkButton } from "@/components/portal/ui";
+import { Button } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
 import type { ContractView } from "@/lib/contract/view";
 import { dayLabel } from "@/lib/portal/dates";
@@ -8,15 +8,15 @@ import type { Contract } from "@/lib/independent/data";
 import { isArchived, refOf } from "@/lib/work/model";
 import { decisionNote } from "../_lib/copy";
 
-/** IN-084 — the full-time or part-time offer after the trial, one click from the contract it continues. */
-export function OfferCallout({ contract, conversion }: { contract: Contract; conversion: ContractView["conversion"] }) {
+/** IN-084 — the full-time or part-time offer after the trial, one click from the contract it continues: Review offer opens it over the page. */
+export function OfferCallout({ contract, conversion, onReview }: { contract: Contract; conversion: ContractView["conversion"]; onReview: () => void }) {
   if (conversion?.status !== "sent") return null;
   return (
     <Callout
       action={
-        <LinkButton size="sm" variant="primary" href={`/independent/contracts/${contract.slug}/offer`}>
+        <Button size="sm" variant="primary" onClick={onReview}>
           Review offer
-        </LinkButton>
+        </Button>
       }
     >
       {contract.company} sent you a {JOB_TYPE_LABEL[conversion.type].toLowerCase()} offer: {conversion.salary} /month{conversion.hours ? `, ${hoursLabel(conversion.hours)}` : ""}. Review and sign it, or decline.
@@ -28,12 +28,12 @@ export function OfferCallout({ contract, conversion }: { contract: Contract; con
  * The Overview's banners: what's waiting on the talent or coming up — an offer, the evaluation, a
  * start date, notice, or changes asked for.
  */
-export function OverviewCallouts({ contract, view, ended, onReadEvaluation, onOpenTask }: { contract: Contract; view: ContractView; ended: boolean; onReadEvaluation: () => void; onOpenTask: (id: string) => void }) {
+export function OverviewCallouts({ contract, view, ended, onReadEvaluation, onReviewOffer, onOpenTask }: { contract: Contract; view: ContractView; ended: boolean; onReadEvaluation: () => void; onReviewOffer: () => void; onOpenTask: (id: string) => void }) {
   const { phase, life, notice, closedTrial } = view;
   const typeLabel = JOB_TYPE_LABEL[contract.type];
   return (
     <>
-      <OfferCallout contract={contract} conversion={view.conversion} />
+      <OfferCallout contract={contract} conversion={view.conversion} onReview={onReviewOffer} />
       {phase === "evaluation" && <EvaluationDue contract={contract} view={view} />}
       {phase === "decision" && (
         <Callout
@@ -66,8 +66,8 @@ function EvaluationDue({ contract, view }: { contract: Contract; view: ContractV
   const { life, due, releasable } = view;
   return (
     <Callout>
-      Your trial {life?.trial?.closedEarly ? "closed early, every trial task approved" : `ended on ${contract.ends}`}. {contract.managerFirst} is evaluating it{due ? ` — it's due ${due}` : ""}.
-      {releasable > 0 && ` The ${usd(releasable)} in escrow is paid to you with the evaluation, or on its own if it hasn't come by then.`}
+      Your trial {life?.trial?.closedEarly ? "closed early, every trial task approved" : `ended on ${contract.ends}`}. {contract.managerFirst} is evaluating it{due ? `, due ${due}` : ""}.
+      {releasable > 0 && ` You get paid the ${usd(releasable)} in escrow when ${contract.managerFirst} submits the evaluation${due ? `, or after ${due} if it hasn't come by then` : ""}.`}
     </Callout>
   );
 }

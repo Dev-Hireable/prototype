@@ -75,7 +75,7 @@ export type WorkItem = {
   comments: WorkComment[];
 };
 
-export type WorkTone = "ok" | "warn" | "danger" | "info" | "neutral" | "trial";
+export type WorkTone = "ok" | "warn" | "danger" | "info" | "neutral" | "review" | "trial";
 
 /* ---------------------------------------------------------------- status */
 
@@ -88,7 +88,8 @@ export const STATUSES: WorkStatus[] = ["todo", "doing", "review", "done"];
 export const STATUS_META: Record<WorkStatus, { label: string; isCompleted: boolean; tone: WorkTone }> = {
   todo: { label: "To do", isCompleted: false, tone: "neutral" },
   doing: { label: "In progress", isCompleted: false, tone: "info" },
-  review: { label: "In review", isCompleted: false, tone: "warn" },
+  // A status, not a warning: amber, apart from the orange that warns (changes asked, overdue soon).
+  review: { label: "In review", isCompleted: false, tone: "review" },
   done: { label: "Done", isCompleted: true, tone: "ok" },
 };
 
@@ -98,8 +99,12 @@ export const isCompleted = (s: WorkStatus) => STATUS_META[s].isCompleted;
 
 export const PRIORITIES: WorkPriority[] = ["high", "medium", "low"];
 
-export const PRIORITY_META: Record<WorkPriority, { label: string; rank: number; tone: WorkTone }> = {
-  high: { label: "High", rank: 3, tone: "danger" },
+/**
+ * How each priority reads: orange for what's pressing (High filled, `solid`, Medium tinted) and blue
+ * for Low. Red stays for what's overdue, failed or destructive, so a High item never reads as an error.
+ */
+export const PRIORITY_META: Record<WorkPriority, { label: string; rank: number; tone: WorkTone; solid?: boolean }> = {
+  high: { label: "High", rank: 3, tone: "warn", solid: true },
   medium: { label: "Medium", rank: 2, tone: "warn" },
   low: { label: "Low", rank: 1, tone: "info" },
 };
@@ -268,6 +273,16 @@ export function openBlockers(t: Pick<WorkItem, "dependsOn">, byId: ById): WorkIt
 }
 
 export const isBlocked = (t: Pick<WorkItem, "dependsOn">, byId: ById) => openBlockers(t, byId).length > 0;
+
+/**
+ * What an item still has open as it goes for review: the items it waits on that aren't done, and its
+ * unticked subtasks. Null when there's neither. Sending it anyway is allowed; the sheet asks first.
+ */
+export function unfinishedOf(t: Pick<WorkItem, "dependsOn" | "subtasks">, byId: ById): { blockers: WorkItem[]; openSubtasks: number } | null {
+  const blockers = openBlockers(t, byId);
+  const openSubtasks = (t.subtasks ?? []).filter((s) => !s.done).length;
+  return blockers.length || openSubtasks ? { blockers, openSubtasks } : null;
+}
 
 /**
  * What the trial is scored and closed on: the Independent's own items that aren't archived and were

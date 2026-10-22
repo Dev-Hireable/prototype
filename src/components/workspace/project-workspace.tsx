@@ -11,7 +11,7 @@ import { writeParams } from "@/lib/portal/query-state";
 import { todayDay, type Day } from "@/lib/work/dates";
 import { countsOf, isArchived, type AssigneeKey, type WorkItem } from "@/lib/work/model";
 import { canCreate, canPlanProjects, canReorder, readOnlyReason, reorderFor, type Actor, type WorkAccess } from "@/lib/work/permissions";
-import { ALL, inScope, knownScope, NO_PROJECT, OPEN, projectCtx, projectKeyOf, summarize, type ProjectSummary, type Scope } from "@/lib/work/projects";
+import { ALL, inScope, knownScope, NO_PROJECT, OPEN, openWorkOf, projectKeyOf, summarize, workCtx, type ProjectSummary, type Scope } from "@/lib/work/projects";
 import { activeFilterCount, applyFilters, EMPTY_FILTERS, groupItems, sortItems, VIEW_LABEL, VIEWS, type Group, type ViewKey, type WorkQuery } from "@/lib/work/query";
 import { onWorkMessage, useWork, useWorkActions, type WorkActions, type WorkMessage, type WorkSnapshot } from "@/lib/work/store";
 import { BoardView } from "./board-view";
@@ -209,13 +209,13 @@ function useOpenTask(byId: ReadonlyMap<string, WorkItem>) {
 function useProjectScope(work: WorkSnapshot, access: WorkAccess, query: WorkQuery, who: Actor) {
   const pool = work.items;
   const split = !access.trial;
-  /** The role's first day, local midnight — the trial's chapter is what was finished before it. */
-  const roleSince = access.roleSince ? new Date(`${access.roleSince}T00:00:00`).getTime() : undefined;
-  const pctx = useMemo(() => projectCtx(split, work.projects, roleSince), [split, work.projects, roleSince]);
+  /** The places, read as every summary of the contract reads them (workCtx): the trial's chapter is what was finished before the role's first day. */
+  const pctx = useMemo(() => workCtx(access, work.projects), [access, work.projects]);
   const places = useMemo(() => summarize(pool, work.projects, pctx), [pool, work.projects, pctx]);
   const scope = split ? knownScope(query.project, places) : ALL;
   const [now] = useState(() => Date.now());
-  const scoped = useMemo(() => (split ? pool.filter((t) => inScope(t, scope, { ...pctx, now })) : pool), [split, pool, scope, pctx, now]);
+  // The open work is what the Overview and the contract's card count too (openWorkOf), so they all say the same.
+  const scoped = useMemo(() => (!split ? pool : scope === OPEN ? openWorkOf(pool, pctx, now) : pool.filter((t) => inScope(t, scope, { ...pctx, now }))), [split, pool, scope, pctx, now]);
   const keyOf = useCallback((t: WorkItem) => projectKeyOf(t, pctx), [pctx]);
   const canPlan = canPlanProjects(who, access);
   const showPlace = split && (scope === OPEN || scope === ALL) && query.group !== "project" && places.some((p) => p.kind !== "none" && p.total > 0);

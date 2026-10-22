@@ -154,9 +154,13 @@ const SHARED = ["src/components/portal/", "src/components/workspace/", "src/comp
 
 /** Where shared code still reads a portal's own files, and why. */
 const READS_A_PORTAL: Record<string, string[]> = {
-  // A chat line opens the proposal it quotes in that side's own dialog, so it knows both portals.
+  // A chat line opens the proposal it quotes, and a thread entry the proposal or offer it logs, in
+  // that side's own dialog, so it knows both portals.
   "src/components/portal/chat-source-link.tsx": [
+    "src/components/independent/application-offer-dialog.tsx",
     "src/components/independent/application-proposal-dialog.tsx",
+    "src/components/independent/conversion-offer-dialog.tsx",
+    "src/components/team/offer-dialog.tsx",
     "src/components/team/proposal-review-dialog.tsx",
     "src/lib/independent/applications.ts",
     "src/lib/team/deal-view.ts",

@@ -111,7 +111,7 @@ test.describe("capabilities · roles and contracts", () => {
     for (const assignee of ["independent", "team", null] as const) expect(reorderFor(item({ assignee }), manager, OPEN, names).ok).toBe(true);
     expect(reorderFor(item({ assignee: "independent" }), contributor, OPEN, names).ok).toBe(true);
     expect(reorderFor(item({ assignee: "team" }), contributor, OPEN, names)).toEqual({ ok: false, reason: "This is Alex's item, so only they place it." });
-    expect(reorderFor(item({ assignee: null }), contributor, OPEN, names)).toEqual({ ok: false, reason: "Nobody is assigned to it yet — Alex places it." });
+    expect(reorderFor(item({ assignee: null }), contributor, OPEN, names)).toEqual({ ok: false, reason: "Nobody is assigned to it yet, so Alex places it." });
   });
 
   test("a trial takes no new work: its tasks are the ones its signed offer agreed", () => {
@@ -249,7 +249,7 @@ test.describe("fields · what the signed offer agreed", () => {
   test("the Team Builder plans what the offer didn't set; the Independent still doesn't, and hears why", () => {
     const t = item({ agreed: true, trial: true });
     for (const f of ["effort", "type", "tags", "start"] as const) expect(changeFor(t, manager, TRIAL, f).ok, f).toBe(true);
-    for (const f of ["effort", "type", "tags"] as const) expect(changeFor(t, contributor, TRIAL, f, { team: "Alex", independent: "Juan" })).toEqual({ ok: false, reason: "Alex plans the work — the due dates, effort, work type, priority, tags and who does it.", agreed: false });
+    for (const f of ["effort", "type", "tags"] as const) expect(changeFor(t, contributor, TRIAL, f, { team: "Alex", independent: "Juan" })).toEqual({ ok: false, reason: "Alex plans the work: the due dates, effort, work type, priority, tags and who does it.", agreed: false });
     // When their own work starts is theirs, agreed or not.
     expect(changeFor(t, contributor, TRIAL, "start").ok).toBe(true);
   });

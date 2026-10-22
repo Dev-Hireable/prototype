@@ -21,12 +21,13 @@ export default function Discover() {
   const back = useReturnTo();
 
   return (
-    <Page title="Discover independents" nav={back ? <ReturnNav /> : undefined}>
+    <Page title="Discover Independents" nav={back ? <ReturnNav /> : undefined}>
       <TalentBrowser
         filters={filters}
-        placeholder="Search by name, title or skill"
-        count={matched === 1 ? "1 independent matched" : `${matched} independents matched`}
-        emptyTitle="No independents match these filters"
+        // A name isn't searchable: until a hire it shows as "Juan D." (useHired).
+        placeholder="Search by title or skill"
+        count={matched === 1 ? "1 Independent matched" : `${matched} Independents matched`}
+        emptyTitle="No Independents match these filters"
         card={(p) => <IndependentCard key={p.slug} person={p} onInvite={() => setTarget(p)} onOpen={setPreview} />}
       />
 

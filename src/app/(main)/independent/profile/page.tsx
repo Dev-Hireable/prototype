@@ -4,15 +4,16 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useSyncExternalStore } from "react";
 import { ICONS } from "@/components/icons";
 import { BioEditor, HeroEditor, LinksEditor, SkillsEditor } from "@/components/independent/profile-editors";
+import { SamplesEditor } from "@/components/independent/portfolio-editor";
 import { Button, Modal, Page, Toast } from "@/components/portal/ui";
 import { EditButton } from "@/components/portal/inline-edit";
 import { FlatBadge, TalentProfile } from "@/components/portal/talent-profile";
 import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
+import { usePortfolio, type Sample } from "@/lib/demo/portfolio";
 import { nextRetake } from "@/lib/demo/work-style";
 import { dayLabel } from "@/lib/portal/dates";
-import { shortName } from "@/lib/portal/names";
 import { pastEvaluations } from "@/lib/demo/deal";
-import type { Contract } from "@/lib/independent/data";
+import { ME, type Contract } from "@/lib/independent/data";
 import { useIndependentAccount, type Profile as ProfileData } from "@/lib/independent/account";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { useQueryState } from "@/lib/portal/query-state";
@@ -22,7 +23,7 @@ const Eye = ICONS.visibility;
 const AddVideo = ICONS.videoAdd;
 
 /** What's open for editing. It's in the URL, so /independent/profile?edit=profile lands in the header's editor. */
-const EDITS = ["none", "profile", "bio", "skills", "links"] as const;
+const EDITS = ["none", "profile", "bio", "skills", "samples", "links"] as const;
 type Edit = (typeof EDITS)[number];
 
 /**
@@ -34,60 +35,72 @@ type Edit = (typeof EDITS)[number];
 export default function Profile() {
   const { contracts } = useIndependentContracts();
   const { profile, setProfile, tags } = useIndependentAccount();
-  const router = useRouter();
   const [editing, setEditing] = useQueryState<Edit>("edit", "none", EDITS);
   const done = () => setEditing("none");
   const [retake, setRetake] = useState(false);
   const [toast, setToast] = useToast();
   const introVideo = useIntroVideo();
+  const samples = usePortfolio();
   const retakeOn = useNextRetake();
+  /** Closes the editor whose part was just saved and says what was. */
+  const saved = (message: string) => {
+    done();
+    setToast(message);
+  };
   /** Saves one part of the profile, closes its editor and says what was saved. */
   const save = (patch: Partial<ProfileData>, message: string) => {
     setProfile(patch);
-    done();
-    setToast(message);
+    saved(message);
   };
 
   return (
     <Page title="Profile">
       <TalentProfile
         viewer="self"
-        // Full names stay hidden until a match or a hire, so the preview reads "Juan D.". No intro
-        // still here: the card shows the talent's own video, or an empty card to add one.
-        person={{ ...profile, name: shortName(profile.name), introVideo: introVideo ?? undefined, tags, history: historyOf(contracts) }}
+        // As a Team Builder sees it before a hire: "Juan D." and no links (TalentProfile, not hired), and
+        // the same intro card: the still every Team Builder view shows, or the talent's own video once added.
+        person={{ ...profile, intro: ME.intro, introVideo: introVideo ?? undefined, tags, samples, history: historyOf(contracts) }}
         badge={<FlatBadge>Pro</FlatBadge>}
         note={
           // IN-060 — this page is the Team Builder's view of you, not a separate internal one.
           <p className="flex items-center gap-1.5 text-[13px] leading-[1.4] text-ink-2">
             <Eye size={16} aria-hidden className="shrink-0" />
-            This is exactly how your profile appears to Team Builders.
+            This is exactly how Team Builders see your profile before they hire you.
           </p>
         }
         onPlayIntro={() => setToast("Intro video plays here", "info")}
-        introAction={<IntroAction hasVideo={!!introVideo} onMessage={setToast} />}
+        introAction={<IntroAction hasIntro={!!(introVideo || ME.intro)} onMessage={setToast} />}
         edit={pencilsFor(editing, { hasTags: tags.length > 0, retakeOn }, setEditing, () => setRetake(true))}
-        editor={editorsFor(editing, profile, { onCancel: done, onSave: save, onMessage: setToast })}
+        editor={editorsFor(editing, { profile, samples }, { onCancel: done, onSave: save, onSaved: saved, onMessage: setToast })}
       />
 
       {/* IN-064 — confirm before restarting; the current tags stand until the new answers are in. */}
-      <Modal
-        open={retake}
-        onClose={() => setRetake(false)}
-        title="Retake the work-style quiz?"
-        description="Your current tags stay until you finish. Your tags and match scores update after. You can retake the quiz once a year."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setRetake(false)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => router.push("/onboarding/talent")}>
-              Start quiz
-            </Button>
-          </>
-        }
-      />
+      <RetakeDialog open={retake} onClose={() => setRetake(false)} />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
+  );
+}
+
+/** IN-064 — the quiz is the real app's onboarding (/onboarding/talent), started only once this says yes. */
+function RetakeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const router = useRouter();
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Retake the work-style quiz?"
+      description="Your current tags stay until you finish. Your tags and match scores update after. You can retake the quiz once a year."
+      footer={
+        <>
+          <Button size="lg" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button size="lg" variant="primary" onClick={() => router.push("/onboarding/talent")}>
+            Start quiz
+          </Button>
+        </>
+      }
+    />
   );
 }
 
@@ -113,7 +126,7 @@ function useNextRetake(): Date | null {
 }
 
 /** The talent's own Add / Replace intro over the intro card: it picks a video, checks it and saves it. */
-function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: SetToast }) {
+function IntroAction({ hasIntro, onMessage }: { hasIntro: boolean; onMessage: SetToast }) {
   const introFile = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -130,7 +143,7 @@ function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: Se
           if (problem) return onMessage(problem, "danger");
           try {
             await saveIntro(file);
-            onMessage(hasVideo ? "Intro video replaced" : "Intro video added");
+            onMessage(hasIntro ? "Intro video replaced" : "Intro video added");
           } catch {
             onMessage("That video couldn't be saved. Try a shorter one.", "danger");
           }
@@ -142,7 +155,7 @@ function IntroAction({ hasVideo, onMessage }: { hasVideo: boolean; onMessage: Se
         className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white pr-3 pl-2 text-[13px] leading-none font-medium text-ink shadow-[0_2px_8px_rgba(0,0,0,.15)] transition hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <AddVideo size={18} aria-hidden className="text-primary" />
-        {hasVideo ? "Replace intro" : "Add intro"}
+        {hasIntro ? "Replace intro" : "Add intro"}
       </button>
     </>
   );
@@ -166,18 +179,24 @@ function pencilsFor(editing: Edit, { hasTags, retakeOn }: { hasTags: boolean; re
     // real app's onboarding (/onboarding/talent), after a confirmation.
     // Once a year: until the next retake comes round, the pencil waits and says when.
     tags: hasTags ? (
-      <EditButton label="workplace tags" tip="Retake the quiz to change your tags" onClick={onRetake} disabled={locked || !!retakeOn} reason={!locked && retakeOn ? `You can retake the quiz on ${dayLabel(retakeOn)}.` : undefined} />
+      <EditButton label="work style tags" tip="Retake the quiz to change your tags" onClick={onRetake} disabled={locked || !!retakeOn} reason={!locked && retakeOn ? `You can retake the quiz on ${dayLabel(retakeOn)}.` : undefined} />
     ) : (
-      <EditButton label="workplace tags" tip="Take the work-style quiz" href="/onboarding/talent" disabled={locked} />
+      <EditButton label="work style tags" tip="Take the work-style quiz" href="/onboarding/talent" disabled={locked} />
     ),
     // IN-065 — Create Role's skill picker.
     skills: pencil("skills", "skills"),
+    // #355 / #311 — the work samples Team Builders see before a hire, where the links stay hidden.
+    samples: pencil("work samples", "samples"),
     portfolio: pencil("portfolio links", "links"),
   };
 }
 
 /** The open part's editor, in place of the part: Cancel closes it, and Save saves that part and says so. */
-function editorsFor(editing: Edit, profile: ProfileData, { onCancel, onSave, onMessage }: { onCancel: () => void; onSave: (patch: Partial<ProfileData>, message: string) => void; onMessage: SetToast }) {
+function editorsFor(
+  editing: Edit,
+  { profile, samples }: { profile: ProfileData; samples: Sample[] },
+  { onCancel, onSave, onSaved, onMessage }: { onCancel: () => void; onSave: (patch: Partial<ProfileData>, message: string) => void; onSaved: (message: string) => void; onMessage: SetToast },
+) {
   /**
    * An editor starts from the saved profile, which loads from storage just after mount; keying on it
    * re-seeds an editor opened straight from the URL, instead of leaving it on the seed.
@@ -187,6 +206,8 @@ function editorsFor(editing: Edit, profile: ProfileData, { onCancel, onSave, onM
     profile: editing === "profile" && <HeroEditor key={seed} profile={profile} onCancel={onCancel} onMessage={onMessage} onSave={(patch) => onSave(patch, "Profile saved")} />,
     bio: editing === "bio" && <BioEditor key={seed} value={profile.bio} onCancel={onCancel} onSave={(bio) => onSave({ bio }, "Bio saved")} />,
     skills: editing === "skills" && <SkillsEditor key={seed} skills={profile.skills} onCancel={onCancel} onSave={(skills) => onSave({ skills }, "Skills saved")} />,
+    // The samples keep themselves (@/lib/demo/portfolio), and the editor is keyed on them for the same reason.
+    samples: editing === "samples" && <SamplesEditor key={samples.map((s) => s.id).join(",")} samples={samples} onCancel={onCancel} onMessage={onMessage} onSaved={() => onSaved("Work samples saved")} />,
     portfolio: editing === "links" && <LinksEditor key={seed} links={profile.links} onCancel={onCancel} onSave={(links) => onSave({ links }, "Links saved")} />,
   };
 }

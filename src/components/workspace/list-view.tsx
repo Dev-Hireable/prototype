@@ -12,6 +12,7 @@ import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./item-menu";
 import { itemData } from "./item-data";
 import { AssigneeChip, BlockedChip, ChangesChip, DueChip, GroupLabel, LockChip, PlaceChip, TagChip } from "./meta";
+import { sendForReview } from "./moves";
 import { QuickAdd } from "./quick-add";
 import { ago, useProgressive, useWidth } from "./util";
 import { groupColors } from "./labels";
@@ -297,8 +298,9 @@ function WideCells({ item: t, shown }: { item: WorkItem; shown: ReadonlySet<ColK
 }
 
 /**
- * The row's first cell, pinned on the left: the status circle, the number and name, what's in the
- * way, its first tag, where it sits — and the item's menu at the end.
+ * The row's first cell, pinned on the left: the status circle, the number and name, and the item's
+ * menu at the end; then, on a line of their own, what's in the way, its first tag and where it sits.
+ * Beside the name they took its room and cut it to a letter, so the name has the line to itself.
  */
 function NameCell({ item: t, blockers, handle, compact }: { item: WorkItem; blockers: number; handle: ItemMenuHandle; compact: boolean }) {
   const env = useWorkspace();
@@ -310,23 +312,31 @@ function NameCell({ item: t, blockers, handle, compact }: { item: WorkItem; bloc
           <StatusCircle status={t.status} onClick={circle?.run} label={circle?.label ?? STATUS_META[t.status].label} />
         </span>
         <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{t.number ? refOf(t) : "…"}</span>
-        <span className={`min-w-0 truncate text-[14px] ${isCompleted(t.status) ? "text-ink-2 line-through" : "text-ink"}`}>{t.title}</span>
-        <span className="flex shrink-0 items-center gap-1">
-          <BlockedChip count={blockers} />
-          {t.changes && (t.status === "todo" || t.status === "doing") && <ChangesChip />}
-          {t.tags.slice(0, 1).map((tag) => (
-            <TagChip key={tag} tag={tag} colors={env.tagColors} />
-          ))}
-          <PlaceChip item={t} />
-          <LockChip item={t} />
-          {isArchived(t) && <span className="text-[12px] font-medium text-ink-2">Deleted</span>}
-        </span>
+        <span className={`min-w-24 flex-1 truncate text-[14px] ${isCompleted(t.status) ? "text-ink-2 line-through" : "text-ink"}`}>{t.title}</span>
         <span className="ml-auto flex shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
           <ItemMenuTrigger handle={handle} item={t} className="opacity-60 group-hover/row:opacity-100 focus-visible:opacity-100" />
         </span>
       </span>
+      <NameChips item={t} blockers={blockers} />
       {compact && <CompactMeta item={t} />}
     </td>
+  );
+}
+
+/** The chips under a row's name, lined up with it: blocked, changes asked for, the first tag, the place, read-only, deleted. Nothing (no line) when there's none. */
+function NameChips({ item: t, blockers }: { item: WorkItem; blockers: number }) {
+  const { tagColors } = useWorkspace();
+  return (
+    <span className="mt-1 flex flex-wrap items-center gap-1 pl-7 empty:hidden">
+      <BlockedChip count={blockers} />
+      {t.changes && (t.status === "todo" || t.status === "doing") && <ChangesChip />}
+      {t.tags.slice(0, 1).map((tag) => (
+        <TagChip key={tag} tag={tag} colors={tagColors} />
+      ))}
+      <PlaceChip item={t} />
+      <LockChip item={t} />
+      {isArchived(t) && <span className="text-[12px] font-medium text-ink-2">Deleted</span>}
+    </span>
   );
 }
 
@@ -346,9 +356,9 @@ function CompactMeta({ item: t }: { item: WorkItem }) {
  * What clicking a row's status circle does for this person: send their work for review, or mark it
  * done — or nothing; the row's Status menu has every other move.
  */
-function circleStep(t: WorkItem, { actor, access, actions, names }: Pick<WorkspaceEnv, "actor" | "access" | "actions" | "names">): { label: string; run: () => void } | null {
-  if (actor.role === "contributor" && (t.status === "todo" || t.status === "doing") && transitionFor(t, actor, access, "review").ok)
-    return { label: `Send to ${names.team} for review`, run: () => void actions.transition(t, "review", undefined, { success: `Sent ${refOf(t)} to ${names.team} for review` }) };
+function circleStep(t: WorkItem, env: Pick<WorkspaceEnv, "actor" | "access" | "actions" | "names" | "openTask">): { label: string; run: () => void } | null {
+  const { actor, access, actions, names } = env;
+  if (actor.role === "contributor" && (t.status === "todo" || t.status === "doing") && transitionFor(t, actor, access, "review").ok) return { label: `Send to ${names.team} for review`, run: () => sendForReview(env, t) };
   if (actor.role === "manager" && !isCompleted(t.status) && transitionFor(t, actor, access, "done").ok && t.status !== "review")
     return { label: "Mark done", run: () => void actions.transition(t, "done", undefined, { announce: `${refOf(t)} marked done` }) };
   return null;

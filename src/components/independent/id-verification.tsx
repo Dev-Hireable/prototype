@@ -123,10 +123,10 @@ function PayoutStatus({ onToast }: { onToast: SetToast }) {
  */
 export function ProposalReadiness({ onToast }: { onToast: SetToast }) {
   return (
-    <section aria-label="Before you send" className="flex flex-col gap-4 rounded-2xl border border-border bg-white p-6">
+    <section aria-label="Payout and ID check" className="flex flex-col gap-4 rounded-2xl border border-border bg-white p-6">
       <div className="flex flex-col gap-1 leading-[1.4] tracking-[0.2px]">
-        <h3 className="text-[16px] font-semibold text-ink">Before your first proposal</h3>
-        <p className="text-[13px] text-ink-2">Set up where you&apos;re paid and verify your ID.</p>
+        <h3 className="text-[16px] font-semibold text-ink">Payout and ID check</h3>
+        <p className="text-[13px] text-ink-2">Before your first proposal, set up where you&apos;re paid and verify your ID.</p>
       </div>
       <PayoutStatus onToast={onToast} />
       <IdStatus onToast={onToast} />

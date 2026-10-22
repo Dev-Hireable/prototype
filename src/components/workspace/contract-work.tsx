@@ -58,7 +58,7 @@ export function ContractWork({
           )}
           {contract.tfs && (
             <SummaryStat>
-              Trial Fit Score <b className="font-semibold text-ink">{contract.tfs.overall}%</b>
+              Trial fit score <b className="font-semibold text-ink">{contract.tfs.overall}%</b>
               {scoreFinal && " · final"}
             </SummaryStat>
           )}

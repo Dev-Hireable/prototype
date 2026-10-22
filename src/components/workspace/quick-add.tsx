@@ -44,7 +44,7 @@ export function QuickAdd({
   onAdd,
   label = "Add task",
   fieldLabel = "New task name",
-  placeholder = "Name it — Enter to add another",
+  placeholder = "Name it (Enter adds another)",
   variant = "row",
   hint,
   startOpen = false,

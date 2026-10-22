@@ -39,7 +39,7 @@ function Wizard({ editing, type: param }: { editing: Role | undefined; type: str
   const [type, setOngoing] = useRoleType(editing, param);
   const t = PATH[type];
   const f = useRoleForm(editing, t);
-  const templates = useTemplates(f, type, t.chips);
+  const templates = useTemplates(f, type);
   const edits = useReviewEdits(f);
   const { slug, canPublish, publish, saveDraft } = usePublish(f, t, type, editing);
   /** Which card this slot shows — the two paths order their steps differently. */
@@ -57,7 +57,7 @@ function Wizard({ editing, type: param }: { editing: Role | undefined; type: str
     else goTo(f.step - 1);
   };
 
-  if (kind === "published") return <Published t={t} slug={slug} />;
+  if (kind === "published") return <Published slug={slug} />;
   warmBadge();
   const cta = <Cta next={t.next[f.step]} disabled={!stepDone(kind, f)} onNext={() => goTo(f.step + 1)} onDraft={saveDraft} />;
   return (
@@ -65,7 +65,7 @@ function Wizard({ editing, type: param }: { editing: Role | undefined; type: str
       <div className="flex flex-col items-center gap-6 px-(--page-gutter) pt-4 pb-20 max-md:pb-8">
         <WizardHeader t={t} kind={kind} step={f.step} />
         {kind === "details" && <DetailsStep f={f} t={t} type={type} editing={!!editing} templates={templates} onType={setOngoing} cta={cta} />}
-        {kind === "expectations" && <TasksStep f={f} t={t} weeks={weeks} cta={cta} />}
+        {kind === "expectations" && <TasksStep f={f} weeks={weeks} cta={cta} />}
         {kind === "budget" && <BudgetStep f={f} t={t} type={type} template={templates.template} cta={cta} />}
         {kind === "benefits" && <BenefitsStep f={f} cta={cta} />}
         {kind === "review" && <ReviewStep f={f} t={t} type={type} weeks={weeks} edits={edits} canPublish={canPublish} onDraft={saveDraft} onPublish={publish} />}
@@ -85,20 +85,25 @@ function usePublish(f: RoleForm, t: PathCopy, type: JobType, editing: Role | und
   const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
   const slug = publishedSlug ?? editing?.slug ?? freshSlug(f.title, roles);
 
-  const publish = () => {
-    if (!canPublish) return;
-    const role = roleFrom(f, { slug, type, status: "Active", chips: t.chips });
-    addRole(role);
-    setPublishedSlug(role.slug);
-    f.setStep(t.sequence.indexOf("published"));
-  };
   /**
    * TB-030 — Save as draft used to navigate away and keep nothing: the role was gone. It now
    * writes what has been filled in so far, so the draft can be reopened and finished.
    */
-  const saveDraft = () => {
+  const keepDraft = (then: string) => {
     addRole(roleFrom(f, { slug, type, status: "Draft", chips: t.chips }));
-    router.push("/team/hire/roles");
+    router.push(then);
+  };
+  const saveDraft = () => keepDraft("/team/hire/roles");
+  /**
+   * TB-001 — a role goes live once the company profile is complete. Until then Publish isn't locked:
+   * it keeps the role as a draft and opens the company profile, which names the fields still missing.
+   */
+  const publish = () => {
+    if (!canPublish) return keepDraft("/team/profile/company");
+    const role = roleFrom(f, { slug, type, status: "Active", chips: t.chips });
+    addRole(role);
+    setPublishedSlug(role.slug);
+    f.setStep(t.sequence.indexOf("published"));
   };
   return { slug, canPublish, publish, saveDraft };
 }

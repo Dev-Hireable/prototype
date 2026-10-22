@@ -5,13 +5,13 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import type { ContractView } from "@/lib/contract/view";
 import { caseHref } from "@/lib/demo/disputes";
 
-/** All independents › the person. */
+/** All Independents › the person. */
 export function Crumbs({ name }: { name: string }) {
   return (
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink render={<Link href="/team/independents" />}>All independents</BreadcrumbLink>
+          <BreadcrumbLink render={<Link href="/team/independents" />}>All Independents</BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
@@ -22,7 +22,10 @@ export function Crumbs({ name }: { name: string }) {
   );
 }
 
-/** One button everywhere it appears: file one, open the one already running, or say why not. */
+/**
+ * The contract's one way into a dispute, on its Disputes card: file one, open the one already
+ * running, or (disabled) say why not, in the words of fileBlock's rule.
+ */
 export function DisputeButton({ size, view, onFile }: { size: "md" | "lg"; view: ContractView; onFile: () => void }) {
   const { block, running, fileHint } = view;
   if (block === "open" && running) {
@@ -35,7 +38,7 @@ export function DisputeButton({ size, view, onFile }: { size: "md" | "lg"; view:
   return (
     <Tip label={fileHint} wrap>
       <Button size={size} disabled={!!block} onClick={onFile}>
-        {block === "withdrawn" ? "Dispute withdrawn" : "File a Dispute"}
+        {block === "withdrawn" ? "Dispute withdrawn" : "File a dispute"}
       </Button>
     </Tip>
   );

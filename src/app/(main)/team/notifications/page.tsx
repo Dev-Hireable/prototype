@@ -11,7 +11,7 @@ type Filter = "all" | "unread" | NoteCategory;
 const FILTERS: { value: Filter; label: string }[] = [{ value: "all", label: "All" }, { value: "unread", label: "Unread" }, ...NOTE_CATEGORIES];
 const VALUES = FILTERS.map((f) => f.value);
 
-/** The feed both portals share (@/components/portal/NotificationFeed). Every row opens its entry in the Messages thread. */
+/** The feed both portals share (@/components/portal/NotificationFeed). Every row opens the item it's about. */
 export default function Notifications() {
   const { notifications, markRead } = useNotifications("team");
   const [filter, setFilter] = useQueryState<Filter>("filter", "all", VALUES);

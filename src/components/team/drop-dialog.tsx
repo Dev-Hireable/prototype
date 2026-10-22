@@ -6,9 +6,9 @@ import { byName, type Candidate } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 
 /**
- * TB-044 — dropping a candidate, or bringing them back, is a decision: it's confirmed here first,
- * never done on a single click. The board's card and the candidate's profile open the same dialog.
- * Neither side notifies them; their own application does show where it stands.
+ * TB-044 — declining a candidate, or restoring them, is a decision: it's confirmed here first, never
+ * done on a single click. The board's card and the candidate's profile open the same dialog. Neither
+ * notifies them; their own application shows it's closed, and the step is in the thread.
  */
 export function DropDialog({ candidate, role, onClose, onDone }: { candidate: Candidate | null; role: string; onClose: () => void; onDone: (message: string) => void }) {
   const { setDropped } = usePipeline();
@@ -16,18 +16,14 @@ export function DropDialog({ candidate, role, onClose, onDone }: { candidate: Ca
   // Not hired, so the surname stays an initial ("Juan D.").
   const name = shortName(byName(candidate.independent).name);
   const first = name.split(" ")[0];
-  const undrop = !!candidate.dropped;
+  const restore = !!candidate.dropped;
   return (
     <Modal
       open
       onClose={onClose}
-      tone={undrop ? "default" : "danger"}
-      title={undrop ? `Undrop ${first}?` : `Drop ${first} from ${role}?`}
-      description={
-        undrop
-          ? `${first} goes back to where they were in the tracker, and their application picks up again. They aren't notified.`
-          : `${first} moves to the Dropped column. They aren't notified, but their application shows you're not moving forward, and it can't go any further until you undrop them.`
-      }
+      tone={restore ? "default" : "danger"}
+      title={restore ? `Restore ${first}?` : `Decline ${first} for ${role}?`}
+      description={restore ? `${first} goes back to the stage they were in.` : `${first} will see this application as closed. You can restore them later.`}
       footer={
         <>
           <Button size="lg" onClick={onClose}>
@@ -35,14 +31,14 @@ export function DropDialog({ candidate, role, onClose, onDone }: { candidate: Ca
           </Button>
           <Button
             size="lg"
-            variant={undrop ? "primary" : "danger"}
+            variant={restore ? "primary" : "danger"}
             onClick={() => {
-              setDropped(candidate.id, !undrop);
+              setDropped(candidate.id, !restore);
               onClose();
-              onDone(undrop ? `${name} is back in the tracker` : `Dropped ${name} from ${role}`);
+              onDone(restore ? `${name} is back in the pipeline` : `Declined ${name} for ${role}`);
             }}
           >
-            {undrop ? "Undrop candidate" : "Drop candidate"}
+            {restore ? "Restore candidate" : "Decline candidate"}
           </Button>
         </>
       }

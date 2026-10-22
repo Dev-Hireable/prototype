@@ -58,7 +58,7 @@ test.describe("the talent's dashboard, all caught up", () => {
   test("with nothing open, it says so", async ({ page }) => {
     await page.goto("/independent");
     const card = page.getByRole("region", { name: "My tasks" });
-    await expect(card).toContainText("You're all caught up — nothing is waiting on you.");
+    await expect(card).toContainText("You're all caught up. Nothing is waiting on you.");
     await expect(card.getByRole("list")).toHaveCount(0);
   });
 });

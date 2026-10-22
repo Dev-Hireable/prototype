@@ -5,17 +5,19 @@ import type { JobType } from "@/lib/contract/job-types";
 import type { FitScore } from "@/lib/contract/fit-score";
 import type { PlannedTask, Task } from "@/lib/demo/tasks";
 import { storedWorkStyle } from "@/lib/demo/work-style";
+import { dayLabel, workingDaysLabel } from "@/lib/portal/dates";
+import { shortName } from "@/lib/portal/names";
 
 /** Seed data for the Team Builder portal. */
 
 const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", company: "Nairobi Solutions Inc.", avatar: "/team/alex.jpg" };
 
+/** "company size", "website and company size": the missing fields as a sentence names them. */
+const fieldList = (keys: readonly CompanyField[]) => {
+  const names = keys.map((k) => COMPANY_FIELD_NAMES[k]);
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+};
 
-/**
- * TB-001 account setup checklist: the 4 steps named in the acceptance criteria, each with the
- * shortcut link that completes it. A card isn't one of them: it's asked for at the first offer (TB-105). Flip `done` to watch the percentage and progress bar move;
- * with all 5 done the whole card disappears.
- */
 /**
  * TB-001 account setup checklist: the 4 steps named in the acceptance criteria, each with the
  * shortcut link that completes it. A card isn't one of them: it's asked for at the first offer (TB-105).
@@ -25,23 +27,23 @@ const ME = { name: "Alex Rivera", first: "Alex", title: "Head of Sales", company
  * 40% forever while the company page claimed the same step was finished.
  */
 export function setupSteps({ company, roles, workStyle }: { company: CompanyProfile; roles: Role[]; workStyle: number[] }) {
-  const companyDone = COMPANY_FIELDS.every((k) => String(company[k]).trim() !== "");
+  const missing = missingCompanyFields(company);
   return [
     // Nothing in the demo tracks email confirmation, so this one is simply already true.
     { label: "Verify email", done: true, href: "/team/settings", hint: "Confirm the address we send hiring updates to." },
-    { label: "Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/client", hint: "Generates the workplace tags we match candidates against." },
-    { label: "Company profile", done: companyDone, href: "/team/profile/company", hint: "Logo, industry and size. Candidates see this on every role." },
-    // Can't post a role without a company to post it under.
-    { label: "Create your first role", done: roles.length > 0, href: "/team/hire", hint: "Post a job and start collecting applications.", requires: ["Company profile"] },
+    { label: "Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/client", hint: "Generates the work style tags we match Independents against." },
+    { label: "Company profile", done: missing.length === 0, href: "/team/profile/company", hint: "Logo, industry and size." },
+    // Never locked: a draft can be started any time. It's publishing that waits on the company profile, so the hint says what's missing.
+    { label: "Create your first role", done: roles.length > 0, href: "/team/hire/new", hint: missing.length ? `Add your ${fieldList(missing)} to post a role.` : "Post a role and start collecting applications." },
   ];
 }
 
-/** TB-001 marketing banner. Set to null to exercise the "no active banner" branch. */
+/** TB-001 marketing banner. Set to null to exercise the "no active banner" branch. The dashboard shows it once setup is done. */
 export const MARKETING_BANNER = {
   id: "trial-drive-2026",
-  title: "Trials now run 30 days with escrow built in",
+  title: `Trials now run ${workingDaysLabel(30)}, with escrow built in`,
   body: "Test a hire on real work before you commit. Payment is held securely and released once the tasks you agreed are done.",
-  cta: { label: "Create a Role", href: "/team/hire" },
+  cta: { label: "Create a role", href: "/team/hire" },
 };
 
 export type Independent = {
@@ -112,8 +114,8 @@ export type Role = {
   attachment: string;
   /**
    * TB-024 — a trial's tasks, written in its job post: what the Independent gets done during the
-   * trial. The offer carries them as the proposal settled them — with the talent's suggestions the
-   * Team Builder accepted. Ongoing roles leave this empty; their work is added once they start.
+   * trial. The offer carries them as they stand, and that's where the Independent first reads them.
+   * Ongoing roles leave this empty; their work is added once they start.
    */
   tasks?: PlannedTask[];
   /** "How many to hire" from the wizard; roles saved before it was kept count as one. */
@@ -145,6 +147,10 @@ export type Candidate = {
   trialEnded?: boolean;
   /** Invited to apply (TB-017) and hasn't yet: in Matched, but not an application. */
   invitedToApply?: boolean;
+  /** Once hired: what the contract is now (a trial, or the full-time / part-time role it is or became). */
+  hiredAs?: JobType;
+  /** #313 — the interview was marked done on its own once its slot had passed, so it can still be marked as not held. */
+  autoDone?: boolean;
 };
 
 /**
@@ -157,20 +163,22 @@ export const awaitsApplication = (c: Candidate) => !!c.invitedToApply || c.statu
 export const candidates: Candidate[] = [];
 
 /**
- * TB-037 candidate tracker — the eight Kanban columns, in order. "Trial Ended" and "Dropped" aren't
- * stages: a closed trial is still `hired` and a dropped candidate keeps the stage they were dropped
- * from, so both are matched on their flag (see `columnOf`). A trial that converts to full-time or
- * part-time goes back to Hired.
+ * TB-037 pipeline — the eight Kanban columns, in order, each with what it says while it's empty. The
+ * first is named for the stage it holds (Applied): the role page's tab is already "Candidates".
+ * "Trial Ended" and "Declined" aren't stages: a closed trial is still `hired` and a declined
+ * candidate keeps the stage they were declined at, so both are matched on their flag (see
+ * `columnOf`; the flag is still `dropped`). A trial that converts to full-time or part-time goes
+ * back to Hired.
  */
-export const TRACKER_COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; text: string; count: string }[] = [
-  { key: "candidates", label: "Candidates", stages: ["applied"], bg: "#e5e5e5", text: "#4a4a4a", count: "#d8d8d8" },
-  { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", text: "#004675", count: "#c9eeff" },
-  { key: "interview", label: "Interview", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", text: "#8a4200", count: "#ffe0c4" },
-  { key: "proposal", label: "Proposal Requested", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", text: "#6e0e52", count: "#ffdbf3" },
-  { key: "offer", label: "Offer Sent", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", text: "#7a5e0a", count: "#fff0b6" },
-  { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", text: "#1b6b3a", count: "#c6ffd2" },
-  { key: "trial_ended", label: "Trial Ended", stages: [], bg: "#eef2f6", text: "#34465a", count: "#d9e1ea" },
-  { key: "dropped", label: "Dropped", stages: [], bg: "#fdecec", text: "#a62121", count: "#f9d5d5" },
+export const TRACKER_COLUMNS: { key: string; label: string; empty: string; stages: Stage[]; bg: string; text: string; count: string }[] = [
+  { key: "candidates", label: "Applied", empty: "No applications yet", stages: ["applied"], bg: "#e5e5e5", text: "#4a4a4a", count: "#d8d8d8" },
+  { key: "matched", label: "Matched", empty: "No matches yet. Invite Independents from Discover.", stages: ["matched"], bg: "#ebf8fe", text: "#004675", count: "#c9eeff" },
+  { key: "interview", label: "Interview", empty: "No interviews yet", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", text: "#8a4200", count: "#ffe0c4" },
+  { key: "proposal", label: "Proposal Requested", empty: "No proposals requested yet", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", text: "#6e0e52", count: "#ffdbf3" },
+  { key: "offer", label: "Offer Sent", empty: "No offers sent yet", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", text: "#7a5e0a", count: "#fff0b6" },
+  { key: "hired", label: "Hired", empty: "No hires yet", stages: ["hired"], bg: "#f0fdf4", text: "#1b6b3a", count: "#c6ffd2" },
+  { key: "trial_ended", label: "Trial Ended", empty: "No trials have ended", stages: [], bg: "#eef2f6", text: "#34465a", count: "#d9e1ea" },
+  { key: "dropped", label: "Declined", empty: "No one declined", stages: [], bg: "#fdecec", text: "#a62121", count: "#f9d5d5" },
 ];
 
 /** The tracker column a card sits in now. */
@@ -183,30 +191,29 @@ export const pipelineHref = (c: Pick<Candidate, "role" | "stage" | "dropped" | "
   return `/team/hire/roles/${c.role}${col ? `?stage=${col}` : ""}`;
 };
 
-/** Employer-side wording for the shared pipeline tracker. */
-export const EMPLOYER_STAGE_LABELS: Partial<Record<Stage, string>> = {
-  applied: "Interested",
-  invited: "Interview invitation sent",
-  proposal_sent: "Proposal submitted",
-  offer_received: "Offer sent",
-};
-
 /* ------------------------------------------------------------- interviews */
 
-/** `roleSlug` / `candidate` — the role and tracker card it was booked from, so a row can open them. */
-export type Interview = { id: string; independent: string; role: string; roleSlug?: string; candidate?: string; when: string; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean };
+/**
+ * `roleSlug` / `candidate` — the role and pipeline card it was booked from, so a row can open them.
+ * `offset` / `by` — the clock the slot was picked in (minutes off UTC) and whose it was; `auto` — held
+ * on its own once the slot had passed, so it can still be marked as not having happened.
+ */
+export type Interview = { id: string; independent: string; role: string; roleSlug?: string; candidate?: string; when: string; offset?: number; by?: "team" | "independent"; format: string; link?: string; status: { label: string; tone: Tone }; past?: boolean; auto?: boolean };
 
 export const INTERVIEW_DECLINED = "Interview declined";
 export const INTERVIEW_CANCELLED = "Interview cancelled";
+/** #313 — held on its own once the slot passed, then marked by the Team Builder as not having happened. */
+export const INTERVIEW_MISSED = "Interview didn't happen";
 /** IN-093 — the talent can't make the slot and asked for the one they named instead. */
 export const NEW_TIME_REQUESTED = "New time requested";
 /**
- * A candidate whose interview fell through — declined or asked to move by them, or cancelled — and
- * needs a new slot before anything else. Declining a slot they had already confirmed used to leave
- * the card at Confirmed, so "Mark interview as done" and the proposal after it stayed open.
+ * A candidate whose interview fell through — declined or asked to move by them, cancelled, or one
+ * that didn't happen — and needs a new slot before anything else. Declining a slot they had already
+ * confirmed used to leave the card at Confirmed, so "Mark interview done" and the proposal after it
+ * stayed open.
  */
 export const needsNewSlot = (c: { stage: string; status?: { label: string } }) =>
-  (c.stage === "invited" || c.stage === "invite_accepted") && [INTERVIEW_DECLINED, INTERVIEW_CANCELLED, NEW_TIME_REQUESTED].includes(c.status?.label ?? "");
+  (c.stage === "invited" || c.stage === "invite_accepted") && [INTERVIEW_DECLINED, INTERVIEW_CANCELLED, INTERVIEW_MISSED, NEW_TIME_REQUESTED].includes(c.status?.label ?? "");
 
 export const interviews: Interview[] = [];
 
@@ -264,8 +271,6 @@ export type Contract = {
   status: { label: string; tone: Tone };
   /** The first day, while the contract is signed but hasn't started yet. */
   startsOn?: string;
-  progress: number | null;
-  progressLabel: string;
   started: string;
   day: string;
   ends: string;
@@ -279,6 +284,8 @@ export type Contract = {
   hours?: number;
   manager: string;
   tasks: Task[];
+  /** TB-143 — the live contract's work as its Work tab opens on it (workTabItems): what its Overview and card count. Unset on a listed one, which counts all its tasks. */
+  counted?: Task[];
   /** Null on a direct hire: there was no trial to score. */
   tfs: FitScore | null;
   phase: 3 | 4;
@@ -323,11 +330,13 @@ export const transactions: Transaction[] = [];
 /* Disputes live in @/lib/demo/disputes — one record the Independent and Admin portals read too. */
 
 /** TB-101 — the plan on this account, and the ladder it sits on. */
-export const PLAN = { name: "Growth", cycle: "Monthly", renews: "1 Oct 2026", billedTo: "Visa ending 4242" };
+export const PLAN = { name: "Growth", cycle: "Monthly", billedTo: "Visa ending 4242" };
+/** When the monthly plan next renews: the 1st of next month. It read "1 Oct 2026" whatever the date, so it only fit September. */
+export const planRenewal = (now = new Date()) => dayLabel(new Date(now.getFullYear(), now.getMonth() + 1, 1));
 
 export const PLANS = [
-  { name: "Starter", price: "$0", next: "Growth", features: ["1 active role at a time", "30-day trials with escrow", "Standard matching"] },
-  { name: "Growth", price: "$149", next: "Scale", features: ["Up to 10 active roles", "30-day trials with escrow", "Priority work style matching", "Shared task lists and Trial Fit Score", "Dispute review within 5 working days"] },
+  { name: "Starter", price: "$0", next: "Growth", features: ["1 active role at a time", "Trials of 30, 60 or 90 working days, with escrow", "Standard work style matching"] },
+  { name: "Growth", price: "$149", next: "Scale", features: ["Up to 10 active roles", "Trials of 30, 60 or 90 working days, with escrow", "Priority work style matching", "Shared task lists and Trial fit score", "Dispute review within 5 working days"] },
   { name: "Scale", price: "$399", next: null as string | null, features: ["Unlimited active roles", "Everything in Growth", "Dedicated hiring support", "Custom contracts and invoicing"] },
 ];
 
@@ -348,7 +357,10 @@ export type Notification = {
   time: string;
   unread: boolean;
   kind: NoteCategory;
-  avatar: string;
+  /** Who it is from: the Independent's photo, or Hireable support's. */
+  avatar?: string;
+  /** A notice from Hireable itself (a reminder, an expiry): drawn with its category's icon, not a face. */
+  system?: boolean;
   /** What the row opens — the thing it is about. */
   href: string;
   /** When it happened (epoch ms); `group` and `time` are the fallback for a record without it. */
@@ -363,14 +375,15 @@ export type Conversation = { id: string; name: string; sub: string; avatar: stri
 
 /**
  * Messages: only the live pair (see @/lib/demo/live). The thread is not a seed — it exists once
- * there is somebody to talk to. Conversations is talent under a contract, Candidates is anyone in
- * the pipeline, so a brand-new demo opens on an empty inbox. It is one thread, so once they are
- * hired it moves to Conversations rather than being listed under both tabs.
+ * there is somebody to talk to: from the invite to apply or the application on. It is one thread
+ * per person; the tabs filter it by stage: Candidates while they're in hiring, as "Juan D." (names
+ * before hire), and Conversations once hired, by their full name. A brand-new demo opens on an
+ * empty inbox.
  */
 export function conversationsFor({ hired, inPipeline, role, contract }: { hired: boolean; inPipeline: boolean; role?: string; contract?: string }): Conversation[] {
   const person = byName("juan-dela-cruz");
   if (hired) return [{ id: "juan", name: person.name, sub: `${role ?? person.role} · ${contract ?? "Trial"}`, avatar: person.avatar, kind: "conversations" }];
-  if (inPipeline) return [{ id: "juan-candidate", name: person.name, sub: `Candidate${role ? ` · ${role}` : ""}`, avatar: person.avatar, kind: "candidates" }];
+  if (inPipeline) return [{ id: "juan", name: shortName(person.name), sub: `Candidate${role ? ` · ${role}` : ""}`, avatar: person.avatar, kind: "candidates" }];
   return [];
 }
 
@@ -401,6 +414,13 @@ export const COMPANY_SIZES = ["1-10", "11-50", "51-200", "201-500", "501-1,000",
 
 /** The fields that have to be filled for the profile to count as complete (TB-001 / TB-097). */
 export const COMPANY_FIELDS = ["name", "description", "url", "industry", "location", "size"] as const;
+type CompanyField = (typeof COMPANY_FIELDS)[number];
+
+/** How a sentence names each field: "Add your company size to post a role". */
+const COMPANY_FIELD_NAMES: Record<CompanyField, string> = { name: "company name", description: "company description", url: "website", industry: "industry", location: "location", size: "company size" };
+
+/** The fields still empty, in the order the profile lists them. */
+const missingCompanyFields = (c: CompanyProfile) => COMPANY_FIELDS.filter((k) => String(c[k]).trim() === "");
 
 /** TB-125 — the description is public on every job post, so it is capped. */
 export const COMPANY_DESC_MAX = 600;

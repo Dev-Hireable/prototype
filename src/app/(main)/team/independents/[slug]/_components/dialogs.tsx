@@ -59,13 +59,13 @@ export function TrackerDialogs({ t, on, onToast }: { t: Tracker; on: TrackerActi
 function DisputeDialog({ t, open, onClose, onToast }: { t: Tracker; open: boolean; onClose: () => void; onToast: SetToast }) {
   const router = useRouter();
   const { contract, view, name } = t;
-  const limit = disputeLimit(contract.rate, view, "a month's pay");
+  const limit = disputeLimit(contract.rate, view);
   return (
     <DisputeForm
       open={open}
       onClose={onClose}
       title={`File a dispute about ${name}`}
-      description="Hireable support reviews the contract, the task log and the payment record — the process, not the quality of the work. The amount in question stays put until they rule, and both sides are notified."
+      description="Support checks the contract, task log and payments. It does not judge work quality. The amount in question stays put until they rule, and both sides are notified."
       cap={limit.cap}
       capNote={limit.note}
       onFile={async (form) => {

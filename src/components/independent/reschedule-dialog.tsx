@@ -7,8 +7,9 @@ import { formatDate, INTERVIEW_TIMES, startOfToday } from "@/lib/portal/dates";
 
 /**
  * IN-093 — can't make the interview: the talent picks the slot they can do, from the Team
- * Builder's bookable times, with a note if they like. The Team Builder confirms it or offers
- * another; until then the interview is on hold. Closing it, either way, clears what was picked.
+ * Builder's bookable times read in their own clock, with a note if they like. The Team Builder
+ * confirms it or offers another; until then the interview is on hold. Closing it, either way,
+ * clears what was picked. `when` is the slot they can't make, in their own clock.
  */
 export function RescheduleDialog({ open, company, when, onClose, onSend }: { open: boolean; company: string; when: string; onClose: () => void; onSend: (when: string, note: string) => void }) {
   const [date, setDate] = useState<Date | undefined>();
@@ -20,7 +21,7 @@ export function RescheduleDialog({ open, company, when, onClose, onSend }: { ope
     setNote("");
     onClose();
   };
-  /** "Tue 6 Jan 2026, 10:00 AM (PHT)" — the same shape as a booked slot, so both lists split it alike. */
+  /** "Tue 6 Jan 2026, 10:00 AM": the same shape as a booked slot, so both sides read it alike. */
   const slot = date && time ? `${formatDate(date)}, ${time}` : "";
   return (
     <Modal
@@ -49,11 +50,11 @@ export function RescheduleDialog({ open, company, when, onClose, onSend }: { ope
     >
       <div className="flex flex-col gap-3">
         <div className="flex gap-3">
-          <Field label="Date" className="flex-1" hint={!date ? "Required" : undefined}>
+          <Field label="Date" className="flex-1" required>
             <DatePicker value={date} onChange={setDate} disabled={{ before: startOfToday() }} placeholder="Pick a date" />
           </Field>
-          <Field label="Time" className="flex-1" hint={!time ? "Required" : undefined}>
-            <Select options={["", ...INTERVIEW_TIMES]} placeholder="Pick a time" value={time} onChange={(e) => setTime(e.target.value)} />
+          <Field label="Time" className="flex-1" required hint="In your time zone">
+            <Select options={["", ...INTERVIEW_TIMES]} placeholder="Pick a time" value={time} onChange={(e) => setTime(e.target.value)} required />
           </Field>
         </div>
         <Field label="Note (optional)" hint={`${company} reads it with your request.`}>

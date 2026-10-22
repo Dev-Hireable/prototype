@@ -5,11 +5,15 @@ import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Chip, EmptyState, JobBadge, Modal, Tabs } from "@/components/portal/ui";
 import { FactStrip, Section } from "@/components/portal/page-parts";
+import { PortfolioGallery } from "@/components/portal/portfolio-gallery";
 import { Tip } from "@/components/portal/tip";
 import { TraitTag } from "@/components/portal/trait-tag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";
 import type { PastEvaluation } from "@/lib/demo/deal";
+import type { Sample } from "@/lib/demo/portfolio";
+import { closeAloneOnEscape } from "@/lib/portal/escape";
 import { keyed } from "@/lib/portal/keys";
+import { shortName } from "@/lib/portal/names";
 import { useQueryState } from "@/lib/portal/query-state";
 
 const Star = ICONS.star;
@@ -36,6 +40,8 @@ export type TalentProfileData = {
   skills: string[];
   tags: WorkStyleTag[];
   links: { website: string; linkedin: string; portfolio: string };
+  /** The work samples uploaded to Hireable (@/lib/demo/portfolio), which show before a hire as well as after (#355, #311). */
+  samples: Sample[];
   /** IN-066 — every evaluation received, the live engagement first. */
   history: PastEvaluation[];
 };
@@ -43,10 +49,10 @@ export type TalentProfileData = {
 type Viewer = "self" | "team";
 type Tab = "about" | "history" | "portfolio";
 /** The talent's own pencils, each right beside what it edits. */
-type Pencils = Partial<Record<"profile" | "bio" | "tags" | "skills" | "portfolio", ReactNode>>;
+type Pencils = Partial<Record<"profile" | "bio" | "tags" | "skills" | "samples" | "portfolio", ReactNode>>;
 /** The editors that open in place of the part they edit. */
-type Editors = Partial<Record<"profile" | "bio" | "skills" | "portfolio", ReactNode>>;
-/** Work style is the Workplace Tags under About — there's no tab of its own. */
+type Editors = Partial<Record<"profile" | "bio" | "skills" | "samples" | "portfolio", ReactNode>>;
+/** Work style is the tags under About — there's no tab of its own. */
 const TABS: { value: Tab; label: string }[] = [
   { value: "about", label: "About" },
   { value: "history", label: "History" },
@@ -73,6 +79,13 @@ type TalentProfileProps = {
   person: TalentProfileData;
   /** Who is reading: the talent themselves, or a Team Builder. Sets the empty-state copy and what a tag's tooltip says. */
   viewer: Viewer;
+  /**
+   * Whether the Team Builder reading it has hired them (the offer is signed). Until then the name is
+   * "Juan D." and the website, LinkedIn and portfolio links stay hidden, so nobody is found or reached
+   * off Hireable before a hire; the talent's own preview shows exactly that. Their work samples are
+   * uploaded to Hireable, so they show either way.
+   */
+  hired?: boolean;
   /** Beside the name — "Pro" on the talent's own view, the match on a Team Builder's. */
   badge?: ReactNode;
   /** A Team Builder's Invite to apply / Save, under the facts. */
@@ -97,16 +110,18 @@ type TalentProfileProps = {
 
 /**
  * The talent profile, laid out like a Contra profile. The hero holds who they are (photo, name,
- * headline, then where they are with their website and LinkedIn), the facts a Team Builder weighs
- * at a glance (rate, experience, rating) and what you can do about it, with About / History /
- * Portfolio under them. The intro video runs down the right beside all of it to the divider along
+ * headline, then where they are, with their website and LinkedIn once hired), the facts a Team
+ * Builder weighs at a glance (rate, experience, rating) and what you can do about it, with About /
+ * History / Portfolio under them. The intro video runs down the right beside all of it to the divider along
  * the tab row. On the talent's own view each part is edited in place: the pencil beside it opens an
  * editor where the part was (`editor`).
  */
-export function TalentProfile({ person: p, viewer, badge, actions, note, onPlayIntro, edit = {}, editor = {}, introAction, aside, photoAction, tabInUrl = true }: TalentProfileProps) {
+export function TalentProfile({ person, viewer, hired = false, badge, actions, note, onPlayIntro, edit = {}, editor = {}, introAction, aside, photoAction, tabInUrl = true }: TalentProfileProps) {
   const [tab, setTab] = useProfileTab(tabInUrl);
   const [playing, setPlaying] = useState(false);
   const self = viewer === "self";
+  // Before a hire: "Juan D.", and the links are kept back (`hired`).
+  const p = hired ? person : { ...person, name: shortName(person.name) };
   const first = p.name.split(" ")[0];
   /** The card shows with a still or a video, or empty on the talent's own view, holding their Add intro. */
   const hasIntro = !!(p.intro || p.introVideo || introAction);
@@ -124,7 +139,7 @@ export function TalentProfile({ person: p, viewer, badge, actions, note, onPlayI
         }`}
       >
         <header className="flex min-w-0 flex-col gap-6">
-          {editor.profile || <Hero person={p} badge={badge} edit={edit.profile} photoAction={photoAction} actions={actions} note={note} />}
+          {editor.profile || <Hero person={p} hired={hired} badge={badge} edit={edit.profile} photoAction={photoAction} actions={actions} note={note} />}
         </header>
 
         {hasIntro && <IntroCell still={p.intro} video={p.introVideo} name={first} action={introAction} onPlay={() => (p.introVideo ? setPlaying(true) : onPlayIntro())} />}
@@ -135,7 +150,7 @@ export function TalentProfile({ person: p, viewer, badge, actions, note, onPlayI
         </div>
       </div>
 
-      <TabContent tab={tab} person={p} self={self} first={first} edit={edit} editor={editor} aside={aside} />
+      <TabContent tab={tab} person={p} self={self} first={first} hidden={hired ? undefined : self ? "Shown once you're hired" : `Shown once you hire ${first}`} edit={edit} editor={editor} aside={aside} />
 
       {/* The video the talent added, played for real (the still only stands in for one). */}
       {p.introVideo && <IntroPlayer src={p.introVideo} name={first} open={playing} onClose={() => setPlaying(false)} />}
@@ -161,23 +176,29 @@ function IntroCell({ still, video, name, action, onPlay }: { still?: string; vid
   );
 }
 
-/** The intro video the talent added, playing in a dialog of its own with a close button over it. */
+/**
+ * The intro video the talent added, playing in a dialog of its own with a close button over it.
+ * Escape closes the player alone, so over a Team Builder's profile sheet the sheet stays open.
+ */
 function IntroPlayer({ src, name, open, onClose }: { src: string; name: string; open: boolean; onClose: () => void }) {
   return (
-    <Modal open={open} onClose={onClose} title={`${name}'s intro video`} bare width={720}>
-      <div className="relative bg-black">
-        {/* react-doctor-disable-next-line react-doctor/no-autoplay-without-muted -- it opens on the viewer's own click on play: sound is what they asked for */}
-        <video src={src} controls autoPlay playsInline className="block max-h-[calc(80vh/var(--ui-scale))] w-full" />
-        <button
-          type="button"
-          aria-label="Close"
-          onClick={onClose}
-          className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
-        >
-          <Close size={18} aria-hidden />
-        </button>
-      </div>
-    </Modal>
+    // No box of its own (`contents`): it's there for the player's keys, which bubble up to it through React.
+    <div className="contents" onKeyDown={(e) => open && closeAloneOnEscape(e, onClose)}>
+      <Modal open={open} onClose={onClose} title={`${name}'s intro video`} bare width={720}>
+        <div className="relative bg-black">
+          {/* react-doctor-disable-next-line react-doctor/no-autoplay-without-muted -- it opens on the viewer's own click on play: sound is what they asked for */}
+          <video src={src} controls autoPlay playsInline className="block max-h-[calc(80vh/var(--ui-scale))] w-full" />
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="absolute top-3 right-3 flex size-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+          >
+            <Close size={18} aria-hidden />
+          </button>
+        </div>
+      </Modal>
+    </div>
   );
 }
 
@@ -200,6 +221,7 @@ function useProfileTab(inUrl: boolean): [Tab, (tab: Tab) => void] {
  */
 function Hero({
   person: p,
+  hired,
   badge,
   edit,
   photoAction,
@@ -207,6 +229,8 @@ function Hero({
   note,
 }: {
   person: TalentProfileData;
+  /** The website and LinkedIn show beside where they are only once they're hired. */
+  hired: boolean;
   badge?: ReactNode;
   /** The talent's pencil for this block, beside the badge. */
   edit?: ReactNode;
@@ -239,7 +263,7 @@ function Hero({
           </div>
           {p.headline && <p className="text-[16px] leading-[1.5] tracking-[0.2px] text-ink-2">{p.headline}</p>}
         </div>
-        {(p.location || p.links.website || p.links.linkedin) && <PlaceAndLinks location={p.location} links={p.links} />}
+        {(p.location || (hired && (p.links.website || p.links.linkedin))) && <PlaceAndLinks location={p.location} links={hired ? p.links : undefined} />}
       </div>
       <Facts rate={p.rate} level={p.level} history={p.history} />
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -248,8 +272,8 @@ function Hero({
   );
 }
 
-/** The row under the name: where they are, with their website and LinkedIn beside it. */
-function PlaceAndLinks({ location, links }: { location: string; links: TalentProfileData["links"] }) {
+/** The row under the name: where they are, with their website and LinkedIn beside it once they're hired. */
+function PlaceAndLinks({ location, links }: { location: string; links?: TalentProfileData["links"] }) {
   return (
     <div className="flex flex-wrap items-center gap-4">
       {location && (
@@ -258,8 +282,8 @@ function PlaceAndLinks({ location, links }: { location: string; links: TalentPro
           {location}
         </span>
       )}
-      {links.website && <IconLink label="Website" value={links.website} icon={WEBSITE} />}
-      {links.linkedin && <IconLink label="LinkedIn" value={links.linkedin} icon={LINKEDIN} />}
+      {links?.website && <IconLink label="Website" value={links.website} icon={WEBSITE} />}
+      {links?.linkedin && <IconLink label="LinkedIn" value={links.linkedin} icon={LINKEDIN} />}
     </div>
   );
 }
@@ -270,6 +294,7 @@ function TabContent({
   person: p,
   self,
   first,
+  hidden,
   edit,
   editor,
   aside,
@@ -278,6 +303,8 @@ function TabContent({
   person: TalentProfileData;
   self: boolean;
   first: string;
+  /** Before a hire: what an added link says in place of its address. */
+  hidden?: string;
   edit: Pencils;
   editor: Editors;
   aside?: ReactNode;
@@ -289,14 +316,14 @@ function TabContent({
         {tab === "about" && <AboutTab person={p} self={self} first={first} edit={edit} editor={editor} />}
         {/* IN-066 — company, role, contract type, date, rating and the written feedback; read-only. */}
         {tab === "history" && <HistoryTab history={p.history} self={self} first={first} />}
-        {tab === "portfolio" && <PortfolioTab links={p.links} edit={edit.portfolio} editor={editor.portfolio} />}
+        {tab === "portfolio" && <PortfolioTab person={p} self={self} first={first} hidden={hidden} edit={edit} editor={editor} />}
       </div>
       {aside && <aside className="flex min-w-0 flex-col gap-4">{aside}</aside>}
     </div>
   );
 }
 
-/** About: the bio, the Workplace Tags and the skills, each saying what goes there while it's empty. */
+/** About: the bio, the work style tags and the skills, each saying what goes there while it's empty. */
 function AboutTab({ person: p, self, first, edit, editor }: { person: TalentProfileData; self: boolean; first: string; edit: Pencils; editor: Editors }) {
   return (
     <div className="flex flex-col gap-10">
@@ -304,7 +331,7 @@ function AboutTab({ person: p, self, first, edit, editor }: { person: TalentProf
         {p.bio ? <p className={BODY}>{p.bio}</p> : <p className={QUIET}>{self ? "No bio yet. Team Builders read it first, so a few lines on what you do go a long way." : `${first} hasn't written a bio yet.`}</p>}
       </Section>
       {/* IN-063 — derived from the quiz answers and display-only. */}
-      <Section title="Workplace Tags" edit={edit.tags}>
+      <Section title="Work style" edit={edit.tags}>
         {p.tags.length ? (
           <div className="flex flex-wrap gap-2">
             {p.tags.map((t) => (
@@ -350,18 +377,32 @@ function HistoryTab({ history, self, first }: { history: PastEvaluation[]; self:
   );
 }
 
-/** Portfolio: the portfolio, website and LinkedIn links, one row each. */
-function PortfolioTab({ links, edit, editor }: { links: TalentProfileData["links"]; edit?: ReactNode; editor?: ReactNode }) {
+/**
+ * Portfolio: the work samples uploaded to Hireable, which every Team Builder sees before a hire as
+ * well as after (#355, #311), then the portfolio, website and LinkedIn links, one row each; before a
+ * hire, whether each link is added but not where it goes.
+ */
+function PortfolioTab({ person: p, self, first, hidden, edit, editor }: { person: TalentProfileData; self: boolean; first: string; hidden?: string; edit: Pencils; editor: Editors }) {
   return (
-    <Section title="Portfolio" edit={edit} editor={editor}>
-      <LinkList
-        links={[
-          { label: "Portfolio", value: links.portfolio, icon: <Work size={20} aria-hidden className="text-ink-2" /> },
-          { label: "Website", value: links.website, icon: WEBSITE },
-          { label: "LinkedIn", value: links.linkedin, icon: LINKEDIN },
-        ]}
-      />
-    </Section>
+    <div className="flex flex-col gap-10">
+      <Section title="Work samples" edit={edit.samples} editor={editor.samples}>
+        {p.samples.length ? (
+          <PortfolioGallery samples={p.samples} />
+        ) : (
+          <p className={QUIET}>{self ? "No work samples yet. Team Builders see them before they hire you, so add a few pieces you're proud of." : `${first} hasn't added any work samples yet.`}</p>
+        )}
+      </Section>
+      <Section title="Links" edit={edit.portfolio} editor={editor.portfolio}>
+        <LinkList
+          hidden={hidden}
+          links={[
+            { label: "Portfolio", value: p.links.portfolio, icon: <Work size={20} aria-hidden className="text-ink-2" /> },
+            { label: "Website", value: p.links.website, icon: WEBSITE },
+            { label: "LinkedIn", value: p.links.linkedin, icon: LINKEDIN },
+          ]}
+        />
+      </Section>
+    </div>
   );
 }
 
@@ -476,25 +517,29 @@ function Stars({ value }: { value: number }) {
   );
 }
 
-/** The links Team Builders can open from the profile, one row each, or a note that one hasn't been added. */
-function LinkList({ links }: { links: { label: string; value: string; icon: ReactNode }[] }) {
+/**
+ * The links Team Builders can open from the profile, one row each, or a note that one hasn't been
+ * added. Before a hire (`hidden`) an added one says so instead of where it goes, and doesn't open.
+ */
+function LinkList({ links, hidden }: { links: { label: string; value: string; icon: ReactNode }[]; hidden?: string }) {
   return (
     <ul className="flex max-w-[768px] flex-col rounded-lg bg-white outline -outline-offset-1 outline-border">
       {links.map(({ label, value, icon }, i) => {
+        const open = !!value && !hidden;
         const row = (
           <>
             <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-2">{icon}</span>
             <span className="flex min-w-0 flex-1 flex-col gap-1">
               <span className="text-[12px] leading-[1.2] font-medium tracking-[0.2px] text-ink-2">{label}</span>
-              <span className={`truncate text-[14px] leading-[1.2] font-medium tracking-[0.2px] ${value ? "text-primary" : "text-ink-2"}`}>{value ? bare(value) : "Not added"}</span>
+              <span className={`truncate text-[14px] leading-[1.2] font-medium tracking-[0.2px] ${open ? "text-primary" : "text-ink-2"}`}>{value ? (hidden ?? bare(value)) : "Not added"}</span>
             </span>
-            {value && <Out size={16} aria-hidden className="shrink-0 text-ink-2 transition group-hover:text-primary" />}
+            {open && <Out size={16} aria-hidden className="shrink-0 text-ink-2 transition group-hover:text-primary" />}
           </>
         );
         const box = `flex items-center gap-3 px-4 py-3 ${i ? "shadow-[inset_0_1px_0_#e5e5e5]" : ""}`;
         return (
           <li key={label}>
-            {value ? (
+            {open ? (
               <a href={hrefOf(value)} target="_blank" rel="noreferrer" className={`group transition hover:bg-surface-alt ${box} ${i === 0 ? "rounded-t-lg" : ""} ${i === links.length - 1 ? "rounded-b-lg" : ""}`}>
                 {row}
               </a>

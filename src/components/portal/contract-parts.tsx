@@ -5,7 +5,7 @@ import { MatchAtHire, TrialFitScore } from "@/components/portal/trial-widgets";
 import { FT_BENEFITS, type JobType } from "@/lib/contract/job-types";
 import { trackerClosed, type Task } from "@/lib/demo/tasks";
 import type { FitScore } from "@/lib/contract/fit-score";
-import type { Side } from "@/lib/work/model";
+import { isArchived, isCompleted, type Side } from "@/lib/work/model";
 
 /**
  * Pieces the talent's contract page and the Team Builder's tracker both show, the same on each side.
@@ -37,10 +37,15 @@ export function SummaryRows({ rows }: { rows: readonly (readonly [string, ReactN
 
 type Tracked = { activity: number[]; streak: number; tasks: Task[]; type: JobType; over: boolean; startsOn?: string };
 
-/** TB-058 — the contract's activity log: the days worked, the streak, and why it stopped once it has. */
+/**
+ * TB-058 — the contract's activity log: the days worked, the streak, and why it stopped once it has.
+ * What still feeds it is the Independent's own open work: not a deleted item, and not the Team
+ * Builder's own or one nobody has, which aren't theirs to work on.
+ */
 export function ContractActivity({ contract, ended }: { contract: Tracked; ended: boolean }) {
   const { tasks } = contract;
-  return <ActivityLog activity={contract.activity} streak={contract.streak} feeding={tasks.filter((t) => t.status !== "done").length} closed={trackerClosed(tasks, { ended, trialOver: contract.type === "trial" && contract.over })} starts={contract.startsOn} />;
+  const feeding = tasks.filter((t) => !isArchived(t) && t.assignee === "independent" && !isCompleted(t.status)).length;
+  return <ActivityLog activity={contract.activity} streak={contract.streak} feeding={feeding} closed={trackerClosed(tasks, { ended, trialOver: contract.type === "trial" && contract.over })} starts={contract.startsOn} />;
 }
 
 /** The trial's score — final once it's evaluated or became a role — or, on a direct hire, the match it started on. */

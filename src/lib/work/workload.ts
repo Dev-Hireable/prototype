@@ -19,7 +19,7 @@ import type { Metric } from "./query";
  * is dropped silently.
  */
 export const WORKLOAD_RULE =
-  "Effort is spread evenly across the working days between an item's start and due dates. An item with only a due date counts on that day, and one with only a start date on its start. Items without dates are listed as unscheduled. Effort is relative, not hours, so there's no capacity line — use it to compare who has more on, and when.";
+  "Effort is spread evenly across the working days between an item's start and due dates. An item with only a due date counts on that day, and one with only a start date on its start. Items without dates are listed as unscheduled. Effort is relative, not hours, so there's no capacity line. Use it to compare who has more on, and when.";
 
 export type Share = { item: WorkItem; value: number };
 export type Bucket = { value: number; items: Share[] };

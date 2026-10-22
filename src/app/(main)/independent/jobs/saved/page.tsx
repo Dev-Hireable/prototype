@@ -38,7 +38,7 @@ export default function SavedRoles() {
               <SearchBox value={q} onChange={setQ} placeholder="Search saved roles" className="min-w-0 flex-1" />
               <Select options={["Type: All", "Type: Trial", "Type: Full-time", "Type: Part-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[150px]" />
             </div>
-            <span className="text-[14px] leading-[1.4] text-ink-2">{list.length} saved roles</span>
+            <span className="text-[14px] leading-[1.4] text-ink-2">{list.length === 1 ? "1 saved role" : `${list.length} saved roles`}</span>
           </div>
           <div className="flex flex-col gap-3">
             {list.map((r) => (

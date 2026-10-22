@@ -2,13 +2,14 @@
 
 import { ICONS } from "@/components/icons";
 import { Avatar, StatusDot } from "@/components/portal/ui";
+import { Badge } from "@/components/portal/badge";
 import type { Tone } from "@/lib/portal/tone";
 import { Tip } from "@/components/portal/tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { firstName } from "@/components/workspace/labels";
 import { PRIORITY_LABEL, TASK_STATUS_LABEL, weekLabel } from "@/lib/demo/tasks";
 import type { TaskPriority, TaskStatus } from "@/lib/demo/tasks";
-import { PRIORITIES } from "@/lib/work/model";
+import { PRIORITIES, PRIORITY_META } from "@/lib/work/model";
 
 /**
  * The small parts a task is drawn from, shared by the contract workspace (@/components/workspace)
@@ -16,15 +17,20 @@ import { PRIORITIES } from "@/lib/work/model";
  * Tip) and shadcn's DropdownMenu, so a task looks like everything else in the portals.
  */
 
-const STATUS_TONE: Record<TaskStatus, Tone> = { todo: "neutral", doing: "info", review: "warn", done: "ok" };
-const PRIORITY_TONE: Record<TaskPriority, Tone> = { high: "danger", medium: "warn", low: "info" };
+const STATUS_TONE: Record<TaskStatus, Tone> = { todo: "neutral", doing: "info", review: "review", done: "ok" };
 
 export function StatusPill({ status }: { status: TaskStatus }) {
   return <StatusDot tone={STATUS_TONE[status]}>{TASK_STATUS_LABEL[status]}</StatusDot>;
 }
 
+/** Priority, the one badge every list, card, sheet and plan shows it with: High filled orange, Medium tinted, Low blue (PRIORITY_META). */
 export function PriorityPill({ priority }: { priority: TaskPriority }) {
-  return <StatusDot tone={PRIORITY_TONE[priority]}>{PRIORITY_LABEL[priority]}</StatusDot>;
+  const { tone, solid } = PRIORITY_META[priority];
+  return (
+    <Badge tone={tone} variant={solid ? "solid" : "tint"}>
+      {PRIORITY_LABEL[priority]}
+    </Badge>
+  );
 }
 
 /**

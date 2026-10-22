@@ -37,8 +37,8 @@ export function useCurrentTraits(role: PublicSignupRole): WorkStyleTag[] {
 const NO_SUBSCRIBE = () => () => {};
 
 /**
- * #386 / #186 — the quiz can be retaken once a year: the day this side may take it again, or
- * undefined when it may now. Read in the browser only (the date is kept there).
+ * The quiz can be retaken once a year: the day this side may take it again, or undefined when it
+ * may now. Read in the browser only (the date is kept there).
  */
 export function useRetakeOpensOn(role: PublicSignupRole): string | undefined {
   const at = useSyncExternalStore(NO_SUBSCRIBE, () => nextRetake(sideOfQuizRole(role))?.getTime() ?? 0, () => 0);

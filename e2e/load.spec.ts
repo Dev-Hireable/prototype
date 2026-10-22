@@ -41,7 +41,8 @@ test.describe("loading the workspace · from any link", () => {
 
   test("a link to an item opens it", async ({ page }) => {
     await open(page, "team", "?task=t-logos");
-    await expect(page.getByRole("textbox", { name: "What should change" })).toBeVisible();
+    // In review: Approve, and Request changes, which opens its box only when asked.
+    await expect(panel(page).getByRole("button", { name: "Request changes" })).toBeVisible();
     await expect(page.getByText("Both directions are in the shared folder.")).toBeVisible();
   });
 

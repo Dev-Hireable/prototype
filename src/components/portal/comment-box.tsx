@@ -38,24 +38,7 @@ export function CommentBox({
     setText("");
   };
 
-  const field = (
-    <textarea
-      rows={1}
-      value={text}
-      maxLength={maxLength}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-          e.preventDefault();
-          send();
-        }
-      }}
-      aria-label={label}
-      aria-invalid={!!problem}
-      placeholder={placeholder}
-      className="field-sizing-content max-h-40 min-h-[17px] w-full resize-none text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2"
-    />
-  );
+  const field = <CommentField text={text} onText={setText} onSend={send} label={label} invalid={!!problem} placeholder={placeholder} maxLength={maxLength} />;
   const said = problem && (
     <p role="alert" className="text-[12px] leading-[1.3] text-danger">
       {problem}
@@ -82,6 +65,28 @@ export function CommentBox({
         <SendButton label={sendLabel} disabled={!ready} onClick={send} />
       </div>
     </div>
+  );
+}
+
+/** The box's text: it grows with what's typed, Enter sends and Shift+Enter breaks the line. */
+function CommentField({ text, onText, onSend, label, invalid, placeholder, maxLength }: { text: string; onText: (text: string) => void; onSend: () => void; label: string; invalid: boolean; placeholder: string; maxLength?: number }) {
+  return (
+    <textarea
+      rows={1}
+      value={text}
+      maxLength={maxLength}
+      onChange={(e) => onText(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+          e.preventDefault();
+          onSend();
+        }
+      }}
+      aria-label={label}
+      aria-invalid={invalid}
+      placeholder={placeholder}
+      className="field-sizing-content max-h-40 min-h-[17px] w-full resize-none text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2"
+    />
   );
 }
 

@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
 import { KanbanColumn, KanbanEmpty, KanbanList, type ColumnFrame } from "@/components/portal/board";
-import { StatusCircle } from "@/components/portal/tasks/task-bits";
+import { PriorityPill, StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/tip";
 import { dayOf } from "@/lib/work/dates";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, TYPE_META, type WorkItem } from "@/lib/work/model";
@@ -14,9 +14,9 @@ import { useWorkspace, type WorkspaceEnv } from "./context";
 import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "./group-actions";
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./item-menu";
 import { itemData } from "./item-data";
-import { AssigneeChip, BlockedChip, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, PriorityFact, Ref, TagChip, TypeChip } from "./meta";
+import { AssigneeChip, BlockedChip, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, Ref, TagChip, TypeChip } from "./meta";
 import { liftCard, preloadDragImage } from "./drag-preview";
-import { dropPlan, placeAt, refusal, runPlan, type DropPlan } from "./moves";
+import { dropPlan, placeAt, refusal, runPlan, sendForReview, type DropPlan } from "./moves";
 import { QuickAdd } from "./quick-add";
 import { useTimedMessage } from "./timed-message";
 import { focusItem, useProgressive } from "./util";
@@ -431,7 +431,8 @@ function CardWhen({ item: t }: { item: WorkItem }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <DueChip item={t} today={today} />
-      <PriorityFact priority={t.priority} />
+      {/* Priority as the list and the sheet show it: the one badge (PriorityPill). */}
+      {t.priority && <PriorityPill priority={t.priority} />}
       {/* Which project, when the view mixes them; and read-only, when it's finished work. */}
       <PlaceChip item={t} />
       <LockChip item={t} />
@@ -492,8 +493,7 @@ function nextStep(t: WorkItem, env: ReturnType<typeof useWorkspace>): { label: s
   const { actor, access, names, actions, openTask } = env;
   if (isArchived(t)) return null;
   if (t.status === "review" && transitionFor(t, actor, access, "done").ok) return { label: "Review this item", run: () => openTask(t.id) };
-  if (actor.role === "contributor" && (t.status === "todo" || t.status === "doing") && transitionFor(t, actor, access, "review").ok)
-    return { label: `Send to ${names.team} for review`, run: () => void actions.transition(t, "review", undefined, { success: `Sent ${refOf(t)} to ${names.team} for review` }) };
+  if (actor.role === "contributor" && (t.status === "todo" || t.status === "doing") && transitionFor(t, actor, access, "review").ok) return { label: `Send to ${names.team} for review`, run: () => sendForReview(env, t) };
   if (actor.role === "manager" && !isCompleted(t.status) && transitionFor(t, actor, access, "done").ok) return { label: "Mark done", run: () => void actions.transition(t, "done", undefined, { announce: `${refOf(t)} marked done` }) };
   return null;
 }

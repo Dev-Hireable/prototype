@@ -3,6 +3,7 @@ import { Card, MessageButton, StatusDot } from "@/components/portal/ui";
 import { Stars } from "@/components/portal/contract-parts";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { TrialFitScore } from "@/components/portal/trial-widgets";
+import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { ContractView } from "@/lib/contract/view";
 import type { DealEvaluation } from "@/lib/demo/deal";
 import type { Contract } from "@/lib/independent/data";
@@ -33,12 +34,11 @@ function OngoingEvaluations({ entries, trial, contract, score, ended }: { entrie
           <h2 className="font-display text-[20px] leading-[1.5] font-semibold text-ink" style={DM}>
             Evaluations from {contract.company}
           </h2>
-          <p className="text-[14px] leading-[1.4] text-ink-2">
-            {entries.length === 0 ? (ended ? "None were sent before the contract ended." : trial ? `${contract.manager} hasn't reviewed the ${contract.type.replace("-", " ")} role yet. Your trial's evaluation is below.` : `${contract.manager} has not submitted one yet.`) : `${entries.length} submitted so far. Each is read-only once sent.`}
-          </p>
+          {/* With none yet, the box below says so once: the line here only counts what's in. */}
+          {entries.length > 0 && <p className="text-[14px] leading-[1.4] text-ink-2">{entries.length} submitted so far. Each is read-only once sent.</p>}
         </div>
         {entries.length === 0 ? (
-          <Card className="p-10 text-center text-[13px] leading-[1.4] text-ink-2">{ended ? "The contract has ended." : `Feedback appears here as ${contract.managerFirst} sends it.`}</Card>
+          <Card className="p-10 text-center text-[13px] leading-[1.4] text-ink-2">{ended ? "None were sent before the contract ended." : `No ${JOB_TYPE_LABEL[contract.type].toLowerCase()} evaluation yet. ${contract.managerFirst}'s feedback will show here.`}</Card>
         ) : (
           keyed(entries, (e) => `${e.date}-${e.stars}`).map(({ item: e, key }) => (
             <Card key={key} className="flex flex-col gap-3 p-5">
@@ -75,10 +75,8 @@ function OngoingEvaluations({ entries, trial, contract, score, ended }: { entrie
           </div>
         )}
       </div>
-      <aside className={SIDE_COLUMN}>
-        {score}
-        {contract.tfs && <p className="text-[12.5px] leading-[1.4] text-ink-2">The final score from your trial — the one this contract came out of. It is read-only and does not move again.</p>}
-      </aside>
+      {/* The score card's own line says it's the final trial score; nothing under it repeats that. */}
+      <aside className={SIDE_COLUMN}>{score}</aside>
     </div>
   );
 }
@@ -97,38 +95,36 @@ function Evaluation({ evaluation, company, contract, thread, due }: { evaluation
           </h2>
           <p className="text-[14px] leading-[1.4] text-ink-2">Submitted {evaluation.date}. Scores are final and feed your trial fit score.</p>
         </div>
-        {/* IN-034 — the overall star rating the Team Builder submitted, above the per-criterion scores. */}
+        {/* IN-034 — the overall rating the Team Builder submitted, above the per-criterion scores: one
+            score, the criteria's average. A rounded "4.0 overall" stood beside an "average 4.3". */}
         <Card className="flex items-center gap-4 p-5">
           <Stars value={evaluation.stars} size="text-[24px]" />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <p className="text-[16px] leading-[1.4] font-semibold text-ink">{evaluation.stars}.0 out of 5 overall</p>
-            <p className="text-[13px] leading-[1.4] text-ink-2">Average score {average.toFixed(1)} of 5 · submitted once, and read-only for both of you.</p>
-          </div>
+          <p className="min-w-0 flex-1 text-[16px] leading-[1.4] font-semibold text-ink">{average.toFixed(1)} out of 5</p>
         </Card>
         <ScoresCard evaluation={evaluation} contract={contract} thread={thread} />
       </div>
       {/* IN-034 — the finalised score, from the contract. Same widget the Team Builder reads. */}
       <aside className={SIDE_COLUMN}>
         {contract.tfs && <TrialFitScore contract={{ tfs: contract.tfs, phase: contract.phase }} viewer="independent" final />}
-        <p className="text-[12.5px] leading-[1.4] text-ink-2">Locked at phase 4 on {evaluation.date}, after the employer evaluation. It does not move again.</p>
+        <p className="text-[12.5px] leading-[1.4] text-ink-2">Final score. Locked after your evaluation.</p>
       </aside>
     </div>
   );
 }
 
-/** Before the evaluation is in: when it opens, or — once the trial is over — when it's due and what it settles. */
+/** Before the evaluation is in: when it opens, or, once the trial is over, when it's due and what it settles. */
 function NoEvaluationYet({ company, contract, due }: { company: string; contract: Contract; due?: string }) {
   return (
     <Card className="p-10 text-center">
       <p className="text-[16px] leading-[1.5] font-semibold text-ink">{contract.over ? "Waiting on the evaluation" : `Evaluation opens when the trial ends on ${contract.ends}`}</p>
       <p className="mt-2 text-[13px] leading-[1.4] text-ink-2">
-        {contract.over && due ? `${company} has until ${due} to send it. It makes your Trial Fit Score final, and the escrow is paid to you with it.` : `${company} submits scores after the trial ends — or sooner, once every trial task is done. They feed your trial fit score, and you are notified when they are in.`}
+        {contract.over && due ? `${company} has until ${due} to send it. It makes your trial fit score final, and you get paid when ${contract.managerFirst} submits it.` : `${company} will score your trial when it ends, or earlier if all trial tasks are done. We'll notify you.`}
       </p>
     </Card>
   );
 }
 
-/** Each criterion's score on the 1–5 scale, the recommendation, the employer's comments, and the way to reply. */
+/** Each criterion's score on the 1–5 scale, the recommendation, the company's comments, and the way to reply. */
 function ScoresCard({ evaluation, contract, thread }: { evaluation: DealEvaluation; contract: Contract; thread: string }) {
   const chat = useQuickChat();
   return (
@@ -157,7 +153,7 @@ function ScoresCard({ evaluation, contract, thread }: { evaluation: DealEvaluati
         </p>
       </div>
       <div className="flex flex-col gap-2">
-        <p className="text-[14px] leading-[1.4] font-medium text-ink">Comments from your employer</p>
+        <p className="text-[14px] leading-[1.4] font-medium text-ink">Comments from {contract.company}</p>
         <p className="rounded-md bg-[#fafafa] p-3 text-[14px] leading-[1.4] text-ink outline -outline-offset-1 outline-border">{evaluation.feedback}</p>
       </div>
       <div className="flex justify-end">

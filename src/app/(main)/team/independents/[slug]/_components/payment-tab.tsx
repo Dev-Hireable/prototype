@@ -18,8 +18,8 @@ export function PaymentTab({ t, payments, disputeButton }: { t: Tracker; payment
       <TermsCard title="Contract terms" rows={contractTerms(t)} />
       {contract.type === "full-time" && (
         <Card className="flex flex-col gap-4 p-5">
-          <CardHeading>Exclusive benefits</CardHeading>
-          <p className="text-[13px] leading-[1.4] text-ink-2">What the signed offer includes, on top of base salary.</p>
+          <CardHeading>Benefits</CardHeading>
+          <p className="text-[13px] leading-[1.4] text-ink-2">What the signed offer includes, on top of the pay.</p>
           <BenefitList included={benefitsOf(view)} size="text-[14px]" />
         </Card>
       )}
@@ -74,7 +74,10 @@ function PaymentHistory({ t, payments }: { t: Tracker; payments: Transaction[] }
   );
 }
 
-/** IN-032's rule from this side too: every dispute on this contract, whoever filed it. */
+/**
+ * IN-032's rule from this side too: every dispute on this contract, whoever filed it. The contract's
+ * one File a dispute is here, and while it's off, the card says why in words, not only on hover.
+ */
 function Disputes({ t, disputeButton }: { t: Tracker; disputeButton: ReactNode }) {
   const { disputes: here, block, fileHint } = t.view;
   return (
@@ -89,10 +92,14 @@ function Disputes({ t, disputeButton }: { t: Tracker; disputeButton: ReactNode }
             ? `No disputes. ${fileHint}; until then, raise anything with ${t.first} in Messages.`
             : fileHint
               ? `No disputes. ${fileHint}.`
-              : "No disputes on this contract. If a payment or the agreed process went wrong, file one — Hireable support reviews the task log and the payment record."}
+              : "No disputes on this contract. If something went wrong, file a dispute. Hireable support will review it."}
         </p>
       ) : (
-        <DisputeRows disputes={here} side="team" />
+        <>
+          <DisputeRows disputes={here} side="team" />
+          {/* An open one is the button itself (View dispute); any other block is said under the list. */}
+          {fileHint && block !== "open" && <p className="text-[12.5px] leading-[1.4] text-ink-2">{fileHint}.</p>}
+        </>
       )}
     </Card>
   );

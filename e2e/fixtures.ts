@@ -78,6 +78,8 @@ export async function seed(context: BrowserContext, opts: SeedOptions = {}) {
   const stores = Object.entries({ tours, ...opts.stores }).map(([key, v]) => [`hireable.demo.${key}`, JSON.stringify(v)]);
   await context.addInitScript(
     ({ run, value, disputes, stores }) => {
+      // It runs in every frame, the browser's own PDF viewer too (a PDF sample opened full size), which has no storage.
+      if (!window.localStorage) return;
       if (localStorage.getItem("hireable.e2e.run") === run) return;
       for (const k of Object.keys(localStorage)) if (k.startsWith("hireable.")) localStorage.removeItem(k);
       localStorage.setItem("hireable.e2e.run", run);

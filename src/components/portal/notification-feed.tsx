@@ -2,9 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import type { IconType } from "react-icons";
+import { ICONS } from "@/components/icons";
 import { Pills } from "@/components/portal/ui";
 import { useWithReturn } from "@/components/portal/return";
 import { MONTHS } from "@/lib/portal/dates";
+import { categoryOf, type NoteCategory } from "@/lib/portal/notification-categories";
 
 /** One notification as the feed shows it, whichever portal it came from. */
 export type FeedItem = {
@@ -14,14 +17,21 @@ export type FeedItem = {
   unread: boolean;
   /** Where the row opens. The whole row is the link. */
   href?: string;
-  /** Who it is from. Rows without a photo show their initials instead. */
+  /** Who it is from: a person's photo; or the company's `logo`, else its `initials`; or, on Hireable's own (`system`), its category's icon. */
   avatar?: string;
   initials?: string;
+  logo?: string;
+  system?: boolean;
+  /** Its category, for that icon. */
+  kind?: string;
   /** When it happened (epoch ms). Older records carry only the stored group and time. */
   at?: number;
   group: string;
   time: string;
 };
+
+/** Each category's icon, on a notice from Hireable itself. */
+const CATEGORY_ICON: Record<NoteCategory, IconType> = { applications: ICONS.applications, interviews: ICONS.interviews, tasks: ICONS.typeTask, messages: ICONS.messages, payments: ICONS.wallet };
 
 type Group = "Today" | "Yesterday" | "Earlier";
 const GROUPS: Group[] = ["Today", "Yesterday", "Earlier"];
@@ -43,8 +53,18 @@ function when(n: FeedItem, now = new Date()): { group: Group; time: string } {
   return { group: "Earlier", time: `${d.getDate()} ${MONTHS[d.getMonth()]}` };
 }
 
+/** Who a row is from: the person's photo, the company's logo or initials, or the type's icon on a notice from Hireable. */
 function Sender({ item }: { item: FeedItem }) {
+  if (item.system) {
+    const Icon = CATEGORY_ICON[categoryOf({ kind: item.kind ?? "", title: item.title })];
+    return (
+      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8f1fa] text-primary">
+        <Icon size={18} />
+      </span>
+    );
+  }
   if (item.avatar) return <Image src={item.avatar} alt="" width={72} height={72} className="size-9 shrink-0 rounded-full bg-[#d2d8db] object-cover object-top" />;
+  if (item.logo) return <Image src={item.logo} alt="" width={72} height={72} className="size-9 shrink-0 rounded-full bg-white object-cover outline -outline-offset-1 outline-border" />;
   return (
     <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8f1fa] text-[12px] font-semibold text-primary">
       {item.initials ?? "H"}

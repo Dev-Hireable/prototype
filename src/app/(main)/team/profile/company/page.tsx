@@ -40,14 +40,15 @@ export default function CompanyProfile() {
   const logo = usePickedImage(setToast);
 
   const live = roles.filter((r) => r.status === "Active").length;
-  const liveOn = `live on ${live} active ${live === 1 ? "role" : "roles"}`;
+  /** Where a change shows, after what was saved: nothing to add while no role is live. */
+  const liveOn = live ? ` · live on ${live} active ${live === 1 ? "role" : "roles"}` : "";
 
   return (
     <Page title="Profile">
       <div className="mx-auto flex w-full max-w-[760px] flex-col gap-4">
         <ProfileHeader
           image={<CompanyLogo src={logo.preview ?? company.logo} name={company.name} />}
-          imageLabel="Change logo — JPG or PNG, up to 5MB"
+          imageLabel="Change logo (JPG or PNG, up to 5MB)"
           name={company.name}
           pending={!!logo.preview}
           onPick={logo.pick}
@@ -55,7 +56,7 @@ export default function CompanyProfile() {
           onSave={() => {
             if (logo.preview) setCompany({ logo: logo.preview });
             logo.clear();
-            setToast(`Logo updated · ${liveOn}`);
+            setToast(`Logo updated${liveOn}`);
           }}
         >
           <p className="text-[13px] leading-[1.4] text-ink-2">Shown on every role you post.</p>
@@ -89,7 +90,7 @@ function CompanyDetails({ liveOn, onToast }: { liveOn: string; onToast: SetToast
   const { company, setCompany } = useTeamAccount();
   const left = ROWS.filter((r) => !String(company[r.key]).trim());
   return (
-    <ProfileSection title="Company details" description="What independents read about you before they apply.">
+    <ProfileSection title="Company details" description="What Independents read about you before they apply.">
       {/* Only while something's missing: a full bar on a finished profile is just noise. */}
       {left.length > 0 && (
         <Completeness done={ROWS.length - left.length} total={ROWS.length}>
@@ -110,7 +111,7 @@ function CompanyDetails({ liveOn, onToast }: { liveOn: string; onToast: SetToast
             hint={r.kind === "long" ? (d) => `${d.length} / ${COMPANY_DESC_MAX}` : undefined}
             onSave={(v) => {
               setCompany({ [r.key]: v } as Partial<CompanyProfile>);
-              onToast(`${r.label} saved · ${liveOn}`);
+              onToast(`${r.label} saved${liveOn}`);
             }}
           />
         ))}
@@ -120,7 +121,7 @@ function CompanyDetails({ liveOn, onToast }: { liveOn: string; onToast: SetToast
         checked={!!company.remote}
         onChange={(remote) => {
           setCompany({ remote });
-          onToast(`${remote ? "Remote team on" : "Remote team off"} · ${liveOn}`);
+          onToast(`${remote ? "Remote team on" : "Remote team off"}${liveOn}`);
         }}
       >
         Remote team

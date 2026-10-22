@@ -2,10 +2,12 @@
 
 import Image from "next/image";
 import { useId, useState, type ReactNode } from "react";
+import { ICONS } from "@/components/icons";
 import { Button, Checkbox, Field, Modal, Textarea } from "@/components/portal/ui";
 import type { JobType } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { agreementFor } from "@/lib/contract/agreement";
+import { signatureMatches } from "@/lib/portal/names";
 
 /*
  * The pieces every offer page is built from — the talent's offer, the post-trial offer and the Team
@@ -29,23 +31,40 @@ export function OfferTerms({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-/** The typed-name signature and the tick on the platform contract that every offer is signed with. */
-export function Signature({ name, onName, agree, onAgree, disabled }: { name: string; onName: (name: string) => void; agree: boolean; onAgree: (agree: boolean) => void; disabled?: boolean }) {
+/**
+ * The typed-name signature and the tick on the platform contract that every offer is signed with.
+ * With `fullName`, the signature has to be the account's name (signatureMatches): the label names
+ * it, and a name that doesn't match says so under the field once the field is left. Once the offer
+ * is accepted (`signed`), it reads who signed and when, with the tick kept and locked.
+ */
+export function Signature({ name, onName, agree, onAgree, disabled, fullName, signed }: { name: string; onName: (name: string) => void; agree: boolean; onAgree: (agree: boolean) => void; disabled?: boolean; fullName?: string; signed?: { name: string; on?: string } }) {
   const id = useId();
+  const [left, setLeft] = useState(false);
+  const wrong = fullName !== undefined && left && name.trim() !== "" && !signatureMatches(name, fullName);
+  if (signed) return <SignedBy signed={signed} />;
   return (
     <>
       <label htmlFor={id} className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
-        Type your full name to sign. This is your electronic signature confirming commitment to the offer terms.
+        {fullName !== undefined ? `Type your full name exactly as on your account (${fullName})` : "Type your full name to sign. This is your electronic signature confirming commitment to the offer terms."}
       </label>
       <input
         id={id}
         value={name}
         onChange={(e) => onName(e.target.value)}
+        onBlur={() => setLeft(true)}
         placeholder="Your full name"
         disabled={disabled}
+        required={fullName !== undefined}
+        aria-invalid={wrong || undefined}
+        aria-describedby={wrong ? `${id}-error` : undefined}
         className="border-b border-border py-2 font-display text-[20px] text-ink italic outline-none placeholder:text-ink-2 focus:border-primary"
         style={{ fontVariationSettings: '"opsz" 14' }}
       />
+      {wrong && (
+        <p id={`${id}-error`} role="alert" className="-mt-2 text-[13px] leading-[1.2] tracking-[0.2px] text-danger">
+          Must match your account name: {fullName}.
+        </p>
+      )}
       <Checkbox checked={agree} onChange={onAgree} disabled={disabled}>
         <span className="text-[12px] leading-[1.4]">
           I agree to the <span className="text-primary underline">platform contract</span> and <span className="text-primary underline">terms of service</span>.
@@ -55,13 +74,39 @@ export function Signature({ name, onName, agree, onAgree, disabled }: { name: st
   );
 }
 
-/** The services agreement for the offer's type, in its scrolling box; `title` heads the text inside. */
+/** An accepted offer's signature, read-only: who signed and the day, with the tick they gave kept and locked. */
+function SignedBy({ signed }: { signed: { name: string; on?: string } }) {
+  return (
+    <>
+      <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink">
+        Signed by {signed.name}
+        {signed.on && `, ${signed.on}`}
+      </p>
+      <Checkbox checked onChange={() => {}} disabled>
+        <span className="text-[12px] leading-[1.4]">
+          I agree to the <span className="text-primary underline">platform contract</span> and <span className="text-primary underline">terms of service</span>.
+        </span>
+      </Checkbox>
+    </>
+  );
+}
+
+/**
+ * The services agreement for the offer's type, folded behind one line until it's wanted: open, it's
+ * the text in its scrolling box, with `title` heading it. It used to be a wall of text on the offer.
+ */
 export function Agreement({ type, title, height = "h-[320px]" }: { type: JobType; title?: string; height?: "h-[260px]" | "h-[320px]" }) {
   return (
-    <div className={`flex flex-col gap-6 overflow-y-auto rounded-lg bg-surface-2 px-4 pt-4 outline -outline-offset-1 outline-border ${height}`}>
-      {title && <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{title}</p>}
-      <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{agreementFor(type)}</p>
-    </div>
+    <details className="group rounded-lg bg-surface-2 outline -outline-offset-1 outline-border">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-lg px-4 py-3 text-[14px] leading-[1.2] font-medium tracking-[0.2px] text-ink focus-visible:outline-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+        Read the services agreement
+        <ICONS.chevron size={18} aria-hidden className="shrink-0 text-ink-2 transition-transform group-open:rotate-180" />
+      </summary>
+      <div className={`flex flex-col gap-6 overflow-y-auto border-t border-border px-4 pt-4 ${height}`}>
+        {title && <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{title}</p>}
+        <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{agreementFor(type)}</p>
+      </div>
+    </details>
   );
 }
 

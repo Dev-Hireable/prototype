@@ -8,6 +8,8 @@
  * shows in the middle of the screen instead, so a tour never gets stuck.
  */
 
+import { workingDaysLabel } from "@/lib/portal/dates";
+
 export type TourSide = "team" | "independent";
 
 export type TourStep = {
@@ -46,7 +48,7 @@ const HELP = '[data-tour="help"]';
 function contractSteps(task: string): TourStep[] {
   return [
     { target: '[role="tablist"][aria-label="Contract sections"]', title: "Everything in one place", body: "Work holds the tasks. Overview shows progress, and Contract & Payment the terms and the money. A trial adds Evaluation when it ends." },
-    { target: 'p[aria-label="Summary"]', title: "Where it stands", body: "How far into the contract you are, and on a trial the Trial Fit Score, which moves as the work gets done." },
+    { target: 'p[aria-label="Summary"]', title: "Where it stands", body: "How far into the contract you are, and on a trial the trial fit score, which moves as the work gets done." },
     { target: '[role="tablist"][aria-label="Views"]', title: "See the work your way", body: "Board, List, Calendar, Timeline and Workload all show the same tasks. Pick whichever suits the moment." },
     { target: '[role="toolbar"][aria-label="Search, filter, sort and group"]', title: "Find what matters now", body: "Search, filter, sort and group the tasks, for example to see only what's overdue." },
     { target: '[data-testid="workspace"] [role="group"][aria-label^="#"]', title: "A task", body: task },
@@ -56,7 +58,7 @@ function contractSteps(task: string): TourStep[] {
 /** Messages, the same on both sides: the conversations and the composer. `who` is the other side. */
 function messageSteps(who: string): TourStep[] {
   return [
-    { target: "aside", title: "Your conversations", body: `A thread opens with each ${who} once an interview is booked, and stays through the contract. Search by name or by what was said.` },
+    { target: "aside", title: "Your conversations", body: `A thread opens with each ${who} at the first invite or application, and stays through the contract. Search by name or by what was said.` },
     { target: 'form:has(input[aria-label="Message"])', title: "Send a message", body: "Type a reply or attach a file. Each message shows when it's been sent and when it's been seen." },
   ];
 }
@@ -108,7 +110,7 @@ const TEAM: Tour[] = [
     path: "/team/hire",
     name: "Creating a role",
     steps: [
-      { target: 'a[href="/team/hire/new?type=trial"]', title: "A paid trial", body: "Work together on real tasks for 30, 60 or 90 days before you commit. Pick this to test the fit first." },
+      { target: 'a[href="/team/hire/new?type=trial"]', title: "A paid trial", body: `Work together on real tasks for 30, 60 or ${workingDaysLabel(90)} before you commit. Pick this to test the fit first.` },
       { target: 'a[href="/team/hire/new?type=full-time"]', title: "An ongoing role", body: "Hire straight into a full-time or part-time role with set hours or a salary." },
     ],
   },
@@ -151,7 +153,7 @@ const INDEPENDENT: Tour[] = [
     name: "Discover roles",
     steps: [
       { target: SEARCH, title: "Search", body: "Look roles up by title, company or skill." },
-      { target: "aside", title: "Narrow it down", body: "Filter by role type, experience, rate and skills, then apply the filters." },
+      { target: "aside", title: "Narrow it down", body: "Filter by role type, experience, rate and skills. The list changes as you tick them." },
       { target: "article", title: "A role for you", body: "The match score shows how well the company's work style fits yours. Open the role to read it in full and apply." },
     ],
   },

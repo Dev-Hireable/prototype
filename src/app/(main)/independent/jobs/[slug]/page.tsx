@@ -13,6 +13,7 @@ import { roleFromPosting } from "@/lib/independent/data";
 import { useSavedRoles } from "@/lib/independent/saved";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentAccount } from "@/lib/independent/account";
+import { trialTasksShared } from "@/lib/independent/job-view";
 import { useToast } from "@/lib/portal/toast";
 import { ApplyDialog } from "./_components/apply-dialog";
 import { CompanyCard } from "./_components/company-card";
@@ -24,9 +25,9 @@ import { toggleSavedWithNote } from "@/components/portal/notify";
  * IN-012 / IN-017 — a role's detail page, and the confirm before applying to it.
  * The header reads like the talent profile's: the company, the title with its type and match, and a
  * facts strip. Under it the role itself, then how the talent's work style lines up with the
- * company's (the Workplace Tags that replaced the work-style chart), the trial's tasks — shared
- * once they're matched or invited, like the trial expectations were — and how hiring runs. The
- * company card beside it holds the actions and stays in view.
+ * company's (the work style tags that replaced the work-style chart), the trial's tasks (shared
+ * once their proposal is accepted), and how hiring runs. The company card beside it holds the
+ * actions and stays in view.
  */
 export default function RoleDetail({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -46,14 +47,14 @@ export default function RoleDetail({ params }: { params: Promise<{ slug: string 
   const { application, blocked } = standing;
   const isSaved = saved.includes(role.slug);
   const tasks = posting.tasks ?? [];
-  /** TB-025 — a trial's tasks are for candidates the company has matched with or invited, not the public listing. */
-  const tasksShared = !!application && application.stage !== "applied";
+  /** TB-025 — a trial's tasks are shared once the talent's proposal is accepted (the offer); until then, how many there are. */
+  const tasksShared = trialTasksShared(application?.stage);
   /** The company's quiz answers, from the Team Builder's portal — the one company on this demo's board. */
   const theirs = posting.company === PAIR.team.company ? storedWorkStyle("team") : [];
 
-  const send = (extras: { note: string; quiz: boolean }) => {
-    // IN-017 — the note and the quiz choice go with the application; they used to be dropped here.
-    const sent = apply(role.slug, role.title, role.company, match, extras);
+  const send = (note: string) => {
+    // IN-017 — the note goes with the application, and so do the quiz results (#77): matching runs on them.
+    const sent = apply(role.slug, role.title, role.company, match, { note, quiz: true });
     setOpen(false);
     setToast(sent ? `Application sent to ${role.company}` : "This application couldn't be sent", sent ? "success" : "danger");
   };

@@ -6,12 +6,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Highlight, SearchBox } from "@/components/portal/ui";
 import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
-import { ChatSourceLink } from "@/components/portal/chat-source-link";
+import { ChatSourceLink, EntryDetails } from "@/components/portal/chat-source-link";
 import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
 import { MONTHS } from "@/lib/portal/dates";
+import { entryDialogOf } from "@/lib/portal/entry-dialog";
+import { savedOffset } from "@/lib/demo/clocks";
 import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
-import { slotAt } from "@/lib/portal/timezones";
+import { bothClocks } from "@/lib/portal/timezones";
 import type { Side } from "@/lib/work/model";
 
 const DoneAll = ICONS.doneAll;
@@ -57,11 +59,11 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
   const other: Side = side === "team" ? "independent" : "team";
   const back = useReturnTo();
   const live = useLive();
-  /** Opens on the tab that holds the thread until one is picked — it opened on an empty tab. */
-  const [picked, setTab] = useState<K | null>(null);
-  const tab = picked ?? conversations[0]?.kind ?? tabs[0];
   const [q, setQ] = useState("");
   const view = useThreadView(conversations[0]?.id);
+  /** The tabs filter the one thread per person by stage: the first (still in hiring) until one is picked, or the tab of a `?with=` thread. */
+  const [picked, setTab] = useState<K | null>(null);
+  const tab = picked ?? conversations.find((c) => c.id === view.wanted)?.kind ?? tabs[0];
   const composer = useComposer(side);
   const conv = conversations.find((c) => c.id === view.active) ?? conversations[0];
   const chat: Chat = { live, side, other };
@@ -129,7 +131,7 @@ function useThreadView(first: string | undefined) {
     setActive(id);
     setOpened(true);
   };
-  return { active, opened, open, back: () => setOpened(false) };
+  return { active, wanted, opened, open, back: () => setOpened(false) };
 }
 
 /**
@@ -360,19 +362,13 @@ function dayOf(at: number | undefined, now = new Date()): string | undefined {
 }
 
 /**
- * #153 — an interview's time in the viewer's own clock, and, for the side that didn't book it, the
- * booker's too: "Tue 29 Sep, 9:00 AM your time, 10:00 AM Alex's time".
+ * #153 / #341 — an interview's time in both people's clocks, on both sides: "Tue 29 Sep, 10:00 AM
+ * your time · 10:00 PM Juan's time". Each clock is that side's saved time zone (or its device's);
+ * the slot keeps the clock it was booked in.
  */
 function SlotTimes({ slot, side }: { slot: InterviewSlot; side: Side }) {
-  const mine = slotAt(slot.when, slot.offset, -new Date().getTimezoneOffset());
-  if (!mine) return <span className="w-full text-ink-deep">{slot.when}</span>;
-  const theirs = slotAt(slot.when, slot.offset, slot.offset);
-  const booker = PAIR[slot.by].name.split(" ")[0];
-  return (
-    <span className="w-full text-ink-deep">
-      {mine} your time{slot.by !== side && theirs !== mine ? `, ${theirs?.split(", ")[1]} ${booker}'s time` : ""}
-    </span>
-  );
+  const other: Side = side === "team" ? "independent" : "team";
+  return <span className="w-full text-ink-deep">{bothClocks(slot.when, slot.offset, savedOffset(side), { offset: savedOffset(other), first: PAIR[other].name.split(" ")[0] })}</span>;
 }
 
 /** Between two days of the thread. */
@@ -388,21 +384,27 @@ function DayDivider({ label }: { label: string }) {
 
 /**
  * TB-007 / IN-007 — a step logged in the thread (an application, an interview, an offer, a payment):
- * what happened and when, and View details, which opens it on this side. A notification opens the
- * thread on its entry, which is then highlighted.
+ * what happened and when, and View details, which opens it on this side: a proposal or an offer in
+ * its dialog over the chat, anything else on its page. A link to the thread lands on its entry, which
+ * is then highlighted.
  */
 function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boolean }) {
   const withReturn = useWithReturn();
   const href = m.event?.href[side];
+  const dialog = href ? entryDialogOf(href, side) : null;
   return (
     <p id={`msg-${m.id}`} className={`mx-auto flex max-w-[480px] flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-lg px-3 py-2 text-center text-[12.5px] leading-[1.45] ${focused ? "bg-accent-bg outline outline-accent" : "bg-surface-alt"}`}>
       <span className="font-medium text-ink-deep">{m.event?.text}</span>
       {m.event?.slot && <SlotTimes slot={m.event.slot} side={side} />}
       <span className="text-muted">{m.time}</span>
-      {href && (
-        <Link href={withReturn(href)} className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
-          View details
-        </Link>
+      {dialog ? (
+        <EntryDetails dialog={dialog} side={side} />
+      ) : (
+        href && (
+          <Link href={withReturn(href)} className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+            View details
+          </Link>
+        )
       )}
     </p>
   );

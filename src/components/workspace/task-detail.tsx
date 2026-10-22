@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type Ref, type RefObject } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactNode, type Ref, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
 import { Button, Checkbox, Drawer, InfoBanner, KebabMenu, Textarea } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { MenuAction } from "@/components/portal/controls";
 import { CommentBox } from "@/components/portal/comment-box";
 import { Tip } from "@/components/portal/tip";
-import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, type Subtask, type WorkItem } from "@/lib/work/model";
+import { EFFORT_HELP, hearsComments, isArchived, isCompleted, openBlockers, refOf, unfinishedOf, type Subtask, type WorkItem } from "@/lib/work/model";
 import { capsFor, changeFor, tickRefusal, transitionFor, type AgreedField, type Caps } from "@/lib/work/permissions";
 import { checkComment, checkSubtaskTitle, checkTitle } from "@/lib/work/validate";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
@@ -34,6 +34,8 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
   const [locked, setLocked] = useState<AgreedField | null>(null);
   /** The first date this person can change (PlanDates): where the sheet starts when it's opened to set dates. */
   const firstDate = useRef<HTMLButtonElement>(null);
+  /** The question a send for review of unfinished work asks (SendAnyway): where the sheet starts when it's opened to send it. */
+  const confirm = useRef<HTMLDivElement>(null);
   /** The Activity section — where a comment's notification and a comment just sent scroll to. */
   const activity = useRef<HTMLElement>(null);
   /** A comment sent from the foot: the stream scrolls to it. */
@@ -47,11 +49,11 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
       testId="task-panel"
       // The header's first control is the name: opening on it would put the name mid-edit every time.
       // Opened to set its dates, it starts on the first one this person can change — and on the close
-      // button still when neither is theirs.
-      initialFocus={focus === "dates" ? firstDate : "close"}
+      // button still when neither is theirs. Opened to send unfinished work, it starts on the question.
+      initialFocus={focus === "dates" ? firstDate : focus === "submit" ? confirm : "close"}
       header={<PanelHeading item={item} byId={byId} focus={focus} pending={pending} onLocked={setLocked} />}
       actions={<PanelActions item={item} />}
-      footer={(step || canComment) && <SheetFoot item={item} step={step} focus={focus} canComment={canComment} onSent={sent} />}
+      footer={(step || canComment) && <SheetFoot key={item.id} item={item} byId={byId} step={step} focus={focus} canComment={canComment} confirmRef={confirm} onSent={sent} />}
     >
       <DetailBody item={item} items={items} byId={byId} focus={focus} firstDate={firstDate} locked={locked} onLocked={setLocked} activityRef={activity} />
     </Drawer>
@@ -211,15 +213,13 @@ function DeletedBanner({ item: t, restorable }: { item: WorkItem; restorable: bo
   );
 }
 
-/** Changes asked for: who asked and when, their note, and — for the Independent — what to do about it. */
+/** Changes asked for: who asked and when, and their note. What to do next is the foot's Send for review, not said again here. */
 function ChangesBanner({ changes }: { changes: NonNullable<WorkItem["changes"]> }) {
-  const { actor, names } = useWorkspace();
-  const talent = actor.role === "contributor";
+  const { names } = useWorkspace();
   return (
     <InfoBanner tone="warn">
       <span className="font-semibold">{changes.by || names.team} asked for changes</span> · {changes.at}
       {changes.note && <span className="mt-1 block">“{changes.note}”</span>}
-      {talent && <span className="mt-1 block">Make the changes, then send it for review again.</span>}
     </InfoBanner>
   );
 }
@@ -363,7 +363,7 @@ function SubtasksSection({ item: t, caps }: { item: WorkItem; caps: Caps }) {
           variant="inline"
           label="Add subtask"
           fieldLabel="New subtask"
-          placeholder="Name the step — Enter to add another"
+          placeholder="Name the step (Enter adds another)"
           check={checkSubtaskTitle}
           marker={<span aria-hidden className="size-4 shrink-0 rounded-[4px] border border-input bg-white" />}
           onAdd={(title) => actions.addSubtask(t, title)}
@@ -411,10 +411,10 @@ function historyOf(t: WorkItem, people: WorkspaceEnv["people"], { changes, revie
   ].sort((a, b) => a.ts - b.ts);
 }
 
-/** The comment box's prompt: who a comment notifies — or that the Independent can read it but won't hear. */
+/** The comment box's prompt: who a comment notifies, or that the Independent can read it but won't hear. */
 function commentPlaceholder(t: WorkItem, talent: boolean, names: WorkspaceEnv["names"]) {
-  if (talent) return `Add a comment — ${names.team} gets a notification`;
-  return hearsComments(t, "independent") ? `Add a comment — ${names.independent} gets a notification` : `Add a comment — ${names.independent} can read it but won't be notified`;
+  if (talent) return `Add a comment. ${names.team} will be notified.`;
+  return hearsComments(t, "independent") ? `Add a comment. ${names.independent} will be notified.` : `Add a comment. ${names.independent} can read it but won't be notified.`;
 }
 
 /**
@@ -444,22 +444,44 @@ function ActivitySection({ ref, item: t, changes, review, canComment }: { ref: R
 /** An empty stream (a task nobody has touched or said anything on): who a first comment reaches — or, for someone who can't comment, just that there's none. */
 function conversationEmpty(t: WorkItem, talent: boolean, names: WorkspaceEnv["names"], canComment: boolean) {
   if (!canComment) return "No comments on this task.";
-  if (talent) return `No comments yet. Ask ${names.team} a question or share an update — they'll get a notification.`;
+  if (talent) return `No comments yet. Ask ${names.team} a question or share an update. They'll get a notification.`;
   return hearsComments(t, "independent")
-    ? `No comments yet. Ask ${names.independent} a question or share an update — they'll get a notification.`
+    ? `No comments yet. Ask ${names.independent} a question or share an update. They'll get a notification.`
     : `No comments yet. ${names.independent} can read what you write here but won't be notified.`;
+}
+
+/** A text box a step opens in the foot: what should change (the review), or the note with a review request (the send). */
+type FootBox = "changes" | "note";
+
+/**
+ * Something in the foot that opening the item for a reason opens (`focus`: asking for changes, a send
+ * that asks first): open from the start when it's opened for that, and again whenever it's opened for
+ * it anew. Otherwise it opens and closes by hand.
+ */
+function useOpenedBy<T extends string>(focus: DetailFocus | undefined, reason: DetailFocus, value: T) {
+  const [open, setOpen] = useState<T | null>(focus === reason ? value : null);
+  const [seen, setSeen] = useState(focus);
+  if (seen !== focus) {
+    setSeen(focus);
+    if (focus === reason) setOpen(value);
+  }
+  return [open, setOpen] as const;
 }
 
 /**
  * The sheet's foot, pinned under the scroll: the next step on the item, if there is one, and the
- * comment box — always in reach, as in a work chat, however far down the sheet is scrolled.
+ * comment box — always in reach, as in a work chat, however far down the sheet is scrolled. A step's
+ * own text box (what should change, the note with a review request) has the foot to itself while
+ * it's open: one box at a time, never two alike stacked up.
  */
-function SheetFoot({ item: t, step, focus, canComment, onSent }: { item: WorkItem; step: Step | null; focus?: DetailFocus; canComment: boolean; onSent: () => void }) {
+function SheetFoot({ item: t, byId, step, focus, canComment, confirmRef, onSent }: { item: WorkItem; byId: ReadonlyMap<string, WorkItem>; step: Step | null; focus?: DetailFocus; canComment: boolean; confirmRef: RefObject<HTMLDivElement | null>; onSent: () => void }) {
   const { actor, actions, names } = useWorkspace();
+  const [box, setBox] = useOpenedBy<FootBox>(focus, "changes", "changes");
+  const writing = (box === "changes" && step === "review") || (box === "note" && step === "submit") ? box : null;
   return (
     <div className="flex flex-col gap-3">
-      {step && <NextStep key={step} kind={step} item={t} focus={focus} />}
-      {canComment && (
+      {step && <NextStep key={step} kind={step} item={t} byId={byId} focus={focus} box={writing} onBox={setBox} confirmRef={confirmRef} />}
+      {canComment && !writing && (
         <CommentBox
           label="Add a comment"
           placeholder={commentPlaceholder(t, actor.role === "contributor", names)}
@@ -493,91 +515,188 @@ function stepFor(t: WorkItem, { actor, access, names }: Pick<WorkspaceEnv, "acto
   return can("todo") ? "reopen" : null;
 }
 
-/** The footer for step `kind`, each with its own controls. */
-function NextStep({ kind, item, focus }: { kind: Step; item: WorkItem; focus?: DetailFocus }) {
-  if (kind === "submit") return <SubmitStep item={item} />;
+/** The footer for step `kind`, each with its own controls; `box` is the text box it has open, if any. */
+function NextStep({ kind, item, byId, focus, box, onBox, confirmRef }: { kind: Step; item: WorkItem; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; box: FootBox | null; onBox: (box: FootBox | null) => void; confirmRef: RefObject<HTMLDivElement | null> }) {
+  if (kind === "submit") return <SubmitStep item={item} byId={byId} focus={focus} noting={box === "note"} onNoting={(on) => onBox(on ? "note" : null)} confirmRef={confirmRef} />;
   if (kind === "takeBack") return <TakeBackStep item={item} />;
-  if (kind === "review") return <ReviewStep item={item} focus={focus} />;
+  if (kind === "review") return <ReviewStep item={item} focus={focus} asking={box === "changes"} onAsking={(on) => onBox(on ? "changes" : null)} />;
   if (kind === "complete") return <CompleteStep item={item} />;
   return <ReopenStep item={item} />;
 }
 
-/** The Independent's: send it for review — with a note for the Team Builder, if they want one. */
-function SubmitStep({ item: t }: { item: WorkItem }) {
-  const { actions, names } = useWorkspace();
+/**
+ * The Independent's: send it for review, with a note for the Team Builder if they want one. Work that
+ * still waits on something or has subtasks open can go too, once one question has said what's open.
+ */
+function SubmitStep({ item: t, byId, focus, noting, onNoting, confirmRef }: { item: WorkItem; byId: ReadonlyMap<string, WorkItem>; focus?: DetailFocus; noting: boolean; onNoting: (on: boolean) => void; confirmRef: RefObject<HTMLDivElement | null> }) {
+  const { actions, names, openTask } = useWorkspace();
   const [note, setNote] = useState("");
-  /** The note for the reviewer is optional, so it's a link until it's wanted — not a second text box beside the comment box. */
-  const [noting, setNoting] = useState(false);
+  const [confirming, setConfirming] = useOpenedBy(focus, "submit", "ask");
+  const unfinished = unfinishedOf(t, byId);
+  const asking = !!confirming && !!unfinished;
+  // The button that asked is gone: the question takes the focus.
+  useEffect(() => {
+    if (asking) confirmRef.current?.focus();
+  }, [asking, confirmRef]);
+  /** Done with what the sheet was opened for, so opening it for that again asks again. */
+  const settle = () => {
+    setConfirming(null);
+    if (focus === "submit") openTask(t.id);
+  };
+  const send = () => {
+    void actions.transition(t, "review", noting ? note : undefined, { success: `Sent ${refOf(t)} to ${names.team} for review` });
+    setNote("");
+    onNoting(false);
+    settle();
+  };
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        void actions.transition(t, "review", noting ? note : undefined, { success: `Sent ${refOf(t)} to ${names.team} for review` });
-        setNote("");
-        setNoting(false);
+        if (unfinished && !asking) setConfirming("ask");
+        else send();
       }}
       className="flex flex-col gap-3"
     >
-      {noting && <Textarea rows={2} autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder={`What ${names.team} should look at — links, anything to check`} aria-label={`Note for ${names.team}`} maxLength={1000} />}
-      <div className="flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setNoting((n) => !n);
-            setNote("");
-          }}
-          className="inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary"
-        >
-          {noting ? (
-            "Remove the note"
-          ) : (
-            <>
-              <ICONS.add size={16} aria-hidden /> Add a note for {names.team}
-            </>
-          )}
-        </button>
+      {noting && <Textarea rows={2} autoFocus value={note} onChange={(e) => setNote(e.target.value)} placeholder={`What ${names.team} should look at: links, anything to check`} aria-label="Note with your review request" maxLength={1000} />}
+      {asking && unfinished ? (
+        <SendAnyway ref={confirmRef} question={unfinishedQuestion(t, unfinished)} onCancel={settle} />
+      ) : (
+        <div className="flex items-center justify-between gap-3">
+          <NoteToggle
+            noting={noting}
+            onToggle={() => {
+              onNoting(!noting);
+              setNote("");
+            }}
+          />
+          <Button type="submit" size="lg" variant="primary">
+            Send for review
+          </Button>
+        </div>
+      )}
+    </form>
+  );
+}
+
+/** The note for the reviewer is optional, so it's a link until it's wanted: then its box has the foot, in place of the comment box. */
+function NoteToggle({ noting, onToggle }: { noting: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} className="inline-flex items-center gap-1.5 rounded-md text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+      {noting ? (
+        "Remove the note"
+      ) : (
+        <>
+          <ICONS.add size={16} aria-hidden /> Add a note with your review request
+        </>
+      )}
+    </button>
+  );
+}
+
+/** The one question before unfinished work goes for review, and its two answers: send it anyway (the form's submit), or not now. */
+function SendAnyway({ ref, question, onCancel }: { ref: Ref<HTMLDivElement>; question: string; onCancel: () => void }) {
+  const id = useId();
+  return (
+    <div ref={ref} tabIndex={-1} role="group" aria-labelledby={id} className="flex flex-col gap-3 rounded-md outline-none focus-visible:outline-2 focus-visible:outline-primary">
+      <p id={id} className="text-[13.5px] leading-[1.4] text-ink">
+        {question}
+      </p>
+      <div className="flex justify-end gap-2">
+        <Button size="lg" onClick={onCancel}>
+          Cancel
+        </Button>
         <Button type="submit" size="lg" variant="primary">
           Send for review
         </Button>
       </div>
-    </form>
+    </div>
   );
 }
+
+/** "#3 is waiting on #2 Draft two logo directions and has 1 open subtask. Send it for review anyway?" */
+function unfinishedQuestion(t: WorkItem, { blockers, openSubtasks }: NonNullable<ReturnType<typeof unfinishedOf>>) {
+  const waits = blockers.length ? `is waiting on ${listed(blockers.map((b) => `${refOf(b)} ${b.title}`))}` : null;
+  const subs = openSubtasks ? `has ${openSubtasks} open ${openSubtasks === 1 ? "subtask" : "subtasks"}` : null;
+  const what = waits && subs ? `${waits}${blockers.length > 1 ? "," : ""} and ${subs}` : (waits ?? subs);
+  return `${refOf(t)} ${what}. Send it for review anyway?`;
+}
+
+/** "a", "a and b", "a, b and c". */
+const listed = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 /** The Independent's, while it waits on review: take it back to keep working on it. */
 function TakeBackStep({ item: t }: { item: WorkItem }) {
   const { actions } = useWorkspace();
   return (
-    <div className="flex items-center justify-between gap-3">
-      <p className="text-[13px] leading-[1.4] text-ink-2">Changed your mind? Take it back to keep working on it.</p>
-      <Button size="lg" onClick={() => void actions.transition(t, "doing", undefined, { success: `Took ${refOf(t)} back — it's In progress again` })}>
-        <ICONS.undo size={16} aria-hidden /> Take back
+    <div className="flex justify-end">
+      <Button size="lg" onClick={() => void actions.transition(t, "doing", undefined, { success: `Took ${refOf(t)} back. It's In progress again.` })}>
+        <ICONS.undo size={16} aria-hidden /> Take back to keep working
       </Button>
     </div>
   );
 }
 
-/** The Team Builder's, on work in review: approve it, or ask for changes — which takes a note first. */
-function ReviewStep({ item: t, focus }: { item: WorkItem; focus?: DetailFocus }) {
+/**
+ * The Team Builder's, on work in review: approve it, or ask for changes. Asking opens one labelled box
+ * for what should change, which has the foot to itself until it's sent or put away. Where nothing can
+ * be sent back (a trial that's over), Request changes says why instead.
+ */
+function ReviewStep({ item: t, focus, asking, onAsking }: { item: WorkItem; focus?: DetailFocus; asking: boolean; onAsking: (on: boolean) => void }) {
+  const { actor, access, actions, names, openTask } = useWorkspace();
+  const sendBack = transitionFor(t, actor, access, "doing", names);
+  /** Done with what the sheet was opened for (asking for changes), so opening it for that again opens the box again. */
+  const settle = () => {
+    onAsking(false);
+    if (focus === "changes") openTask(t.id);
+  };
+  if (asking && sendBack.ok) return <ChangesBox item={t} onDone={settle} />;
+  return (
+    <div className="flex justify-end gap-2">
+      <Button size="lg" disabled={!sendBack.ok} title={sendBack.ok ? undefined : sendBack.reason} onClick={() => onAsking(true)}>
+        Request changes
+      </Button>
+      <Button
+        size="lg"
+        variant="primary"
+        onClick={() => {
+          void actions.transition(t, "done", undefined, { success: `Approved ${refOf(t)}. ${names.independent} has been told.` });
+          settle();
+        }}
+      >
+        Approve
+      </Button>
+    </div>
+  );
+}
+
+/** What should change: the box's label says who it's for, and Send request waits for words, saying so beside it. */
+function ChangesBox({ item: t, onDone }: { item: WorkItem; onDone: () => void }) {
   const { actions, names } = useWorkspace();
   const [changes, setChanges] = useState("");
+  const id = useId();
+  const empty = !changes.trim();
   return (
-    <div className="flex flex-col gap-3">
-      <Textarea rows={2} autoFocus={focus === "changes"} value={changes} onChange={(e) => setChanges(e.target.value)} placeholder={`To ask for changes, say what ${names.independent} should fix`} aria-label="What should change" maxLength={1000} />
-      <div className="flex justify-end gap-2">
+    <div className="flex flex-col gap-2">
+      <label htmlFor={id} className="text-[13px] leading-[1.4] font-semibold text-ink">
+        What should {names.independent} change?
+      </label>
+      <Textarea id={id} rows={3} autoFocus value={changes} onChange={(e) => setChanges(e.target.value)} maxLength={1000} />
+      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+        {empty && <span className="text-[12.5px] leading-[1.4] text-ink-2">Write what should change first.</span>}
+        <Button size="lg" onClick={onDone}>
+          Cancel
+        </Button>
         <Button
           size="lg"
-          disabled={!changes.trim()}
-          title={changes.trim() ? undefined : "Write what should change first"}
+          variant="primary"
+          disabled={empty}
           onClick={() => {
             void actions.transition(t, "doing", changes, { success: `Sent ${refOf(t)} back to ${names.independent} with your note` });
-            setChanges("");
+            onDone();
           }}
         >
-          Request changes
-        </Button>
-        <Button size="lg" variant="primary" onClick={() => void actions.transition(t, "done", undefined, { success: `Approved ${refOf(t)} — ${names.independent} has been told` })}>
-          Approve
+          Send request
         </Button>
       </div>
     </div>
@@ -589,7 +708,7 @@ function CompleteStep({ item: t }: { item: WorkItem }) {
   const { actions } = useWorkspace();
   return (
     <div className="flex items-center justify-between gap-3">
-      <p className="text-[13px] leading-[1.4] text-ink-2">{t.assignee === "team" ? "Your own item — it doesn't go through review." : "Nobody is assigned. Assign it, or mark it done yourself."}</p>
+      <p className="text-[13px] leading-[1.4] text-ink-2">{t.assignee === "team" ? "Your own item, so it doesn't go through review." : "Nobody is assigned. Assign it, or mark it done yourself."}</p>
       <Button size="lg" variant="primary" onClick={() => void actions.transition(t, "done", undefined, { success: `Marked ${refOf(t)} done` })}>
         <ICONS.check size={16} aria-hidden /> Mark done
       </Button>
@@ -844,7 +963,7 @@ function TheirChange({ updatedBy, onUseTheirs }: { updatedBy?: string; onUseThei
       <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onUseTheirs} className="font-semibold underline">
         Use theirs
       </button>
-      <span>or keep typing — saving will check first.</span>
+      <span>or keep typing. Saving will check first.</span>
     </span>
   );
 }

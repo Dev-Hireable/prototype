@@ -19,8 +19,8 @@ const FILES = {
 } satisfies Record<string, Upload>;
 
 /** The camera buttons on a photo and on the company logo. */
-const PHOTO = "Change photo — JPG or PNG, up to 5MB";
-const LOGO = "Change logo — JPG or PNG, up to 5MB";
+const PHOTO = "Change photo (JPG or PNG, up to 5MB)";
+const LOGO = "Change logo (JPG or PNG, up to 5MB)";
 
 /** A role the company has published. */
 const LIVE_ROLE = {
@@ -35,7 +35,7 @@ const LIVE_ROLE = {
   hired: null,
   updated: "25 Sep 2026",
   description: "Outbound calling for a fintech.",
-  budget: "$1,600.00 - $2,000.00 /mo",
+  budget: "$1,600.00 - $2,000.00",
   duration: "30 Days",
   experience: "Advanced (5–8 years)",
   skills: ["Cold calling"],
@@ -61,7 +61,7 @@ async function refusesWrongFiles(page: Page, camera: string) {
   await pick(page, camera, FILES.gif);
   await expect(toast(page, "That file has to be a JPG or a PNG.")).toBeVisible();
   await pick(page, camera, FILES.big);
-  await expect(toast(page, "That file is 5.6MB — the limit is 5MB.")).toBeVisible();
+  await expect(toast(page, "That file is 5.6MB. The limit is 5MB.")).toBeVisible();
 }
 
 /* ------------------------------------------------------------ the talent profile */
@@ -101,14 +101,18 @@ async function saveHeadline(page: Page) {
   await expect(page.getByText(HEADLINE, { exact: true })).toBeVisible();
 }
 
-/** Changes the portfolio link on the Portfolio tab; Save says so and the link opens the new address. */
+/**
+ * Changes the portfolio link on the Portfolio tab; Save says so. The preview is a Team Builder's
+ * before a hire, so the link shows as added, not where it goes.
+ */
 async function savePortfolio(page: Page) {
   await page.getByRole("tab", { name: "Portfolio" }).click();
   await page.getByRole("button", { name: "Edit portfolio links" }).click();
   await page.getByRole("textbox", { name: "Portfolio" }).fill("juan.design");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(toast(page, "Links saved")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Portfolio juan.design" })).toHaveAttribute("href", "https://juan.design");
+  await expect(page.getByRole("listitem").filter({ hasText: "Portfolio" })).toContainText("Shown once you're hired");
+  await expect(page.getByRole("link", { name: /juan\.design/ })).toHaveCount(0);
 }
 
 test.describe("profile and settings · the talent profile", () => {
@@ -120,7 +124,7 @@ test.describe("profile and settings · the talent profile", () => {
     await savePortfolio(page);
 
     await page.reload();
-    await expect(page.getByRole("link", { name: "Portfolio juan.design" })).toBeVisible();
+    await expect(page.getByRole("listitem").filter({ hasText: "Portfolio" })).toContainText("Shown once you're hired");
     await page.getByRole("tab", { name: "About" }).click();
     await expect(page.getByText(BIO)).toBeVisible();
     await expect(page.getByText("Negotiation", { exact: true })).toBeVisible();
@@ -130,7 +134,7 @@ test.describe("profile and settings · the talent profile", () => {
 
   test("the tags pencil says the quiz changes them, and asks before retaking it", async ({ page }) => {
     await page.goto("/independent/profile");
-    const pencil = page.getByRole("button", { name: "Edit workplace tags" });
+    const pencil = page.getByRole("button", { name: "Edit work style tags" });
     await pencil.hover();
     await expect(page.locator('[data-slot="tooltip-content"]').filter({ hasText: "Retake the quiz to change your tags" })).toBeVisible();
     await pencil.click();
@@ -151,7 +155,7 @@ test.describe("profile and settings · the quiz once a year", () => {
 
   test("the tags pencil waits a year after the quiz, and says when it opens", async ({ page }) => {
     await page.goto("/independent/profile");
-    const pencil = page.getByRole("button", { name: "Edit workplace tags" });
+    const pencil = page.getByRole("button", { name: "Edit work style tags" });
     await expect(pencil).toBeDisabled();
     await pencil.locator('xpath=ancestor::*[@data-slot="tooltip-trigger"]').hover();
     await expect(page.locator('[data-slot="tooltip-content"]').filter({ hasText: "You can retake the quiz on 20 Sep 2027." })).toBeVisible();
@@ -209,7 +213,7 @@ test.describe("profile and settings · photos", () => {
     await refusesWrongFiles(page, PHOTO);
     await expect(page.getByText("Your photo · JPG or PNG, up to 5MB")).toBeVisible();
     await pick(page, PHOTO, FILES.png);
-    await expect(page.getByText("New photo — saved with the rest when you press Save.")).toBeVisible();
+    await expect(page.getByText("New photo, saved with the rest when you press Save.")).toBeVisible();
     await expect(imageOn(page, PHOTO)).toHaveAttribute("src", /^data:image\/png/);
     // The rail's avatar, which opens My profile, is the saved photo: still the old one.
     const rail = page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "My profile" }).locator("img");
@@ -227,9 +231,9 @@ test.describe("profile and settings · photos", () => {
   test("the Team Builder's photo turns away the wrong file, and a PNG waits on Save, then shows everywhere", async ({ page }) => {
     await page.goto("/team/profile");
     await refusesWrongFiles(page, PHOTO);
-    await expect(page.getByText("New image — not saved yet")).toHaveCount(0);
+    await expect(page.getByText("New image, not saved yet")).toHaveCount(0);
     await pick(page, PHOTO, FILES.png);
-    await expect(page.getByText("New image — not saved yet")).toBeVisible();
+    await expect(page.getByText("New image, not saved yet")).toBeVisible();
     await expect(imageOn(page, PHOTO)).toHaveAttribute("src", /^data:image\/png/);
     // The rail's avatar, which opens My profile, is the saved photo: still the old one.
     const rail = page.getByRole("navigation", { name: "Sections" }).getByRole("link", { name: "My profile" }).locator("img");
@@ -237,7 +241,7 @@ test.describe("profile and settings · photos", () => {
     expect(await stored(page, "team.profile")).toBeNull();
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(toast(page, "Photo updated everywhere")).toBeVisible();
-    await expect(page.getByText("New image — not saved yet")).toHaveCount(0);
+    await expect(page.getByText("New image, not saved yet")).toHaveCount(0);
     await expect(rail).toHaveAttribute("src", /^data:image\/png/);
     expect(await stored(page, "team.profile")).toMatchObject({ photo: expect.stringMatching(/^data:image\/png/) });
   });
@@ -249,7 +253,7 @@ test.describe("profile and settings · photos", () => {
 async function discardThenSaveLogo(page: Page) {
   const initials = page.getByText("NA", { exact: true });
   await pick(page, LOGO, FILES.png);
-  await expect(page.getByText("New image — not saved yet")).toBeVisible();
+  await expect(page.getByText("New image, not saved yet")).toBeVisible();
   await expect(imageOn(page, LOGO)).toHaveAttribute("src", /^data:image\/png/);
   await expect(initials).toHaveCount(0);
   await page.getByRole("button", { name: "Discard" }).click();
@@ -266,7 +270,7 @@ test.describe("profile and settings · the company logo", () => {
     await expect(page.getByText("Shown on every role you post.")).toBeVisible();
     await expect(page.getByText("NA", { exact: true })).toBeVisible();
     await refusesWrongFiles(page, LOGO);
-    await expect(page.getByText("New image — not saved yet")).toHaveCount(0);
+    await expect(page.getByText("New image, not saved yet")).toHaveCount(0);
     await expect(page.getByText("NA", { exact: true })).toBeVisible();
     await discardThenSaveLogo(page);
     await expect(toast(page, "Logo updated · live on 1 active role")).toBeVisible();

@@ -20,7 +20,10 @@ export function trackerOf(contract: Contract, view: ContractView, name: string, 
    * whenever the Team Builder wants to give it; a trial's is a one-off verdict after it ends.
    */
   const trialOver = isTrial && contract.over;
-  /** Held since the trial began — `contract.started` is the role's first day once it converts. */
+  /**
+   * With no escrow on record (a seeded contract), held since the trial began — `contract.started` is
+   * the role's first day once it converts. The live escrow says the day it was deposited itself.
+   */
   const trialStart = trialStartOf(contract, view);
   /**
    * TB-071 — how the live contract can end right now (@/lib/demo/contract): cancelled before its
@@ -58,7 +61,7 @@ export function trackerOf(contract: Contract, view: ContractView, name: string, 
     /** TB-072 — one post-trial offer at a time: while one is out or has been accepted, there is nothing to send. */
     conversionLocked: conversion?.status === "sent" || conversion?.status === "accepted",
     offerType: conversion ? JOB_TYPE_LABEL[conversion.type].toLowerCase() : "",
-    escrowText: fromTrial ? (escrow ? escrowLine(escrow, trialStart, { releasedTo: first, refundedTo: "you" }) : `Held since ${trialStart}`) : null,
+    escrowText: fromTrial ? (escrow ? escrowLine(escrow, { releasedTo: first, refundedTo: "you" }) : `Held since ${trialStart}`) : null,
   };
 }
 

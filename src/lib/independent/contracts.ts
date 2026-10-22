@@ -1,14 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { statusOf } from "@/lib/contract/lifecycle";
+import { needsAttention, statusOf } from "@/lib/contract/lifecycle";
 import { acceptConversion, endContract as endLiveContract, withdrawNotice } from "@/lib/demo/contract";
 import { dayLabel, parseDay, reviewQuarter, sinceOrFrom } from "@/lib/portal/dates";
 import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, startedAsTrial, trialStateOf, updateDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
-import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import { hoursLabel, JOB_TYPE_LABEL, payFor } from "@/lib/contract/job-types";
 import { move, PAIR, persisted, useStored } from "@/lib/demo/live";
-import { donePercent } from "@/lib/demo/tasks";
+import { workTabItems } from "@/lib/work/access";
 import { contracts as seedContracts } from "./data";
 import type { Contract } from "./data";
 
@@ -34,7 +34,8 @@ function contractFromDeal(deal: Deal): Contract | null {
   const { activity, streak } = activityOf(c);
   const conversion = converted(deal) ? deal.conversion : undefined;
   const started = dayLabel(conversion?.start ?? c.started);
-  const rate = conversion ? `${conversion.salary} /month` : c.rate;
+  // How the pay reads for the chapter it's in: a trial's one total, or a role's monthly pay.
+  const rate = conversion ? payFor(conversion.type, conversion.salary) : payFor(type, c.rate);
   const hours = conversion?.hours ?? c.hours;
   const l = lifecycleOfDeal(deal);
   const upcoming = l?.phase === "starts";
@@ -48,12 +49,9 @@ function contractFromDeal(deal: Deal): Contract | null {
     origin: fromTrial ? "trial" : "direct",
     location: "Remote",
     line: ongoing ? `${JOB_TYPE_LABEL[type]} ${sinceOrFrom(started)} ${started} · ${rate}${hours ? ` · ${hoursLabel(hours)}` : ""}` : `Started ${started} · ${l?.trial?.day ?? trial.day} · ${rate}`,
-    // One lifecycle for every tab and list (@/lib/contract/lifecycle).
-    status: l ? statusOf(l, "independent") : { label: "On track", tone: "ok" },
+    // One lifecycle for every tab and list (@/lib/contract/lifecycle); a running trial's says whether its work needs attention.
+    status: l ? statusOf(l, "independent", needsAttention(c.tasks)) : { label: "On track", tone: "ok" },
     startsOn: upcoming && l ? dayLabel(l.since) : undefined,
-    progressLabel: "Tasks done",
-    progress: donePercent(c.tasks),
-    progressTone: "primary",
     manager,
     managerFirst: manager.split(" ")[0],
     started,
@@ -66,6 +64,7 @@ function contractFromDeal(deal: Deal): Contract | null {
     rate,
     hours,
     tasks: c.tasks,
+    counted: workTabItems(deal),
     tfs: fromTrial ? { overall: score.overall, performance: score.performance, profile: score.profile, workStyle: score.workStyle, evaluation: score.evaluation } : null,
     phase: ongoing ? 4 : score.phase,
     activity,

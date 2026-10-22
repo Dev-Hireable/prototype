@@ -32,7 +32,7 @@ export function TabContent({ tab, t, draft, on, onTab }: { tab: Tab; t: Tracker;
   return (
     <>
       {tab === "contract" && <PaymentTab t={t} payments={transactions.filter((x) => x.independent === name)} disputeButton={<DisputeButton size="md" view={view} onFile={on.openDispute} />} />}
-      {tab === "evaluation" && <EvaluationTab t={t} draft={draft} actions={<EvaluationActions t={t} ready={draft.ready} onEnd={on.openEnd} onHire={on.openConvert} onSend={on.sendEvaluation} />} />}
+      {tab === "evaluation" && <EvaluationTab t={t} draft={draft} actions={<EvaluationActions t={t} ready={draft.ready} missing={draft.missing} onEnd={on.openEnd} onHire={on.openConvert} onSend={on.sendEvaluation} />} />}
       {tab === "tasks" && <ContractWork live={view.onDeal} contract={contract} life={view.life} notice={view.notice} cancelled={view.cancelled} ended={ended} scoreFinal={submitted || !isTrial} actor={actor} people={people} closedNote={closedNote(t)} />}
       {/* TB-058 / TB-074 / TB-109 — the contract at a glance: its terms, how far the work has got,
           what's waiting on you (reviews don't sit unseen), what's due next and what changed. */}
@@ -41,6 +41,7 @@ export function TabContent({ tab, t, draft, on, onTab }: { tab: Tab; t: Tracker;
           viewer="team"
           work={view.onDeal ? accessOf(view.deal) : undefined}
           tasks={contract.tasks}
+          counted={contract.counted}
           names={{ team: firstName(profile.name), independent: first }}
           people={people}
           trial={isTrial}
@@ -56,7 +57,7 @@ export function TabContent({ tab, t, draft, on, onTab }: { tab: Tab; t: Tracker;
               onWithdrawNotice={on.withdrawNotice}
             />
           }
-          aside={<OverviewAside t={t} onEvaluate={() => onTab("evaluation")} disputeButton={<DisputeButton size="lg" view={view} onFile={on.openDispute} />} />}
+          aside={<OverviewAside t={t} onEvaluate={() => onTab("evaluation")} />}
         />
       )}
     </>

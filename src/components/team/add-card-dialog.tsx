@@ -3,16 +3,17 @@
 import { useState } from "react";
 import { Button, Checkbox, Field, Input, Modal } from "@/components/portal/ui";
 import { useCards } from "@/lib/team/account";
+import type { PaymentMethod } from "@/lib/team/data";
 
 /** The one label for the button that opens this dialog and the dialog itself. */
 export const ADD_CARD = "Add a card";
 
 /**
  * TB-102 — a new card: number, expiry and CVC, and whether it becomes the default. Only the last four
- * digits are kept. The one card form: Settings › Payment method and the offer's deposit step (TB-105)
- * both open it, since a card is asked for when it's first needed rather than at sign-up.
+ * digits are kept. The one card form: Settings › Payment method and the offer (TB-105) both open it,
+ * since a card is asked for when it's first needed rather than at sign-up. `onAdded` gets the card.
  */
-export function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded?: () => void }) {
+export function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded?: (card: PaymentMethod) => void }) {
   const { cards, addCard } = useCards();
   const [number, setNumber] = useState("");
   const [expiry, setExpiry] = useState("");
@@ -35,11 +36,12 @@ export function AddCardDialog({ open, onClose, onAdded }: { open: boolean; onClo
             disabled={digits.length < 12}
             onClick={() => {
               // The first card is always the default: there's nothing else to charge.
-              addCard({ id: `pm${Date.now()}`, brand: digits.startsWith("5") ? "Mastercard" : "Visa", last4: digits.slice(-4), expires: expiry || "12/2029", isDefault: isDefault || cards.length === 0 });
+              const card: PaymentMethod = { id: `pm${Date.now()}`, brand: digits.startsWith("5") ? "Mastercard" : "Visa", last4: digits.slice(-4), expires: expiry || "12/2029", isDefault: isDefault || cards.length === 0 };
+              addCard(card);
               onClose();
               setNumber("");
               setExpiry("");
-              onAdded?.();
+              onAdded?.(card);
             }}
           >
             Add card

@@ -1,17 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { dayLabel, momentLabel, today } from "@/lib/portal/dates";
+import { dayLabel, isPast, JOIN_OPENS_MINUTES, MONTHS, momentLabel, slotOffset, today } from "@/lib/portal/dates";
 import { canMessage, contractTypeOf, lifecycleOfDeal, readDeal, recordInvite, stageOf, startDeal, trialStateOf, updateDeal, useDeal, withProposalEvent } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
-import { move, PAIR, persisted, proposalSource, sendChat, sendFile, useStored } from "@/lib/demo/live";
-import type { SuggestionDecision } from "@/lib/demo/suggestions";
-import { awaitsApplication, byName, INTERVIEW_CANCELLED, INTERVIEW_DECLINED, NEW_TIME_REQUESTED, needsNewSlot, candidates as seedCandidates, interviews as seedInterviews } from "./data";
+import { savedOffset } from "@/lib/demo/clocks";
+import { logStep, move, PAIR, persisted, proposalSource, useStored } from "@/lib/demo/live";
+import { awaitsApplication, byName, INTERVIEW_CANCELLED, INTERVIEW_DECLINED, INTERVIEW_MISSED, NEW_TIME_REQUESTED, needsNewSlot, candidates as seedCandidates, interviews as seedInterviews } from "./data";
 import type { Candidate, Interview } from "./data";
 import { DEAL_ID } from "./deal-view";
-import { profileStore } from "./account";
-import { effectiveTimeZone, offsetOfLabel } from "@/lib/portal/timezones";
+import { bothClocks, slotAt } from "@/lib/portal/timezones";
 import { roleOf } from "./roles";
 
 /*
@@ -31,18 +30,54 @@ const interviewsStore = persisted("team.interviews", seedInterviews);
  */
 const trialClosed = (deal: Deal) => deal.stage === "hired" && contractTypeOf(deal) === "trial" && !!deal.contract && trialStateOf(deal.contract).over;
 
+/** The Team Builder's clock, minutes off UTC: their profile's time zone, or this device's. A slot they pick is in it. */
+export const teamOffset = () => savedOffset("team");
+
+/**
+ * #312 — an interview slot as the Team Builder reads it, with the talent's own clock beside it:
+ * "Tue 29 Sep, 10:00 AM your time · 10:00 PM Juan's time". `offset` is the clock it was picked in;
+ * a slot saved without one reads as it always did (slotOffset).
+ */
+export function slotForTeam(when: string, offset: number | undefined, independent: string) {
+  return bothClocks(when, slotOffset(when, offset), teamOffset(), { offset: savedOffset("independent"), first: byName(independent).name.split(" ")[0] });
+}
+
+/**
+ * #321 — when Join call opens, JOIN_OPENS_MINUTES before the start, in the Team Builder's clock:
+ * "at 9:50 AM" on the day itself, "on Tue 29 Sep at 9:50 AM" before it.
+ */
+export function joinOpensAt(when: string, offset?: number, now = Date.now()) {
+  const mine = teamOffset();
+  // The slot read in a clock that many minutes behind the Team Builder's: their time, that much earlier.
+  const at = slotAt(when, slotOffset(when, offset), mine - JOIN_OPENS_MINUTES);
+  if (!at) return undefined;
+  const [day, time] = at.split(", ");
+  const here = new Date(now + mine * 60_000);
+  return day.endsWith(` ${here.getUTCDate()} ${MONTHS[here.getUTCMonth()]}`) ? `at ${time}` : `on ${day} at ${time}`;
+}
+
+/** The live interview's slot, or the one the talent asked for, as the Team Builder reads it. */
+const liveSlot = (slot: { when: string; offset?: number } | undefined) => slot && slotForTeam(slot.when, slot.offset, PAIR.independent.slug);
+
+/** #327 — a hire's status: a trial with its end date ("Trial started", "Ends 30 Oct 2026"), a role with its first day. */
+function hiredStatus(deal: Deal): Candidate["status"] {
+  const type = contractTypeOf(deal);
+  const started = deal.contract?.started;
+  if (type !== "trial") return deal.contract?.ended ? { label: "Contract ended", tone: "neutral" } : { label: `Hired · ${JOB_TYPE_LABEL[type].toLowerCase()}`, tone: "ok", meta: started && `${isPast(started) ? "Started" : "Starts"} ${dayLabel(started)}` };
+  const c = deal.conversion;
+  if (c?.status === "sent" && !lifecycleOfDeal(deal)?.expired) return { label: `${JOB_TYPE_LABEL[c.type]} offer sent`, tone: "warn", meta: `Sent ${c.sent}` };
+  if (c?.status === "declined") return { label: `${JOB_TYPE_LABEL[c.type]} offer declined`, tone: "danger" };
+  // TB-072 — not answered by its start date: back to the decision.
+  if (c?.status === "expired" || (c?.status === "sent" && lifecycleOfDeal(deal)?.expired)) return { label: `${JOB_TYPE_LABEL[c.type]} offer expired`, tone: "warn" };
+  if (trialClosed(deal)) return { label: "Trial ended", tone: "neutral" };
+  // "Hired" is for a full-time or part-time hire: an accepted trial offer has started a trial.
+  const ends = deal.contract?.ends ? `Ends ${dayLabel(deal.contract.ends)}` : undefined;
+  return started && !isPast(started) ? { label: `Trial starts ${dayLabel(started)}`, tone: "info", meta: ends } : { label: "Trial started", tone: "ok", meta: ends };
+}
+
 /** The Team Builder's status line for the deal, most advanced fact first. */
 function dealStatus(deal: Deal): Candidate["status"] {
-  if (deal.stage === "hired") {
-    const type = contractTypeOf(deal);
-    if (type !== "trial") return deal.contract?.ended ? { label: "Contract ended", tone: "neutral" } : { label: `Hired · ${JOB_TYPE_LABEL[type].toLowerCase()}`, tone: "ok" };
-    const c = deal.conversion;
-    if (c?.status === "sent" && !lifecycleOfDeal(deal)?.expired) return { label: `${JOB_TYPE_LABEL[c.type]} offer sent`, tone: "warn", meta: `Sent ${c.sent}` };
-    if (c?.status === "declined") return { label: `${JOB_TYPE_LABEL[c.type]} offer declined`, tone: "danger" };
-    // TB-072 — not answered by its start date: back to the decision.
-    if (c?.status === "expired" || (c?.status === "sent" && lifecycleOfDeal(deal)?.expired)) return { label: `${JOB_TYPE_LABEL[c.type]} offer expired`, tone: "warn" };
-    return trialClosed(deal) ? { label: "Trial ended", tone: "neutral" } : { label: "Hired · trial running", tone: "ok" };
-  }
+  if (deal.stage === "hired") return hiredStatus(deal);
   if (deal.proposalDeclined) return { label: "Proposal declined", tone: "danger", meta: deal.proposalDeclined.date };
   if (deal.offer?.status === "declined") return { label: "Offer declined", tone: "danger", meta: deal.offer.declineReason };
   if (deal.offer?.status === "withdrawn") return { label: "Offer withdrawn", tone: "neutral" };
@@ -50,12 +85,14 @@ function dealStatus(deal: Deal): Candidate["status"] {
   if (deal.revision) return { label: "Revision requested", tone: "warn", meta: deal.revision.date };
   if (deal.stage === "proposal_sent" && deal.proposal) return { label: "Proposal submitted", tone: "info", meta: `v${deal.proposal.version} · ${deal.proposal.sent}` };
   if (deal.stage === "proposal_requested") return { label: "Awaiting proposal", tone: "warn" };
-  if (deal.stage === "interviewed") return { label: "Interview completed", tone: "ok", meta: deal.interview?.when };
-  if (deal.interview?.outcome === "declined") return { label: INTERVIEW_DECLINED, tone: "danger", meta: deal.interview.when };
-  if (deal.interview?.outcome === "cancelled") return { label: INTERVIEW_CANCELLED, tone: "neutral", meta: deal.interview.when };
-  if (deal.interview?.outcome === "reschedule") return { label: NEW_TIME_REQUESTED, tone: "warn", meta: deal.interview.requested?.when };
-  if (deal.interview?.accepted) return { label: "Interview confirmed", tone: "ok", meta: deal.interview.when };
-  if (deal.interview) return { label: "Awaiting reply", tone: "neutral", meta: deal.interview.when };
+  const iv = deal.interview;
+  const at = liveSlot(iv);
+  if (deal.stage === "interviewed") return { label: "Interview completed", tone: "ok", meta: at };
+  if (iv?.outcome === "declined") return { label: INTERVIEW_DECLINED, tone: "danger", meta: at };
+  if (iv?.outcome === "cancelled") return { label: iv.missed ? INTERVIEW_MISSED : INTERVIEW_CANCELLED, tone: "neutral", meta: at };
+  if (iv?.outcome === "reschedule") return { label: NEW_TIME_REQUESTED, tone: "warn", meta: liveSlot(iv.requested) };
+  if (iv?.accepted) return { label: "Interview confirmed", tone: "ok", meta: at };
+  if (iv) return { label: "Awaiting reply", tone: "neutral", meta: at };
   return { label: "New application", tone: "info" };
 }
 
@@ -84,6 +121,8 @@ function cardsOf(deal: Deal | null, candidates: Candidate[], removed: string[]):
         submitted: `${deal.invited ? "Invited" : "Applied"} ${deal.submitted}`,
         dropped: deal.dropped,
         trialEnded: trialClosed(deal),
+        hiredAs: deal.stage === "hired" ? contractTypeOf(deal) : undefined,
+        autoDone: (deal.stage === "interviewed" && deal.interview?.auto) || undefined,
       }
     : null;
   // Once the pair applies, the deal is their card for that role; the "Invited to apply" row it
@@ -103,10 +142,13 @@ function interviewsOf(deal: Deal | null, interviews: Interview[]): Interview[] {
     roleSlug: deal.roleSlug,
     candidate: DEAL_ID,
     when: deal.interview.when,
+    offset: deal.interview.offset,
+    by: deal.interview.by,
     format: deal.interview.format,
     link: deal.interview.link,
     status: INTERVIEW_STATUS[deal.interview.outcome ?? (deal.interview.accepted ? "accepted" : "awaiting")],
     past: deal.interview.past,
+    auto: deal.interview.auto,
   };
   return [live, ...interviews];
 }
@@ -131,7 +173,8 @@ function requestProposal(id: string, note?: string) {
 /** TB-106 — sends the proposal back with the note the talent revises against. */
 function requestRevision(id: string, note: string) {
   const c = cardsNow().find((x) => x.id === id);
-  if (c && livePair(c)) move("proposal_revision", roleOf(c.role));
+  // The note follows the step in the thread as Alex's message, linked to the proposal it asks to change.
+  if (c && livePair(c)) move("proposal_revision", roleOf(c.role), { message: note, source: proposalSource(readDeal()) });
   if (id === DEAL_ID) return updateDeal((d) => ({ ...withProposalEvent(d, { kind: "revision", at: momentLabel(), note }), stage: "proposal_requested", revision: { note, date: today() } }));
   candidatesStore.set((cs) => cs.map((x) => (x.id === id ? { ...x, stage: "proposal_requested", status: { label: "Revision requested", tone: "warn", meta: "v1 · today" } } : x)));
 }
@@ -146,25 +189,19 @@ function declineProposal(id: string, reason?: string) {
   candidatesStore.set((cs) => cs.map((x) => (x.id === id ? { ...x, dropped: true, status: { label: "Proposal declined", tone: "danger" } } : x)));
 }
 
-/** TB-106 — a note on the proposal's history; it goes to the thread too, so the talent reads it either way. */
-function commentOnProposal(id: string, text: string, file?: File) {
-  const body = file ? `Sent an attachment: ${file.name}` : text.trim();
-  if (!body || id !== DEAL_ID) return;
-  // It goes to the thread too, marked as written on the proposal so the inbox links back to it.
-  const source = proposalSource(readDeal());
-  // The chat message's id, so the note shows the same sent / seen receipt as the thread.
-  const chatId = file ? sendFile("team", file, source) : sendChat("team", body, source);
-  updateDeal((d) => withProposalEvent(d, { kind: "comment", at: momentLabel(), by: "team", text: body, chatId }));
-}
-
+/**
+ * TB-044 — decline a candidate, or restore them to the stage they were at (a declined proposal is
+ * back in review). Neither notifies the talent, but the live pair's step is logged in the thread
+ * both sides read (#304), as the application on their side says it's closed.
+ */
 function setDropped(id: string, dropped: boolean) {
-  // Undropping puts them back where they were — a declined proposal is back in review.
-  if (id === DEAL_ID) return updateDeal((d) => ({ ...d, dropped, proposalDeclined: dropped ? d.proposalDeclined : undefined }));
-  candidatesStore.set((cs) => cs.map((c) => (c.id === id ? { ...c, dropped } : c))); // TB-044: not notified
+  if (id === DEAL_ID) {
+    const deal = readDeal();
+    if (deal) logStep(`${PAIR.team.company} ${dropped ? "declined" : "restored"} the ${deal.title} application`, { team: `/team/hire/roles/${deal.roleSlug}/candidates/${DEAL_ID}`, independent: `/independent/jobs/applications/${DEAL_ID}` });
+    return updateDeal((d) => ({ ...d, dropped, proposalDeclined: dropped ? d.proposalDeclined : undefined }));
+  }
+  candidatesStore.set((cs) => cs.map((c) => (c.id === id ? { ...c, dropped } : c)));
 }
-
-/** TB-106 — accept or ignore one of the talent's task suggestions; accepted ones go into the offer. */
-const decideSuggestion = (id: string, decision: SuggestionDecision) => updateDeal((d) => ({ ...d, suggestionDecisions: { ...d.suggestionDecisions, [id]: decision } }));
 
 /**
  * Takes a dropped candidate off the tracker for good, so the Dropped column doesn't pile up. The
@@ -185,13 +222,14 @@ function deleteCandidate(id: string) {
   interviewsStore.set((is) => is.map((i) => (i.candidate === id ? { ...i, candidate: undefined } : i)));
 }
 
-function invite(independent: string, role: string) {
+function invite(independent: string, role: string, note?: string) {
   if (cardsNow().some((c) => c.independent === independent && c.role === role)) return;
   // The live pair: the invite is shared, so it reaches their side — and reopens a role that
-  // turned them down before (recordInvite).
+  // turned them down before (recordInvite). It opens the thread, and the note goes in it as the
+  // Team Builder's first message.
   if (independent === PAIR.independent.slug) {
     recordInvite(role);
-    move("invite", roleOf(role));
+    move("invite", roleOf(role), note?.trim() ? { message: note.trim() } : undefined);
   }
   candidatesStore.set((cs) => [{ id: `c${Date.now()}`, independent, role, stage: "matched", status: { label: "Awaiting application", tone: "neutral" }, submitted: "Invited just now", invitedToApply: true }, ...cs.filter((c) => !(c.independent === independent && c.role === role))]);
 }
@@ -210,52 +248,72 @@ function inviteToInterview(candidateId: string, slot: { when: string; format: st
   const role = roleOf(c.role);
   const interview = { when: slot.when, format: slot.format, link: slot.link, note: slot.note?.trim() || undefined };
   if (candidateId === DEAL_ID) {
-    // IN-093 — the very slot the talent asked for needs no second yes from them: it's confirmed.
+    // IN-093 — the very slot the talent asked for needs no second yes from them: it's confirmed,
+    // and it keeps the clock they asked in. Any other slot is picked in the Team Builder's.
     const deal = readDeal();
-    const asked = deal?.interview?.outcome === "reschedule" && deal.interview.requested?.when === slot.when;
-    if (livePair(c)) move(asked ? "interview_moved" : "interview_invited", role, { slot: bookedAt(slot.when) });
-    return updateDeal((d) => ({ ...d, stage: asked ? "invite_accepted" : "invited", interview: { ...interview, accepted: asked || undefined } }));
+    const requested = deal?.interview?.outcome === "reschedule" ? deal.interview.requested : undefined;
+    const asked = requested?.when === slot.when;
+    const clock = asked && requested ? { offset: slotOffset(requested.when, requested.offset), by: "independent" as const } : bookedAt(slot.when);
+    if (livePair(c)) move(asked ? "interview_moved" : "interview_invited", role, { slot: { when: slot.when, offset: clock.offset, by: clock.by } });
+    return updateDeal((d) => ({ ...d, stage: asked ? "invite_accepted" : "invited", interview: { ...interview, offset: clock.offset, by: clock.by, accepted: asked || undefined } }));
   }
+  const clock = bookedAt(slot.when);
   // The pair without an engagement: start it at the interview, so the invitation has an
   // application to land on in their pipeline. (One engagement at a time — a second role for
   // the pair stays on this side only rather than overwrite the first.)
-  if (livePair(c) && !readDeal() && startDeal({ roleSlug: c.role, title: role.title, company: PAIR.team.company, match: byName(c.independent).match, stage: "invited", invited: true, interview })) {
-    move("interview_invited", role, { slot: bookedAt(slot.when) });
+  if (livePair(c) && !readDeal() && startDeal({ roleSlug: c.role, title: role.title, company: PAIR.team.company, match: byName(c.independent).match, stage: "invited", invited: true, interview: { ...interview, offset: clock.offset, by: clock.by } })) {
+    move("interview_invited", role, { slot: clock });
     return;
   }
-  const [day, time] = slot.when.split(", ");
-  candidatesStore.set((cs) => cs.map((x) => (x.id === candidateId ? { ...x, stage: "invited", status: { label: "Awaiting reply", tone: "neutral", meta: `${day} · ${time}` } } : x)));
+  candidatesStore.set((cs) => cs.map((x) => (x.id === candidateId ? { ...x, stage: "invited", status: { label: "Awaiting reply", tone: "neutral", meta: slotForTeam(slot.when, clock.offset, c.independent) } } : x)));
   interviewsStore.set((is) => [
-    { id: `iv${Date.now()}`, independent: c.independent, role: role.title, roleSlug: c.role, candidate: c.id, when: slot.when, format: slot.format, link: slot.link, status: INTERVIEW_STATUS.awaiting },
+    { id: `iv${Date.now()}`, independent: c.independent, role: role.title, roleSlug: c.role, candidate: c.id, when: slot.when, offset: clock.offset, by: clock.by, format: slot.format, link: slot.link, status: INTERVIEW_STATUS.awaiting },
     ...is.filter((i) => i.candidate !== c.id || i.past),
   ]);
 }
 
 /** #153 — a slot the Team Builder picked, in their own clock (their profile's time zone, or this device's). */
-const bookedAt = (when: string) => ({ when, offset: offsetOfLabel(effectiveTimeZone(profileStore.get().timezone)), by: "team" as const });
+const bookedAt = (when: string) => ({ when, offset: teamOffset(), by: "team" as const });
 
-/** A new time for a booked interview: the talent is told and confirms again. */
-function rescheduleInterview(id: string, when: string) {
-  if (!interviewsNow().some((i) => i.id === id)) return;
-  if (id === DEAL_ID) {
-    const deal = readDeal();
-    if (deal) move("interview_rescheduled", roleOf(deal.roleSlug), { slot: bookedAt(when) });
-    return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, when, accepted: false, past: false, outcome: undefined } } : d));
-  }
-  interviewsStore.set((is) => is.map((i) => (i.id === id ? { ...i, when, status: INTERVIEW_STATUS.awaiting } : i)));
-}
-
-/** The talent is told; they stay in the tracker and can be offered another slot. */
-function cancelInterview(id: string) {
+/** #324 — a new time for a booked interview, with the Team Builder's note: the talent is told, reads why, and confirms again. */
+function rescheduleInterview(id: string, when: string, note?: string) {
   const iv = interviewsNow().find((i) => i.id === id);
   if (!iv) return;
+  const said = note?.trim() || undefined;
+  const clock = bookedAt(when);
   if (id === DEAL_ID) {
     const deal = readDeal();
-    if (deal) move("interview_cancelled", roleOf(deal.roleSlug));
-    return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, past: true, outcome: "cancelled" } } : d));
+    if (deal) move("interview_rescheduled", roleOf(deal.roleSlug), { slot: clock, note: said });
+    return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, when, offset: clock.offset, by: clock.by, note: said ?? d.interview.note, accepted: false, past: false, outcome: undefined } } : d));
+  }
+  interviewsStore.set((is) => is.map((i) => (i.id === id ? { ...i, when, offset: clock.offset, by: clock.by, status: INTERVIEW_STATUS.awaiting } : i)));
+  if (iv.candidate) candidatesStore.set((cs) => cs.map((x) => (x.id === iv.candidate ? { ...x, stage: "invited", status: { label: "Awaiting reply", tone: "neutral", meta: slotForTeam(when, clock.offset, x.independent) } } : x)));
+}
+
+/** #325 — the talent is told, with the reason when one is given; they stay in the pipeline and can be offered another slot. */
+function cancelInterview(id: string, reason?: string) {
+  const iv = interviewsNow().find((i) => i.id === id);
+  if (!iv) return;
+  const why = reason?.trim() || undefined;
+  if (id === DEAL_ID) {
+    const deal = readDeal();
+    if (deal) move("interview_cancelled", roleOf(deal.roleSlug), { note: why });
+    return updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, past: true, outcome: "cancelled", reason: why } } : d));
   }
   interviewsStore.set((is) => is.map((i) => (i.id === id ? { ...i, status: INTERVIEW_STATUS.cancelled, past: true } : i)));
   if (iv.candidate) candidatesStore.set((cs) => cs.map((x) => (x.id === iv.candidate ? { ...x, stage: "invited", status: { label: INTERVIEW_CANCELLED, tone: "neutral" } } : x)));
+}
+
+/**
+ * #313 — an interview marked held on its own (its slot had passed) that the Team Builder says didn't
+ * happen: back to needing a new slot. It's kept as a cancelled slot, so both sides offer a new one,
+ * and the thread says so.
+ */
+function missInterview(id: string) {
+  const deal = readDeal();
+  if (id !== DEAL_ID || deal?.stage !== "interviewed" || !deal.interview?.auto) return;
+  logStep(`The ${deal.title} interview didn't take place`, { team: `/team/hire/roles/${deal.roleSlug}/candidates/${DEAL_ID}`, independent: `/independent/jobs/applications/${DEAL_ID}` });
+  updateDeal((d) => (d.interview ? { ...d, stage: "invited", interview: { ...d.interview, outcome: "cancelled", missed: true, auto: undefined, accepted: false } } : d));
 }
 
 /**
@@ -281,7 +339,7 @@ export function usePipeline() {
   const interviews = useMemo(() => interviewsOf(deal, booked), [deal, booked]);
   return {
     candidates,
-    /** The thread only exists from the interview onwards — the same point the talent sees it open. */
+    /** The thread exists from their application on (Messages also lists it from the invite to apply), the same point the talent sees it open. */
     canChat: canMessage(deal),
     /**
      * TB-017 — an invite to apply only makes sense for someone who is not in the tracker yet. Once
@@ -296,8 +354,6 @@ export function usePipeline() {
     requestProposal,
     requestRevision,
     declineProposal,
-    commentOnProposal,
-    decideSuggestion,
     /**
      * TB-040 — scheduling an interview from a candidate's profile has to show on their card and
      * the dashboard widget, and a reschedule or cancel has to stick.
@@ -307,5 +363,6 @@ export function usePipeline() {
     rescheduleInterview,
     cancelInterview,
     completeInterview,
+    missInterview,
   };
 }

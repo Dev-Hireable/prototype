@@ -1,10 +1,10 @@
 import { getImageProps } from "next/image";
 import { preload } from "react-dom";
-import { durationDays, today } from "@/lib/portal/dates";
+import { durationDays, today, trialLength, workingDaysLabel } from "@/lib/portal/dates";
 import type { JobType } from "@/lib/contract/job-types";
 import { blankDraft, fromDrafts, planWeeks, toDrafts, type DraftTask, type PlannedTask } from "@/lib/demo/tasks";
 import { settleMoney } from "@/lib/portal/money";
-import type { Role } from "@/lib/team/data";
+import type { Independent, Role } from "@/lib/team/data";
 import { LEVELS, type RoleTemplate } from "@/lib/team/role-templates";
 import { roleParts } from "@/lib/team/roles";
 
@@ -15,10 +15,10 @@ import { roleParts } from "@/lib/team/roles";
 
 export const CHIP_TONES = ["text-ok", "text-primary", "text-[#e91e63]"];
 
-/** TB-024 "Exclusive Benefits" — optional, full-time only, each with its own monthly amount. */
+/** TB-024 Benefits — optional, full-time only, each with its own monthly amount. */
 export const BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"] as const;
-export const BENEFITS_DISCLAIMER =
-  "Exclusive benefits apply to full-time hired freelancers only. These benefits are reimbursable, proof of payment (receipts) must be submitted to receive reimbursement.";
+/** How a benefit is paid: back against a receipt. A plain note, since nothing is wrong. */
+export const BENEFITS_DISCLAIMER = "Benefits are paid back to the Independent when they upload a receipt.";
 
 /** Every field the wizard edits — what Review's Edit → Cancel restores. */
 export type Snapshot = {
@@ -41,84 +41,86 @@ export type ReviewSection = "title" | "budget" | "description" | "skills" | "dur
 
 /**
  * Copy per path — Test Independents (trial) and Build Team (full-time), with Build Team's
- * part-time twin: a monthly rate for set hours a week, and no exclusive benefits (those are
- * full-time only).
+ * part-time twin: monthly pay for set hours a week, and no benefits (those are full-time only).
+ * Each step is named in the stepper as its card is headed, and the pay is "Pay" on every path.
  */
 export const PATH = {
   trial: {
     title: "Create a Trial",
-    intro: "See how you work together with a paid trial before committing full-time. Fund escrow after they accept, before the trial starts.",
-    steps: ["Role Details", "Trial Tasks", "Budget & Duration", "Review", "Publish"],
+    /** Step one only: the steps after it don't repeat it. */
+    intro: "Set up a paid trial of 30, 60 or 90 working days before committing full time.",
+    steps: ["Role details", "Trial tasks", "Pay", "Review", "Publish"],
     /** Which card each step slot renders — the two paths don't share an order (TB-024 / TB-025). */
     sequence: ["details", "expectations", "budget", "review", "published"],
-    next: ["Next: Trial Tasks", "Add budget & duration", "Review job post"],
+    next: ["Next: Trial tasks", "Next: Pay", "Review role"],
     descPlaceholder: "What will they be doing during this trial?",
-    note: "Trial tasks are only shared with Independents you invite or match with — they won't appear on your public role listing.",
-    h2: "What should the Independent get done in the trial?",
-    field2: "Trial Tasks",
-    ph2: "Anything they should know before they start: tools, access, how you like to work…",
-    hint2: "A Loom, Google Doc or anything else that helps them get going.",
-    h3: "Budget & Duration",
-    sub3: "Set your monthly rate and trial length.",
-    label3: "Trial Duration",
+    h3: "Pay",
+    sub3: "Set the pay for the whole trial and how long it runs.",
+    pay: "Pay (for the whole trial)",
+    label3: "Trial length",
+    /** As saved on the role ("30 Days"); the chips read them in working days (`chipText`). */
     chips: ["30 Days", "60 Days", "90 Days"],
-    money: "Budget:",
+    money: "Pay:",
     when: "Duration:",
     reviewTitle: "Review your trial role",
-    reviewNote: "Your trial tasks are only shared with candidates you match with or invite — they won't be visible on your public job post.",
-    publishedTitle: "Job post published",
-    publishedBody: "Your job is now live. Next, review applicants and invite the best matches to a work trial.",
   },
   "full-time": {
-    title: "Build Team",
+    title: "Build Team: full-time role",
     intro: "Hire for a long-term role with defined responsibilities, strong collaboration, and room for growth.",
-    steps: ["Job Details", "Budget", "Exclusive Benefits", "Review", "Published"],
+    steps: ["Role details", "Pay and start", "Benefits", "Review", "Publish"],
     sequence: ["details", "budget", "benefits", "review", "published"],
-    next: ["Add budget", "Add benefits", "Review job post"],
+    next: ["Next: Pay and start", "Next: Benefits", "Review role"],
     descPlaceholder: "What will they be doing in this role?",
-    note: "Responsibilities appear on your public role listing so candidates know what the job involves.",
-    h2: "What will this person own in the role?",
-    field2: "Responsibilities",
-    ph2: "e.g. Own the outbound pipeline for our EU segment, run weekly reporting, and manage two SDRs…",
-    hint2: "Walk candidates through the role in your own words.",
-    h3: "Salary & Start",
-    sub3: "Set the monthly salary and when they start.",
+    h3: "Pay and start",
+    sub3: "Set the monthly pay and when they start.",
+    pay: "Pay (per month)",
     label3: "Start date",
     chips: ["Immediately", "In 2 weeks", "In 1 month"],
-    money: "Salary:",
+    money: "Pay:",
     when: "Start date:",
     reviewTitle: "Review your full-time role",
-    reviewNote: "Responsibilities appear on your public job post so candidates know what the role involves.",
-    publishedTitle: "Role published",
-    publishedBody: "Your role is now live. Next, review applicants and invite the best matches to interview.",
   },
   "part-time": {
-    title: "Build Team",
-    intro: "Hire for an ongoing role, part of the week: a set number of hours, with defined responsibilities and room to grow.",
-    steps: ["Job Details", "Rate & Hours", "Review", "Published"],
+    title: "Build Team: part-time role",
+    intro: "Hire for an ongoing role with set weekly hours, clear responsibilities, and room to grow.",
+    steps: ["Role details", "Pay and start", "Review", "Publish"],
     sequence: ["details", "budget", "review", "published"],
-    next: ["Add rate & hours", "Review job post"],
+    next: ["Next: Pay and start", "Review role"],
     descPlaceholder: "What will they be doing in this role?",
-    note: "Responsibilities appear on your public role listing so candidates know what the job involves.",
-    h2: "What will this person own in the role?",
-    field2: "Responsibilities",
-    ph2: "e.g. Run weekly social posting, report on engagement every Friday, and answer comments within a day…",
-    hint2: "Walk candidates through the role in your own words.",
-    h3: "Rate, Hours & Start",
-    sub3: "Set the monthly rate, the hours a week it covers, and when they start.",
+    h3: "Pay and start",
+    sub3: "Set the monthly pay, the hours a week it covers, and when they start.",
+    pay: "Pay (per month)",
     label3: "Start date",
     chips: ["Immediately", "In 2 weeks", "In 1 month"],
-    money: "Rate:",
+    money: "Pay:",
     when: "Start date:",
     reviewTitle: "Review your part-time role",
-    reviewNote: "Responsibilities appear on your public job post so candidates know what the role involves.",
-    publishedTitle: "Role published",
-    publishedBody: "Your role is now live. Next, review applicants and invite the best matches to interview.",
   },
 } as const;
 
 /** One path's copy and the order of its steps. */
 export type PathCopy = (typeof PATH)[JobType];
+
+/**
+ * A trial's own step and its card on Review (TB-025): the tasks, and the notes and link beside them.
+ * The tasks reach the Independent with the offer, once their proposal is accepted; the public post
+ * says only how many there are.
+ */
+export const TRIAL_TASKS = {
+  title: "Trial tasks",
+  label: "Tasks",
+  shared: "Independents see your trial tasks only after you accept their proposal. Tasks are not shown on your public role post.",
+  notPublic: "Not shown on your public post",
+  notesPlaceholder: "Do not share sensitive information here, such as login credentials.",
+  notesHint: "Shown to the Independent once the contract is signed.",
+  linkHint: "A Loom, Google Doc or anything else that helps them get going.",
+} as const;
+
+/** A trial length or a start timing as its chip reads: "30 working days", or "In 2 weeks" as it is. */
+export const chipText = (type: JobType, chip: string) => (type === "trial" ? workingDaysLabel(durationDays(chip)) : chip);
+
+/** The same, in full where there's room for it: "30 working days (about 6 weeks)". */
+export const chipLong = (type: JobType, chip: string) => (type === "trial" ? trialLength(durationDays(chip)) : chip);
 
 /** First step slot whose required fields aren't filled yet — "where they left off" (TB-035). */
 export function resumeStep(r: Role, sequence: readonly string[]) {
@@ -139,7 +141,7 @@ export function warmBadge() {
   preload(src, { as: "image", imageSrcSet: srcSet, fetchPriority: "low" });
 }
 
-/** Due weeks run to the end of the trial length picked on the budget step (30 days until then). */
+/** Due weeks run to the end of the trial length picked on the pay step, in working weeks: 30 days is 6, 60 is 12, 90 is 18 (30 until it's picked). */
 export const weeksFor = (chips: readonly string[], chip: number) => planWeeks(durationDays(chips[chip]));
 
 /**
@@ -164,11 +166,17 @@ const budgetOk = ({ min, max }: Pick<Snapshot, "min" | "max">) => min.length > 0
 export function rangeError({ min, max }: Pick<Snapshot, "min" | "max">) {
   if (!min || !max) return null;
   if (amount(min) > amount(max)) return "Minimum can't be more than the maximum.";
-  return amount(max) > 0 ? null : "The budget can't be $0.";
+  return amount(max) > 0 ? null : "The pay can't be $0.";
 }
 
-/** The range as the review and the post show it. */
-export const moneyLine = ({ min, max }: Pick<Snapshot, "min" | "max">) => `$${min || "0"} – $${max || "0"} /month`;
+/**
+ * The range as the role saves it: a trial's is for the whole trial, so it has no unit ("$1,600.00 –
+ * $2,000.00"); a full-time or part-time role's is monthly ("… /month").
+ */
+const moneyLine = ({ min, max }: Pick<Snapshot, "min" | "max">, type: JobType) => `$${min || "0"} – $${max || "0"}${type === "trial" ? "" : " /month"}`;
+
+/** The same as the review shows it, a trial's saying what it's for: "$1,600.00 – $2,000.00 for the trial". */
+export const moneyText = (f: Pick<Snapshot, "min" | "max">, type: JobType) => `${moneyLine(f, type)}${type === "trial" ? " for the trial" : ""}`;
 
 /**
  * TB-024 / TB-025 — Next stays disabled until every required field on the step is filled. Step 1
@@ -237,7 +245,7 @@ export function roleFrom(f: Snapshot, { slug, type, status, chips }: { slug: str
     hired: 0,
     updated: today(),
     description: f.desc,
-    budget: moneyLine(f),
+    budget: moneyLine(f, type),
     duration: type === "trial" ? chips[f.chip] : `Starts ${chips[f.chip].toLowerCase()}`,
     experience: f.level === LEVELS[0] ? "Any level" : f.level,
     skills: f.skills,
@@ -251,41 +259,29 @@ export function roleFrom(f: Snapshot, { slug, type, status, chips }: { slug: str
   };
 }
 
-/** Everything a template would replace, other than the title, is still empty. */
-export const onlyTitle = (f: Snapshot) => !f.desc.trim() && f.skills.length === 0 && f.level === LEVELS[0] && fromDrafts(f.taskRows).length === 0 && !f.min && !f.max;
+/** Everything a template would replace, other than the title, is still empty: the description, the skills and a trial's tasks. */
+export const onlyTitle = (f: Snapshot) => !f.desc.trim() && f.skills.length === 0 && fromDrafts(f.taskRows).length === 0;
+
+/** A template's tasks as a trial's plan takes them: its one example task, or a row to type the first into. */
+const exampleRows = (tpl: RoleTemplate) => (tpl.task ? toDrafts([tpl.task]) : [blankDraft()]);
 
 /**
- * What picking a template writes into the form — or, for "blank" (Start from scratch), what it
- * clears. The trial path also takes the template's tasks and length; the Build Team paths have
- * neither step, so those stay as they are.
+ * What picking a template writes into the form: the role's name, description and skills, and on a
+ * trial its one example task. The experience level, the trial's length and the pay are the Team
+ * Builder's to set. "blank" (Start from scratch) clears the form instead.
  */
-export function templateChanges(tpl: RoleTemplate | "blank", type: JobType, chips: readonly string[]): Partial<Snapshot> {
+export function templateChanges(tpl: RoleTemplate | "blank", type: JobType): Partial<Snapshot> {
   if (tpl === "blank") return { title: "", desc: "", skills: [], level: LEVELS[0], ...(type === "trial" ? { taskRows: [blankDraft()], expectation: "" } : {}), min: "", max: "", chip: 0 };
-  return {
-    title: tpl.title,
-    desc: tpl.description,
-    skills: [...tpl.skills],
-    level: tpl.level,
-    ...(type === "trial" ? { taskRows: tpl.tasks.length ? toDrafts(tpl.tasks) : [blankDraft()], chip: Math.max(0, chips.indexOf(`${tpl.days} Days`)) } : {}),
-    ...templateBudget(tpl),
-  };
+  return { title: tpl.title, desc: tpl.description, skills: [...tpl.skills], ...(type === "trial" ? { taskRows: exampleRows(tpl) } : {}) };
 }
 
-/** The range a template fills in — left empty when no source published one for the role. */
-const templateBudget = (tpl: RoleTemplate) => ({ min: tpl.budget ? settleMoney(String(tpl.budget.min)) : "", max: tpl.budget ? settleMoney(String(tpl.budget.max)) : "" });
-
 /** A template's fields in a shape the form can be compared against. */
-export function templateShape(tpl: RoleTemplate, type: JobType, chips: readonly string[], f: Snapshot) {
-  return JSON.stringify({
-    title: tpl.title,
-    desc: tpl.description,
-    skills: tpl.skills.join("|"),
-    level: tpl.level,
-    tasks: type === "trial" ? plan(tpl.tasks) : plan(fromDrafts(f.taskRows)),
-    ...templateBudget(tpl),
-    chip: type === "trial" ? Math.max(0, chips.indexOf(`${tpl.days} Days`)) : f.chip,
-  });
+export function templateShape(tpl: RoleTemplate, type: JobType, f: Snapshot) {
+  return JSON.stringify({ title: tpl.title, desc: tpl.description, skills: tpl.skills.join("|"), tasks: type === "trial" ? plan(tpl.task ? [tpl.task] : []) : plan(fromDrafts(f.taskRows)) });
 }
 
 /** The form's own fields in the same shape, to tell whether it still holds exactly what a template wrote. */
-export const formShape = (f: Snapshot) => JSON.stringify({ title: f.title, desc: f.desc, skills: f.skills.join("|"), level: f.level, tasks: plan(fromDrafts(f.taskRows)), min: f.min, max: f.max, chip: f.chip });
+export const formShape = (f: Snapshot) => JSON.stringify({ title: f.title, desc: f.desc, skills: f.skills.join("|"), tasks: plan(fromDrafts(f.taskRows)) });
+
+/** The Independents a just-published role shows first: the best matched, most first. */
+export const topMatches = (pool: Independent[], count = 3) => [...pool].sort((a, b) => b.match - a.match).slice(0, count);

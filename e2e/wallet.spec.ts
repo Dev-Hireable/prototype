@@ -2,10 +2,11 @@ import type { Locator, Page } from "@playwright/test";
 import { expect, NOW, test, toast } from "./fixtures";
 
 // The talent's money screens. Earnings (/independent/wallet): the balances added up from the ledger,
-// the ledger's search, filters, pager and View, withdrawing to the default method, and the note about
-// disputes. The payout methods, on Earnings and in Settings (/independent/settings/payout): made the
-// default, removed, and added through the shared add-payout dialog — pending verification, which keeps a
-// new method from being the default. Today is Fri 25 Sep 2026; the live trial holds $1,600 in escrow.
+// the ledger's search, filters, pager and View, withdrawing by hand (a verified method, an amount, the ID
+// checked first), and the note about disputes. The payout methods, on Earnings and in Settings
+// (/independent/settings/payout): made the default, removed (never the default), and added through the
+// shared add-payout dialog — pending verification, which keeps a new method from being the default.
+// Today is Fri 25 Sep 2026; the live trial holds $1,600 in escrow, a row of its own on Earnings.
 
 const DAY = 86_400_000;
 const T = NOW.getTime();
@@ -30,8 +31,10 @@ const paid = (c: typeof OPS, date: string, at: number, amount: string, kind: "re
 const payout = (date: string, at: number, to: string, amount: string) => ({ date, at, desc: `Payout to ${to}`, party: "—", type: "Payout", amount, status: { label: "Paid", tone: "ok" } });
 
 /**
- * Ten ledger rows over two past contracts: $3,700 released in seven payments, $300 refunded to Lumen
- * Retail, and $1,500 paid out in two payouts, which cover the four oldest releases. $2,200 is left.
+ * Ten ledger rows over two past contracts, beside the live trial's escrow deposit: $3,700 released in
+ * seven payments, $300 refunded to Lumen Retail, and $1,500 paid out in two payouts, each no more than
+ * was there to take. They use up the four oldest releases ($1,300) and $200 of the 15 Aug one; $2,200
+ * is left. The ID is verified, so Withdraw is on.
  */
 const LEDGER = {
   live: {
@@ -46,7 +49,8 @@ const LEDGER = {
       paid(OPS, "15 Jun 2026", 20260615, "$150.00"),
     ],
   },
-  "ind.withdrawals": [payout("06 Sep 2026", 20260906, "Maya ····4471", "−$500.00"), payout("20 Jul 2026", 20260720, "GCash ····9023", "−$1,000.00")],
+  "ind.withdrawals": [payout("06 Sep 2026", 20260906, "Maya ····4471", "−$800.00"), payout("20 Jul 2026", 20260720, "GCash ····9023", "−$700.00")],
+  "ind.idVerified": "8 Sep 2026",
 };
 
 /** A dispute the company filed on the live trial, answered, and now with Hireable support. */
@@ -56,7 +60,7 @@ const UNDER_REVIEW = {
   links: { team: "juan-dela-cruz", independent: "brand-designer" },
   title: "Brand Designer",
   type: "trial",
-  rate: "$1,600 /month",
+  rate: "$1,600",
   team: { name: "Alex Rivera", company: "Nairobi Solutions Inc.", slug: "nairobi-solutions" },
   independent: { name: "Juan Dela Cruz", slug: "juan-dela-cruz", avatar: "/team/juan.jpg" },
   filedBy: "team",
@@ -114,6 +118,10 @@ async function pick(page: Page, current: string, option: string) {
 
 /** A line of the transaction dialog, by its label. */
 const detail = (dialog: Locator, label: string) => dialog.getByText(label, { exact: true }).locator("..");
+
+/** Earnings' Withdraw, and the dialog it opens (which has a Withdraw of its own: look for that one inside it). */
+const withdrawButton = (page: Page) => page.getByRole("button", { name: "Withdraw", exact: true });
+const withdrawDialog = (page: Page) => page.getByRole("dialog", { name: "Withdraw", exact: true });
 
 /** A payout card on Earnings, by its last four digits: the innermost block holding its number and a ⋮ button. */
 const payoutCard = (page: Page, last4: string) =>
@@ -189,12 +197,17 @@ test.describe("wallet · balances", () => {
     await expect(balance(page, "Received, all time")).toHaveText(["$3,700.00", "Received, all time", "7 payments received from 2 contracts"]);
     await expect(balance(page, "Available to withdraw")).toHaveText(["$2,200.00", "Available to withdraw", "released and not yet withdrawn"]);
     await expect(balance(page, "Withdrawn to payout method")).toHaveText(["$1,500.00", "Withdrawn to payout method", "2 payouts so far"]);
-    await expect(page.getByRole("button", { name: "Withdraw $2,200.00" })).toBeEnabled();
-    // The $1,500 paid out covers 15 Jun – 1 Aug; on this page that's 1 Aug and 15 Jul, and the three newer are still to withdraw.
-    await expect(page.getByText("Paid out", { exact: true })).toHaveCount(2);
-    await expect(page.getByText("Available", { exact: true })).toHaveCount(3);
+    await expect(withdrawButton(page)).toBeEnabled();
+    // The $1,500 paid out uses up 15 Jun – 1 Aug and $200 of 15 Aug. On this page (the escrow deposit
+    // is the newest row, so 15 Jul is on the next) 1 Aug is paid out, 15 Aug partly, and the two
+    // newer are still to withdraw: $800 + $1,200 + the $200 left = the $2,200 available.
+    await expect(page.getByText("Paid out", { exact: true })).toHaveCount(1);
+    await expect(page.getByText("Partly paid out", { exact: true })).toHaveCount(1);
+    await expect(page.getByText("Available", { exact: true })).toHaveCount(2);
     // The refund went back to the company: a row, but none of the balance.
     await expect(page.getByText("Refunded", { exact: true })).toHaveCount(1);
+    // The trial's escrow is a row too, held: the Held in escrow figure is what's left on it.
+    await expect(page.getByText("Held", { exact: true })).toHaveCount(1);
     // No disputes on file, so no note about them.
     await expect(page.getByRole("link", { name: "View disputes" })).toHaveCount(0);
   });
@@ -207,7 +220,7 @@ test.describe("wallet · the ledger", () => {
     await openWallet(page);
     const search = page.getByPlaceholder("Search by contract or company");
     await search.fill("Kestrel");
-    await expect(page.getByText("Showing 2 of 10 transactions", { exact: true })).toBeVisible();
+    await expect(page.getByText("Showing 2 of 11 transactions", { exact: true })).toBeVisible();
     await expect(activeFilters(page).getByText("Search: Kestrel", { exact: true })).toBeVisible();
     await expect(rows(page)).toHaveCount(2);
     await activeFilters(page).getByRole("button", { name: "Clear filters" }).click();
@@ -216,9 +229,9 @@ test.describe("wallet · the ledger", () => {
 
     // The contract and the type combine, down to nothing: the empty state has its own Clear filters.
     await pick(page, "All contracts", "Ops Assistant");
-    await expect(page.getByText("Showing 6 of 10 transactions", { exact: true })).toBeVisible();
+    await expect(page.getByText("Showing 6 of 11 transactions", { exact: true })).toBeVisible();
     await pick(page, "All types", "Withdrawal");
-    await expect(page.getByText("Showing 0 of 10 transactions", { exact: true })).toBeVisible();
+    await expect(page.getByText("Showing 0 of 11 transactions", { exact: true })).toBeVisible();
     for (const chip of ["Ops Assistant", "Withdrawal"]) await expect(activeFilters(page).getByText(chip, { exact: true })).toBeVisible();
     const empty = page.getByText("No transactions match", { exact: true }).locator("..");
     await expect(empty).toContainText("Try a different contract, type or date range.");
@@ -235,12 +248,12 @@ test.describe("wallet · the ledger", () => {
     await expect(page.getByRole("button", { name: "Previous", exact: true })).toBeDisabled();
     await next.click();
     await expect(page.getByText("Page 2 of 2", { exact: true })).toBeVisible();
-    await expect(rows(page)).toHaveCount(2);
+    await expect(rows(page)).toHaveCount(3);
     await expect(page.getByText("15 Jun 2026", { exact: true })).toBeVisible();
     await expect(next).toBeDisabled();
-    // Ninety days back from the newest row leaves nine: still two pages, and it's back on the first.
+    // Ninety days back from the newest row (the deposit, 21 Sep) leaves ten: still two pages, and it's back on the first.
     await pick(page, "All time", "Last 90 days");
-    await expect(page.getByText("Showing 9 of 10 transactions", { exact: true })).toBeVisible();
+    await expect(page.getByText("Showing 10 of 11 transactions", { exact: true })).toBeVisible();
     await expect(page.getByText("Page 1 of 2", { exact: true })).toBeVisible();
     await expect(rows(page)).toHaveCount(8);
   });
@@ -251,7 +264,8 @@ test.describe("wallet · a transaction", () => {
 
   test("View opens the row's transaction, with its receipt to download", async ({ page }) => {
     await openWallet(page);
-    await rows(page).first().click();
+    // The newest payment, under the trial's escrow deposit.
+    await rows(page).nth(1).click();
     const d = page.getByRole("dialog", { name: "Transaction" });
     await expect(d.getByText("18 Sep 2026 · Payment Received", { exact: true })).toBeVisible();
     const lines = { Contract: "Sales Development Rep", Company: "Kestrel Labs", Amount: "+$800.00", Status: "Available", Reference: "Payment released · Sales Development Rep" };
@@ -268,25 +282,61 @@ test.describe("wallet · withdrawing", () => {
 
   test("the withdraw dialog names the default method and pays it out", async ({ page }) => {
     await openWallet(page);
-    const withdraw = page.getByRole("button", { name: "Withdraw $2,200.00" });
-    const d = page.getByRole("dialog", { name: "Withdraw $2,200.00?" });
-    await withdraw.click();
-    await expect(d).toContainText("Sent to your default method (Maya ····4471). Usually lands within one working day.");
+    const d = withdrawDialog(page);
+    await withdrawButton(page).click();
+    // The default method and everything available, to start with.
+    await expect(d).toContainText("$2,200.00 is available. Payouts usually arrive within one working day.");
+    await expect(d.getByRole("button", { name: "Payout method", exact: true })).toHaveText("Maya · ····4471");
+    await expect(d.getByRole("textbox", { name: "Amount (USD)" })).toHaveValue("2,200.00");
     await d.getByRole("button", { name: "Cancel" }).click();
     await expect(d).toBeHidden();
     expect(await savedWithdrawals(page)).toHaveLength(2);
 
-    await withdraw.click();
+    await withdrawButton(page).click();
     await d.getByRole("button", { name: "Withdraw", exact: true }).click();
-    await expect(toast(page, "$2,200.00 on its way")).toBeVisible();
+    await expect(toast(page, "$2,200.00 on its way to Maya ····4471")).toBeVisible();
     expect((await savedWithdrawals(page))[0]).toMatchObject({ date: "25 Sep 2026", at: 20260925, desc: "Payout to Maya ····4471", type: "Payout", amount: "−$2,200.00", status: { label: "Paid" } });
     // Nothing left to withdraw, and every payment received is now paid out.
-    await expect(page.getByRole("button", { name: "Withdraw $0.00" })).toBeDisabled();
+    await expect(withdrawButton(page)).toBeDisabled();
     await expect(balance(page, "Available to withdraw")).toHaveText(["$0.00", "Available to withdraw", "withdrawn already"]);
     await expect(balance(page, "Withdrawn to payout method")).toHaveText(["$3,700.00", "Withdrawn to payout method", "3 payouts so far"]);
     await expect(page.getByText("Available", { exact: true })).toHaveCount(0);
     await rows(page).first().click();
     await expect(page.getByRole("dialog", { name: "Transaction" }).getByText("25 Sep 2026 · Withdrawal", { exact: true })).toBeVisible();
+  });
+
+  test("a withdrawal can be part of what's available, to another verified method, and never more than there is", async ({ page }) => {
+    await openWallet(page);
+    await withdrawButton(page).click();
+    const d = withdrawDialog(page);
+    const method = d.getByRole("button", { name: "Payout method", exact: true });
+    const amount = d.getByRole("textbox", { name: "Amount (USD)" });
+    const go = d.getByRole("button", { name: "Withdraw", exact: true });
+    await amount.fill("5,000");
+    await expect(d.getByText("You can withdraw up to $2,200.00.", { exact: true })).toBeVisible();
+    await expect(go).toBeDisabled();
+    await method.click();
+    await page.getByRole("option", { name: "GCash · 0917 555 0142", exact: true }).click();
+    await expect(method).toBeFocused();
+    await amount.fill("1,000");
+    await go.click();
+    await expect(toast(page, "$1,000.00 on its way to GCash ····9023")).toBeVisible();
+    expect((await savedWithdrawals(page))[0]).toMatchObject({ desc: "Payout to GCash ····9023", type: "Payout", amount: "−$1,000.00" });
+    // $2,500 paid out now uses up 15 Aug and $800 of 5 Sep: its $400 left and 18 Sep's $800 are what's available.
+    await expect(balance(page, "Available to withdraw")).toHaveText(["$1,200.00", "Available to withdraw", "released and not yet withdrawn"]);
+    await expect(page.getByText("Partly paid out", { exact: true })).toHaveCount(1);
+    await expect(page.getByText("Available", { exact: true })).toHaveCount(1);
+  });
+});
+
+test.describe("wallet · the ID check", () => {
+  test.use({ seedOptions: { stores: { ...LEDGER, "ind.idVerified": "" } } });
+
+  test("Withdraw waits for the ID check, and says so", async ({ page }) => {
+    await openWallet(page);
+    await expect(withdrawButton(page)).toBeDisabled();
+    await withdrawButton(page).locator("..").hover();
+    await expect(page.getByText("Verify your ID to withdraw.", { exact: true })).toBeVisible();
   });
 });
 
@@ -298,7 +348,8 @@ test.describe("wallet · the default method", () => {
     await expect(payoutCard(page, "4471")).toContainText("DEFAULT");
     await cardMenu(page, "4471");
     await expect(page.getByRole("menuitem", { name: "Set as default" })).toBeDisabled();
-    await expect(page.getByRole("menuitem", { name: "Remove" })).toBeEnabled();
+    // The default can't be removed until another method takes over, the same rule as Settings.
+    await expect(page.getByRole("menuitem", { name: "Remove" })).toBeDisabled();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu")).toBeHidden();
 
@@ -309,61 +360,31 @@ test.describe("wallet · the default method", () => {
     await expect(payoutCard(page, "9023")).toContainText("DEFAULT");
     await expect(payoutCard(page, "4471")).not.toContainText("DEFAULT");
     expect(await savedDefaults(page)).toEqual(["gcash"]);
-    await page.getByRole("button", { name: "Withdraw $2,200.00" }).click();
-    await expect(page.getByRole("dialog", { name: "Withdraw $2,200.00?" })).toContainText("Sent to your default method (GCash ····9023).");
+    await withdrawButton(page).click();
+    await expect(withdrawDialog(page).getByRole("button", { name: "Payout method", exact: true })).toHaveText("GCash · 0917 555 0142");
   });
 });
 
 test.describe("wallet · removing a method", () => {
-  test("⋮ Remove words the default's removal differently from another method's, and takes the method off", async ({ page }) => {
+  // The default's Remove is off on Earnings as in Settings, so its removal is no longer worded on its own.
+  test("⋮ Remove asks first and takes the method off, and is off for the default", async ({ page }) => {
     await openWallet(page);
     const bank = page.getByRole("dialog", { name: "Remove Bank ····3391?" });
     await removeFromMenu(page, "3391");
-    await expect(bank).toContainText("Payouts already scheduled to this method complete; nothing new is sent here.");
+    await expect(bank).toContainText("Payouts already on the way to this account will still arrive. No new payouts will be sent here.");
     await bank.getByRole("button", { name: "Cancel" }).click();
     await expect(bank).toBeHidden();
 
-    const maya = page.getByRole("dialog", { name: "Remove Maya ····4471?" });
-    await removeFromMenu(page, "4471");
-    await expect(maya).toContainText("This is your default method. Your next payout goes to GCash ····9023 instead.");
-    await maya.getByRole("button", { name: "Close" }).click();
-    await expect(maya).toBeHidden();
+    await cardMenu(page, "4471");
+    await expect(page.getByRole("menuitem", { name: "Remove" })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toBeHidden();
 
     await removeFromMenu(page, "3391");
     await bank.getByRole("button", { name: "Remove", exact: true }).click();
     await expect(toast(page, "Payout method removed")).toBeVisible();
     await expect(page.getByRole("button", { name: "Payout method actions" })).toHaveCount(2);
     expect((await savedPayouts(page))?.map((m) => m.id)).toEqual(["maya", "gcash"]);
-  });
-});
-
-test.describe("wallet · removing the default method", () => {
-  test.use({ seedOptions: { stores: { ...LEDGER, "ind.payouts": [MAYA, GCASH] } } });
-
-  test("removing the default hands the default to the method that remains", async ({ page }) => {
-    await openWallet(page);
-    await removeFromMenu(page, "4471");
-    await page.getByRole("dialog", { name: "Remove Maya ····4471?" }).getByRole("button", { name: "Remove", exact: true }).click();
-    await expect(toast(page, "Payout method removed")).toBeVisible();
-    await expect(payoutCard(page, "9023")).toContainText("DEFAULT");
-    expect(await savedDefaults(page)).toEqual(["gcash"]);
-    await page.getByRole("button", { name: "Withdraw $2,200.00" }).click();
-    await expect(page.getByRole("dialog", { name: "Withdraw $2,200.00?" })).toContainText("Sent to your default method (GCash ····9023).");
-  });
-});
-
-test.describe("wallet · removing the default with no other verified", () => {
-  test.use({ seedOptions: { stores: { ...LEDGER, "ind.payouts": [MAYA, PENDING] } } });
-
-  test("the dialog says withdrawing waits, and no method pending verification becomes the default", async ({ page }) => {
-    await openWallet(page);
-    await removeFromMenu(page, "4471");
-    const maya = page.getByRole("dialog", { name: "Remove Maya ····4471?" });
-    await expect(maya).toContainText("This is your default method, and no other is verified yet: withdrawing waits until one is.");
-    await maya.getByRole("button", { name: "Remove", exact: true }).click();
-    await expect(toast(page, "Payout method removed")).toBeVisible();
-    expect(await savedDefaults(page)).toEqual([]);
-    await expect(page.getByRole("button", { name: "Withdraw $2,200.00" })).toBeDisabled();
   });
 });
 
@@ -376,7 +397,10 @@ test.describe("wallet · adding a method", () => {
     const account = d.getByRole("textbox", { name: "Account number" });
     await expect(picker(page, "Payout type")).toHaveText("Bank transfer (InstaPay / PESONet)");
     await expect(picker(page, "Bank")).toHaveText("BPI");
+    // The account has to be in their own name: the profile's full name, not editable here.
     await expect(d.getByRole("textbox", { name: "Account name" })).toHaveValue("Juan Dela Cruz");
+    await expect(d.getByRole("textbox", { name: "Account name" })).not.toBeEditable();
+    await expect(d).toContainText("The account must be under your own name. ID check (KYC) is required before your first payout.");
     await expect(account).toHaveAttribute("placeholder", "0000 0000 0000");
     await expect(d.getByRole("checkbox", { name: "Set as default payout method" })).toBeChecked();
     await expect(add).toBeDisabled();
@@ -397,7 +421,7 @@ test.describe("wallet · adding a method", () => {
 
   test("a new method is saved pending verification, and its card says so — it can't be the default yet", async ({ page }) => {
     await openWallet(page);
-    await page.getByRole("button", { name: "Add payout method Bank · GCash · Maya" }).click();
+    await page.getByRole("button", { name: "Add payout method", exact: true }).click();
     await addMethod(page, "GCash", "0917 555 1234");
     await expect(toast(page, /^GCash ····1234 added$/)).toBeVisible();
     const added = (await savedPayouts(page))?.at(-1);
@@ -466,7 +490,7 @@ test.describe("payout settings · removing a method", () => {
     const bank = methodRow(page, "BPI · account ending 3391");
     const confirm = page.getByRole("dialog", { name: "Remove Bank?" });
     await bank.getByRole("button", { name: "Remove" }).click();
-    await expect(confirm).toContainText("Payouts already scheduled to this method complete; nothing new is sent here.");
+    await expect(confirm).toContainText("Payouts already on the way to this account will still arrive. No new payouts will be sent here.");
     await confirm.getByRole("button", { name: "Cancel" }).click();
     await expect(confirm).toBeHidden();
     await expect(bank).toBeVisible();

@@ -64,7 +64,7 @@ export function NoWork({ role, team, independent, trial, onAdd }: { role: Role; 
         trial
           ? noTrialWork(role, independent)
           : role === "manager"
-            ? "Add the first task. Give it a due date or a start and due, an effort estimate, and who does it — every view picks it up."
+            ? "Add the first task. Give it a due date or a start and due, an effort estimate, and who does it. Every view picks it up."
             : role === "contributor"
               ? `${team} adds the work here. You're told each time something is added, and it shows up in every view.`
               : "Nothing has been added to this contract yet."

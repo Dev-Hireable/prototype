@@ -9,7 +9,6 @@ import { ICONS } from "@/components/icons";
 import { dismissToast, raiseToast, type ToastAction } from "@/components/portal/notify";
 import { Badge } from "@/components/portal/badge";
 import type { Tone } from "@/lib/portal/tone";
-import { PIPELINE, type Stage } from "@/lib/portal/stages";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
@@ -318,10 +317,12 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
  * trailing a band of empty colour. A strip across the top of a panel passes its own className
  * (no rounding, no w-fit) and spans the panel.
  */
-export function InfoBanner({ children, tone = "info", className = "w-fit max-w-full rounded-lg", onClose }: { children: ReactNode; tone?: "info" | "warn"; className?: string; /** A banner that can be put away: the toast's × at its end. */ onClose?: () => void }) {
-  const I = tone === "info" ? ICONS.info : ICONS.warning;
+export function InfoBanner({ children, tone = "info", className = "w-fit max-w-full rounded-lg", onClose }: { children: ReactNode; tone?: "info" | "warn" | "success"; className?: string; /** A banner that can be put away: the toast's × at its end. */ onClose?: () => void }) {
+  // `success` says something finished well (a dispute settled or resolved): the ok badge's green.
+  const I = tone === "info" ? ICONS.info : tone === "success" ? ICONS.checkCircle : ICONS.warning;
+  const look = tone === "info" ? "bg-[#ccedff] text-[#003049]" : tone === "success" ? "bg-[#eef9f2] text-[#1b6b3a]" : "bg-warn-bg text-warn-ink";
   return (
-    <div className={`flex items-start gap-4 p-4 text-[14px] leading-[1.2] tracking-[0.2px] ${tone === "info" ? "bg-[#ccedff] text-[#003049]" : "bg-warn-bg text-warn-ink"} ${className}`}>
+    <div className={`flex items-start gap-4 p-4 text-[14px] leading-[1.2] tracking-[0.2px] ${look} ${className}`}>
       <I size={20} aria-hidden className="shrink-0" />
       {/* The rest of the banner, so a strip's action can sit at its right end. A 20px line, the icon's
           height, so the first line sits level with the icon rather than riding above its middle. */}
@@ -426,10 +427,17 @@ export function Person({ name, role, avatar, href }: { name: string; role: strin
 
 /* ------------------------------------------------------------- controls --- */
 
-export function Field({ label, hint, error, children, className = "" }: { label: ReactNode; hint?: string; /** A validation message — it replaces the hint and is announced as an error. */ error?: string; children: ReactNode; className?: string }) {
+export function Field({ label, hint, error, required = false, children, className = "" }: { label: ReactNode; hint?: string; /** A validation message — it replaces the hint and is announced as an error. */ error?: string; /** Marks the label with an asterisk; the control itself carries `required` for screen readers. */ required?: boolean; children: ReactNode; className?: string }) {
   return (
     <label className={`flex flex-col gap-2 ${className}`}>
-      <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>
+      <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">
+        {label}
+        {required && (
+          <span aria-hidden className="text-danger">
+            {" *"}
+          </span>
+        )}
+      </span>
       {children}
       {error ? (
         <span role="alert" className="text-[13px] leading-[1.2] tracking-[0.2px] text-danger">
@@ -1026,119 +1034,4 @@ export function Steps({ steps, current }: { steps: string[]; current: number }) 
   );
 }
 
-/* ------------------------------------------------------ pipeline tracker --- */
-
-type MajorStage = "applied" | "matched" | "interviewed" | "proposal_sent" | "offer_accepted" | "hired";
-
-const MILESTONE_COLORS: Record<MajorStage, string> = {
-  applied: "bg-ink-2",
-  matched: "bg-primary",
-  interviewed: "bg-brand-orange",
-  proposal_sent: "bg-[#6e0e52]",
-  offer_accepted: "bg-[#f2c94c]",
-  hired: "bg-ok",
-};
-
-function milestoneColor(key: string) {
-  return MILESTONE_COLORS[key as MajorStage];
-}
-
-/**
- * The tracker's rows as they sit on the rail, top-down: each stage with `i`, its place in PIPELINE,
- * and its top, centre (`cy`) and height; the rail's full height; and the majors among the rows. It's
- * the same whatever the stage, so it's laid out once.
- */
-function layRail() {
-  // Lay the reversed list out top-down and remember each row's centre y on the rail.
-  const rows = [...PIPELINE].reverse();
-  let y = 0;
-  const laid = rows.map((p, r) => {
-    const prev = rows[r - 1];
-    if (r > 0) y += prev && !prev.major && !p.major ? 12 : 16;
-    const h = p.major ? 16 : 12;
-    const row = { ...p, i: PIPELINE.length - 1 - r, top: y, cy: y + h / 2, h };
-    y += h;
-    return row;
-  });
-  return { laid, height: y, majors: laid.filter((p) => p.major) };
-}
-
-const RAIL = layRail();
-
-/** How far along the rail `stage` is: its index, the latest major reached, and the top reached sub-status above it. */
-function railProgress(stage: Stage) {
-  const idx = PIPELINE.findIndex((p) => p.key === stage);
-  const currentMajor = [...PIPELINE]
-    .slice(0, idx + 1)
-    .reverse()
-    .find((p) => p.major)?.key;
-  const topReachedSub = RAIL.laid.find((p) => !p.major && p.i <= idx && p.i > (PIPELINE.findIndex((q) => q.key === currentMajor) ?? -1));
-  const cur = RAIL.majors.find((m) => m.key === currentMajor);
-  return { idx, currentMajor, topReachedSub, cur };
-}
-
-/**
- * Pipeline tracker: a rail beside a label column. Rail colours: past majors #616161, current
- * #007acc, connector below current #007acc, reached sub-statuses above the current major #ff8112,
- * everything else #f2f2f2. Milestone mode uses green, yellow, purple, orange, blue, then gray.
- */
-export function PipelineTracker({ stage, labels = {}, mode = "progress" }: { stage: Stage; labels?: Partial<Record<Stage, string>>; mode?: "progress" | "milestone" }) {
-  const progress = railProgress(stage);
-  const { idx } = progress;
-  return (
-    <Card className="flex flex-col gap-6 p-4">
-      <CardTitle className="text-ink-deep">Pipeline tracker</CardTitle>
-      <div className="flex items-center gap-6 px-2 pb-2">
-        <PipelineRail progress={progress} milestoneMode={mode === "milestone"} />
-        <ol className="relative shrink-0" style={{ height: RAIL.height }}>
-          {RAIL.laid.map((p) => (
-            <li
-              key={p.key}
-              className={`absolute flex items-center leading-[1.2] tracking-[0.2px] whitespace-nowrap ${p.major ? "text-[12px] font-semibold" : "pl-3 text-[10px]"} ${
-                p.i <= idx ? (p.major ? "text-ink" : "text-ink-2") : "text-[#c3c3c3]"
-              }`}
-              style={{ top: p.top, height: p.h }}
-            >
-              {labels[p.key] ?? p.label}
-            </li>
-          ))}
-        </ol>
-      </div>
-    </Card>
-  );
-}
-
-/** The rail beside the labels: the connectors between majors, the orange run of reached sub-statuses, and a dot on each major. */
-function PipelineRail({ progress, milestoneMode }: { progress: ReturnType<typeof railProgress>; milestoneMode: boolean }) {
-  const { idx, currentMajor, topReachedSub, cur } = progress;
-  const { majors } = RAIL;
-  return (
-    <span aria-hidden className="relative w-4 shrink-0" style={{ height: RAIL.height }}>
-      {majors.map((m, k) => {
-        const next = majors[k + 1];
-        if (!next) return null;
-        const reached = m.i <= idx; // upper major reached → the whole connector is done
-        const color = milestoneMode ? (reached ? milestoneColor(m.key) : "bg-surface-2") : reached ? "bg-primary" : "bg-surface-2";
-        return <span key={m.key} className={`absolute left-1.5 w-1 ${color}`} style={{ top: m.cy, height: next.cy - m.cy }} />;
-      })}
-      {!milestoneMode && cur && topReachedSub && (
-        <span
-          className="absolute left-1.5 w-1 bg-brand-orange"
-          style={{
-            top: topReachedSub.cy,
-            height: cur.cy - topReachedSub.cy,
-          }}
-        />
-      )}
-      {majors.map((m) => (
-        <span
-          key={m.key}
-          className={`absolute left-0 size-4 rounded-full ${milestoneMode ? (m.i <= idx ? milestoneColor(m.key) : "bg-surface-2") : m.key === currentMajor ? "bg-primary" : m.i <= idx ? "bg-ink-2" : "bg-surface-2"}`}
-          style={{ top: m.cy - 8 }}
-        />
-      ))}
-    </span>
-  );
-}
-
-/* Work style is the talent's Workplace Tags (TraitTag), not a chart of its own. */
+/* Work style is the talent's work style tags (TraitTag), not a chart of its own. */

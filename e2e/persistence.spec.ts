@@ -34,7 +34,7 @@ test.describe("persistence · notifications", () => {
   test("a notification opens the item it's about, and its step is logged in the thread", async ({ page, secondPage }) => {
     await open(page, "team", "?task=t-logos");
     await panel(page).getByRole("button", { name: "Approve" }).click();
-    await expect(toast(page, "Approved #2 — Juan has been told")).toBeVisible();
+    await expect(toast(page, "Approved #2. Juan has been told.")).toBeVisible();
     const [note] = await notes(page, "independent");
     expect(note.href).toMatch(/^\/independent\/contracts\/brand-designer\?.*task=t-logos/);
     expect((await entryOf(page, note.href))?.event?.text).toContain("Alex Rivera approved");
@@ -53,6 +53,8 @@ test.describe("persistence · the thread's log", () => {
     const started = page.locator('[id^="msg-"]').filter({ hasText: /^Brand Designer trial started, / });
     const logged = () => page.evaluate(() => (JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}").chat ?? []).filter((m: { event?: { text: string } }) => m.event?.text.startsWith("Brand Designer trial started")).length);
     await expect(started).toHaveCount(1);
+    // Messages opens on Candidates; a hired Independent's thread is under Conversations, tagged Trial.
+    await page.getByRole("button", { name: /^conversations$/i }).click();
     await expect(page.getByRole("button", { name: /Juan Dela Cruz/ }).getByText("Trial", { exact: true })).toBeVisible();
     await page.reload();
     await expect(started).toHaveCount(1);

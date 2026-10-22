@@ -1,8 +1,9 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { Page } from "@/components/portal/ui";
 import { NotificationFeed } from "@/components/portal/notification-feed";
-import { useNotifications } from "@/lib/demo/live";
+import { storedCompanyLogo, useNotifications } from "@/lib/demo/live";
 import { categoryOf, NOTE_CATEGORIES, type NoteCategory } from "@/lib/portal/notification-categories";
 import { useQueryState } from "@/lib/portal/query-state";
 
@@ -11,11 +12,18 @@ type Filter = "all" | "unread" | NoteCategory;
 const FILTERS: { value: Filter; label: string }[] = [{ value: "all", label: "All" }, { value: "unread", label: "Unread" }, ...NOTE_CATEGORIES];
 const VALUES = FILTERS.map((f) => f.value);
 
-/** The feed both portals share (@/components/portal/NotificationFeed). Every row opens its entry in the Messages thread. */
+/** Nothing to subscribe to: the logo is saved on the Team Builder's side, and this reads it as it loads. */
+const NO_SUBSCRIBE = () => () => {};
+
+/**
+ * The feed both portals share (@/components/portal/NotificationFeed). Every row opens the item it's
+ * about; the company's own notices wear its uploaded logo, or its initials until it has one.
+ */
 export default function Notifications() {
   const { notifications, markRead } = useNotifications("independent");
   const [filter, setFilter] = useQueryState<Filter>("filter", "all", VALUES);
-  const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : categoryOf(n) === filter));
+  const logo = useSyncExternalStore(NO_SUBSCRIBE, storedCompanyLogo, () => null);
+  const list = notifications.filter((n) => (filter === "all" ? true : filter === "unread" ? n.unread : categoryOf(n) === filter)).map((n) => (logo && n.initials ? { ...n, logo } : n));
 
   return (
     <Page title="Notifications">

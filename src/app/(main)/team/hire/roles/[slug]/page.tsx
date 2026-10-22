@@ -15,18 +15,19 @@ import { DropDialog } from "@/components/team/drop-dialog";
 import { ProfileDrawer, SaveButton } from "@/components/team/ui";
 import { InterviewDialog } from "@/components/team/interview-dialog";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
-import { CompleteInterviewDialog, RequestProposalDialog } from "@/components/team/interview-steps";
+import { CompleteInterviewDialog, MissedInterviewDialog, RequestProposalDialog } from "@/components/team/interview-steps";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import { awaitsApplication, byName, columnOf, needsNewSlot, NEW_TIME_REQUESTED, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate, Role as RoleData } from "@/lib/team/data";
-import { jobFacts } from "@/lib/contract/job-types";
+import { jobFacts, payFor } from "@/lib/contract/job-types";
 import { PAIR, unreadChat, useLive } from "@/lib/demo/live";
 import { useRoles } from "@/lib/team/roles";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useQueryState } from "@/lib/portal/query-state";
 import { shortName } from "@/lib/portal/names";
 import { useToast, type SetToast } from "@/lib/portal/toast";
-import { stageCanMessage } from "@/lib/demo/deal";
+import { useDeal } from "@/lib/demo/deal";
+import { DEAL_ID } from "@/lib/team/deal-view";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
 const H3 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]";
@@ -36,13 +37,15 @@ const Message = ICONS.messages;
 const PRIMARY = "h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110";
 /** The same, for one that waits on the candidate: greyed while disabled. */
 const PRIMARY_WAITS = `${PRIMARY} w-full disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]`;
-/** Drop and Delete: the one solid red button. */
+/** A card's quiet second step, beside its main one. */
+const SECONDARY = "h-9 rounded-lg border border-border bg-white text-[13px] leading-[1.2] font-medium text-ink hover:bg-surface-alt";
+/** Delete, on a declined card: the one solid red button. Decline itself is a red text link (#279). */
 const DANGER = "h-9 rounded-lg bg-danger text-[13px] leading-[1.2] font-medium text-white hover:bg-danger-hover";
 
 const firstOf = (c: Candidate) => byName(c.independent).name.split(" ")[0];
 
 /** What a card's buttons open: each one's confirmation dialog, never a change on one click. */
-type CardActions = { open: (c: Candidate) => void; invite: (c: Candidate) => void; complete: (c: Candidate) => void; request: (c: Candidate) => void; review: (c: Candidate) => void; drop: (c: Candidate) => void; remove: (c: Candidate) => void };
+type CardActions = { open: (c: Candidate) => void; invite: (c: Candidate) => void; complete: (c: Candidate) => void; miss: (c: Candidate) => void; request: (c: Candidate) => void; review: (c: Candidate) => void; drop: (c: Candidate) => void; remove: (c: Candidate) => void };
 
 export default function RolePage({ params }: { params: Promise<{ slug: string }> }) {
   return (
@@ -53,8 +56,8 @@ export default function RolePage({ params }: { params: Promise<{ slug: string }>
 }
 
 /**
- * The candidate tracker, built to TB-037: a seven-column Kanban (Candidates → Dropped) with
- * per-column counts, and a read-only Job Details tab alongside it. Switching tabs keeps the
+ * The role's pipeline, built to TB-037: a Kanban of its candidates (Applied → Declined) with
+ * per-column counts, and a read-only Role details tab alongside it. Switching tabs keeps the
  * pipeline state because both live in this one component.
  */
 function Role({ params }: { params: Promise<{ slug: string }> }) {
@@ -79,11 +82,11 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
         </>
       }
       padded={false}
-      nav={<ReturnNav fallback={<BreadcrumbBack href="/team/hire/roles">Back to jobs</BreadcrumbBack>} />}
+      nav={<ReturnNav fallback={<BreadcrumbBack href="/team/hire/roles">Back to all roles</BreadcrumbBack>} />}
       navActions={
         tab === "candidates" ? (
           <LinkButton size="md" href={withReturn("/team/discover")} variant="primary">
-            Invite independents
+            Invite Independents
           </LinkButton>
         ) : undefined
       }
@@ -93,7 +96,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
           onChange={setTab}
           options={[
             { value: "candidates", label: "Candidates" },
-            { value: "details", label: "Job Details" },
+            { value: "details", label: "Role details" },
           ]}
         />
       }
@@ -115,15 +118,17 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
 
 /** The card each confirmation is open for — a card's buttons open one, never change anything on one click — and those buttons' actions. */
 function useCardDialogs(candidates: Candidate[]) {
-  /** The card being dropped or undropped, while its confirmation is open (TB-044: never on one click). */
+  /** The card being declined or restored, while its confirmation is open (TB-044: never on one click). */
   const [dropping, setDropping] = useState<Candidate | null>(null);
-  /** The dropped card being deleted, while its confirmation is open. */
+  /** The declined card being deleted, while its confirmation is open. */
   const [deleting, setDeleting] = useState<Candidate | null>(null);
   /** TB-037 — booking happens on the board, so a first interview is one click from the column. */
   const [inviting, setInviting] = useState<Candidate | null>(null);
   /** The two confirmations in front of a proposal request: the interview is done, then the request. */
   const [completing, setCompleting] = useState<Candidate | null>(null);
   const [requesting, setRequesting] = useState<Candidate | null>(null);
+  /** #313 — an interview marked done on its own that didn't happen, while its confirmation is open. */
+  const [missing, setMissing] = useState<Candidate | null>(null);
   /** TB-104 — the proposal opens from its card, without a detour through the profile. */
   const [reviewingId, setReviewing] = useState<string | null>(null);
   /** The candidate whose profile is open in the sheet, over the board. */
@@ -132,6 +137,7 @@ function useCardDialogs(candidates: Candidate[]) {
     open: setPreviewing,
     invite: setInviting,
     complete: setCompleting,
+    miss: setMissing,
     request: setRequesting,
     review: (c) => setReviewing(c.id),
     drop: setDropping,
@@ -149,6 +155,8 @@ function useCardDialogs(candidates: Candidate[]) {
     setCompleting,
     requesting,
     setRequesting,
+    missing,
+    setMissing,
     reviewing: candidates.find((x) => x.id === reviewingId),
     previewing,
     setPreviewing,
@@ -158,10 +166,10 @@ function useCardDialogs(candidates: Candidate[]) {
 
 type CardDialogs = ReturnType<typeof useCardDialogs>;
 
-/** The confirmations the cards open, each for the card it came from: drop, delete, invite, mark the interview done, request and review the proposal. */
+/** The confirmations the cards open, each for the card it came from: decline, delete, invite, mark the interview done (or not held), request and review the proposal. */
 function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: CardDialogs; onToast: SetToast }) {
-  const { interviews, requestProposal, deleteCandidate, completeInterview } = usePipeline();
-  const { dropping, deleting, inviting, completing, requesting, reviewing } = dialogs;
+  const { requestProposal, deleteCandidate } = usePipeline();
+  const { dropping, deleting, inviting, requesting, reviewing } = dialogs;
   return (
     <>
       {/* A name opens the profile over the board; its View profile leads on to the candidate's own page. */}
@@ -170,7 +178,6 @@ function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: Car
       {deleting && (
         <DeleteDialog
           candidate={deleting}
-          role={role.title}
           onClose={() => dialogs.setDeleting(null)}
           onDelete={() => {
             const name = shortName(byName(deleting.independent).name);
@@ -181,18 +188,7 @@ function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: Car
         />
       )}
       <InterviewDialog candidate={inviting} onClose={() => dialogs.setInviting(null)} onSent={(name) => onToast(`Interview invitation sent to ${name}`)} />
-      <CompleteInterviewDialog
-        open={!!completing}
-        name={completing ? firstOf(completing) : ""}
-        when={completing ? interviews.find((i) => i.independent === completing.independent && !i.past)?.when : undefined}
-        onClose={() => dialogs.setCompleting(null)}
-        onConfirm={() => {
-          if (!completing) return;
-          completeInterview(completing.id);
-          onToast(`Interview with ${firstOf(completing)} marked done`);
-          dialogs.setCompleting(null);
-        }}
-      />
+      <InterviewStepDialogs dialogs={dialogs} onToast={onToast} />
       {/* TB-103 — moves them to Proposal Requested and notifies them to submit one. */}
       <RequestProposalDialog
         open={!!requesting}
@@ -211,7 +207,43 @@ function BoardDialogs({ role, dialogs, onToast }: { role: RoleData; dialogs: Car
   );
 }
 
-/** The previewed candidate's profile in a sheet over the board, with Message once their stage allows it, and Save. */
+/**
+ * The interview's two confirmations: marked done before the slot is over (it's done on its own once
+ * it has passed), and not held, for one marked done on its own that didn't happen (#313).
+ */
+function InterviewStepDialogs({ dialogs, onToast }: { dialogs: CardDialogs; onToast: SetToast }) {
+  const { interviews, completeInterview, missInterview } = usePipeline();
+  const { completing, missing } = dialogs;
+  return (
+    <>
+      <CompleteInterviewDialog
+        open={!!completing}
+        name={completing ? firstOf(completing) : ""}
+        interview={completing ? interviews.find((i) => i.independent === completing.independent && !i.past) : undefined}
+        onClose={() => dialogs.setCompleting(null)}
+        onConfirm={() => {
+          if (!completing) return;
+          completeInterview(completing.id);
+          onToast(`Interview with ${firstOf(completing)} marked done`);
+          dialogs.setCompleting(null);
+        }}
+      />
+      <MissedInterviewDialog
+        open={!!missing}
+        name={missing ? firstOf(missing) : ""}
+        onClose={() => dialogs.setMissing(null)}
+        onConfirm={() => {
+          if (!missing) return;
+          missInterview(missing.id);
+          onToast(`Interview with ${firstOf(missing)} marked as not held`);
+          dialogs.setMissing(null);
+        }}
+      />
+    </>
+  );
+}
+
+/** The previewed candidate's profile in a sheet over the board, with Message (every stage has a thread) and Save. */
 function CandidateSheet({ role, dialogs }: { role: RoleData; dialogs: CardDialogs }) {
   const { previewing } = dialogs;
   const withReturn = useWithReturn();
@@ -222,7 +254,7 @@ function CandidateSheet({ role, dialogs }: { role: RoleData; dialogs: CardDialog
       href={() => (previewing ? `/team/hire/roles/${role.slug}/candidates/${previewing.id}` : "")}
       actions={(p) => (
         <>
-          {previewing && stageCanMessage(previewing.stage) && <MessageButton href={withReturn("/team/messages")} />}
+          {previewing && <MessageButton href={withReturn("/team/messages")} />}
           <SaveButton person={p} />
         </>
       )}
@@ -283,7 +315,7 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
     <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
       <div ref={boardRef} className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
         {columns.map((col) => {
-          /** A dropped candidate sits in Dropped (TB-037) and a closed trial in Trial Ended, not their stage's column. */
+          /** A declined candidate sits in Declined (TB-037) and a closed trial in Trial Ended, not their stage's column. */
           const cards = list.filter((c) => columnOf(c) === col.key);
           return (
             <KanbanColumn
@@ -300,9 +332,9 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
             >
               <KanbanList>
                 {cards.map((c) => (
-                  <CandidateCard key={c.id} c={c} column={col.key} unread={c.independent === PAIR.independent.slug ? unread : 0} actions={actions} />
+                  <CandidateCard key={c.id} c={c} type={role.type} column={col.key} unread={c.independent === PAIR.independent.slug ? unread : 0} actions={actions} />
                 ))}
-                {cards.length === 0 && <KanbanEmpty>Nothing here yet</KanbanEmpty>}
+                {cards.length === 0 && <ColumnEmpty column={col} />}
               </KanbanList>
             </KanbanColumn>
           );
@@ -312,34 +344,55 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
   );
 }
 
+/** #268 — what an empty column says it holds; an empty Matched says where matches come from, with the way there. */
+function ColumnEmpty({ column }: { column: (typeof TRACKER_COLUMNS)[number] }) {
+  const withReturn = useWithReturn();
+  return (
+    <KanbanEmpty>
+      <span className="flex flex-col items-center gap-3">
+        {column.empty}
+        {column.key === "matched" && (
+          <LinkButton size="sm" variant="primary" href={withReturn("/team/discover")}>
+            Discover Independents
+          </LinkButton>
+        )}
+      </span>
+    </KanbanEmpty>
+  );
+}
+
 /** One candidate on the board: who they are, where they stand, and the step their column offers. */
-function CandidateCard({ c, column, unread, actions }: { c: Candidate; column: string; unread: number; actions: CardActions }) {
+function CandidateCard({ c, type, column, unread, actions }: { c: Candidate; type: RoleData["type"]; column: string; unread: number; actions: CardActions }) {
   const p = byName(c.independent);
+  const deal = useDeal();
   // The surname stays an initial ("Juan D.") until they're hired.
   const name = c.stage === "hired" ? p.name : shortName(p.name);
+  // Once they've proposed, the card reads the pay they proposed, as the offer will (a trial's one total).
+  // Before, a full-time or part-time role shows their own monthly rate; a trial shows none, since its
+  // pay is one total that only the proposal sets.
+  const proposed = c.id === DEAL_ID ? deal?.proposal?.rate : undefined;
+  const pay = proposed ? payFor(type, proposed) : type === "trial" ? undefined : p.rate;
   return (
     <li className={`flex flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${c.dropped ? "opacity-60" : ""}`}>
       <div className="flex items-start gap-2.5">
         <Avatar src={p.avatar} size={36} />
         <CardName c={c} name={name} headline={p.role} onOpen={actions.open} />
-        <MessageLink c={c} name={name} unread={unread} />
+        <MessageLink name={name} unread={unread} />
       </div>
-      <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">
-        {p.rate} · {p.level}
-      </p>
+      <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">{pay ? `${pay} · ${p.level}` : p.level}</p>
       <div className="flex flex-wrap items-center gap-2">
         <MatchPill pct={p.match} coded title={MATCH_TOOLTIP.team} />
-        {c.dropped ? <StatusDot tone="danger">Dropped</StatusDot> : c.status && <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>}
+        {c.dropped ? <StatusDot tone="danger">Declined</StatusDot> : c.status && <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>}
       </div>
       <p className="text-[11.5px] leading-[1.2] text-ink-2">{c.status?.meta ?? c.submitted}</p>
       <StageButtons c={c} column={column} actions={actions} />
-      {/* TB-044: drop from any stage, undrop back to where they were.
-          Hired candidates can't be dropped (TB-037). */}
+      {/* TB-044: decline at any stage, restore to where they were. Hired candidates can't be
+          declined (TB-037). Decline is a red text link, so it doesn't vie with the column's step (#279). */}
       {c.dropped ? (
-        // Undrop, or delete for good so the Dropped column doesn't pile up.
+        // Restore, or delete for good so the Declined column doesn't pile up.
         <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => actions.drop(c)} className="h-9 rounded-lg border border-border bg-white text-[13px] leading-[1.2] font-medium text-ink hover:bg-surface-alt">
-            Undrop
+          <button type="button" onClick={() => actions.drop(c)} className={SECONDARY}>
+            Restore
           </button>
           <button type="button" onClick={() => actions.remove(c)} className={DANGER}>
             Delete
@@ -347,8 +400,8 @@ function CandidateCard({ c, column, unread, actions }: { c: Candidate; column: s
         </div>
       ) : (
         c.stage !== "hired" && (
-          <button type="button" onClick={() => actions.drop(c)} className={DANGER}>
-            Drop
+          <button type="button" onClick={() => actions.drop(c)} className="self-start text-[13px] leading-[1.2] font-medium text-danger hover:underline">
+            Decline
           </button>
         )
       )}
@@ -382,20 +435,11 @@ function CardName({ c, name, headline, onOpen }: { c: Candidate; name: string; h
 }
 
 /**
- * TB-037: unread messages show a red badge on the message icon. The thread opens at the interview
- * invite, for every card — not just the live pair.
+ * TB-037: unread messages show a red badge on the message icon. Every card can be messaged: the
+ * thread exists from the invite to apply or the application, for every card, not just the live pair.
  */
-function MessageLink({ c, name, unread }: { c: Candidate; name: string; unread: number }) {
+function MessageLink({ name, unread }: { name: string; unread: number }) {
   const withReturn = useWithReturn();
-  if (!stageCanMessage(c.stage)) {
-    return (
-      <Tip label="Messaging opens once you invite them to interview">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink-2 opacity-50">
-          <Message size={16} aria-hidden />
-        </span>
-      </Tip>
-    );
-  }
   return (
     <Link href={withReturn("/team/messages")} aria-label={`Message ${name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
       <Message size={16} aria-hidden />
@@ -406,7 +450,7 @@ function MessageLink({ c, name, unread }: { c: Candidate; name: string; unread: 
   );
 }
 
-/** The step a card's column offers: invite, mark the interview done, request or review the proposal, or review the offer. */
+/** The step a card's column offers: invite, mark the interview done, request or review the proposal, review the offer, or open the hire's contract. */
 function StageButtons({ c, column, actions }: { c: Candidate; column: string; actions: CardActions }) {
   if (c.dropped) return null;
   const waiting = awaitsApplication(c);
@@ -415,42 +459,61 @@ function StageButtons({ c, column, actions }: { c: Candidate; column: string; ac
       {/* TB-037: book the interview from the column, without opening a profile — once
           they've applied. A match invited to apply hasn't yet, so it waits on them. */}
       {(column === "candidates" || column === "matched") && (
-        <Tip label={waiting ? `${firstOf(c)} hasn't applied yet — you can invite them to interview once they do` : undefined} wrap={waiting}>
+        <Tip label={waiting ? `${firstOf(c)} hasn't applied yet. You can invite them to interview once they do.` : undefined} wrap={waiting}>
           <button type="button" disabled={waiting} onClick={() => actions.invite(c)} className={PRIMARY_WAITS}>
             Invite to interview
           </button>
         </Tip>
       )}
       {column === "interview" && <InterviewButton c={c} actions={actions} />}
-      {/* TB-104: Review Proposal once they've actually submitted one — it opens right
+      {/* TB-104: Review proposal once they've actually submitted one — it opens right
           here on the board, the same dialog the profile opens — and while a revision
           is out, so its history stays one click away. */}
       {(c.stage === "proposal_sent" || (c.stage === "proposal_requested" && c.status?.label === "Revision requested")) && (
         <button type="button" onClick={() => actions.review(c)} className={PRIMARY}>
-          Review Proposal
+          Review proposal
         </button>
       )}
       {/* TB-037: the sent offer is reviewable but not editable: its card on the candidate's page reads it and withdraws it. */}
       {column === "offer" && (
         <LinkButton size="sm" href={`/team/hire/roles/${c.role}/candidates/${c.id}`} className="justify-center">
-          Review Sent Offer
+          Review sent offer
         </LinkButton>
       )}
+      {(column === "hired" || column === "trial_ended") && <ContractLink c={c} running={column === "hired"} />}
     </>
   );
 }
 
+/** #327 — a hire's way on: the trial's progress while it runs, the contract otherwise (a direct hire, a converted or a closed trial). */
+function ContractLink({ c, running }: { c: Candidate; running: boolean }) {
+  const withReturn = useWithReturn();
+  return (
+    <Link href={withReturn(`/team/independents/${c.independent}`)} className={`${PRIMARY} flex items-center justify-center`}>
+      {running && c.hiredAs === "trial" ? "Track trial progress" : "Open contract"}
+    </Link>
+  );
+}
+
 /**
- * TB-103 behind IN-018: the interview is marked done first, and only then can a proposal be
- * requested — each step confirmed in a dialog, never on one click. Before the candidate has
- * confirmed the interview there is nothing to mark.
+ * TB-103 behind IN-018: the interview is marked done first (on its own once its slot has passed, or
+ * by hand when they met sooner), and only then can a proposal be requested — each step confirmed in
+ * a dialog, never on one click. Before the candidate has confirmed the interview there is nothing
+ * to mark. One marked done on its own can still be marked as not held (#313).
  */
 function InterviewButton({ c, actions }: { c: Candidate; actions: CardActions }) {
   if (c.stage === "interviewed") {
     return (
-      <button type="button" onClick={() => actions.request(c)} className={PRIMARY}>
-        Request Proposal
-      </button>
+      <>
+        <button type="button" onClick={() => actions.request(c)} className={PRIMARY}>
+          Request proposal
+        </button>
+        {c.autoDone && (
+          <button type="button" onClick={() => actions.miss(c)} className={SECONDARY}>
+            Did not happen
+          </button>
+        )}
+      </>
     );
   }
   // They declined it, asked for another time, or it was cancelled: a new slot is the way on.
@@ -490,16 +553,16 @@ function JobDetails({ role }: { role: RoleData }) {
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{role.description}</p>
         </Card>
         <Card className="flex flex-col gap-4 p-4">
-          <h3 className={H3}>Budget &amp; details</h3>
+          <h3 className={H3}>Pay &amp; details</h3>
           {/* The facts strip the talent's job page shows, so the post reads the same on both sides. */}
           <FactStrip size="sm" cells={jobFacts({ type: role.type, pay: role.budget, duration: role.duration, hours: role.hours, level: role.experience })} />
         </Card>
-        {/* TB-025 — the trial's tasks, as the job post sets them; each offer carries them as the proposal settles them (TB-105). */}
+        {/* TB-025 — the trial's tasks, as the job post sets them; the offer carries them (TB-105). */}
         {role.type === "trial" && (
           <Card className="flex flex-col gap-4 p-4">
             <div className="flex flex-col gap-1">
               <h3 className={H3}>Trial tasks</h3>
-              <p className="text-[13px] leading-[1.4] text-ink-2">Shared with candidates you match with or invite. Each offer carries them as the proposal settles them, and once it's signed they stay as agreed.</p>
+              <p className="text-[13px] leading-[1.4] text-ink-2">Independents see these tasks after you accept their proposal.</p>
             </div>
             <TaskPlanList tasks={role.tasks ?? []} empty="No trial tasks." />
           </Card>
@@ -517,7 +580,7 @@ function JobDetails({ role }: { role: RoleData }) {
         <div className="flex flex-col gap-6 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
           {role.expectation && (
             <div className="flex flex-col gap-3">
-              <h3 className="font-semibold">{role.type === "trial" ? "Notes for candidates" : "Responsibilities"}</h3>
+              <h3 className="font-semibold">{role.type === "trial" ? "Notes (shared with the Independent once hired)" : "Responsibilities"}</h3>
               <p className="leading-[1.4] whitespace-pre-line">{role.expectation}</p>
             </div>
           )}
@@ -535,15 +598,16 @@ function JobDetails({ role }: { role: RoleData }) {
   );
 }
 
-/** Deleting a dropped card for good, so the Dropped column doesn't pile up. */
-function DeleteDialog({ candidate, role, onClose, onDelete }: { candidate: Candidate; role: string; onClose: () => void; onDelete: () => void }) {
+/** Deleting a declined card for good, so the Declined column doesn't pile up. */
+function DeleteDialog({ candidate, onClose, onDelete }: { candidate: Candidate; onClose: () => void; onDelete: () => void }) {
+  const first = firstOf(candidate);
   return (
     <Modal
       open
       tone="danger"
       onClose={onClose}
       title={`Delete ${shortName(byName(candidate.independent).name)} from this role?`}
-      description={`Their card comes off ${role}'s tracker for good, so it can't be undropped. Nothing is sent to ${firstOf(candidate)}.`}
+      description={`This removes ${first} from this role for good. ${first} is not notified.`}
       footer={
         <>
           <Button size="lg" onClick={onClose}>

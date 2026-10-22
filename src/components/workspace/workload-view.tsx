@@ -33,9 +33,10 @@ export function WorkloadView({ items, query, setQuery }: { items: readonly WorkI
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="workload">
       <WindowBar query={query} setQuery={setQuery} from={from} last={last} />
 
+      {/* What the numbers mean, in a line; how they're worked out opens from it. */}
       <details className="rounded-lg bg-[#f5f9fc] px-3 py-2 text-[12.5px] leading-[1.5] text-[#1d3a52] open:pb-3">
         <summary className="flex cursor-pointer items-center gap-1.5 font-medium">
-          <ICONS.info size={15} aria-hidden /> How this is worked out — effort is relative, so there's no capacity line
+          <ICONS.info size={15} aria-hidden /> {query.metric === "effort" ? "Numbers show the effort planned for each day. Darker means a heavier day." : "Numbers show how many items are planned for each day. Darker means a busier day."}
         </summary>
         <p className="mt-1.5">{WORKLOAD_RULE}</p>
       </details>
@@ -92,7 +93,7 @@ function WindowBar({ query, setQuery, from, last }: { query: WorkQuery; setQuery
   );
 }
 
-/** The grid's pinned header: Person, Before, a column per day — today's marked, the 1st and the window's first day with their month — then After, In window and No dates. */
+/** The grid's pinned header: Person, Before, a column per day — today's marked, the 1st and the window's first day with their month — then After, Total (the weeks showing) and No dates. */
 function WorkloadHead({ days, from }: { days: Day[]; from: Day }) {
   const { today } = useWorkspace();
   return (
@@ -115,7 +116,7 @@ function WorkloadHead({ days, from }: { days: Day[]; from: Day }) {
           After
         </th>
         <th scope="col" className="sticky top-0 z-20 min-w-[72px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
-          In window
+          Total
         </th>
         <th scope="col" className="sticky top-0 z-20 min-w-[84px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
           No dates
@@ -146,7 +147,7 @@ function PersonRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid }) {
         <Cell key={day} bucket={r.cells[i]} max={max} weekend={isWeekend(day)} today={day === today} weekStart={weekdayOf(day) === 0} label={`${assigneeLabel(r.key)}, ${longLabel(day)}`} day={day} />
       ))}
       <Cell bucket={r.after} max={max} label={`${assigneeLabel(r.key)}, after ${shortLabel(last)}`} edge />
-      <td className="border-b border-l border-[#eeeeee] px-2 text-center font-semibold text-ink tabular-nums" aria-label={`${assigneeLabel(r.key)} total in window: ${formatAmount(r.total)} ${unit}`}>
+      <td className="border-b border-l border-[#eeeeee] px-2 text-center font-semibold text-ink tabular-nums" aria-label={`${assigneeLabel(r.key)}, total for the ${days.length / 7} weeks shown: ${formatAmount(r.total)} ${unit}`}>
         {formatAmount(r.total)}
       </td>
       <NoDatesCell row={r} metric={metric} />

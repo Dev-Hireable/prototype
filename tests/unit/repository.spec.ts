@@ -23,7 +23,7 @@ test.describe("create", () => {
     expect(t).not.toHaveProperty("trial");
     expect(t.activity[0].text).toBe("Added by Alex Rivera");
     expect(store.read().nextNumber).toBe(51);
-    expect(notices).toEqual([{ role: "manager", n: { kind: "task_added", task: { id: "n1", title: "Draft the FAQ" } } }]);
+    expect(notices).toEqual([{ role: "manager", n: { kind: "task_added", task: { id: "n1", number: 50, title: "Draft the FAQ" } } }]);
   });
 
   test("a retry with the same id doesn't make a second item", async () => {
@@ -170,7 +170,7 @@ test.describe("patch · a task from the signed offer", () => {
     const onTrial = setup(agreed(), TRIAL);
     await onTrial.alex.transition("a", { to: "done" });
     expect(onTrial.store.get("a").due).toBe(iso(5));
-    expect(onTrial.store.get("a").activity[0].text).toBe("Finished on 25 Sep 2026 — the agreed due date was 30 Sep 2026");
+    expect(onTrial.store.get("a").activity[0].text).toBe("Finished on 25 Sep 2026. The agreed due date was 30 Sep 2026");
     // Converted, it's the role's work: its due date moves, and finishing ends it today.
     const converted = setup(agreed(), OPEN);
     await converted.alex.patch("a", { due: iso(7) });
@@ -349,7 +349,7 @@ test.describe("dependencies and tags · dependencies", () => {
     const { store, juan } = setup([item({ id: "a" }), item({ id: "b" }), item({ id: "k", assignee: "team" })]);
     await juan.addDependency("a", "k");
     expect(store.get("a").dependsOn).toEqual(["k"]);
-    expect(store.get("a").activity[0].text).toMatch(/— set by Juan Dela Cruz$/);
+    expect(store.get("a").activity[0].text).toMatch(/, set by Juan Dela Cruz$/);
     await juan.removeDependency("a", "k");
     expect(store.get("a").dependsOn).toEqual([]);
     const theirs = await rejection(juan.addDependency("k", "a"));

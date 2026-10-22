@@ -1,21 +1,19 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState } from "react";
 import { RoleCard } from "@/components/independent/role-card";
-import { Button, Checkbox, EmptyState, Page, Pagination, SearchBox } from "@/components/portal/ui";
+import { Checkbox, EmptyState, LinkButton, Page, Pagination, SearchBox } from "@/components/portal/ui";
 import { MarketplaceFilterPanel } from "@/components/portal/filters";
-import { roleFromPosting, type Role } from "@/lib/independent/data";
+import { roleFromPosting, setupSteps, SETUP_STEP, type Role } from "@/lib/independent/data";
+import { useIndependentAccount } from "@/lib/independent/account";
 import { isPostingOpen, usePostings } from "@/lib/demo/deal";
-import { EXPERIENCE_LEVELS } from "@/lib/contract/job-types";
+import { EXPERIENCE_LEVELS, trialMonthly } from "@/lib/contract/job-types";
+import { durationDays } from "@/lib/portal/dates";
 
 const PER_PAGE = 8;
 
 const NO_SKILL = "Select skills";
-/**
- * One starting point for both the draft and the applied filters. The draft used to open with only
- * Intermediate and Advanced ticked while everything was shown, so pressing Apply without touching
- * anything suddenly hid every Beginner and Expert role.
- */
+/** Every role type and level ticked: nothing filtered out until a box is unticked. */
 const DEFAULT = { trial: true, fullTime: true, partTime: true, levels: new Set(EXPERIENCE_LEVELS), min: "", max: "", skill: NO_SKILL };
 type Filters = typeof DEFAULT;
 
@@ -36,8 +34,10 @@ function matches(r: Role, q: string, applied: Filters) {
   if (!applied.levels.has(r.level)) return false;
   if (applied.skill !== NO_SKILL && !r.skills.includes(applied.skill)) return false;
   // Keep roles whose pay band overlaps the one asked for. The rate used to have every digit
-  // stripped out and glued together, so "$3,000 – $4,500" compared as 30,004,500.
-  const [lo, hi] = rateRange(r.rate);
+  // stripped out and glued together, so "$3,000 – $4,500" compared as 30,004,500. The filter is a
+  // monthly rate, so a trial's pay (one total for the whole trial) compares as a month of it.
+  const monthly = (n: number) => (r.type === "trial" ? trialMonthly(n, durationDays(r.duration)) : n);
+  const [lo, hi] = rateRange(r.rate).map(monthly);
   if (applied.min && hi < amount(applied.min)) return false;
   if (applied.max && lo > amount(applied.max)) return false;
   return true;
@@ -54,46 +54,43 @@ const activeCount = (applied: Filters) =>
   (applied.max ? 1 : 0);
 
 /**
- * The search, the page, and the filters twice over: the draft the panel edits, and the ones
- * applied to the list when Apply is pressed. Reset clears all of it.
+ * The search, the page and the filters. #71 — a filter is in force as soon as it's ticked or typed,
+ * and the list goes back to its first page; Reset clears all of it.
  */
 function useRoleFilters() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
-  const [draft, setDraft] = useState(DEFAULT);
-  const [applied, setApplied] = useState(DEFAULT);
+  const [filters, setFilters] = useState(DEFAULT);
+  const update = (patch: Partial<Filters>) => {
+    setFilters((d) => ({ ...d, ...patch }));
+    setPage(1);
+  };
   const reset = () => {
-    setDraft(DEFAULT);
-    setApplied(DEFAULT);
+    setFilters(DEFAULT);
     setQ("");
     setPage(1);
   };
-  const toggleLevel = (l: string) =>
-    setDraft((d) => {
-      const levels = new Set(d.levels);
-      if (levels.has(l)) levels.delete(l);
-      else levels.add(l);
-      return { ...d, levels };
-    });
-  const apply = () => {
-    setApplied(draft);
-    setPage(1);
+  const toggleLevel = (l: string) => {
+    const levels = new Set(filters.levels);
+    if (levels.has(l)) levels.delete(l);
+    else levels.add(l);
+    update({ levels });
   };
-  return { q, setQ, page, setPage, draft, setDraft, applied, reset, toggleLevel, apply };
+  return { q, setQ, page, setPage, filters, update, reset, toggleLevel };
 }
 
 type RoleFilters = ReturnType<typeof useRoleFilters>;
 
 export default function Discover() {
   const f = useRoleFilters();
-  const { draft, setDraft } = f;
+  const { filters, update } = f;
 
   // A filled role has no seat left to apply for, and a closed one isn't hiring: both leave the
   // board (IN-074), while staying on file for anyone already in their pipeline.
   const roles = usePostings().filter(isPostingOpen).map(roleFromPosting);
   /** Skills that are actually on the board, so every option can match something. */
   const skillOptions = [NO_SKILL, ...[...new Set(roles.flatMap((r) => r.skills))].sort((a, b) => a.localeCompare(b))];
-  const results = roles.filter((r) => matches(r, f.q, f.applied));
+  const results = roles.filter((r) => matches(r, f.q, filters));
 
   return (
     <Page title="Discover roles">
@@ -101,19 +98,18 @@ export default function Discover() {
         <RoleResults filters={f} published={roles.length} results={results} />
 
         <MarketplaceFilterPanel
-          roleTypeSlot={<RoleTypeFilter draft={draft} onDraft={setDraft} />}
+          roleTypeSlot={<RoleTypeFilter filters={filters} onChange={update} />}
           levels={EXPERIENCE_LEVELS}
-          selectedLevels={draft.levels}
+          selectedLevels={filters.levels}
           onToggleLevel={f.toggleLevel}
-          min={draft.min}
-          max={draft.max}
-          onMinChange={(value) => setDraft((d) => ({ ...d, min: value }))}
-          onMaxChange={(value) => setDraft((d) => ({ ...d, max: value }))}
+          min={filters.min}
+          max={filters.max}
+          onMinChange={(value) => update({ min: value })}
+          onMaxChange={(value) => update({ max: value })}
           skillOptions={skillOptions}
-          skill={draft.skill}
-          onSkillChange={(value) => setDraft((d) => ({ ...d, skill: value }))}
-          activeCount={activeCount(f.applied)}
-          onApply={f.apply}
+          skill={filters.skill}
+          onSkillChange={(value) => update({ skill: value })}
+          activeCount={activeCount(filters)}
           onReset={f.reset}
         />
       </div>
@@ -121,7 +117,28 @@ export default function Discover() {
   );
 }
 
-/** The results column: the search, the count, and a screenful of role cards with the pager — or why there are none. */
+/**
+ * #72 — nothing published yet: what to do meanwhile. Finishing the profile is what lets a Team
+ * Builder find them; once it's done, there's nothing left to ask of them.
+ */
+function NoRoles() {
+  const { profile } = useIndependentAccount();
+  const profileDone = setupSteps({ applications: [], profile }).find((s) => s.label === SETUP_STEP.profile)?.done;
+  if (profileDone) return <EmptyState title="No open roles right now" body="Team Builders can still find your profile and invite you." />;
+  return (
+    <EmptyState
+      title="No open roles right now"
+      body="Finish your profile so Team Builders can find and invite you."
+      action={
+        <LinkButton href="/independent/profile" variant="primary">
+          Complete profile
+        </LinkButton>
+      }
+    />
+  );
+}
+
+/** The results column: the search, the count, and a screenful of role cards with the pager, or why there are none. */
 function RoleResults({ filters: f, published, results }: { filters: RoleFilters; published: number; results: Role[] }) {
   /** A screenful of role cards; below this the pager disappears. */
   const pages = Math.max(1, Math.ceil(results.length / PER_PAGE));
@@ -133,13 +150,17 @@ function RoleResults({ filters: f, published, results }: { filters: RoleFilters;
       {/* The real count. It used to add a flat 37 to whatever was on screen. */}
       <p className="text-[14px] leading-[1.4] text-ink-2">{results.length === 1 ? "1 open role" : `${results.length} open roles`}</p>
       {published === 0 ? (
-        // Nothing is published at all — no filter is to blame, so don't offer to reset one.
-        <EmptyState title="No open roles yet" body="Roles appear here as soon as a Team Builder publishes one." />
+        // Nothing is published at all: no filter is to blame, so don't offer to reset one.
+        <NoRoles />
       ) : results.length === 0 ? (
         <EmptyState
           title="No roles match these filters"
           body="Try removing a filter, clearing the search, or widening the rate range."
-          action={<Button onClick={f.reset}>Reset filters</Button>}
+          action={
+            <button type="button" onClick={f.reset} className="text-[14px] leading-[1.4] font-medium text-accent-ink hover:underline">
+              Reset filters
+            </button>
+          }
         />
       ) : (
         <>
@@ -158,14 +179,14 @@ function RoleResults({ filters: f, published, results }: { filters: RoleFilters;
   );
 }
 
-/** The panel's role types, ticked in the draft until Apply. */
-function RoleTypeFilter({ draft, onDraft }: { draft: Filters; onDraft: Dispatch<SetStateAction<Filters>> }) {
+/** The panel's role types, each in force as soon as it's ticked or unticked. */
+function RoleTypeFilter({ filters, onChange }: { filters: Filters; onChange: (patch: Partial<Filters>) => void }) {
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-2 text-[14px] leading-[1.4] font-medium text-ink">Role type</legend>
-      <Checkbox checked={draft.trial} onChange={(value) => onDraft((d) => ({ ...d, trial: value }))}>Trial</Checkbox>
-      <Checkbox checked={draft.fullTime} onChange={(value) => onDraft((d) => ({ ...d, fullTime: value }))}>Full-time</Checkbox>
-      <Checkbox checked={draft.partTime} onChange={(value) => onDraft((d) => ({ ...d, partTime: value }))}>Part-time</Checkbox>
+      <Checkbox checked={filters.trial} onChange={(value) => onChange({ trial: value })}>Trial</Checkbox>
+      <Checkbox checked={filters.fullTime} onChange={(value) => onChange({ fullTime: value })}>Full-time</Checkbox>
+      <Checkbox checked={filters.partTime} onChange={(value) => onChange({ partTime: value })}>Part-time</Checkbox>
     </fieldset>
   );
 }

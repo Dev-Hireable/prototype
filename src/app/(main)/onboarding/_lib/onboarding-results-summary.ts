@@ -51,7 +51,7 @@ type AudienceDimensionRecord<TValue> = Record<
 >;
 
 const EMPTY_SUMMARY =
-  'Your quiz traits will appear here once you complete more answers.';
+  'Your quiz tags will appear here once you complete more answers.';
 
 const ROLE_TO_AUDIENCE: Record<PublicSignupRole, ProfileAudience> = {
   client: 'team-builder',

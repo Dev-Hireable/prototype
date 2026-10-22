@@ -7,13 +7,13 @@ Important Disclaimer: This is a form provided on an "as is" basis without repres
 
 const AGREEMENT = `HIREABLE SERVICES AGREEMENT
 
-TRIAL CONTRACT - SAMPLE DATA
+TRIAL CONTRACT
 
 ${AGREEMENT_PREAMBLE}
 
 1. Services. The Independent agrees to perform the services described in the Offer Details for the Team Builder during the trial period.
 
-2. Compensation. The Team Builder funds the trial rate into escrow at acceptance. Escrow is released at the end of the trial on approval of the final evaluation.
+2. Compensation. The Team Builder funds the trial's pay into escrow at acceptance. Escrow is released at the end of the trial on approval of the final evaluation.
 
 3. Term. This agreement runs from the start date to the end date shown in the Offer Details unless ended earlier under section 6.
 
@@ -29,38 +29,38 @@ ${AGREEMENT_PREAMBLE}
  */
 const FULLTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
 
-FULL-TIME ENGAGEMENT - SAMPLE DATA
+FULL-TIME ENGAGEMENT
 
 ${AGREEMENT_PREAMBLE}
 
 1. Services. The Independent agrees to perform the services described in the Offer Details for the Team Builder on an ongoing basis from the start date.
 
-2. Compensation. The Team Builder pays the monthly salary shown in the Offer Details at the end of each month, with the exclusive benefits marked as included. No escrow is held on a full-time engagement.
+2. Compensation. The Team Builder pays the monthly salary shown in the Offer Details at the end of each month, with the benefits marked as included. No escrow is held on a full-time engagement.
 
 3. Term. This agreement starts on the start date shown in the Offer Details and continues until either party ends it under section 6.
 
 4. Tasks. Work is tracked on a shared task list that either party can add to. The hiring manager reviews each task as it is completed, with evaluations along the way.
 
-5. Disputes. Either party may raise a payment dispute through Hireable. Hireable reviews process compliance, not work quality.
+5. Disputes. Either party may raise a payment dispute through Hireable. The amount in question is held from the next pay until the dispute closes. Hireable reviews process compliance, not work quality.
 
 6. Termination. Either party may end the engagement with 30 days' written notice through the platform. Salary is paid pro rata up to the last working day.`;
 
 /** What a part-time offer is signed against: a monthly rate for the hours a week agreed, no benefits. */
 const PARTTIME_AGREEMENT = `HIREABLE SERVICES AGREEMENT
 
-PART-TIME ENGAGEMENT - SAMPLE DATA
+PART-TIME ENGAGEMENT
 
 ${AGREEMENT_PREAMBLE}
 
 1. Services. The Independent agrees to perform the services described in the Offer Details for the Team Builder for the hours a week shown there, on an ongoing basis from the start date.
 
-2. Compensation. The Team Builder pays the monthly rate shown in the Offer Details at the end of each month. No escrow is held on a part-time engagement, and the exclusive benefits of a full-time engagement do not apply.
+2. Compensation. The Team Builder pays the monthly rate shown in the Offer Details at the end of each month. No escrow is held on a part-time engagement, and the benefits of a full-time engagement do not apply.
 
 3. Term. This agreement starts on the start date shown in the Offer Details and continues until either party ends it under section 6.
 
 4. Tasks. Work is tracked on a shared task list that either party can add to. The hiring manager reviews each task as it is completed, with evaluations along the way.
 
-5. Disputes. Either party may raise a payment dispute through Hireable. Hireable reviews process compliance, not work quality.
+5. Disputes. Either party may raise a payment dispute through Hireable. The amount in question is held from the next pay until the dispute closes. Hireable reviews process compliance, not work quality.
 
 6. Termination. Either party may end the engagement with 14 days' written notice through the platform. The rate is paid pro rata up to the last working day.`;
 

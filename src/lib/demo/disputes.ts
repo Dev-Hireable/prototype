@@ -3,11 +3,11 @@
 import { useEffect, useSyncExternalStore } from "react";
 import * as Case from "@/lib/disputes/case";
 import type { Attachment, Ctx, Dispute, DisputeFacts, DisputeNotice, DisputeParty, DisputeStatus, Money, Refusal, Say, Step } from "@/lib/disputes/case";
-import { dayLabel, momentLabel, parseDay } from "@/lib/portal/dates";
+import { dayLabel, momentLabel, parseDay, shortDayLabel } from "@/lib/portal/dates";
 import { contractTypeOf, converted, evaluationsOf, lifecycleOfDeal, readDeal, settleEscrow, startedAsTrial } from "@/lib/demo/deal";
 import type { Phase } from "@/lib/contract/lifecycle";
 import type { Deal } from "@/lib/demo/deal";
-import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import { JOB_TYPE_LABEL, payFor } from "@/lib/contract/job-types";
 import type { JobType } from "@/lib/contract/job-types";
 import { notify, PAIR, recordLedger } from "@/lib/demo/live";
 import { trialTasks } from "@/lib/demo/tasks";
@@ -25,8 +25,8 @@ import { isArchived, isCompleted } from "@/lib/work/model";
  * Every step goes on the case's one timeline and tells the other side.
  */
 
-export type { Attachment, Dispute, DisputeFacts, DisputeParty, DisputeStatus, Entry, Proposal } from "@/lib/disputes/case";
-export { checkSplit, isOpen, leftLabel, openProposal, otherParty, outcomeOf, partyCan, partyName, partyTurn, SLA_DAYS, TURN_DAYS, usd, waitingOn } from "@/lib/disputes/case";
+export type { Attachment, CaseViewer, Dispute, DisputeFacts, DisputeParty, DisputeStatus, Entry, Proposal } from "@/lib/disputes/case";
+export { checkSplit, isOpen, leftLabel, nameIn, openProposal, otherParty, outcomeOf, partyCan, partyName, partyTurn, sentence, SLA_DAYS, splitWords, TURN_DAYS, usd, waitingOn } from "@/lib/disputes/case";
 
 export const DISPUTE_STATUSES: DisputeStatus[] = ["Pending", "Resolved", "Rejected", "Withdrawn"];
 export const STATUS_TONE: Record<DisputeStatus, "warn" | "ok" | "danger" | "neutral"> = { Pending: "warn", Resolved: "ok", Rejected: "danger", Withdrawn: "neutral" };
@@ -194,7 +194,19 @@ export function checkAmount(raw: string, cap: number): { value: number | null; e
 /** Open, or closed for the Independent but not paid out yet — either way the money stays put. */
 export const holds = (d: Dispute) => d.status === "Pending" || d.resolution?.payment === "awaiting release";
 
-export type Escrow = { total: number; released: number; refunded: number; held: number; onHold: number };
+export type Escrow = { total: number; released: number; refunded: number; held: number; onHold: number; /** The day it was deposited (fundedOn). */ funded: string };
+
+/**
+ * The day the trial's escrow was deposited: the day the offer went out with it, since the offer's
+ * Deposit & Sign step charges the card (TB-105). It used to read as the trial's first day, which can
+ * be weeks after the charge. Never later than that first day, which is also what a contract without
+ * its offer on file reads.
+ */
+function fundedOn(deal: Deal, started: string): string {
+  const sent = deal.offer?.deposit ? parseDay(deal.offer.sent) : undefined;
+  const first = parseDay(started);
+  return dayLabel(sent && (!first || sent <= first) ? sent : started);
+}
 
 /**
  * The trial's escrow right now: what was deposited when the offer went out, minus what End
@@ -205,7 +217,7 @@ export function escrowOf(deal: Deal | null, all: Dispute[]): Escrow | null {
   const ref = dealContract(deal);
   const c = deal?.contract;
   // A direct full-time or part-time hire never had a trial, so nothing was ever put in escrow.
-  if (!ref || !c || !startedAsTrial(deal)) return null;
+  if (!deal || !ref || !c || !startedAsTrial(deal)) return null;
   const total = c.deposit ?? rateAmount(c.rate);
   // A contract ended before escrow was tracked released everything when it ended.
   const released = c.escrow?.released ?? (c.ended ? total : 0);
@@ -213,7 +225,7 @@ export function escrowOf(deal: Deal | null, all: Dispute[]): Escrow | null {
   const held = Math.max(0, total - released - refunded);
   // Only a dispute about the trial holds its escrow; one about the role holds pay instead (@/lib/demo/contract).
   const onHold = Math.min(held, all.filter((d) => d.contract === ref.key && d.type === "trial" && holds(d)).reduce((n, d) => n + d.amount, 0));
-  return { total, released, refunded, held, onHold };
+  return { total, released, refunded, held, onHold, funded: fundedOn(deal, c.started) };
 }
 
 /**
@@ -231,10 +243,10 @@ export const escrowInPlay = (deal: Deal | null, all: Dispute[]): Escrow | null =
  */
 const escrowOfDispute = (d: Dispute, deal: Deal | null, all: Dispute[]): Escrow | null => (dealContract(deal)?.key === d.contract && d.type === "trial" ? escrowOf(deal, all) : null);
 
-/** One line for the Escrow row on either tracker. */
-export function escrowLine(e: Escrow, started: string, names: { releasedTo: string; refundedTo: string }) {
-  if (e.held > 0 && e.onHold > 0) return `${usd(e.held)} held since ${started} · ${usd(e.onHold)} on hold for a dispute`;
-  if (e.held > 0) return `${usd(e.held)} held since ${started}${e.released + e.refunded > 0 ? ` · ${usd(e.released + e.refunded)} settled` : ""}`;
+/** One line for the Escrow row on either tracker: held since the day it was deposited, or where it went. */
+export function escrowLine(e: Escrow, names: { releasedTo: string; refundedTo: string }) {
+  if (e.held > 0 && e.onHold > 0) return `${usd(e.held)} held since ${e.funded} · ${usd(e.onHold)} on hold for a dispute`;
+  if (e.held > 0) return `${usd(e.held)} held since ${e.funded}${e.released + e.refunded > 0 ? ` · ${usd(e.released + e.refunded)} settled` : ""}`;
   const parts = [e.released > 0 && `${usd(e.released)} released to ${names.releasedTo}`, e.refunded > 0 && `${usd(e.refunded)} refunded to ${names.refundedTo}`].filter(Boolean);
   return parts.length ? parts.join(" · ") : "Nothing held";
 }
@@ -263,15 +275,15 @@ export type FileBlock = "open" | "filed" | "withdrawn" | "starts" | "trial" | "e
 
 /** The part of a contract a dispute is about: its trial, or the full-time / part-time role after it. */
 export type Chapter = "trial" | "role";
-const chapterOf = (d: Pick<Dispute, "type">): Chapter => (d.type === "trial" ? "trial" : "role");
+export const chapterOf = (d: Pick<Dispute, "type">): Chapter => (d.type === "trial" ? "trial" : "role");
 
 /**
  * Why `party` can't file on this contract right now, if they can't:
  *   open      one is already open on it, from either side — the other party answers it instead
  *             of filing a second;
- *   filed     the independent has filed on this chapter before — one per chapter: the trial and
- *             the role it became each get their own (IN-032 / IN-082);
- *   withdrawn the Team Builder withdrew one on this chapter, and can't refile (TB-093);
+ *   filed     this chapter has had its dispute: one per chapter in total, whoever filed it (user
+ *             rule 2026-10-22) — the trial and the role it became each get one (IN-032 / IN-082);
+ *   withdrawn the same, when that one was withdrawn: it can't be refiled (TB-093 / IN-082);
  *   starts    its first day hasn't come — the trial's, or the role's after a trial converted:
  *             nothing has happened yet to dispute (TB-118 / IN-059: "an active contract");
  *   trial     the trial is still running — filing opens when it ends (TB-073 / IN-076);
@@ -280,18 +292,16 @@ const chapterOf = (d: Pick<Dispute, "type">): Chapter => (d.type === "trial" ? "
  *   settled   nothing is left in the trial's escrow to move.
  * `phase` is where the contract is in its lifecycle; without one (a contract the demo only lists)
  * there's no timing to check. `chapter` is what a new one would be about; without one, every
- * dispute on the contract counts. The store runs this same check on file, so no caller can skip it.
+ * dispute on the contract counts. Both sides get the same answer, so `party` only says who's
+ * asking. The store runs this same check on file, so no caller can skip it.
  */
 export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escrow: Escrow | null, phase?: Phase, chapter?: Chapter): { block: FileBlock | null; dispute?: Dispute } {
   const here = all.filter((d) => d.contract === key);
   // An open one, from either side and about either chapter, is answered rather than filed over.
   const open = here.find(holds);
   if (open) return { block: "open", dispute: open };
-  const same = chapter ? here.filter((d) => chapterOf(d) === chapter) : here;
-  const own = same.find((d) => d.filedBy === "independent");
-  if (party === "independent" && own) return { block: "filed", dispute: own };
-  const withdrawn = same.find((d) => d.filedBy === "team" && d.status === "Withdrawn");
-  if (party === "team" && withdrawn) return { block: "withdrawn", dispute: withdrawn };
+  const prior = (chapter ? here.filter((d) => chapterOf(d) === chapter) : here)[0];
+  if (prior) return { block: prior.status === "Withdrawn" ? "withdrawn" : "filed", dispute: prior };
   if (phase === "starts" || phase === "trial" || phase === "ended") return { block: phase };
   if (escrow && escrow.held <= 0) return { block: "settled" };
   return { block: null };
@@ -300,20 +310,22 @@ export function fileBlock(all: Dispute[], key: string, party: DisputeParty, escr
 /**
  * What the disabled File a Dispute button says, for a block that leaves nothing to open — one line,
  * naming the day it changes where there is one. `starts` is the first day of what's current; `trialEnds`
- * the trial's last day.
+ * the trial's last day; `chapter` what the dispute already filed was about (without one, the contract).
  */
-export function fileBlockHint(block: FileBlock | null, side: DisputeParty, days: { starts: string; trialEnds: string }): string | undefined {
+export function fileBlockHint(block: FileBlock | null, side: DisputeParty, days: { starts: string; trialEnds: string }, chapter?: Chapter): string | undefined {
+  const part = chapter ?? "contract";
   switch (block) {
     case "starts":
       return `Filing opens on ${days.starts}, the contract's first day`;
     case "trial":
-      return `Available once the trial ends on ${days.trialEnds}`;
+      // Exactly when fileBlock opens it: the day after the trial's last day (or sooner, once every trial task is approved).
+      return `Available after the trial ends on ${days.trialEnds}`;
     case "ended":
       return "This contract has ended, so it can't be disputed any more";
     case "withdrawn":
-      return side === "team" ? "You withdrew a dispute on this part of the contract, so it can't be disputed again" : undefined;
+      return `The dispute about this ${part} was withdrawn, so another can't be filed`;
     case "filed":
-      return side === "independent" ? "You've filed a dispute on this part of the contract. One can be filed per chapter" : undefined;
+      return `Only one dispute can be filed about this ${part}, and one already has been`;
     case "open":
       return "A dispute is already open on this contract";
     case "settled":
@@ -331,15 +343,21 @@ function phaseOf(deal: Deal | null, key: string): Phase | undefined {
 /** The chapter a new dispute on the live contract would be about: the trial while it is one, then the role. */
 export const liveChapter = (deal: Deal | null): Chapter => (contractTypeOf(deal) === "trial" ? "trial" : "role");
 
+/** What the cap on a dispute's amount is, as the filing form's hint says it after "Up to $1,600.00". */
+export const CAP_NOTE = {
+  escrow: "(the amount in escrow)",
+  pay: "(one month's pay). This amount is held from the next payout until the dispute closes.",
+};
+
 /**
  * The most a dispute can be for: what the trial's escrow still holds, or on a role a month's pay —
  * the most one payday can keep back.
  */
 export function disputeCap(deal: Deal | null, all: Dispute[], rate: string): { cap: number; note: string } {
   const inPlay = escrowInPlay(deal, all);
-  if (inPlay) return { cap: inPlay.held, note: "what is still held in escrow" };
+  if (inPlay) return { cap: inPlay.held, note: CAP_NOTE.escrow };
   const monthly = rateAmount(deal?.conversion?.status === "accepted" ? deal.conversion.salary : rate);
-  return { cap: monthly, note: `a month's pay, ${usd(monthly)}, kept back from the next payday until it closes` };
+  return { cap: monthly, note: CAP_NOTE.pay };
 }
 
 /** Admin's process check, from the live contract where there is one, else as it was when filed. */
@@ -349,8 +367,13 @@ export function factsFor(ref: ContractRef, deal: Deal | null, all: Dispute[]): D
   /** The same rule the evaluation opens on: the end date came, or every trial task was Done first. */
   const scored = c ? trialTasks(c.tasks) : [];
   const allDone = scored.length > 0 && scored.every((t) => isCompleted(t.status));
-  /** The Independent's own work on the contract — what support checks the process against. */
-  const theirs = c ? c.tasks.filter((t) => !isArchived(t) && t.assignee === "independent") : [];
+  /**
+   * The Independent's own work on the part of the contract it's about, as the contract page counts
+   * it: a trial's scored tasks ("Trial tasks done"), or on a role the work set after the trial.
+   */
+  const own = c ? c.tasks.filter((t) => !isArchived(t) && t.assignee === "independent") : [];
+  const theirs = ref.type === "trial" ? scored : own.filter((t) => !t.trial);
+  const escrow = escrowOf(deal, all);
   return {
     started: ref.started,
     ends: ref.ends,
@@ -358,23 +381,52 @@ export function factsFor(ref: ContractRef, deal: Deal | null, all: Dispute[]): D
     evaluation: evaluationsOf(c).length > 0,
     tasksDone: theirs.filter((t) => isCompleted(t.status)).length,
     tasksTotal: theirs.length,
-    escrowHeld: escrowOf(deal, all)?.held ?? 0,
-    escrowFunded: escrowOf(deal, all)?.total,
+    escrowHeld: escrow?.held ?? 0,
+    escrowFunded: escrow?.total,
+    escrowFundedOn: escrow?.funded,
   };
 }
 
 /* -------------------------------------------------------------- display */
 
+/**
+ * A moment as a wall clock `offset` minutes off UTC shows it — the viewer's saved time zone — or as
+ * this device's does without one; the labels below read it with the usual local getters.
+ */
+const inClock = (ms: number, offset?: number) => (offset === undefined ? new Date(ms) : new Date(ms + (offset + new Date(ms).getTimezoneOffset()) * 60_000));
+
 /** "23 Sep 2026" and "23 Sep 2026, 3:04 PM" — the demo's format, not en-GB's "Sept". */
 export const dateOf = (ms: number) => dayLabel(new Date(ms));
-export const stampOf = (ms: number) => momentLabel(new Date(ms));
+export const stampOf = (ms: number, offset?: number) => momentLabel(inClock(ms, offset));
+/** "29 Sep, 4:45 PM": a turn's deadline, days away at most, in the viewer's clock. */
+export function deadlineOf(ms: number, offset?: number): string {
+  const d = inClock(ms, offset);
+  return `${shortDayLabel(d)}, ${momentLabel(d).split(", ")[1]}`;
+}
 export const daysOpen = (d: Dispute, now = Date.now()) => Math.max(0, Math.floor(((d.status === "Pending" ? now : (d.resolution?.at ?? d.updated)) - d.at) / 86400000));
 export const ageOf = (d: Dispute) => {
   const n = daysOpen(d);
   return n === 0 ? "Today" : n === 1 ? "1 day" : `${n} days`;
 };
 
-export const contractName = (d: Dispute) => `${d.title} — ${JOB_TYPE_LABEL[d.type].toLowerCase()}`;
+export const contractName = (d: Dispute) => `${d.title} (${JOB_TYPE_LABEL[d.type].toLowerCase()})`;
+
+/**
+ * The part of the contract a dispute is about, as the contract page shows it now: the trial's first
+ * and last days and its pay, or the role's first day to the day it ended ("Ongoing" while it runs,
+ * the notice's last day once notice is given) and the role's pay. A dispute about another contract
+ * keeps what it was filed with.
+ */
+export function chapterTerms(d: Pick<Dispute, "contract" | "type" | "facts" | "rate">, deal: Deal | null): { started: string; ends: string; pay: string } {
+  const c = dealContract(deal)?.key === d.contract ? deal?.contract : undefined;
+  // How the pay reads for the chapter: a trial's one total, or a role's monthly pay.
+  if (!c) return { started: d.facts.started, ends: d.facts.ends, pay: payFor(d.type, d.rate) };
+  if (d.type === "trial") return { started: dayLabel(c.started), ends: dayLabel(c.ends), pay: payFor("trial", c.rate) };
+  const conversion = converted(deal) ? deal?.conversion : undefined;
+  const notice = lifecycleOfDeal(deal)?.notice;
+  const ends = c.ended && c.endedOn ? c.endedOn : notice ? `${dayLabel(notice.lastDay)} (notice)` : "Ongoing";
+  return { started: dayLabel(conversion?.start ?? c.started), ends, pay: conversion ? payFor(conversion.type, conversion.salary) : payFor(d.type, c.rate) };
+}
 
 export const unseenByAdmin = (all: Dispute[]) => all.filter((d) => (d.adminSeen ?? 0) < d.updated);
 
@@ -387,7 +439,8 @@ export type Done = { ok: true; dispute: Dispute } | Refusal;
 
 function tell(d: Dispute, n: DisputeNotice) {
   const avatar = n.from === "support" || n.from === "system" ? "/admin/avatar.jpg" : n.from === "team" ? PAIR.team.avatar : d.independent.avatar;
-  notify(n.to, { title: n.title, body: n.body, href: caseHref(n.to, d.id), avatar });
+  // A reminder or a missed turn is Hireable's own notice: its type's icon, not support's photo.
+  notify(n.to, { title: n.title, body: n.body, href: caseHref(n.to, d.id), avatar, system: n.from === "system" });
 }
 
 /** The escrow a step may move, and how its notices say a moment. */
@@ -429,8 +482,9 @@ export function fileDispute(input: { ref: ContractRef; filedBy: DisputeParty; re
     // escrow, which used to refuse every filing on it), where the contract is in its lifecycle, and
     // the chapter it would be about.
     const live = dealContract(deal)?.key === input.ref.key;
-    const { block } = fileBlock(snapshot, input.ref.key, input.filedBy, live ? escrowInPlay(deal, snapshot) : null, phaseOf(deal, input.ref.key), live ? liveChapter(deal) : undefined);
-    if (block) return { ok: false, error: fileBlockHint(block, input.filedBy, { starts: "its first day", trialEnds: "its last day" }) ?? "This contract can't be disputed right now." };
+    const chapter = live ? liveChapter(deal) : undefined;
+    const { block } = fileBlock(snapshot, input.ref.key, input.filedBy, live ? escrowInPlay(deal, snapshot) : null, phaseOf(deal, input.ref.key), chapter);
+    if (block) return { ok: false, error: fileBlockHint(block, input.filedBy, { starts: "its first day", trialEnds: "its last day" }, chapter) ?? "This contract can't be disputed right now." };
     // The amount is checked here too, not only in the form: a real sum, no more than is at stake.
     const cap = live ? disputeCap(deal, snapshot, input.ref.rate).cap : 0;
     if (!(input.amount > 0) || (cap > 0 && input.amount > cap)) return { ok: false, error: `The amount has to be more than $0 and no more than ${usd(cap)}.` };

@@ -1,16 +1,16 @@
 "use client";
 
 import { useMemo } from "react";
-import { statusOf } from "@/lib/contract/lifecycle";
+import { needsAttention, statusOf } from "@/lib/contract/lifecycle";
 import { endContract as endLiveContract, sendEvaluation, withdrawNotice, type EndResult, type EvaluationResult } from "@/lib/demo/contract";
-import { dayLabel, parseDay, reviewQuarter, today } from "@/lib/portal/dates";
+import { dayLabel, dayStamp, parseDay, reviewQuarter, today } from "@/lib/portal/dates";
 import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, startedAsTrial, trialStateOf, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { dealContract as contractRefOf, escrowOf, rateAmount, usd } from "@/lib/demo/disputes";
-import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import { JOB_TYPE_LABEL, payFor } from "@/lib/contract/job-types";
 import type { JobType } from "@/lib/contract/job-types";
 import { PAIR, persisted, useLive, useStored, type LivePayment } from "@/lib/demo/live";
-import { donePercent } from "@/lib/demo/tasks";
+import { workTabItems } from "@/lib/work/access";
 import { profileStore } from "./account";
 import { contracts as seedContracts, transactions as seedTransactions } from "./data";
 import type { Contract, Evaluation, Transaction } from "./data";
@@ -49,21 +49,21 @@ function contractFromDeal(deal: Deal, manager: string): Contract | null {
     type,
     origin: fromTrial ? "trial" : "direct",
     // A closed trial is waiting on, or has, its evaluation; "On track" beside "Closed early" said neither.
-    // One lifecycle for every tab and list (@/lib/contract/lifecycle).
-    status: l ? statusOf(l, "team") : { label: "On track", tone: "ok" },
+    // One lifecycle for every tab and list (@/lib/contract/lifecycle); a running trial's says whether its work needs attention.
+    status: l ? statusOf(l, "team", needsAttention(c.tasks)) : { label: "On track", tone: "ok" },
     startsOn: upcoming && l ? dayLabel(l.since) : undefined,
-    progress: donePercent(c.tasks),
-    progressLabel: "Tasks done",
     started: dayLabel(start),
     day: ongoing ? reviewQuarter(start, c.ended ? (parseDay(c.endedOn) ?? undefined) : undefined) : (l?.trial?.day ?? trial.day),
     ends: ongoing ? (c.ended && c.endedOn ? c.endedOn : "Ongoing") : dayLabel(c.ends),
     left: ongoing ? null : trial.left,
     over: !ongoing && trial.over,
     endedOn: c.ended ? c.endedOn : undefined,
-    rate: conversion ? `${conversion.salary} /month` : c.rate,
+    // How the pay reads for the chapter it's in: a trial's one total, or a role's monthly pay.
+    rate: conversion ? payFor(conversion.type, conversion.salary) : payFor(type, c.rate),
     hours: conversion?.hours ?? c.hours,
     manager,
     tasks: c.tasks,
+    counted: workTabItems(deal),
     tfs: fromTrial ? { overall: score.overall, performance: score.performance, profile: score.profile, workStyle: score.workStyle, evaluation: score.evaluation } : null,
     phase: ongoing ? 4 : score.phase,
     activity,
@@ -84,7 +84,7 @@ const isLive = (slug: string) => !!readDeal()?.contract && slug === PAIR.indepen
  */
 function endContract(slug: string, how: "cancel" | "close" | "notice" | "now" = "close"): EndResult {
   if (isLive(slug)) return endLiveContract("team", how);
-  contractsStore.set((cs) => cs.map((c) => (c.slug === slug ? { ...c, status: { label: "Ended", tone: "neutral" as const }, progressLabel: "Contract complete" } : c)));
+  contractsStore.set((cs) => cs.map((c) => (c.slug === slug ? { ...c, status: { label: "Ended", tone: "neutral" as const } } : c)));
   return { ok: true, released: 0, paid: 0 };
 }
 
@@ -127,17 +127,17 @@ export function useTeamContracts() {
 }
 
 /**
- * TB-084 / AD-042 — the ledger: the seed plus the live contract's money — the deposit when the trial
- * started, then every release and dispute refund recorded in the shared store. The deposit is what
- * was actually funded with the offer, not the rate string. A direct full-time or part-time hire has
- * no escrow, so nothing is deposited.
+ * TB-084 / AD-042 — the ledger: the seed plus the live contract's money — the deposit on the day the
+ * offer went out with it, then every release and dispute refund recorded in the shared store. The
+ * deposit is what was actually funded with the offer, not the rate string. A direct full-time or
+ * part-time hire has no escrow, so nothing is deposited.
  */
 function ledgerOf(deal: Deal | null, payments: LivePayment[]): Transaction[] {
   const ref = contractRefOf(deal);
   if (!deal?.contract || !ref) return seedTransactions;
   const rows: Transaction[] = [];
-  /** "Brand Designer — trial": the chapter the money was for, not what the contract is now. */
-  const nameFor = (chapter: JobType) => `${deal.title} — ${JOB_TYPE_LABEL[chapter].toLowerCase()}`;
+  /** "Brand Designer (trial)": the chapter the money was for, not what the contract is now. */
+  const nameFor = (chapter: JobType) => `${deal.title} (${JOB_TYPE_LABEL[chapter].toLowerCase()})`;
   // Rows saved before payments carried their chapter: escrow money reads as the trial's.
   const chapterOf = (p: { chapter?: JobType; period: string }): JobType => p.chapter ?? (startedAsTrial(deal) && /^(Trial|Dispute)/.test(p.period) ? "trial" : contractTypeOf(deal));
   const name = nameFor(contractTypeOf(deal));
@@ -146,15 +146,18 @@ function ledgerOf(deal: Deal | null, payments: LivePayment[]): Transaction[] {
   const total = escrow?.total ?? rateAmount(deal.contract.rate);
   const held = escrow?.held ?? 0;
   const fee = deal.offer?.deposit?.fee;
-  const started = parseDay(deal.contract.started);
-  const row = ({ chapter, ...t }: Omit<Transaction, "independent" | "contract" | "contractHref" | "detail"> & { drawerStatus: string; lines: [string, string][]; chapter?: JobType }): Transaction => {
+  // Dated the day the card was charged, when the offer went out with it: not the trial's first day.
+  const fundedOn = escrow?.funded ?? dayLabel(deal.contract.started);
+  const funded = parseDay(fundedOn);
+  // A row's breakdown is its own amount unless it says otherwise (`breakdown`, and what was `charged` in all).
+  const row = ({ chapter, breakdown, charged, ...t }: Omit<Transaction, "independent" | "contract" | "contractHref" | "detail"> & { drawerStatus: string; lines: [string, string][]; chapter?: JobType; breakdown?: [string, string][]; charged?: string }): Transaction => {
     const contract = chapter ? nameFor(chapter) : name;
     return {
       ...t,
       independent: PAIR.independent.name,
       contract,
       contractHref: href,
-      detail: { time: t.date, drawerStatus: t.drawerStatus, rows: [["Contract", contract], ["Independent", PAIR.independent.name], ...t.lines], breakdown: [[t.desc, t.amount]], total: t.amount, timeline: [{ title: t.desc, date: t.date, done: true }] },
+      detail: { time: t.date, drawerStatus: t.drawerStatus, rows: [["Contract", contract], ["Independent", PAIR.independent.name], ...t.lines], breakdown: breakdown ?? [[t.desc, t.amount]], total: charged ?? t.amount, timeline: [{ title: t.desc, date: t.date, done: true }] },
     };
   };
   rows.push(
@@ -172,15 +175,19 @@ function ledgerOf(deal: Deal | null, payments: LivePayment[]): Transaction[] {
     rows.push(
       row({
         id: `deposit-${ref.key}`,
-        date: dayLabel(deal.contract.started),
-        at: started ? started.getFullYear() * 10000 + (started.getMonth() + 1) * 100 + started.getDate() : 0,
+        date: fundedOn,
+        at: funded ? dayStamp(funded) : 0,
         desc: "Escrow deposit",
         type: "Payment Deposited",
         chapter: "trial",
         amount: usd(total),
-        status: held > 0 ? { label: "Held", tone: "warn" } : { label: "Settled", tone: "neutral" },
+        // Held in escrow is how a trial's money normally sits, so it reads as information, not a warning.
+        status: held > 0 ? { label: "Held", tone: "info" } : { label: "Settled", tone: "neutral" },
         drawerStatus: held > 0 ? "Held in escrow" : "Settled",
-        lines: [["Still in escrow", usd(held)], ...(fee ? ([["Platform fee (charged separately)", usd(fee)]] as [string, string][]) : [])],
+        lines: [["Still in escrow", usd(held)]],
+        // The offer's deposit step charged the card both at once: the escrow and Hireable's fee.
+        breakdown: [["Escrow deposit", usd(total)], ...(fee ? ([["Platform fee", usd(fee)]] as [string, string][]) : [])],
+        charged: usd(total + (fee ?? 0)),
       }),
     );
   return [...rows, ...seedTransactions];

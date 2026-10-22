@@ -121,7 +121,7 @@ function PhotoField({ avatar, onPhoto, onToast }: { avatar: ReactNode; onPhoto?:
     <div className="flex items-center gap-4">
       <ImagePicker
         image={avatar}
-        label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
+        label={`Change photo (JPG or PNG, up to ${IMAGE_MAX_MB}MB)`}
         onPick={async (picked) => {
           if (!picked) return;
           if (!onPhoto) return onToast("File picker opens here", "info");

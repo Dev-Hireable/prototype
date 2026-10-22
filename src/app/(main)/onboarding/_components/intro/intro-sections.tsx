@@ -9,21 +9,21 @@ import { WorkstyleTraitTag } from '@/web-app/components/ui/worktrait-tag';
 import type { QuizTagMetadata } from '@/web-app/lib/workstyle/tag-metadata';
 import {
   RETAKE_KEEP_LABEL,
-  RETAKE_TRAITS_LABEL,
+  RETAKE_TAGS_LABEL,
   type IntroCopy,
 } from '../../_data/onboarding-copy';
 
-/** A retake's extras on the intro: the traits it will replace, and a way out that keeps them. */
+/** A retake's extras on the intro: the tags it will replace, and a way out that keeps them. */
 export type IntroRetake = {
   traits: WorkStyleTag[];
   tagMetadata: QuizTagMetadata;
   keepHref: string;
-  /** The day the quiz can be taken again, while the yearly limit holds (#386 / #186). */
+  /** The day the quiz can be taken again, while the yearly limit holds. */
   opensOn?: string;
 };
 
 /**
- * The intro's heading: its title and description and, on a retake, the traits the quiz is about to
+ * The intro's heading: its title and description and, on a retake, the tags the quiz is about to
  * replace.
  */
 function IntroHeading({
@@ -47,7 +47,7 @@ function IntroHeading({
       {retake && retake.traits.length > 0 ? (
         <div className="mt-4 flex flex-col items-center gap-3">
           <p className="text-muted-foreground text-xs font-semibold uppercase leading-[120%] tracking-[0.2px]">
-            {RETAKE_TRAITS_LABEL}
+            {RETAKE_TAGS_LABEL}
           </p>
           <div className="flex max-w-120 flex-wrap justify-center gap-2">
             {retake.traits.map((trait) => (

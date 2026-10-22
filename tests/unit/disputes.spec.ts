@@ -13,7 +13,7 @@ const base: NewDispute = {
   links: { team: "juan-dela-cruz", independent: "brand-designer" },
   title: "Brand Designer",
   type: "trial",
-  rate: "$1,600 /month",
+  rate: "$1,600",
   team: { name: "Alex Rivera", company: "Nairobi Solutions Inc.", slug: "nairobi-solutions" },
   independent: { name: "Juan Dela Cruz", slug: "juan-dela-cruz", avatar: "/team/juan.jpg" },
   filedBy: "team",
@@ -61,7 +61,7 @@ test.describe("a dispute as a case, in turns", () => {
     const out = ok(Case.addInfo(d, "team", { text: "Here's the thread.", attachments: [{ id: "file-1", name: "thread.png", type: "image/png", size: 120_000 }] }, at(T0 + 2 * DAY)));
     expect(out.next.turn).toEqual(d.turn);
     expect(out.next.entries.at(-1)).toMatchObject({ kind: "info", by: "team", attachments: [{ id: "file-1" }] });
-    expect(Case.addInfo(d, "independent", { text: "x" }, at(T0 + DAY))).toEqual({ ok: false, error: "It's your turn — respond instead." });
+    expect(Case.addInfo(d, "independent", { text: "x" }, at(T0 + DAY))).toEqual({ ok: false, error: "It's your turn, so respond instead." });
   });
 
   test("support asks one side once it's its turn, and that side gets five days", () => {
@@ -101,9 +101,16 @@ test.describe("a turn that runs out", () => {
     expect(out.money).toEqual({ refund: 1200, release: 0 });
     expect(out.next.entries.at(-1)).toMatchObject({ kind: "missed", by: "system", to: "independent", at: T0 + 5 * DAY });
     expect(out.notices.map((n) => [n.to, n.title])).toEqual([
-      ["independent", "The dispute closed — no response"],
+      ["independent", "The dispute closed: no response"],
       ["team", "The dispute closed in your favor"],
     ]);
+    // A company name that ends in a full stop doesn't get a second one.
+    expect(out.notices[1].body).toContain("Nairobi Solutions Inc. gets $1,200.00 back.");
+    expect(out.notices[1].body).not.toContain("..");
+    // Each side reads the outcome about itself; support reads both by name.
+    expect(Case.outcomeOf(out.next, "team")).toBe("Closed in your favor. $1,200.00 refunded to you.");
+    expect(Case.outcomeOf(out.next, "independent")).toBe("Closed in Nairobi Solutions Inc.'s favor. $1,200.00 refunded to Nairobi Solutions Inc.");
+    expect(Case.outcomeOf(out.next)).toBe("Closed for Nairobi Solutions Inc.: Juan Dela Cruz didn't respond in time · $1,200.00 refunded to Nairobi Solutions Inc.");
   });
 
   test("the independent wins when the company doesn't answer — released once support pays it out", () => {
@@ -130,7 +137,7 @@ test.describe("settling between themselves", () => {
     expect(Case.checkSplit(1600, 800, 800)).toBeNull();
     // Compared in cents, so 0.1 + 0.2 is 0.3 here.
     expect(Case.checkSplit(0.3, 0.1, 0.2)).toBeNull();
-    expect(Case.checkSplit(1600, 800, 700)).toContain("add up to $1,600.00");
+    expect(Case.checkSplit(1600, 800, 700)).toBe("Must total $1,600.00.");
     expect(Case.checkSplit(1600, -1, 1601)).toBe("Enter amounts of $0.00 or more.");
     expect(Case.propose(filed(), "independent", { refund: 100, release: 100 }, at(T0)).ok).toBe(false);
   });
@@ -158,6 +165,11 @@ test.describe("settling between themselves", () => {
     expect(accepted.next.resolution).toMatchObject({ kind: "agreement", payment: "split", split: { refund: 400, release: 1200 }, moved: 1600 });
     expect(accepted.money).toEqual({ refund: 400, release: 1200 });
     expect(Case.outcomeOf(accepted.next)).toBe("Settled by agreement · $400.00 back to Nairobi Solutions Inc. · $1,200.00 to Juan Dela Cruz");
+    // Each side reads the split about itself, as it's proposed and once it has moved.
+    expect(Case.outcomeOf(accepted.next, "independent")).toBe("Settled. You received $1,200.00 and $400.00 went back to Nairobi Solutions Inc.");
+    expect(Case.outcomeOf(accepted.next, "team")).toBe("Settled. $400.00 came back to you and $1,200.00 went to Juan Dela Cruz.");
+    expect(Case.splitWords(base, { refund: 400, release: 1200 }, "independent", false)).toBe("You get $1,200.00 and $400.00 goes back to Nairobi Solutions Inc.");
+    expect(Case.splitWords(base, { refund: 1600, release: 0 }, "team", false)).toBe("You get $1,600.00 back.");
   });
 
   test("an accepted split never moves more than the escrow still holds — the refund first", () => {
@@ -189,7 +201,7 @@ test.describe("closing the case", () => {
     const out = ok(Case.reject(filed(), "The process was followed.", at(T0 + DAY)));
     expect(out.next).toMatchObject({ status: "Rejected", resolution: { kind: "rejected" } });
     expect(out.money).toBeUndefined();
-    expect(Case.outcomeOf(out.next)).toBe("Rejected — the agreed process was followed");
+    expect(Case.outcomeOf(out.next)).toBe("Rejected. The agreed process was followed.");
   });
 });
 

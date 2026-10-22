@@ -1,35 +1,32 @@
 import { useState } from "react";
-import { Button, Checkbox, Field, Modal, Textarea } from "@/components/portal/ui";
+import { Button, Field, Modal, Textarea } from "@/components/portal/ui";
 
-/** IN-017 — "Apply to role · confirm": the profile goes with the application, with a note and the quiz results if the talent likes. */
-export function ApplyDialog({ open, title, company, onClose, onSend }: { open: boolean; title: string; company: string; onClose: () => void; onSend: (extras: { note: string; quiz: boolean }) => void }) {
+/**
+ * IN-017 — "Apply to role · confirm": the profile goes with the application, with a note if the
+ * talent likes. The quiz results always go too (#77): the match is worked out from them.
+ */
+export function ApplyDialog({ open, title, company, onClose, onSend }: { open: boolean; title: string; company: string; onClose: () => void; onSend: (note: string) => void }) {
   const [note, setNote] = useState("");
-  const [includeQuiz, setIncludeQuiz] = useState(true);
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={`Apply to ${title} at ${company}`}
-      description="Your profile, monthly rate and availability go with the application. Add a short note so Alex knows why you fit."
+      description="Your profile, rate and availability are sent with your application."
       footer={
         <>
           <Button size="lg" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" variant="primary" onClick={() => onSend({ note, quiz: includeQuiz })}>
+          <Button size="lg" variant="primary" onClick={() => onSend(note)}>
             Send application
           </Button>
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <Field label="Note to the employer (optional)">
-          <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Tell ${company} why you fit this role`} />
-        </Field>
-        <Checkbox checked={includeQuiz} onChange={setIncludeQuiz}>
-          Include my Hireable quiz results
-        </Checkbox>
-      </div>
+      <Field label={`Note to ${company} (optional)`}>
+        <Textarea rows={3} className="h-[78px]" value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Tell ${company} why you fit this role`} />
+      </Field>
     </Modal>
   );
 }

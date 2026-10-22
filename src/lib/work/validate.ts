@@ -48,7 +48,7 @@ export function checkDates(next: { start?: string; due?: string; type: WorkType 
   const due = next.due ? dayOf(next.due) : null;
   if (next.start && start === null) return { field: "start", message: "That start date isn't a real date." };
   if (next.due && due === null) return { field: "due", message: "That due date isn't a real date." };
-  if (next.type === "milestone" && start !== null) return { field: "start", message: "A milestone has a single date — its due date. Clear the start date first." };
+  if (next.type === "milestone" && start !== null) return { field: "start", message: "A milestone has a single date: its due date. Clear the start date first." };
   if (start !== null && due !== null && start > due) return { field: "due", message: "The due date can't be before the start date." };
   const dueChanged = next.due !== before?.due;
   const startChanged = next.start !== before?.start;

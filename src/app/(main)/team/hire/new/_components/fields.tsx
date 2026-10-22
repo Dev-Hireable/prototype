@@ -1,18 +1,32 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { MdAdd, MdAttachMoney, MdOutlineCalendarToday, MdOutlineSchedule, MdRemove } from "react-icons/md";
 import { Checkbox, Chip, Input, Textarea } from "@/components/portal/ui";
 import { hoursLabel, PART_TIME_HOURS } from "@/lib/contract/job-types";
 import { formatMoney, settleMoney } from "@/lib/portal/money";
 import { BENEFITS, CHIP_TONES } from "../_lib/wizard";
 
+/** A required field's mark after its label, as Field draws it: a red asterisk, hidden from screen readers (the control says it's required). */
+export function Required() {
+  return (
+    <span aria-hidden className="text-danger">
+      {" *"}
+    </span>
+  );
+}
+
 /** Field block: 16px semibold label, 16px gap, optional 12px helper row (left text · counter). */
 /** A plain group rather than a <label>: a label forwards clicks anywhere in it (heading, helper
  *  row, blank space) to the control inside, which popped dropdowns open from outside them. */
-export function Block({ label, helper, children }: { label: string; helper?: [string, string]; children: ReactNode }) {
+export function Block({ label, helper, required = false, children }: { label: string; helper?: [string, string]; /** Marks the label with an asterisk, so a disabled Next says what it waits on. */ required?: boolean; children: ReactNode }) {
   const id = useId();
   return (
     <div role="group" aria-labelledby={label ? id : undefined} className="flex flex-col gap-4">
-      {label && <span id={id} className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{label}</span>}
+      {label && (
+        <span id={id} className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">
+          {label}
+          {required && <Required />}
+        </span>
+      )}
       <span className="flex flex-col gap-2">
         {children}
         {helper && (
@@ -26,7 +40,7 @@ export function Block({ label, helper, children }: { label: string; helper?: [st
   );
 }
 
-function Money({ label, value, onChange, disabled }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean }) {
+function Money({ label, value, onChange, disabled, required }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean; required?: boolean }) {
   return (
     <label className="flex flex-1 flex-col gap-2">
       {label && <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>}
@@ -50,6 +64,7 @@ function Money({ label, value, onChange, disabled }: { label: string; value: str
           placeholder="0.00"
           inputMode="decimal"
           disabled={disabled}
+          required={required}
           className="!pl-10"
         />
       </span>
@@ -57,25 +72,28 @@ function Money({ label, value, onChange, disabled }: { label: string; value: str
   );
 }
 
-/** The monthly range: a minimum and a maximum, /month. */
-export function MoneyRange({ min, max, onMin, onMax }: { min: string; max: string; onMin: (v: string) => void; onMax: (v: string) => void }) {
+/**
+ * The pay range: a minimum and a maximum, both required, with its unit after them: "/month" on a
+ * full-time or part-time role, none on a trial, whose range is for the whole trial.
+ */
+export function MoneyRange({ min, max, onMin, onMax, unit }: { min: string; max: string; onMin: (v: string) => void; onMax: (v: string) => void; unit?: string }) {
   return (
-    <div className="flex w-[533px] items-end gap-4">
-      <Money label="Minimum" value={min} onChange={onMin} />
+    <div className="flex w-[533px] max-w-full items-end gap-4">
+      <Money label="Minimum" value={min} onChange={onMin} required />
       <span aria-hidden className="mb-[22px] h-px w-6 bg-border" />
-      <Money label="Maximum" value={max} onChange={onMax} />
-      <span className="flex h-12 w-[51px] items-center justify-center text-[16px] leading-[1.5] tracking-[0.2px] text-ink">/month</span>
+      <Money label="Maximum" value={max} onChange={onMax} required />
+      {unit && <span className="flex h-12 w-[51px] items-center justify-center text-[16px] leading-[1.5] tracking-[0.2px] text-ink">{unit}</span>}
     </div>
   );
 }
 
-/** The trial's length, or when the role starts: one chip per option. */
-export function DurationChips({ chips, value, onChange }: { chips: readonly string[]; value: number; onChange: (chip: number) => void }) {
+/** The trial's length, or when the role starts: one chip per option, each reading as `label` says ("30 working days"). */
+export function DurationChips({ chips, label, value, onChange }: { chips: readonly string[]; label: (chip: string) => string; value: number; onChange: (chip: number) => void }) {
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-wrap gap-4">
       {chips.map((c, i) => (
         <DateChip key={c} tone={CHIP_TONES[i]} selected={value === i} onClick={() => onChange(i)}>
-          {c}
+          {label(c)}
         </DateChip>
       ))}
     </div>
@@ -113,43 +131,38 @@ export function DateChip({ children, tone, selected, onClick, icon = "calendar" 
 }
 
 /**
- * What sits beside a trial's tasks: optional notes (what used to be all of Trial Expectations) and a
- * link. Both optional, so they stay folded behind one link until wanted — open from the start when
- * a draft already has either.
+ * What sits beside a trial's tasks: free-text notes (what used to be all of Trial Expectations),
+ * with the link under them. Both optional and both shown from the start: folded behind a link,
+ * they read as an extra no one would open.
  */
 export function TrialNotes({
   expectation,
   onExpectation,
   attachment,
   onAttachment,
-  placeholder,
-  hint,
+  copy,
 }: {
   expectation: string;
   onExpectation: (v: string) => void;
   attachment: string;
   onAttachment: (v: string) => void;
-  placeholder: string;
-  hint: string;
+  /** The notes' placeholder (a reminder not to paste credentials) and who sees them, and the link's hint. */
+  copy: { notesPlaceholder: string; notesHint: string; linkHint: string };
 }) {
-  const [open, setOpen] = useState(!!(expectation || attachment));
-  if (!open)
-    return (
-      <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-1.5 self-start rounded-md text-[13px] font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
-        <MdAdd size={16} aria-hidden /> Add notes or a link for the Independent
-      </button>
-    );
   return (
     <>
       <label className="flex flex-col gap-2">
         <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Notes (Optional)</span>
-        <Textarea autoFocus={!expectation && !attachment} value={expectation} maxLength={500} onChange={(e) => onExpectation(e.target.value)} placeholder={placeholder} className="!h-[96px] resize-none" />
-        <span className="flex justify-end text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{expectation.length} / 500</span>
+        <Textarea value={expectation} maxLength={500} onChange={(e) => onExpectation(e.target.value)} placeholder={copy.notesPlaceholder} className="!h-[96px] resize-none" />
+        <span className="flex justify-between gap-4 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
+          <span>{copy.notesHint}</span>
+          <span>{expectation.length} / 500</span>
+        </span>
       </label>
       <label className="flex flex-col gap-2">
-        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments (Optional)</span>
+        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachment link (Optional)</span>
         <Input value={attachment} onChange={(e) => onAttachment(e.target.value)} placeholder="Add a link to a Loom, Google Doc, YouTube video, or anything that helps." />
-        <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{hint}</span>
+        <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{copy.linkHint}</span>
       </label>
     </>
   );

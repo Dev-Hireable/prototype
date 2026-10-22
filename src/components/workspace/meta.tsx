@@ -89,20 +89,6 @@ export function EffortChip({ effort }: { effort?: number }) {
   );
 }
 
-/** Priority as a flag in its colour and the word, quiet enough to sit among the other facts. */
-export function PriorityFact({ priority }: { priority: WorkItem["priority"] }) {
-  if (!priority) return null;
-  const tone = { high: "text-danger", medium: "text-[#d99a00]", low: "text-primary" }[priority];
-  return (
-    <span className={FACT}>
-      <ICONS.flag size={14} aria-hidden className={`shrink-0 ${tone}`} />
-      {PRIORITY_WORD[priority]}
-    </span>
-  );
-}
-
-const PRIORITY_WORD = { high: "High", medium: "Medium", low: "Low" } as const;
-
 export function BlockedChip({ count }: { count: number }) {
   if (!count) return null;
   return (

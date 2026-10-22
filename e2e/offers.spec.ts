@@ -7,7 +7,9 @@ import { card, entryOf, EVALUATED, expect, notes, savedDeal, test, toast } from 
 // IN-084), and a sent offer's one action, withdrawing it, on the candidate's card in the pipeline. Today
 // is Fri 25 Sep 2026. A post-trial offer left to run past its start date is after-trial.spec's.
 
-const APPLICATION_OFFER = "/independent/jobs/applications/deal/offer";
+/** The trial offer opens over its application; the address of its old page lands there with it open. */
+const APPLICATION_OFFER = "/independent/jobs/applications/deal?offer=1";
+const OLD_OFFER_PAGE = "/independent/jobs/applications/deal/offer";
 const CONTRACT_OFFER = "/independent/contracts/brand-designer/offer";
 /** Juan's card in the Brand Designer pipeline: a sent offer is read, and withdrawn, there. */
 const CANDIDATE = "/team/hire/roles/brand-designer/candidates/deal";
@@ -25,8 +27,8 @@ const TASKS = [
 const OFFER_OUT = {
   contract: null,
   stage: "offer_received",
-  proposal: { version: 1, sent: "20 Sep 2026", rate: "$1,600.00/mo", letter: "Happy to start with the audit." },
-  offer: { type: "trial", rate: "$1,600 /month", start: "2026-10-05", end: "2026-11-13", tasks: TASKS, status: "sent", sent: "22 Sep 2026", deposit: { escrow: 1600, fee: 80 } },
+  proposal: { version: 1, sent: "20 Sep 2026", rate: "$1,600", letter: "Happy to start with the audit." },
+  offer: { type: "trial", rate: "$1,600", start: "2026-10-05", end: "2026-11-13", tasks: TASKS, status: "sent", sent: "22 Sep 2026", deposit: { escrow: 1600, fee: 80 } },
 };
 
 /** The role on the Team Builder's side: its title, its trial length and the trial's tasks. */
@@ -42,7 +44,7 @@ const ROLE = {
   hired: null,
   updated: "2026-09-18",
   description: "Brand work for a B2B agency.",
-  budget: "$1,600.00 - $2,000.00 /mo",
+  budget: "$1,600.00 - $2,000.00",
   duration: "30 Days",
   experience: "Advanced (5–8 years)",
   skills: ["Branding"],
@@ -56,23 +58,23 @@ const ROLE = {
 };
 const OFFER_OUT_SEED = { deal: OFFER_OUT, stores: { "team.roles": [ROLE] } };
 
-/** Juan's proposal, in and not yet answered: $1,600 a month, starting on `start`. */
+/** Juan's proposal, in and not yet answered: $1,600 for the trial, starting on `start`. */
 const PROPOSAL_IN = (start: string) => ({
-  deal: { contract: null, offer: null, stage: "proposal_sent", proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600.00/mo", letter: "Happy to start with the audit.", start } },
+  deal: { contract: null, offer: null, stage: "proposal_sent", proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600", letter: "Happy to start with the audit.", start } },
   stores: { "team.roles": [ROLE] },
 });
 
 /** The post-trial offer, sent 22 Sep for a start on Mon 28 Sep: full-time with health cover, unless `over` says otherwise. */
 const conversion = (status: string, over: Record<string, unknown> = {}) => ({ conversion: { type: "full-time", salary: "$4,000", start: "2026-09-28", benefits: ["Health Insurance Coverage"], status, sent: "22 Sep 2026", ...over } });
 
-/** A trial offer's terms as the talent reads them. */
+/** A trial offer's terms as the talent reads them: its length in working days, and its pay. */
 const trialTerms = (t: { start: string; end: string; rate: string; total: string }): [string, string][] => [
   ["Role", "Brand Designer"],
   ["Contract type", "Trial"],
-  ["Duration", "30 Days"],
+  ["Duration", "30 working days (about 6 weeks)"],
   ["Start date", t.start],
   ["End date", t.end],
-  ["Rate", t.rate],
+  ["Pay", t.rate],
   ["Payment", "Held in escrow, released at the end of the trial"],
   ["Total payment at end of trial", t.total],
 ];
@@ -88,19 +90,23 @@ const ongoingTerms = (type: string, pay: [string, string], hours?: string): [str
 ];
 
 /* The signature every offer is signed with, Accept, and the Offer card on the candidate's page. */
-const nameField = (page: Page) => page.getByRole("textbox", { name: /^Type your full name to sign/ });
+const nameField = (page: Page) => page.getByRole("textbox", { name: /^Type your full name/ });
 const agreement = (page: Page) => page.getByRole("checkbox", { name: "I agree to the platform contract and terms of service." });
 const acceptButton = (page: Page) => page.getByRole("button", { name: "Accept", exact: true });
 const offerCard = (page: Page) => page.getByRole("region", { name: "Offer" });
 const withdrawButton = (page: Page) => offerCard(page).getByRole("button", { name: "Withdraw offer" });
+/** The trial offer, open over Juan's application. */
+const offerDialog = (page: Page) => page.getByRole("dialog", { name: "Offer from Nairobi Solutions Inc." });
+/** The post-trial offer, open over the contract it follows (its old page's address opens it there). */
+const conversionDialog = (page: Page, kind = "Full-time") => page.getByRole("dialog", { name: `${kind} offer from Nairobi Solutions Inc.` });
 
 /** The offer's terms, a row each: every label, then every value, in order. */
-async function expectTerms(page: Page, rows: [string, string][]) {
+async function expectTerms(page: Page | Locator, rows: [string, string][]) {
   await expect(page.getByRole("term")).toHaveText(rows.map(([label]) => label));
   await expect(page.getByRole("definition")).toHaveText(rows.map(([, value]) => value));
 }
 
-/** Accept stays off until the offer is signed: a typed name of three letters or more, and the tick. */
+/** Accept stays off until the offer is signed: the account's full name typed, and the tick. */
 async function expectSigningGate(page: Page) {
   await expect(acceptButton(page)).toBeDisabled();
   await nameField(page).fill("Juan Dela Cruz");
@@ -151,7 +157,7 @@ async function teamSeesTheDecline(alex: Page) {
 /** A sent offer's one action is withdrawing it: what it carries was settled in the proposal, so it isn't edited (TB-105). */
 async function expectOnlyWithdraw(alex: Page) {
   await expect(offerCard(alex).getByText("Pending", { exact: true })).toBeVisible();
-  await expect(offerCard(alex).getByRole("button")).toHaveText(["Withdraw offer"]);
+  await expect(offerCard(alex).getByRole("button")).toHaveText(["View offer", "Withdraw offer"]);
 }
 
 /** From the role's pipeline, Alex opens Juan's proposal and starts the offer from it. Returns the offer dialog. */
@@ -183,13 +189,15 @@ async function settledTermsRead(offer: Locator) {
 async function depositAndSign(alex: Page, offer: Locator) {
   await offer.getByRole("button", { name: "Continue" }).click();
   await expect(offer.getByRole("list").first().getByRole("listitem")).toHaveText(["Offer Letter", "Tasks", "Start & End Dates", "Deposit & Sign"]);
-  for (const row of ["Role", "Candidate", "Contract", "Rate", "Trial", "In escrow", "Platform fee", "Tasks"]) await expect(offer).toContainText(row);
+  for (const row of ["Role", "Candidate", "Contract", "Pay", "Trial", "Tasks", "In escrow", "Platform fee", "Total charged"]) await expect(offer).toContainText(row);
+  await expect(offer).toContainText("Total charged $1,760.00");
   await expect(offer).toContainText("Juan D.");
   const send = offer.getByRole("button", { name: "Sign & send offer" });
-  await offer.getByRole("textbox", { name: "Type your full name to sign" }).fill("Alex Rivera");
+  await offer.getByRole("textbox", { name: /^Type your full name exactly as on your account/ }).fill("Alex Rivera");
+  await offer.getByRole("checkbox", { name: "I agree to the platform contract and terms of service." }).check();
   // Signed but not deposited: it can't go out until escrow is funded.
   await expect(send).toBeDisabled();
-  await offer.getByRole("checkbox", { name: /^Charge \$1,760\.00/ }).check();
+  await offer.getByRole("checkbox", { name: "I agree to this charge" }).check();
   await send.click();
   await expect(toast(alex, "Offer sent to candidate")).toBeVisible();
 }
@@ -209,33 +217,47 @@ test.describe("offers · signing a trial offer", () => {
   test.use({ seedOptions: { deal: OFFER_OUT } });
 
   test("the offer shows its terms and tasks, and Accept waits for a typed name and the tick", async ({ page }) => {
-    await page.goto(APPLICATION_OFFER);
-    await expect(page.getByRole("heading", { name: "Offer from Nairobi Solutions Inc." })).toBeVisible();
-    await expectTerms(page, trialTerms({ start: "Mon 5 Oct 2026", end: "Fri 13 Nov 2026", rate: "$1,600 /month", total: "$1,600.00" }));
-    await expect(page.getByRole("listitem").filter({ hasText: "Audit the brand assets" })).toContainText("Week 1 · 9 Oct");
-    await expect(page.getByRole("listitem").filter({ hasText: "Draft two logo directions" })).toContainText("Week 2 · 16 Oct");
-    await expect(page.getByText("This offer expires on Tue 29 Sep 2026")).toBeVisible();
+    // Its old page's address lands on the application, the offer open over it.
+    await page.goto(OLD_OFFER_PAGE);
+    await expect(page).toHaveURL(/\/independent\/jobs\/applications\/deal\?offer=1$/);
+    const offer = offerDialog(page);
+    await expect(offer.getByRole("heading", { name: "Offer from Nairobi Solutions Inc." })).toBeVisible();
+    await expectTerms(offer, trialTerms({ start: "Mon 5 Oct 2026", end: "Fri 13 Nov 2026", rate: "$1,600 for the trial", total: "$1,600.00" }));
+    await expect(offer.getByRole("listitem").filter({ hasText: "Audit the brand assets" })).toContainText("Week 1 · 9 Oct");
+    await expect(offer.getByRole("listitem").filter({ hasText: "Draft two logo directions" })).toContainText("Week 2 · 16 Oct");
+    await expect(offer.getByText("This offer expires on Tue 29 Sep 2026")).toBeVisible();
     await expectSigningGate(page);
+    // Only the account's name signs it: anything else says so once the field is left.
+    await nameField(page).fill("Juan D.");
+    await nameField(page).blur();
+    await expect(offer.getByRole("alert")).toHaveText("Must match your account name: Juan Dela Cruz.");
+    await expect(acceptButton(page)).toBeDisabled();
   });
 
   test("accepting starts the contract from the offer's terms and tasks, and Open contract goes to it", async ({ page }) => {
     await page.goto(APPLICATION_OFFER);
     await signAndAccept(page);
-    const accepted = page.getByRole("dialog", { name: "You’ve accepted the offer" });
-    await expect(accepted).toContainText("Nairobi Solutions Inc. has been notified. The $1,600.00 escrow they funded is held for the trial");
+    // The word that it's accepted takes the offer's place: one way into the contract.
+    const accepted = page.getByRole("dialog", { name: "Offer accepted" });
+    await expect(accepted).toContainText("Nairobi Solutions Inc. has been notified. Your contract is ready.");
+    await expect(offerDialog(page)).toBeHidden();
     const deal = await savedDeal(page);
-    expect(deal).toMatchObject({ stage: "hired", offer: { status: "accepted" }, contract: { started: "2026-10-05", ends: "2026-11-13", rate: "$1,600 /month", deposit: 1600 } });
+    expect(deal).toMatchObject({ stage: "hired", offer: { status: "accepted", signed: { name: "Juan Dela Cruz", on: "25 Sep 2026" } }, contract: { started: "2026-10-05", ends: "2026-11-13", rate: "$1,600", deposit: 1600 } });
     expect(deal.contract.tasks.map((t: { title: string }) => t.title)).toEqual(["Audit the brand assets", "Draft two logo directions"]);
     expect((await notes(page, "team")).map((n) => n.title)).toContain("Juan Dela Cruz accepted your offer");
 
     await accepted.getByRole("button", { name: "Open contract" }).click();
     await expect(page).toHaveURL(/\/independent\/contracts\/brand-designer$/);
     await expect(card(page, /Audit the brand assets/)).toBeVisible();
-    // Opened again later, the offer reads as answered: nothing left to sign, and the way into the contract.
+    // Opened again later, the offer reads as answered: signed under Juan's name that day, the tick kept, and the way into the contract.
     await page.goto(APPLICATION_OFFER);
-    await expect(page.getByRole("button", { name: "Accepted" })).toBeDisabled();
-    await expect(nameField(page)).toBeDisabled();
-    await expect(page.getByRole("link", { name: "Open contract" })).toHaveAttribute("href", "/independent/contracts/brand-designer");
+    const offer = offerDialog(page);
+    await expect(offer.getByRole("button", { name: "Accepted" })).toBeDisabled();
+    await expect(offer.getByText("Signed by Juan Dela Cruz, 25 Sep 2026")).toBeVisible();
+    await expect(agreement(page)).toBeChecked();
+    await expect(agreement(page)).toBeDisabled();
+    await expect(nameField(page)).toHaveCount(0);
+    await expect(offer.getByRole("link", { name: "Open contract" })).toHaveAttribute("href", "/independent/contracts/brand-designer");
   });
 });
 
@@ -246,7 +268,7 @@ test.describe("offers · declining a trial offer", () => {
     await page.goto(APPLICATION_OFFER);
     await declineAfterBackingOut(page, {
       title: "Decline this offer?",
-      description: "Alex Rivera is told you have declined, with your reason if you give one. The offer stays in My Applications so you can look back at the terms, but you cannot accept it afterwards.",
+      description: "Alex Rivera will be notified, with your reason if you add one. You can't accept this offer after declining.",
       reason: REASON,
     });
     await expect(page.getByRole("button", { name: "Offer declined" })).toBeDisabled();
@@ -254,7 +276,7 @@ test.describe("offers · declining a trial offer", () => {
     await expect(nameField(page)).toBeDisabled();
     expect((await savedDeal(page)).offer).toMatchObject({ status: "declined", declineReason: REASON });
     // The notification opens the candidate, as the step's View details in the thread does.
-    const declined = (await notes(page, "team")).find((n) => n.title === "Juan Dela Cruz declined your offer");
+    const declined = (await notes(page, "team")).find((n) => n.title === "Juan D. declined your offer");
     expect(declined?.href).toBe(CANDIDATE);
     expect((await entryOf(page, CANDIDATE))?.event?.href.team).toBe(CANDIDATE);
 
@@ -269,7 +291,7 @@ test.describe("offers · a full-time offer after the trial", () => {
     await page.goto(CONTRACT_OFFER);
     await expect(page.getByRole("heading", { name: "Full-time offer from Nairobi Solutions Inc." })).toBeVisible();
     await expect(page.getByText("Sent 22 Sep 2026. Accepting turns your trial into a full-time engagement. Answer by Mon 28 Sep 2026, its start date, or it expires.")).toBeVisible();
-    await expectTerms(page, ongoingTerms("Full-time", ["Salary", "$4,000 /month"]));
+    await expectTerms(conversionDialog(page), ongoingTerms("Full-time", ["Pay", "$4,000 /month"]));
     const benefits = page.getByRole("list").filter({ hasText: "Health Insurance Coverage" }).getByRole("listitem");
     await expect(benefits).toHaveText([/^Health Insurance Coverage\s*Included$/, /^Government Contribution Coverage\s*Not included$/, /^Internet Allowance\s*Not included$/, /^Learning & Development Allowance\s*Not included$/]);
     await expectSigningGate(page);
@@ -284,14 +306,14 @@ test.describe("offers · a full-time offer after the trial", () => {
     expect((await savedDeal(page)).conversion).toMatchObject({ status: "accepted", accepted: "25 Sep 2026" });
     expect((await notes(page, "team")).map((n) => n.title)).toContain("Juan Dela Cruz accepted your full-time offer");
 
-    await page.getByRole("link", { name: "Open contract" }).click();
+    await conversionDialog(page).getByRole("button", { name: "Back to the contract" }).click();
     await expect(page).toHaveURL(/\/independent\/contracts\/brand-designer$/);
     await expect(page.getByText("Full-time from 28 Sep 2026", { exact: true })).toBeVisible();
   });
 
   test("declining quotes the reason back, tells the Team Builder, and stays declined after a reload", async ({ page }) => {
     await page.goto(CONTRACT_OFFER);
-    await declineAfterBackingOut(page, { title: "Decline the full-time offer?", description: "Alex Rivera is told, with your reason if you give one. Your trial record stays on the contract.", reason: REASON });
+    await declineAfterBackingOut(page, { title: "Decline the full-time offer?", description: "We'll let Alex know, along with your reason if you add one. Your trial history stays on your record.", reason: REASON });
     await expect(toast(page, "Full-time offer declined")).toBeVisible();
     expect((await savedDeal(page)).conversion).toMatchObject({ status: "declined", declineReason: REASON });
     const told = (await notes(page, "team")).find((n) => n.title === "Juan Dela Cruz declined your full-time offer");
@@ -314,7 +336,7 @@ test.describe("offers · withdrawing a post-trial offer", () => {
     const alex = await secondPage();
     await alex.goto(CONTRACT);
     await alex.getByRole("button", { name: "Withdraw offer" }).click();
-    await expect(toast(alex, "Offer withdrawn — Juan has been told")).toBeVisible();
+    await expect(toast(alex, "Offer withdrawn. Juan has been told.")).toBeVisible();
     expect((await savedDeal(alex)).conversion.status).toBe("withdrawn");
     expect((await notes(alex, "independent")).map((n) => n.title)).toContain("Offer withdrawn");
 
@@ -331,13 +353,13 @@ test.describe("offers · a part-time offer after the trial", () => {
   test("it shows the rate and the hours a week with no benefits, and accepting makes the contract part-time", async ({ page }) => {
     await page.goto(CONTRACT_OFFER);
     await expect(page.getByRole("heading", { name: "Part-time offer from Nairobi Solutions Inc." })).toBeVisible();
-    await expectTerms(page, ongoingTerms("Part-time", ["Rate", "$2,000 /month"], "20 hrs/week"));
-    await expect(page.getByRole("heading", { name: "Exclusive benefits" })).toHaveCount(0);
+    await expectTerms(conversionDialog(page, "Part-time"), ongoingTerms("Part-time", ["Pay", "$2,000 /month"], "20 hrs/week"));
+    await expect(page.getByRole("heading", { name: "Benefits", exact: true })).toHaveCount(0);
 
     await signAndAccept(page);
     await expect(toast(page, "You're part-time with Nairobi Solutions Inc.")).toBeVisible();
     expect((await savedDeal(page)).conversion).toMatchObject({ type: "part-time", status: "accepted", hours: 20 });
-    await page.getByRole("link", { name: "Open contract" }).click();
+    await conversionDialog(page, "Part-time").getByRole("button", { name: "Back to the contract" }).click();
     await expect(page.getByText("Part-time from 28 Sep 2026", { exact: true })).toBeVisible();
   });
 });
@@ -350,7 +372,7 @@ test.describe("offers · sending a trial offer", () => {
     await settledTermsRead(offer);
     await depositAndSign(page, offer);
     const sent = (await savedDeal(page)).offer;
-    expect(sent).toMatchObject({ status: "sent", start: "2026-10-05", end: "2026-11-13", rate: "$1,600.00/mo", deposit: { escrow: 1600, fee: 160 } });
+    expect(sent).toMatchObject({ status: "sent", start: "2026-10-05", end: "2026-11-13", rate: "$1,600", deposit: { escrow: 1600, fee: 160 } });
     expect(sent.tasks.map((t: { title: string }) => t.title)).toEqual(["Audit the brand assets", "Draft two logo directions"]);
   });
 });
@@ -373,7 +395,7 @@ test.describe("offers · no card on file yet", () => {
   test("the deposit asks for a card there and then, and the charge opens once it's added", async ({ page }) => {
     const offer = await startTheOffer(page);
     for (let i = 0; i < 3; i++) await offer.getByRole("button", { name: "Continue" }).click();
-    const charge = offer.getByRole("checkbox", { name: /^Charge \$1,760\.00/ });
+    const charge = offer.getByRole("checkbox", { name: "I agree to this charge" });
     await expect(charge).toBeDisabled();
     await offer.getByRole("button", { name: "Add a card" }).click();
     const add = page.getByRole("dialog", { name: "Add a card" });
@@ -392,9 +414,45 @@ test.describe("offers · a sent offer", () => {
     await page.goto("/team/hire/roles/brand-designer?stage=offer");
     await page.getByRole("link", { name: "Review Sent Offer" }).click();
     await expect(page).toHaveURL(CANDIDATE);
-    await expect(offerCard(page)).toContainText("$1,600 /month");
+    await expect(offerCard(page)).toContainText("$1,600 for the trial");
     await expectOnlyWithdraw(page);
     await withdrawTheOffer(page, "Juan D. is told the offer was withdrawn and can no longer accept it. Their proposal stays on file, so you can send a new offer from it.");
     expect((await savedDeal(page)).offer.status).toBe("withdrawn");
+  });
+
+  test("View offer opens the whole of it over the candidate's page: its terms, its tasks and Withdraw", async ({ page }) => {
+    await page.goto(CANDIDATE);
+    await offerCard(page).getByRole("button", { name: "View offer" }).click();
+    const sent = page.getByRole("dialog", { name: "Your offer to Juan D." });
+    await expect(sent).toContainText("30 working days (about 6 weeks)");
+    await expect(sent).toContainText("13 Nov 2026");
+    await expect(sent.getByRole("listitem").filter({ hasText: "Audit the brand assets" })).toBeVisible();
+    await expect(sent.getByRole("button", { name: "Withdraw offer" })).toBeVisible();
+  });
+});
+
+test.describe("offers · a full-time offer with no card on file", () => {
+  test.use({
+    seedOptions: {
+      deal: { contract: null, offer: null, stage: "proposal_sent", proposal: { version: 1, sent: "24 Sep 2026", rate: "$4,000.00/mo", letter: "Happy to join the team.", start: "2026-10-12" } },
+      stores: { "team.roles": [{ ...ROLE, type: "full-time", duration: "Starts in 2 weeks", tasks: [] }], "team.cards": [] },
+    },
+  });
+
+  test("Terms & Sign asks for the card the monthly pay is charged to, and the offer can't be signed without one", async ({ page }) => {
+    const offer = await startTheOffer(page);
+    for (let i = 0; i < 2; i++) await offer.getByRole("button", { name: "Continue" }).click();
+    await expect(offer).toContainText("Start date and pay come from Juan's proposal. To change them, ask Juan for a revision.");
+    await offer.getByRole("textbox", { name: /^Type your full name exactly as on your account/ }).fill("Alex Rivera");
+    await offer.getByRole("checkbox", { name: "I agree to the platform contract and terms of service." }).check();
+    const send = offer.getByRole("button", { name: "Sign & send offer" });
+    await expect(send).toBeDisabled();
+    await offer.getByRole("button", { name: "Add a card" }).click();
+    const add = page.getByRole("dialog", { name: "Add a card" });
+    await add.getByRole("textbox", { name: "Card number" }).fill("4242 4242 4242 4242");
+    await add.getByRole("button", { name: "Add card" }).click();
+    await expect(add).toBeHidden();
+    await expect(offer).toContainText("Visa ending 4242");
+    await expect(send).toBeEnabled();
   });
 });

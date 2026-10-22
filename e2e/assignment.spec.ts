@@ -4,7 +4,7 @@ import { card, column, drag, expect, notes, open, savedItem, test } from "./fixt
 test.describe("assignment", () => {
   test("an item assigned to the Team Builder is theirs to finish, and doesn't touch the trial score", async ({ page }) => {
     await open(page, "team", "?view=list");
-    const score = await page.getByLabel("Summary").getByText(/Trial Fit Score/).textContent();
+    const score = await page.getByLabel("Summary").getByText(/Trial fit score/).textContent();
     const row = page.getByTestId("list").getByRole("row", { name: /#7 Share the style tiles/ });
     await row.getByRole("button", { name: /Assignee: Unassigned/ }).click();
     await page.getByRole("menuitemradio", { name: "Alex" }).click();
@@ -12,7 +12,7 @@ test.describe("assignment", () => {
     await row.getByRole("button", { name: /Change status/ }).click();
     await page.getByRole("menuitem", { name: "Done" }).click();
     await expect.poll(async () => (await savedItem(page, "t-share")).status).toBe("done");
-    await expect(page.getByLabel("Summary").getByText(/Trial Fit Score/)).toHaveText(score as string);
+    await expect(page.getByLabel("Summary").getByText(/Trial fit score/)).toHaveText(score as string);
     // Nobody was told about the Team Builder's own work.
     expect((await notes(page, "independent")).some((n) => /Share the style tiles/.test(n.title))).toBe(false);
   });

@@ -21,7 +21,7 @@ function onFile(id: string, over: Record<string, unknown>) {
     links: { team: "juan-dela-cruz", independent: "brand-designer" },
     title: "Brand Designer",
     type: "trial",
-    rate: "$1,600 /month",
+    rate: "$1,600",
     team: { name: "Alex Rivera", company: "Nairobi Solutions Inc.", slug: "nairobi-solutions" },
     independent: { name: "Juan Dela Cruz", slug: "juan-dela-cruz", avatar: "/team/juan.jpg" },
     filedBy: "team",
@@ -153,7 +153,7 @@ async function openCase(page: Page, id: string, title: string) {
 async function alexFiles(alex: Page) {
   // Filing is on the contract's dispute card, under Contract & Payment.
   await alex.goto(`${PATH.team}?tab=contract`);
-  await alex.getByRole("button", { name: "File a Dispute" }).click();
+  await alex.getByRole("button", { name: "File a dispute" }).click();
   const form = alex.getByRole("dialog", { name: /File a dispute about Juan Dela Cruz/ });
   await form.getByRole("button", { name: "Reason" }).click();
   await alex.getByRole("option", { name: "Missed Deadline" }).click();
@@ -301,7 +301,8 @@ test.describe("admin disputes · the process check", () => {
       ["Trial has ended", "Pass — ended 24 Sep 2026", "contract"],
       ["Evaluation submitted by employer", "Fail — not submitted", "trial dashboard"],
       ["Tasks approved", "1 of 7 approved", "task log"],
-      ["Escrow funded at offer", "Pass — $1,600.00 deposited 21 Sep 2026", "payments"],
+      // Deposited the day the offer went out with it, not on the trial's first day (21 Sep).
+      ["Escrow funded at offer", "Pass — $1,600.00 deposited 18 Sep 2026", "payments"],
       ["Amount in question within escrow", "Pass — $800.00 of $1,600.00 held when filed", "payments"],
     ]);
   });
@@ -310,7 +311,7 @@ test.describe("admin disputes · the process check", () => {
     await openCase(page, "dsp-open", "Missed Deadline · Brand Designer");
     await page.getByRole("link", { name: "Open the contract's work" }).click();
     await expect(page).toHaveURL(/\/admin\/contracts\/brand-designer\?from=%2Fadmin%2Fdisputes%2Fdsp-open$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Brand Designer — Nairobi Solutions Inc. and Juan Dela Cruz" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Brand Designer at Nairobi Solutions Inc." })).toBeVisible();
     await expect(card(page, /Build the colour palette/)).toBeVisible();
 
     await page.getByRole("link", { name: "Back to dispute" }).click();
@@ -352,7 +353,7 @@ test.describe("admin disputes · rejecting", () => {
     await expect(toast(page, "Dispute rejected — both parties have been notified")).toBeVisible();
 
     // Closed as rejected, with support's notes, the hold lifted and nothing left for support to do.
-    await expect(page.getByRole("status").filter({ hasText: "Rejected — the agreed process was followed" })).toContainText(why);
+    await expect(page.getByRole("status").filter({ hasText: "Rejected. The agreed process was followed." })).toContainText(why);
     await expect(page.getByRole("complementary").getByText("Missed Deadline · The hold was lifted.")).toBeVisible();
     await expect(moves(page)).toHaveCount(0);
     expect(await savedDispute(page, "dsp-open")).toMatchObject({ status: "Rejected", resolution: { kind: "rejected", notes: why, at: T }, handler: "Admin Lead" });

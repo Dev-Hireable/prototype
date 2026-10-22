@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { countsOf, dateKind, effortOf, indexById, isBlocked, isCompleted, isOverdue, openBlockers, progressOf, scoredItems, STATUS_META, STATUSES, TAG_COLOR_KEYS, tagColorOf } from "../../src/lib/work/model";
+import { countsOf, dateKind, effortOf, indexById, isBlocked, isCompleted, isOverdue, openBlockers, progressOf, scoredItems, STATUS_META, STATUSES, TAG_COLOR_KEYS, tagColorOf, unfinishedOf } from "../../src/lib/work/model";
 import { item, iso, TODAY } from "./fixtures";
 
 test.describe("work item model", () => {
@@ -35,6 +35,18 @@ test.describe("work item model", () => {
     expect(isBlocked(item({ dependsOn: [b.id, c.id] }), byId)).toBe(false);
   });
 
+  test("unfinished: the open work an item waits on and its unticked subtasks, or nothing", () => {
+    const logos = item({ status: "review" });
+    const done = item({ status: "done" });
+    const palette = item({ status: "doing", dependsOn: [logos.id, done.id], subtasks: [{ id: "s1", title: "Pick", done: true }, { id: "s2", title: "Check", done: false }] });
+    const byId = indexById([logos, done, palette]);
+    // Sending it for review asks first, naming these.
+    expect(unfinishedOf(palette, byId)).toEqual({ blockers: [logos], openSubtasks: 1 });
+    expect(unfinishedOf(item({ dependsOn: [done.id], subtasks: [{ id: "s3", title: "Done", done: true }] }), byId)).toBeNull();
+  });
+});
+
+test.describe("work item model · dates, scoring and counts", () => {
   test("date kinds cover every start/due combination", () => {
     expect(dateKind(item({ start: iso(0), due: iso(3) }))).toBe("range");
     expect(dateKind(item({ due: iso(3) }))).toBe("due");

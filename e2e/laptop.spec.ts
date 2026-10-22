@@ -5,10 +5,10 @@ import { expect, test } from "./fixtures";
 // no page scrolls sideways or down — only what scrolls by nature: a kanban tracker with more
 // columns than fit, and the timeline's axis.
 
-const ROLE = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00 /mo", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
+const ROLE = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
 
 const PAGES = [
-  "/team", "/team/discover", "/team/discover/juan-dela-cruz", "/team/hire", "/team/hire/new", "/team/hire/roles",
+  "/team", "/team/discover", "/team/hire", "/team/hire/new", "/team/hire/roles",
   "/team/independents", "/team/independents/juan-dela-cruz", "/team/independents/juan-dela-cruz?tab=overview", "/team/independents/juan-dela-cruz?tab=contract", "/team/independents/juan-dela-cruz?view=list", "/team/independents/juan-dela-cruz?view=calendar", "/team/independents/juan-dela-cruz?view=workload",
   "/team/payments", "/team/messages", "/team/profile/company", "/team/settings/notifications",
   "/independent", "/independent/jobs", "/independent/jobs/brand-designer", "/independent/jobs/applications/deal", "/independent/jobs/interviews", "/independent/contracts", "/independent/contracts/brand-designer", "/independent/contracts/brand-designer?tab=contract", "/independent/wallet", "/independent/profile",

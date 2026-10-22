@@ -2,7 +2,9 @@ import { trialClosed } from "@/lib/contract/lifecycle";
 import { dayLabel, isoDay, parseDay } from "@/lib/portal/dates";
 import { lifecycleOfDeal, type Deal } from "@/lib/demo/deal";
 import { migrateProjects } from "./migrate";
+import type { WorkItem } from "./model";
 import { CLOSED, type WorkAccess } from "./permissions";
+import { openWorkOf, workCtx } from "./projects";
 
 /**
  * Where the live contract is, as far as its work goes — its lifecycle phase (@/lib/contract/lifecycle):
@@ -35,4 +37,15 @@ export function accessOf(deal: Deal | null, now = new Date()): WorkAccess {
     return { open: false, reviewOpen: true, trial, lastDay, trialClosed: true, closedReason: `${how}, so its work is closed${why}. What's in review can still be approved.` };
   }
   return { open: true, reviewOpen: true, trial, lastDay, roleSince, finishedProjects, startsOn: l.phase === "starts" ? dayLabel(l.since) : undefined };
+}
+
+/**
+ * TB-143 — the live contract's work as its Work tab opens on it (openWorkOf, with the places read as
+ * the Work tab reads them): what its Overview, its card and admin's summary count, so all of them
+ * match the Work tab's header. A converted trial's finished chapter isn't in it.
+ */
+export function workTabItems(deal: Deal | null, now = new Date()): WorkItem[] {
+  const c = deal?.contract;
+  if (!c) return [];
+  return openWorkOf(c.tasks, workCtx(accessOf(deal, now), migrateProjects(c.projects)), now.getTime());
 }

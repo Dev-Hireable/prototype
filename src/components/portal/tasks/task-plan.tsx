@@ -4,20 +4,26 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { ICONS } from "@/components/icons";
 import { KebabMenu, Textarea } from "@/components/portal/ui";
 import { MenuAction } from "@/components/portal/controls";
-import { Tip } from "@/components/portal/tip";
-import { blankDraft, dueFromWeek, dueLabel, weekLabel } from "@/lib/demo/tasks";
+import { InfoTip, Tip } from "@/components/portal/tip";
+import { blankDraft, dueFromWeek, dueLabel, highInWeek, highTaken, weekLabel } from "@/lib/demo/tasks";
 import type { DraftTask, PlannedTask } from "@/lib/demo/tasks";
 import { keyed } from "@/lib/portal/keys";
 import { PriorityMenu, PriorityPill, StatusCircle, WeekMenu } from "./task-bits";
 
+/** The list's keys and rules, behind the info button beside Add task rather than a line under the list. */
+const HOW_IT_WORKS = "Enter starts the next task, and Backspace on an empty one removes it. The arrow keys move between tasks. Due weeks count from the trial's start date, and each week takes one High task.";
+
 /**
- * The Team Builder's task plan — a trial's tasks in its job post (TB-024) — written the way Notion
+ * The Team Builder's task plan — a trial's tasks in its role post (TB-025) — written the way Notion
  * takes a list: type a task, Enter starts the next row, Backspace on an empty row removes it, the
  * arrow keys move between rows. Each task can have a due week and a priority, and details under it:
  * what the offer carries, read-only (TB-105), and what stays as agreed once it's signed (TB-077).
+ * One High task per due week: a second is refused, and the line under the list says which task
+ * already has it.
  */
 export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a task" }: { rows: DraftTask[]; onChange: (rows: DraftTask[]) => void; weeks: number; placeholder?: string }) {
   const plan = usePlanRows(rows, onChange);
+  const cap = useHighCap(rows, plan.patch);
 
   return (
     <div className="flex flex-col gap-2">
@@ -39,10 +45,10 @@ export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a ta
               {row.description?.trim() && !plan.details.has(row.key) && <ShowDetails index={i} onClick={() => plan.toggleDetails(row.key)} />}
               {/* Fixed, left-aligned columns so the weeks and pills line up from row to row. */}
               <div className="flex w-24 shrink-0">
-                <WeekMenu week={row.week} weeks={weeks} onChange={(week) => plan.patch(row.key, { week })} />
+                <WeekMenu week={row.week} weeks={weeks} onChange={(week) => cap.change(row, { week })} />
               </div>
               <div className="flex w-24 shrink-0">
-                <PriorityMenu priority={row.priority} onChange={(p) => plan.patch(row.key, { priority: p ?? undefined })} />
+                <PriorityMenu priority={row.priority} onChange={(p) => cap.change(row, { priority: p ?? undefined })} />
               </div>
               <RowMenu index={i} open={plan.details.has(row.key)} described={!!row.description?.trim()} deletable={rows.length > 1 || !!row.title} onDetails={() => plan.toggleDetails(row.key)} onDelete={() => plan.deleteRow(row.key)} />
             </div>
@@ -53,13 +59,37 @@ export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a ta
             )}
           </div>
         ))}
-        <button type="button" onClick={() => plan.insertAfter(null)} className="flex w-full items-center gap-2.5 border-t border-[#eeeeee] px-3 py-2.5 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-alt hover:text-ink">
-          <ICONS.add size={18} aria-hidden /> Add task
-        </button>
+        <div className="flex items-center border-t border-[#eeeeee] pr-3">
+          <button type="button" onClick={() => plan.insertAfter(null)} className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-alt hover:text-ink">
+            <ICONS.add size={18} aria-hidden /> Add task
+          </button>
+          <InfoTip label={HOW_IT_WORKS} about="the task list" />
+        </div>
       </div>
-      <p className="text-[12px] leading-[1.4] text-ink-2">Enter starts the next task · Backspace on an empty one removes it · due weeks count from the start date</p>
+      {cap.refused && (
+        <p role="alert" className="text-[12px] leading-[1.4] text-danger">
+          One High task per week: {cap.refused}.
+        </p>
+      )}
     </div>
   );
+}
+
+/**
+ * One High task per due week. A change that would put a second High in a week (a priority set to
+ * High, or a High task moved to a week that has one) is refused, and `refused` says which task
+ * already holds it until the next change goes through.
+ */
+function useHighCap(rows: DraftTask[], patch: (key: string, p: Partial<PlannedTask>) => void) {
+  const [refused, setRefused] = useState<string | null>(null);
+  const change = (row: DraftTask, next: Pick<PlannedTask, "week"> | Pick<PlannedTask, "priority">) => {
+    const week = "week" in next ? next.week : row.week;
+    const priority = "priority" in next ? next.priority : row.priority;
+    const taken = priority === "high" ? highInWeek(rows, week, row.key) : null;
+    setRefused(taken ? highTaken(taken, week) : null);
+    if (!taken) patch(row.key, next);
+  };
+  return { refused, change };
 }
 
 /**

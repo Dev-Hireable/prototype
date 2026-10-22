@@ -3,9 +3,13 @@ import { Button, Card, Steps } from "@/components/portal/ui";
 import { EditButton, EditPanel } from "@/components/portal/inline-edit";
 import type { PathCopy } from "../_lib/wizard";
 
-/** The wizard's heading — the path's name, or the review's — and the steps under it. */
+/**
+ * The wizard's heading — the path's name, or the review's — and the steps under it. The path's one
+ * line of intro is for step one; the steps after it don't repeat it.
+ */
 export function WizardHeader({ t, kind, step }: { t: PathCopy; kind: string; step: number }) {
   const review = kind === "review";
+  const line = review ? "Check your role before you publish." : step === 0 ? t.intro : null;
   return (
     <>
       <div className="flex w-full max-w-[720px] flex-col gap-2 tracking-[0.2px]">
@@ -16,7 +20,7 @@ export function WizardHeader({ t, kind, step }: { t: PathCopy; kind: string; ste
             {t.title}
           </h2>
         )}
-        <p className="text-[14px] leading-[1.2] text-ink-2">{review ? "This is how your role will appear to Independents." : t.intro}</p>
+        {line && <p className="text-[14px] leading-[1.2] text-ink-2">{line}</p>}
       </div>
       <div className="w-full max-w-[720px] px-4 py-10 max-md:px-0 max-md:py-4">
         <Steps steps={[...t.steps]} current={step} />
@@ -25,13 +29,13 @@ export function WizardHeader({ t, kind, step }: { t: PathCopy; kind: string; ste
   );
 }
 
-export function StepCard({ title, body, bodySize = 14, action, children }: { title: string; body: string; bodySize?: 14 | 16; /** A button beside the heading, e.g. Use a template. */ action?: ReactNode; children: ReactNode }) {
+export function StepCard({ title, body, bodySize = 14, action, children }: { title: string; /** A line under the heading; left out where the heading says it all. */ body?: string; bodySize?: 14 | 16; /** A button beside the heading, e.g. Use a template. */ action?: ReactNode; children: ReactNode }) {
   return (
     <Card className="flex w-full max-w-[720px] flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
       <div className="flex items-start justify-between gap-4 max-sm:flex-col max-sm:gap-3">
         <div className="flex flex-col gap-1">
           <h3 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{title}</h3>
-          <p className={`leading-[1.5] tracking-[0.2px] text-ink-2 ${bodySize === 16 ? "text-[16px]" : "text-[14px] leading-[1.2]"}`}>{body}</p>
+          {body && <p className={`leading-[1.5] tracking-[0.2px] text-ink-2 ${bodySize === 16 ? "text-[16px]" : "text-[14px] leading-[1.2]"}`}>{body}</p>}
         </div>
         {action}
       </div>

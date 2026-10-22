@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { ICONS } from "@/components/icons";
 import { Button, EmptyState, Field, Input, LinkButton, Modal, Page, Person, Row, SearchBox, Select, StatusDot, Table, Tabs, Textarea, Toolbar } from "@/components/portal/ui";
 import { AttachmentPicker } from "@/components/portal/dispute-case";
 import { caseHref, checkAmount, contractName, dateOf, DISPUTE_REASONS, DISPUTE_STATUSES, leftLabel, otherParty, outcomeOf, partyName, partyTurn, SLA_DAYS, STATUS_TONE, TURN_DAYS, usd, useDisputes, waitingOn } from "@/lib/demo/disputes";
@@ -21,11 +22,12 @@ const REASON_PROMPT = "Select a reason";
 export type DisputeDraft = { reason: string; description: string; amount: number; evidence?: string; attachments?: Attachment[] };
 
 /**
- * TB-073 / TB-118 / IN-059 — reason, description and amount are required; screenshots, files and
- * a link are optional. No reason is preselected, and the amount has to be a positive sum no bigger
- * than `cap`. Files are kept in this browser before the dispute is filed with them.
+ * TB-073 / TB-118 / IN-059 — reason, description and amount are required (marked so); screenshots,
+ * files and a link are optional. No reason is preselected, and the amount has to be a positive sum no
+ * bigger than `cap`, which `capNote` explains after it ("(the amount in escrow)"). Filing with a field
+ * missing says so on that field. Files are kept in this browser before the dispute is filed with them.
  */
-export function DisputeForm({ open, onClose, title, description, cap, capNote, onFile }: { open: boolean; onClose: () => void; title: string; description: string; cap: number; capNote: string; onFile: (d: DisputeDraft) => void | Promise<void> }) {
+export function DisputeForm({ open, onClose, title, description, cap, capNote, onFile }: { open: boolean; onClose: () => void; title: string; /** A line, or short lines, under the title. */ description: ReactNode; cap: number; capNote: string; onFile: (d: DisputeDraft) => void | Promise<void> }) {
   const form = useDisputeDraft(cap, onFile);
   const close = () => {
     form.reset();
@@ -44,22 +46,22 @@ export function DisputeForm({ open, onClose, title, description, cap, capNote, o
           <Button size="lg" onClick={close}>
             Cancel
           </Button>
-          <Button size="lg" variant="danger" disabled={!form.ready || form.busy} onClick={() => void form.file()}>
+          <Button size="lg" variant="danger" disabled={form.busy} onClick={() => void form.file()}>
             {form.busy ? "Filing…" : "File dispute"}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-3">
-        <Field label="Reason">
+        <Field label="Reason" required error={form.missing.reason}>
           <Select options={[REASON_PROMPT, ...DISPUTE_REASONS]} value={form.reason || REASON_PROMPT} onChange={(e) => form.setReason(e.target.value === REASON_PROMPT ? "" : e.target.value)} />
         </Field>
-        <Field label="What happened?">
-          <Textarea rows={4} value={form.text} onChange={(e) => form.setText(e.target.value)} placeholder="Dates, what was agreed and what happened instead. Support reads this first." />
+        <Field label="What happened?" required error={form.missing.text}>
+          <Textarea rows={4} required value={form.text} onChange={(e) => form.setText(e.target.value)} placeholder="Dates, what was agreed and what happened instead. Support reads this first." />
         </Field>
-        {/* The error shows once there is something to judge, not on an untouched field. */}
-        <Field label="Amount in question (USD)" hint={`Up to ${usd(cap)} — ${capNote}`} error={form.touched || form.amount.trim() ? form.checked.error : undefined}>
-          <Input value={form.amount} inputMode="decimal" onChange={(e) => form.setAmount(e.target.value)} onBlur={() => form.setTouched(true)} placeholder="1,600.00" />
+        {/* The error shows once there is something to judge (typed in, left, or filed), not on an untouched field. */}
+        <Field label="Amount in question (USD)" required hint={`Up to ${usd(cap)} ${capNote}`} error={form.missing.amount}>
+          <Input value={form.amount} required inputMode="decimal" onChange={(e) => form.setAmount(e.target.value)} onBlur={() => form.setTouched(true)} placeholder="0.00" />
         </Field>
         <div className="flex flex-col gap-2">
           <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Screenshots and files (optional)</p>
@@ -73,17 +75,17 @@ export function DisputeForm({ open, onClose, title, description, cap, capNote, o
         <Field label="Link (optional)">
           <Input value={form.evidence} onChange={(e) => form.setEvidence(e.target.value)} placeholder="A document or thread that lives somewhere else" />
         </Field>
-        <p className="text-[12.5px] leading-[1.4] text-ink-2">
-          {form.ready ? `Once it's filed, the other side has ${TURN_DAYS} days to respond. If they don't, it closes in your favor.` : "Choose a reason, say what happened and enter the amount before filing."}
-        </p>
+        <p className="text-[12.5px] leading-[1.4] text-ink-2">Once it&apos;s filed, the other side has {TURN_DAYS} days to respond. If they don&apos;t, it closes in your favor.</p>
       </div>
     </Modal>
   );
 }
 
 /**
- * The dispute being written: its fields, whether it can be filed yet, and filing it — the files are
- * kept in this browser first, and a filed dispute leaves the form empty.
+ * The dispute being written: its fields, what's missing from them, and filing it — the files are
+ * kept in this browser first, and a filed dispute leaves the form empty. Filing with a field left
+ * empty marks every one that is (`tried`); the amount also says what's wrong once it's been typed in
+ * or left.
  */
 function useDisputeDraft(cap: number, onFile: (d: DisputeDraft) => void | Promise<void>) {
   const [reason, setReason] = useState("");
@@ -93,9 +95,14 @@ function useDisputeDraft(cap: number, onFile: (d: DisputeDraft) => void | Promis
   const [files, setFiles] = useState<File[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [touched, setTouched] = useState(false);
+  const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const checked = checkAmount(amount, cap);
-  const ready = !!reason && !!text.trim() && checked.value !== null;
+  const missing = {
+    reason: tried && !reason ? "Choose a reason." : undefined,
+    text: tried && !text.trim() ? "Say what happened." : undefined,
+    amount: tried || touched || amount.trim() ? checked.error : undefined,
+  };
   const reset = () => {
     setReason("");
     setText("");
@@ -104,9 +111,11 @@ function useDisputeDraft(cap: number, onFile: (d: DisputeDraft) => void | Promis
     setFiles([]);
     setFileError(null);
     setTouched(false);
+    setTried(false);
   };
   const file = async () => {
-    if (checked.value === null) return;
+    setTried(true);
+    if (!reason || !text.trim() || checked.value === null) return;
     setBusy(true);
     try {
       const attachments = await Promise.all(files.map(keepFile));
@@ -118,17 +127,17 @@ function useDisputeDraft(cap: number, onFile: (d: DisputeDraft) => void | Promis
       setBusy(false);
     }
   };
-  return { reason, setReason, text, setText, amount, setAmount, evidence, setEvidence, files, setFiles, fileError, setFileError, touched, setTouched, busy, checked, ready, reset, file };
+  return { reason, setReason, text, setText, amount, setAmount, evidence, setEvidence, files, setFiles, fileError, setFileError, setTouched, busy, missing, reset, file };
 }
 
-/** "You · 4 days left", "Juan Dela Cruz · 2 days left", "Hireable support" — or nothing once it's closed. */
+/** "You · 4 days left", "Juan Dela Cruz · 2 days left", "Hireable support" — or "No one" once it's closed. */
 function WaitingOn({ d, side, now }: { d: Dispute; side: DisputeParty; now: number }) {
   const who = waitingOn(d);
   const t = partyTurn(d);
-  if (!who) return <span className="text-ink-2">—</span>;
+  if (!who) return <span className="text-ink-2">No one</span>;
   if (who === "support") return <span className="text-ink-2">Hireable support</span>;
   const left = t ? leftLabel(t.due, now).toLowerCase() : "";
-  return who === side ? <span className="font-semibold text-[#8e6f12]">You · {left}</span> : <span className="truncate">{partyName(d, who)} · {left}</span>;
+  return who === side ? <span className="font-semibold text-warn-ink">You · {left}</span> : <span className="truncate">{partyName(d, who)} · {left}</span>;
 }
 
 /** IN-032 / IN-046 — every dispute on one contract, whoever filed it, for its Contract & Payment tab. */
@@ -137,7 +146,7 @@ export function DisputeRows({ disputes, side }: { disputes: Dispute[]; side: Dis
   return (
     <ul className="flex flex-col">
       {disputes.map((d) => {
-        const outcome = outcomeOf(d);
+        const outcome = outcomeOf(d, side);
         return (
           <li key={d.id} className="flex items-center gap-3 border-t border-border py-3 text-[13px] leading-[1.4] first:border-t-0 first:pt-0 last:pb-0">
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -184,19 +193,29 @@ const TABLES: Record<DisputeParty, { cols: string[]; head: string[] }> = {
   },
   independent: {
     cols: ["w-[108px]", "min-w-0 flex-1", "w-[180px]", "w-[112px]", "w-[184px]", "w-[112px]", "w-[104px]"],
-    head: ["Filed", "Contract · reason", "Company", "Amount", "Waiting on", "Status", ""],
+    head: ["Filed", "Contract · reason", "Team Builder", "Amount", "Waiting on", "Status", ""],
   },
 };
 const COPY = {
   team: {
-    sentEmpty: "If something goes wrong on a contract, file a dispute from that independent's tracker and it will be listed here.",
-    receivedEmpty: "If an independent files a dispute on one of your contracts, it's listed here so you can respond.",
+    sentEmpty: "If something goes wrong on a contract, file a dispute from that Independent's contract page and it's listed here.",
+    receivedEmpty: "If an Independent files a dispute on one of your contracts, it's listed here so you can respond.",
+    search: "Search by Independent, contract or reason",
   },
   independent: {
-    sentEmpty: "If a payment goes wrong on a contract, file a dispute from that contract's Contract & Payment tab and it is listed here.",
-    receivedEmpty: "If a company files a dispute on one of your contracts, it's listed here so you can respond.",
+    sentEmpty: "If a payment goes wrong on a contract, file a dispute from that contract's Contract & Payment tab and it's listed here.",
+    receivedEmpty: "If a Team Builder files a dispute on one of your contracts, it's listed here so you can respond.",
+    search: "Search by company, contract or reason",
   },
 };
+
+/** #52 / #221 — the rules in four lines, folded under their heading until they're wanted. */
+const HOW_DISPUTES_WORK = [
+  `Each side has ${TURN_DAYS} days to reply when it's their turn.`,
+  "No reply in time closes the dispute in the other side's favor.",
+  `Hireable support reviews the case within ${SLA_DAYS} working days.`,
+  "The disputed amount stays on hold until the dispute closes.",
+];
 
 /**
  * TB-091 / IN-080 — Sent is every dispute this side filed, across all contracts, newest first;
@@ -210,7 +229,7 @@ export function DisputesPage({ side }: { side: DisputeParty }) {
   const [status, setStatus] = useState("All statuses");
   // Old notifications' ?open= links to this list are sent on to the case by next.config.ts.
 
-  const { sent, received, list, rows, yours } = disputeLists(all, side, tab, status, q);
+  const { sent, received, list, rows } = disputeLists(all, side, tab, status, q);
   const { cols, head } = TABLES[side];
   const clearFilters = () => {
     setQ("");
@@ -231,8 +250,8 @@ export function DisputesPage({ side }: { side: DisputeParty }) {
         />
       }
     >
-      <Toolbar right={<ListCount list={list} yours={yours} />}>
-        <SearchBox value={q} onChange={setQ} placeholder={side === "team" ? "Search by independent, contract or reason" : "Search by company, contract or reason"} className="w-[320px]" />
+      <Toolbar right={<ListCount list={list} side={side} />}>
+        <SearchBox value={q} onChange={setQ} placeholder={COPY[side].search} className="w-[320px]" />
         <Select options={["All statuses", ...DISPUTE_STATUSES]} value={status} onChange={(e) => setStatus(e.target.value)} className="!w-[180px]" />
       </Toolbar>
 
@@ -248,17 +267,30 @@ export function DisputesPage({ side }: { side: DisputeParty }) {
         </Table>
       )}
 
-      <p className="text-[12.5px] leading-[1.5] text-muted">
-        Each side answers in turn and has {TURN_DAYS} days to do it — a turn that runs out closes the dispute for the other side. Hireable support reviews the process, not the quality of the work, usually within {SLA_DAYS} working days, and the two sides can settle between themselves at any point. The amount in question stays put until it closes — in escrow on a trial, kept back from the pay on a full-time or part-time role.
-      </p>
+      <HowDisputesWork />
     </Page>
+  );
+}
+
+/** The rules, folded: the same disclosure the Workload view explains itself with. */
+function HowDisputesWork() {
+  return (
+    <details className="self-start rounded-lg bg-[#f5f9fc] px-3 py-2 text-[12.5px] leading-[1.5] text-[#1d3a52] open:pb-3">
+      <summary className="flex cursor-pointer items-center gap-1.5 font-medium">
+        <ICONS.info size={15} aria-hidden /> How disputes work
+      </summary>
+      <ul className="mt-1.5 flex list-disc flex-col gap-0.5 pl-5">
+        {HOW_DISPUTES_WORK.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
 /**
  * The page's lists: the disputes this side is party to, as Sent (what it filed) and Received (what
- * was filed against it); the open tab's, and what's left of them after the search and status; and
- * how many are waiting on this side.
+ * was filed against it); the open tab's, and what's left of them after the search and status.
  */
 function disputeLists(all: Dispute[], side: DisputeParty, tab: "sent" | "received", status: string, q: string) {
   // One pair in the demo, but a portal still only lists the disputes it is a party to.
@@ -268,16 +300,21 @@ function disputeLists(all: Dispute[], side: DisputeParty, tab: "sent" | "receive
   const list = tab === "sent" ? sent : received;
   const counterpart = (d: Dispute) => partyName(d, otherParty(side));
   const rows = list.filter((d) => (status === "All statuses" || d.status === status) && `${contractName(d)} ${counterpart(d)} ${d.reason}`.toLowerCase().includes(q.trim().toLowerCase()));
-  const yours = ours.filter((d) => waitingOn(d) === side).length;
-  return { sent, received, list, rows, yours };
+  return { sent, received, list, rows };
 }
 
-/** Beside the filters: how many disputes the tab holds and how many are open, then how many wait on this side. */
-function ListCount({ list, yours }: { list: Dispute[]; yours: number }) {
+/**
+ * Beside the filters, for the open tab only: how many disputes it holds and how many are open, then
+ * how many of them wait on this side — or, with one open, who it waits on.
+ */
+function ListCount({ list, side }: { list: Dispute[]; side: DisputeParty }) {
+  const open = list.filter((d) => d.status === "Pending");
+  const yours = open.filter((d) => waitingOn(d) === side).length;
+  const only = open.length === 1 ? waitingOn(open[0]) : null;
   return (
     <span className="text-[14px] leading-[1.4] text-ink-2">
-      {list.length} {list.length === 1 ? "dispute" : "disputes"} · {list.filter((d) => d.status === "Pending").length} open
-      {yours > 0 && <span className="font-semibold text-[#8e6f12]"> · {yours} waiting on you</span>}
+      {list.length} {list.length === 1 ? "dispute" : "disputes"} · {open.length} open
+      {yours > 0 ? <span className="font-semibold text-warn-ink"> · {yours} waiting on you</span> : only ? ` · waiting on ${only === "support" ? "Hireable support" : partyName(open[0], only)}` : null}
     </span>
   );
 }

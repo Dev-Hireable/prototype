@@ -1,4 +1,4 @@
-import { durationDays, isoDay } from "../portal/dates";
+import { durationDays, isoDay, trialLength, trialMonths } from "../portal/dates";
 
 /**
  * The three kinds of role a Team Builder posts, and the contract each one turns into.
@@ -13,9 +13,6 @@ export type JobType = "trial" | "full-time" | "part-time";
 export type OngoingType = Exclude<JobType, "trial">;
 
 export const JOB_TYPE_LABEL: Record<JobType, string> = { trial: "Trial", "full-time": "Full-time", "part-time": "Part-time" };
-
-/** What the pay is called on each kind of contract. */
-export const payLabel = (type: JobType) => (type === "full-time" ? "Salary" : type === "trial" ? "Budget" : "Rate");
 
 /** TB-024 / TB-072 / IN-046 — the benefits every full-time engagement includes, on top of salary. */
 export const FT_BENEFITS = ["Health Insurance Coverage", "Government Contribution Coverage", "Internet Allowance", "Learning & Development Allowance"];
@@ -41,17 +38,60 @@ export const startLabel = (duration: string) => {
 };
 
 /**
+ * A pay as every screen prints it: whole dollars, "to" between a range's two ends, and no unit
+ * ("$1,600.00 – $2,000.00 /month" → "$1,600 to $2,000"). The posted range carries cents because the
+ * wizard settles its fields to two decimals. Whatever unit it was saved or shown with goes: a role's
+ * "/mo" or "/month", a trial's "for the trial".
+ */
+const payAmount = (pay: string) =>
+  pay
+    .replace(/\.00\b/g, "")
+    .replace(/\s*(\/\s*mo(nth)?\b|for the trial\b).*$/i, "")
+    .replace(/\s*[–-]\s*(?=\$)/, " to ")
+    .trim();
+
+/**
+ * How a pay reads, by the contract it pays for: a trial's is one total for the whole trial ("$1,600
+ * for the trial"), a full-time or part-time role's is monthly ("$4,000 /month"); a range reads
+ * "$1,600 to $2,000 for the trial". The one place a pay gets its unit, so it reads the same on every
+ * screen, and reading it again changes nothing.
+ */
+export const payFor = (type: JobType, pay: string) => {
+  const amount = payAmount(pay);
+  return /\d/.test(amount) ? `${amount} ${type === "trial" ? "for the trial" : "/month"}` : amount;
+};
+
+/** A trial's total as a month of pay (the total over its months, trialMonths), to compare with a monthly rate. */
+export const trialMonthly = (total: number, days: number) => Math.round(total / trialMonths(days));
+
+/**
+ * A trial's pay saved the old way, as a monthly rate ("$1,600 /month", "$1,600.00 - $2,000.00 /mo"),
+ * as the total it stood for: the rate for each month of the trial. A 30-day trial keeps its number;
+ * a pay already saved as a total passes through.
+ */
+export function trialTotal(pay: string, days: number): string {
+  if (!/\/\s*mo(nth)?\b/i.test(pay)) return pay;
+  const months = trialMonths(days);
+  const times = (n: string) => (Number(n.replace(/,/g, "")) * months).toLocaleString("en-US", { minimumFractionDigits: n.includes(".") ? 2 : 0, maximumFractionDigits: 2 });
+  return pay
+    .replace(/\$\s*([\d,]+(?:\.\d+)?)/g, (_, n: string) => `$${times(n)}`)
+    .replace(/\s*\/\s*mo(nth)?\b.*$/i, "")
+    .trim();
+}
+
+/**
  * A role's facts for a facts strip (FactStrip on the job and application pages), as the talent
- * profile reads its own: the pay — with a part-time role's hours — how long the trial runs or when an
+ * profile reads its own: the pay (with a part-time role's hours), how long the trial runs or when an
  * ongoing role starts, and the experience level over its years.
  */
 export function jobFacts(job: { type: JobType; pay: string; duration: string; hours?: number; level: string }) {
-  // "Intermediate (2–5 years)" reads as the level over its years; "$900.00 – $1,500.00 /month" as the range over "per month".
+  // "Intermediate (2–5 years)" reads as the level over its years, and "30 working days (about 6 weeks)" as the days over the weeks.
   const [, tier = job.level, years = "Experience"] = job.level.match(/^(.*?)\s*\((.+)\)$/) ?? [];
-  const pay = job.pay.replace(/\.00\b/g, "").replace(/\s*\/\s*mo(nth)?\b.*$/i, "").trim();
+  const [, days = "", weeks = ""] = trialLength(durationDays(job.duration)).match(/^(.*?) \((.+)\)$/) ?? [];
   return [
-    { value: pay, label: job.type === "full-time" ? "salary per month" : job.type === "part-time" && job.hours ? `per month, ${hoursLabel(job.hours)}` : "per month" },
-    job.type === "trial" ? { value: `${durationDays(job.duration)} days`, label: "paid trial" } : { value: startLabel(job.duration), label: "start" },
+    // A trial pays one total for the whole of it; a role pays monthly.
+    { value: payAmount(job.pay), label: job.type === "trial" ? "for the trial" : job.type === "part-time" && job.hours ? `per month, ${hoursLabel(job.hours)}` : "per month" },
+    job.type === "trial" ? { value: days, label: `paid trial, ${weeks}` } : { value: startLabel(job.duration), label: "start" },
     { value: tier, label: years },
   ];
 }

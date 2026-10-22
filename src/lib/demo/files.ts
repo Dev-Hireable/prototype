@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import type { Attachment } from "@/lib/disputes/case";
 
 /**
- * Files attached to a dispute — screenshots, PDFs — kept in the browser's IndexedDB, which every
- * tab of the app shares and which holds far more than localStorage. The case keeps each file's
- * id, name, type and size; the bytes are read back from here to show them to either party or to
- * support.
+ * Files attached to a dispute or shown as portfolio samples — screenshots, PDFs — kept in the
+ * browser's IndexedDB, which every tab of the app shares and which holds far more than
+ * localStorage. The case (or the portfolio) keeps each file's id, name, type and size; the bytes
+ * are read back from here to show them to either party or to support.
  * ponytail: there's no upload server in the prototype, so a file lives in the browser it was
  * added in — the same browser the demo's three portals share.
  */
@@ -79,6 +79,9 @@ export async function keepFile(f: File): Promise<Attachment> {
 
 const readFile = (id: string) => run<Blob | undefined>("readonly", (s) => s.get(id) as IDBRequest<Blob | undefined>);
 
+/** Let go of a kept file: a sample taken off a portfolio. A file this browser doesn't have is already gone. */
+export const dropFile = (id: string) => run("readwrite", (s) => s.delete(id));
+
 /** "240 KB", "1.4 MB". */
 export const sizeLabel = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1000))} KB`);
 
@@ -104,4 +107,22 @@ export function useFileUrl(id: string): { url: string | null; missing: boolean }
     };
   }, [id]);
   return state.id === id ? state : { url: null, missing: false };
+}
+
+/**
+ * A picked image as a URL for its preview, made once it's on screen and let go when it leaves. Made
+ * in an effect, not during render: Strict Mode's remount revoked the memoized URL and blanked the
+ * preview.
+ */
+export function usePreviewUrl(file: File | null): string | null {
+  const [state, setState] = useState<{ file: File; url: string } | null>(null);
+  useEffect(() => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    // The URL is a browser resource made and let go here — the external system this effect syncs.
+    // oxlint-disable-next-line react/set-state-in-effect
+    setState({ file, url });
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+  return state && state.file === file ? state.url : null;
 }

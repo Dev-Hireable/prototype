@@ -32,6 +32,18 @@ export function dayLabel(d: Date | string | undefined): string {
 }
 
 /**
+ * "25 Sep to 05 Nov 2026": a span of days, the year said once when both ends share it ("28 Dec
+ * 2026 to 08 Feb 2027" when they don't). Either end `parseDay` can't read passes through.
+ */
+export function dayRangeLabel(from: Date | string | undefined, to: Date | string | undefined): string {
+  const a = typeof from === "string" ? parseDay(from) : from;
+  const b = typeof to === "string" ? parseDay(to) : to;
+  if (!a || !b) return `${dayLabel(from)} to ${dayLabel(to)}`;
+  const start = a.getFullYear() === b.getFullYear() ? `${pad(a.getDate())} ${MONTHS[a.getMonth()]}` : dayLabel(a);
+  return `${start} to ${dayLabel(b)}`;
+}
+
+/**
  * "23 Sep" this year, "23 Sep 25" in any other — for tight table columns where the full label
  * would take the width of two. Strings `parseDay` can't read pass through.
  */
@@ -70,31 +82,44 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const formatDate = (d: Date) => `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 
 /**
- * The slots an interview can be booked, moved or asked to move to, in the Team Builder's time zone
- * — (GMT+8) Manila, as the availability settings say. They were EST in booking and PHT in
- * Reschedule, so one interview could read in two zones.
+ * The slots an interview can be booked, moved or asked to move to, in the clock of whoever picks
+ * one: their saved time zone, or this device's. The booking keeps that clock's offset, so each side
+ * reads the slot in its own time (`slotClocks` in ./timezones).
  */
-export const INTERVIEW_TIMES = ["09:00 AM (PHT)", "10:00 AM (PHT)", "02:00 PM (PHT)", "04:00 PM (PHT)"];
+export const INTERVIEW_TIMES = ["09:00 AM", "10:00 AM", "02:00 PM", "04:00 PM"];
 
-/** An interview's `when` ("Tue 29 Sep 2026, 10:00 AM (PHT)") as its start, read in local time. */
-function interviewStart(when: string): Date | undefined {
-  const m = /(\d{1,2}) (\w{3}) (\d{4}), (\d{1,2}):(\d{2}) (AM|PM)/.exec(when);
+/**
+ * The moment an interview slot ("Tue 29 Sep 2026, 10:00 AM") starts, read in the clock `offset`
+ * minutes off UTC it was picked in. Undefined if the slot doesn't read as a date and time.
+ */
+export function slotInstant(when: string, offset: number): number | undefined {
+  const m = /(\d{1,2}) (\w{3}) (\d{4}), (\d{1,2}):(\d{2}) ([AP]M)/.exec(when);
   const month = m ? MONTHS.indexOf(m[2]) : -1;
   if (!m || month < 0) return undefined;
   const hour = (Number(m[4]) % 12) + (m[6] === "PM" ? 12 : 0);
-  return new Date(Number(m[3]), month, Number(m[1]), hour, Number(m[5]));
+  return Date.UTC(Number(m[3]), month, Number(m[1]), hour, Number(m[5])) - offset * 60_000;
+}
+
+/** Minutes off UTC of the clock a slot was picked in: the one it was saved with, else (GMT+8) for the old "(PHT)" slots, else this device's. */
+export const slotOffset = (when: string, offset?: number) => offset ?? (/\(PHT\)/.test(when) ? 480 : -new Date().getTimezoneOffset());
+
+/** An interview's start as a moment: when it's booked, a slot reads as nothing more than a date and time in that clock. */
+function interviewStart(when: string, offset?: number): number | undefined {
+  return slotInstant(when, slotOffset(when, offset));
 }
 
 /** An interview whose start hasn't come yet. */
-export function isUpcoming(when: string, now = Date.now()) {
-  const start = interviewStart(when)?.getTime();
+export function isUpcoming(when: string, offset?: number, now = Date.now()) {
+  const start = interviewStart(when, offset);
   return start !== undefined && start > now;
 }
 
-/** Join call opens 15 minutes before the start and stays open for the hour after it. */
-export function canJoin(when: string, now = Date.now()) {
-  const start = interviewStart(when)?.getTime();
-  return start !== undefined && now >= start - 15 * 60_000 && now <= start + 60 * 60_000;
+/** Join call opens 10 minutes before the start and stays open for the hour after it. */
+export const JOIN_OPENS_MINUTES = 10;
+
+export function canJoin(when: string, offset?: number, now = Date.now()) {
+  const start = interviewStart(when, offset);
+  return start !== undefined && now >= start - JOIN_OPENS_MINUTES * 60_000 && now <= start + 60 * 60_000;
 }
 
 /** yyyymmdd — what the ledgers sort and filter on. */
@@ -140,7 +165,20 @@ function workingDaysBetween(from: Date, to: Date) {
 /** "30 Days" → 30; a role saved without a duration is a 30-day trial. */
 export const durationDays = (duration: string | undefined) => Number(duration?.match(/\d+/)?.[0] ?? 30) || 30;
 
-/** A trial is paid at its monthly rate: 30 days is one month of it, 60 two and 90 three. */
+/** "30 working days": a trial's length in the days its clock counts. */
+export const workingDaysLabel = (days: number) => `${days} working ${days === 1 ? "day" : "days"}`;
+
+/**
+ * "30 working days (about 6 weeks)": a trial's length wherever it's chosen, proposed, offered or
+ * signed. A trial counts weekdays, so "30 Days" alone read as a calendar month beside an end date
+ * six weeks out.
+ */
+export const trialLength = (days: number) => `${workingDaysLabel(days)} (about ${Math.round(days / 5)} weeks)`;
+
+/**
+ * How many months of pay a trial stands for: 30 days is one, 60 two and 90 three. A trial pays one
+ * total; this is how that total compares with a monthly rate, and how an old monthly rate became one.
+ */
 export const trialMonths = (days: number) => Math.max(1, Math.round(days / 30));
 
 /**
@@ -159,7 +197,10 @@ export function trialClock(started: string, ends: string, now = new Date()) {
   const total = Math.max(1, weekdaysThrough(from, to));
   const over = today > to;
   const done = today < from ? 0 : weekdaysThrough(from, today < to ? today : to);
-  const left = over ? 0 : Math.max(1, weekdaysThrough(today < from ? from : today, to));
+  // What's left is the working days after today, so the day and what's left add up to the length
+  // ("Day 5 of 30 · 25 working days left"). Today was counted in both, and read "26 left". On the
+  // last day nothing is left after it, and the countdown says "Last day".
+  const left = over ? 0 : today < from ? total : workingDaysBetween(today, to);
   return { label: `Day ${Math.min(total, Math.max(1, done))} of ${total}`, left, over, total };
 }
 
@@ -168,8 +209,11 @@ function weekdaysThrough(from: Date, to: Date) {
   return (isWeekday(from) ? 1 : 0) + workingDaysBetween(from, to);
 }
 
-/** "1 day left" or "12 days remaining"; a closed trial says so instead of "0 days left". */
-export const daysLeftLabel = (left: number, suffix = "left") => (left <= 0 ? "Trial closed" : `${left} ${left === 1 ? "day" : "days"} ${suffix}`);
+/**
+ * What's left of a trial, in the same words on every screen: "25 working days left", "1 working
+ * day left", "Last day" on its last day, and "Trial closed" once it's over.
+ */
+export const daysLeftLabel = (left: number, over = false) => (over ? "Trial closed" : left <= 0 ? "Last day" : `${workingDaysLabel(left)} left`);
 
 /** A date that has come — today counts. */
 export function isPast(day: string, now = new Date()) {
@@ -183,10 +227,21 @@ function quarterLabel(d: Date = new Date()) {
   return `Q${q + 1} ${d.getFullYear()} (${MONTHS[q * 3]} to ${MONTHS[q * 3 + 2]})`;
 }
 
-/** The first quarter a full-time contract is reviewed in: this one, or the one it starts in if that is later. */
+/** The first day of the quarter `d` falls in. */
+const quarterOf = (d: Date) => new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1);
+
+/**
+ * The quarter a full-time or part-time contract is reviewed for: the one it's in now, but never one
+ * it joined part-way. Its first is the first full quarter that starts on or after its first day, so
+ * a role that starts on 21 Sep is first reviewed for Q4 (Oct to Dec), not for Q3's last ten days.
+ */
 export function reviewQuarter(start: string | undefined, now = new Date()) {
   const from = parseDay(start);
-  return quarterLabel(from && from > now ? from : now);
+  const current = quarterOf(now);
+  if (!from) return quarterLabel(current);
+  const q = quarterOf(from);
+  const first = q.getTime() === from.getTime() ? q : new Date(q.getFullYear(), q.getMonth() + 3, 1);
+  return quarterLabel(first > current ? first : current);
 }
 
 /**

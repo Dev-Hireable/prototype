@@ -2,11 +2,10 @@ import type { ReactNode } from "react";
 import { Button, Card, CardHeading, Field, Select, Textarea } from "@/components/portal/ui";
 import { ContractScore, Stars } from "@/components/portal/contract-parts";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
-import { Tip } from "@/components/portal/tip";
 import { usd } from "@/lib/demo/disputes";
 import { keyed } from "@/lib/portal/keys";
 import { refOf } from "@/lib/work/model";
-import { evaluationIntro, hireLabel } from "../_lib/copy";
+import { evaluationIntro, evaluationOpens, hireLabel } from "../_lib/copy";
 import { SCORES, type EvaluationDraft as Draft } from "../_lib/forms";
 import type { Tracker } from "../_lib/tracker";
 
@@ -31,11 +30,13 @@ export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft;
           </h2>
           <p className="text-[14px] leading-[1.4] text-ink-2">{evaluationIntro(t)}</p>
         </div>
-        <Card className={`flex flex-col gap-4 p-5 ${!canEvaluate && !sent ? "opacity-60" : ""}`}>
-          <EvaluationForm t={t} draft={draft} />
-          {/* TB-067: every field is required — a rating alone isn't an assessment. */}
+        <Card className="flex flex-col gap-4 p-5">
+          {/* Dimmed while it can't be sent yet; the buttons and the line saying when it opens stay legible. */}
+          <div className={`flex flex-col gap-4 ${!canEvaluate && !sent ? "opacity-60" : ""}`}>
+            <EvaluationForm t={t} draft={draft} />
+          </div>
+          {/* TB-067: every field is required (marked *); a disabled Send says what's still missing. */}
           <div className="flex flex-wrap justify-end gap-3">{actions}</div>
-          {canEvaluate && !sent && !draft.ready && <p className="text-right text-[12.5px] leading-[1.4] text-ink-2">Add a recommendation and written feedback to send.</p>}
         </Card>
         <EvaluationHistory t={t} />
       </div>
@@ -47,25 +48,31 @@ export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft;
   );
 }
 
-/** Five scores, a recommendation and comments — or, on a trial whose evaluation is in, what it was sent with. */
+/** Five scores, a recommendation and comments, all required; or, on a trial whose evaluation is in, what it was sent with. */
 function EvaluationForm({ t, draft }: { t: Tracker; draft: Draft }) {
-  const { isTrial, submitted, latest, canEvaluate } = t;
+  const { first, isTrial, submitted, latest, canEvaluate } = t;
   const sent = isTrial && submitted;
   const locked = !canEvaluate || sent;
-  /** A trial's evaluation shows the scores it was sent with, not this page's defaults. */
+  /** A trial's evaluation shows the scores it was sent with; a new one starts with none picked. */
   const shownScores = sent && latest?.scores ? SCORES.map((label, i) => latest.scores?.find((s) => s.label === label)?.value ?? draft.scores[i]) : draft.scores;
   return (
     <>
       {SCORES.map((label, i) => (
         // On a phone the label sits over its five scores, which share the width as 44px targets.
         <div key={label} className="flex items-center justify-between max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
-          <p className="text-[14px] leading-[1.4] font-medium text-ink">{label}</p>
-          <div className="flex gap-2 max-sm:grid max-sm:grid-cols-5">
+          <p className="text-[14px] leading-[1.4] font-medium text-ink">
+            {label}
+            <span aria-hidden className="text-danger">
+              {" *"}
+            </span>
+          </p>
+          <div role="group" aria-label={label} className="flex gap-2 max-sm:grid max-sm:grid-cols-5">
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
                 type="button"
                 disabled={locked}
+                aria-pressed={n === shownScores[i]}
                 onClick={() => draft.setScores((s) => s.map((v, k) => (k === i ? n : v)))}
                 className={`flex h-9 w-11 items-center max-sm:h-11 max-sm:w-auto justify-center rounded-md text-[14px] leading-[1.4] font-medium ${n === shownScores[i] ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"}`}
               >
@@ -75,8 +82,7 @@ function EvaluationForm({ t, draft }: { t: Tracker; draft: Draft }) {
           </div>
         </div>
       ))}
-      <div className="flex flex-col gap-2 pt-2">
-        <p className="text-[14px] leading-[1.4] font-medium text-ink">Recommendation</p>
+      <Field label="Recommendation" required className="pt-2">
         <Select
           aria-label="Recommendation"
           options={isTrial ? RECOMMENDATIONS : ["Select a recommendation", "Keep going as is", "Change the scope", "End the engagement"]}
@@ -84,15 +90,16 @@ function EvaluationForm({ t, draft }: { t: Tracker; draft: Draft }) {
           disabled={locked}
           onChange={(e) => draft.setRecommendation(e.target.value === "Select a recommendation" ? "" : e.target.value)}
         />
-      </div>
-      <Field label="Comments for the independent">
-        <Textarea rows={3} disabled={locked} value={sent ? latest.feedback : draft.feedback} onChange={(e) => draft.setFeedback(e.target.value)} placeholder="What went well, what to improve" />
+      </Field>
+      <Field label={`Comments for ${first}`} required>
+        <Textarea rows={3} required disabled={locked} value={sent ? latest.feedback : draft.feedback} onChange={(e) => draft.setFeedback(e.target.value)} placeholder="What went well, what to improve" />
       </Field>
     </>
   );
 }
 
-type ActionProps = { t: Tracker; ready: boolean; onEnd: () => void; onHire: () => void; onSend: () => void };
+/** `missing`: what the evaluation still needs before it can be sent, for its disabled Send button. */
+type ActionProps = { t: Tracker; ready: boolean; missing?: string; onEnd: () => void; onHire: () => void; onSend: () => void };
 
 /** The buttons under the form: send it — and, on a trial, what sending it unlocks: ending the contract or hiring. */
 export function EvaluationActions(props: ActionProps) {
@@ -102,7 +109,11 @@ export function EvaluationActions(props: ActionProps) {
   return <RoleReview {...props} />;
 }
 
-/** TB-071 / TB-072 unlock only once the evaluation is on file — and ending waits for any dispute, since the escrow it would release is on hold. */
+/**
+ * TB-071 / TB-072 unlock only once the evaluation is on file, and ending waits for any dispute, since
+ * the escrow it would release is on hold. Hire leads; End contract sits beside it as a quiet button,
+ * and its confirm is the red one.
+ */
 function TrialDecided({ t, onEnd, onHire }: ActionProps) {
   const { view, ends, endBlocked, ended, conversionLocked } = t;
   return (
@@ -110,7 +121,7 @@ function TrialDecided({ t, onEnd, onHire }: ActionProps) {
       {(view.onDeal ? !!ends.close?.blocked : endBlocked) && !ended && (
         <p className="w-full text-right text-[13px] leading-[1.4] text-ink-2">A dispute on this contract is holding {usd(view.escrow?.onHold ?? 0)} in escrow. You can end the contract once Hireable support has ruled on it.</p>
       )}
-      <Button size="lg" variant="danger" disabled={ended || (view.onDeal ? !ends.close || !!ends.close.blocked : endBlocked)} onClick={onEnd}>
+      <Button size="lg" disabled={ended || (view.onDeal ? !ends.close || !!ends.close.blocked : endBlocked)} onClick={onEnd}>
         {ended ? "Contract ended" : "End contract"}
       </Button>
       <Button size="lg" variant="primary" disabled={conversionLocked || ended} title={ended ? "The contract has ended" : undefined} onClick={onHire}>
@@ -121,36 +132,38 @@ function TrialDecided({ t, onEnd, onHire }: ActionProps) {
 }
 
 /**
- * TB-071 / TB-072 want these visible but greyed out before the evaluation, so it's clear what
- * submitting one unlocks rather than hiding it.
+ * TB-067 / TB-071 / TB-072 want these visible but greyed out before the evaluation, so it's clear
+ * what submitting one unlocks rather than hiding it; while the trial runs, one line beside them says
+ * the day it opens.
  */
-function TrialPending({ t, ready, onEnd, onSend }: ActionProps) {
+function TrialPending({ t, ready, missing, onEnd, onSend }: ActionProps) {
   const { first, ends, canEvaluate, waiting } = t;
+  const opens = canEvaluate ? undefined : evaluationOpens(t);
   return (
     <>
+      {opens && <span className="mr-auto self-center text-[13px] leading-[1.4] text-ink-2">{opens}</span>}
+      {/* A warning, before the buttons so they keep to one line: the score is final once this is sent. */}
+      {canEvaluate && waiting.length > 0 && (
+        <p className="w-full text-right text-[13px] leading-[1.4] text-pretty text-warn-ink">
+          <span className="font-semibold">
+            {refOf(waiting[0])} {waiting[0].title}
+          </span>
+          {waiting.length > 1 && ` and ${waiting.length - 1} more`} still {waiting.length === 1 ? "waits" : "wait"} on your review. Approve {waiting.length === 1 ? "it" : "them"} first: the Trial fit score is final once this is sent.
+        </p>
+      )}
       {ends.cancel ? (
         <Button size="lg" variant="danger" onClick={onEnd}>
           Cancel trial
         </Button>
       ) : (
-        <Tip label="Send your evaluation first" wrap>
-          <Button size="lg" variant="danger" disabled>
-            End contract
-          </Button>
-        </Tip>
+        <Button size="lg" disabled title="Send your evaluation first">
+          End contract
+        </Button>
       )}
       <Button size="lg" disabled title="Send your evaluation first">
         Hire {first}
       </Button>
-      {canEvaluate && waiting.length > 0 && (
-        <p className="w-full text-right text-[13px] leading-[1.4] text-[#8e6f12]">
-          <span className="font-semibold">
-            {refOf(waiting[0])} {waiting[0].title}
-          </span>
-          {waiting.length > 1 && ` and ${waiting.length - 1} more`} still {waiting.length === 1 ? "waits" : "wait"} on your review. Approve {waiting.length === 1 ? "it" : "them"} first: the Trial Fit Score is final once this is sent.
-        </p>
-      )}
-      <Button size="lg" variant="primary" disabled={!canEvaluate || !ready} onClick={onSend}>
+      <Button size="lg" variant="primary" disabled={!canEvaluate || !ready} title={opens ?? missing} onClick={onSend}>
         Send evaluation
       </Button>
     </>
@@ -158,7 +171,7 @@ function TrialPending({ t, ready, onEnd, onSend }: ActionProps) {
 }
 
 /** TB-117 — a full-time or part-time role: a review whenever there's feedback, and ending it. */
-function RoleReview({ t, ready, onEnd, onSend }: ActionProps) {
+function RoleReview({ t, ready, missing, onEnd, onSend }: ActionProps) {
   const { view, ends, endBlocked, ended, canEvaluate } = t;
   return (
     <>
@@ -167,7 +180,7 @@ function RoleReview({ t, ready, onEnd, onSend }: ActionProps) {
           {ends.cancel ? "Cancel contract" : view.notice ? "End today" : "End contract"}
         </Button>
       )}
-      <Button size="lg" variant="primary" disabled={!canEvaluate || !ready} onClick={onSend}>
+      <Button size="lg" variant="primary" disabled={!canEvaluate || !ready} title={canEvaluate ? missing : undefined} onClick={onSend}>
         Send evaluation
       </Button>
     </>
@@ -182,7 +195,7 @@ function EvaluationHistory({ t }: { t: Tracker }) {
       <CardHeading>Evaluation history</CardHeading>
       {history.length === 0 ? (
         <Card className="p-5 text-[13px] leading-[1.4] text-ink-2">
-          {isTrial ? "No evaluation submitted yet. Once the trial ends and you send yours, it is listed here and cannot be edited." : ended ? "No evaluations were sent on this contract." : `No evaluation submitted yet. Send one whenever you have feedback for ${first} — each is listed here and cannot be edited.`}
+          {isTrial ? "No evaluation submitted yet. Once the trial ends and you send yours, it is listed here and cannot be edited." : ended ? "No evaluations were sent on this contract." : `No evaluation submitted yet. Each one you send ${first} is listed here and cannot be edited.`}
         </Card>
       ) : (
         keyed(history, (h) => `${h.date}-${h.stars}`).map(({ item: h, key }) => (
@@ -196,7 +209,7 @@ function EvaluationHistory({ t }: { t: Tracker }) {
             <p className="text-[13.5px] leading-[1.5] text-ink">{h.feedback}</p>
             <p className="text-[12.5px] leading-[1.4] text-ink-2">
               Recommendation: {h.recommendation}
-              {h.tfp !== undefined && (isTrial || h === trialFirst) && ` · Final Trial Fit Score: ${h.tfp}%`}
+              {h.tfp !== undefined && (isTrial || h === trialFirst) && ` · Final Trial fit score: ${h.tfp}%`}
             </p>
           </Card>
         ))

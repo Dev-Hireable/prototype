@@ -7,6 +7,7 @@ import { contractTypeOf, useDeal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { countsOf } from "@/lib/work/model";
+import { workTabItems } from "@/lib/work/access";
 import { todayDay } from "@/lib/work/dates";
 import { Card } from "@/components/portal/ui";
 
@@ -22,7 +23,8 @@ export function LiveContractCard({ party, slug }: { party: "team" | "independent
   const withReturn = useWithReturn();
   const ours = party === "independent" ? slug === PAIR.independent.slug : slug === TEAM_SLUG;
   if (!ours || !deal?.contract) return null;
-  const counts = countsOf(deal.contract.tasks, todayDay());
+  // TB-143 — what the Work tab opens on, so this says what its header says.
+  const counts = countsOf(workTabItems(deal), todayDay());
   return (
     <Card className="flex flex-wrap items-center justify-between gap-3 p-5 text-[13px] leading-[1.45]">
       <div className="flex min-w-0 flex-col gap-0.5">
