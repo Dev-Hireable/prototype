@@ -232,10 +232,15 @@ test.describe("task sheet · files on comments", () => {
 test.describe("task sheet · task IDs", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
-  test("the number copies the task's ID; a #4 in a comment opens that task, and any other #number stays as written", async ({ page }) => {
+  test("the top bar's copy button copies the task's ID; a #4 in a comment opens that task, and any other #number stays as written", async ({ page }) => {
     await open(page, "team", "?task=t-kickoff");
     const p = panel(page);
-    await p.getByRole("button", { name: "Copy task ID #6" }).click();
+    // Beside the ⋯, on the top bar's line; the number over the name is text.
+    const copy = p.getByRole("button", { name: "Copy task ID #6" });
+    const top = async (l: Locator) => Math.round(((await l.boundingBox())?.y ?? 0) + ((await l.boundingBox())?.height ?? 0) / 2);
+    expect(Math.abs((await top(copy)) - (await top(p.getByRole("button", { name: "Item actions" }))))).toBeLessThanOrEqual(2);
+    expect(await p.getByText("#6", { exact: true }).evaluate((e) => e.tagName)).toBe("SPAN");
+    await copy.click();
     await expect(toast(page, "Copied #6. Pasted in a comment or a message, it opens this task.")).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("#6");
 

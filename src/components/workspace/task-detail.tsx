@@ -8,6 +8,7 @@ import { Badge } from "@/components/portal/badge";
 import { MenuAction } from "@/components/portal/controls";
 import { CommentBox } from "@/components/portal/comment-box";
 import { Tip } from "@/components/portal/tip";
+import { ICON_BUTTON } from "@/components/portal/styles";
 import { KEEP_FAILED, keepFiles } from "@/lib/demo/files";
 import { hearsComments, isArchived, isCompleted, isOverdue, openBlockers, refOf, type WorkFile, type WorkItem } from "@/lib/work/model";
 import { capsFor, changeFor, type AgreedField } from "@/lib/work/permissions";
@@ -116,17 +117,42 @@ function TopBar({ ref, item: t, byId, step, box, onBox }: { ref: Ref<HTMLDivElem
   );
 }
 
-/** Deleting, from the ⋯ menu. Restoring a deleted item is the deleted banner's one action, not a second copy here. */
+/**
+ * The top bar's end: copying the item's ID ("#4"), for anyone — pasted in a comment or a message, it
+ * opens the item (TaskRefText, ChatText) — then deleting, from the ⋯ menu. Restoring a deleted item
+ * is the deleted banner's one action, not a second copy here.
+ */
 function PanelActions({ item }: { item: WorkItem }) {
   const { actor, access, actions } = useWorkspace();
-  if (isArchived(item) || !capsFor(item, actor, access).archive) return null;
+  const ref = refOf(item);
   return (
-    <KebabMenu label="Item actions" icon="horizontal" iconSize={20} menuWidth={200}>
-      <MenuAction destructive onClick={() => void actions.archive(item)} icon={<ICONS.trash size={18} aria-hidden />}>
-        Delete task
-      </MenuAction>
-    </KebabMenu>
+    <>
+      {item.number ? (
+        <Tip label="Copy task ID">
+          <button type="button" aria-label={`Copy task ID ${ref}`} onClick={() => void copyRef(ref)} className={`${ICON_BUTTON} size-8`}>
+            <ICONS.copy size={18} aria-hidden />
+          </button>
+        </Tip>
+      ) : null}
+      {!isArchived(item) && capsFor(item, actor, access).archive && (
+        <KebabMenu label="Item actions" icon="horizontal" iconSize={20} menuWidth={200}>
+          <MenuAction destructive onClick={() => void actions.archive(item)} icon={<ICONS.trash size={18} aria-hidden />}>
+            Delete task
+          </MenuAction>
+        </KebabMenu>
+      )}
+    </>
   );
+}
+
+/** Copies a task's reference and says so — or that this browser wouldn't let it. */
+async function copyRef(ref: string) {
+  try {
+    await navigator.clipboard.writeText(ref);
+    notice(`Copied ${ref}. Pasted in a comment or a message, it opens this task.`);
+  } catch {
+    notice(`Couldn't copy ${ref}: this browser didn't allow it.`, "danger");
+  }
 }
 
 /**
@@ -152,7 +178,7 @@ function TitleBlock({ item: t, focus, pending, firstDate, onLocked }: { item: Wo
       <DatesLine item={t} firstDate={firstDate} onLocked={onLocked} />
       {/* `-top-6`: a sticky box keeps clear of its scroller's padding, so it's pulled up by as much to sit flush under the top bar. */}
       <div className="stuck-edge sticky -top-6 z-10 -mx-6 -my-2 flex min-w-0 items-center gap-1 bg-white px-6 py-2">
-        {t.number ? <CopyRef item={t} /> : null}
+        {t.number ? <span className="shrink-0 font-display text-[20px] leading-none font-semibold text-ink-2 tabular-nums">{refOf(t)}</span> : null}
         <DraftText
           oneLine
           key={`title-${t.id}`}
@@ -176,30 +202,6 @@ function TitleBlock({ item: t, focus, pending, firstDate, onLocked }: { item: Wo
   );
 }
 
-/**
- * The item's number ("#4"), which copies on a click: pasted into a comment or a message, it opens the
- * item there (TaskRefText, ChatText).
- */
-function CopyRef({ item: t }: { item: WorkItem }) {
-  const ref = refOf(t);
-  return (
-    <Tip label="Copy task ID">
-      <button type="button" aria-label={`Copy task ID ${ref}`} onClick={() => void copyRef(ref)} className="shrink-0 rounded-md px-1 py-0.5 font-display text-[20px] leading-none font-semibold text-ink-2 tabular-nums hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
-        {ref}
-      </button>
-    </Tip>
-  );
-}
-
-/** Copies a task's reference and says so — or that this browser wouldn't let it. */
-async function copyRef(ref: string) {
-  try {
-    await navigator.clipboard.writeText(ref);
-    notice(`Copied ${ref}. Pasted in a comment or a message, it opens this task.`);
-  } catch {
-    notice(`Couldn't copy ${ref}: this browser didn't allow it.`, "danger");
-  }
-}
 
 /**
  * When it's planned, over its name: start → due, or a milestone's one date, each changed in place. A
