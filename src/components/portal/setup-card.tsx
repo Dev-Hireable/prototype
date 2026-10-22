@@ -7,7 +7,6 @@ import { ICONS } from "@/components/icons";
 import { Meter } from "@/components/portal/meter";
 import { RetakeQuizDialog } from "@/components/portal/retake-quiz-dialog";
 import { TraitTag } from "@/components/portal/trait-tag";
-import { Button } from "@/components/portal/ui";
 import { useNextRetake } from "@/lib/demo/retake";
 import type { WorkStyleSide, WorkStyleTag } from "@/lib/demo/work-style";
 
@@ -76,8 +75,10 @@ export function DashboardSetupCard({ side, avatarSrc, avatarClassName = "", titl
       {complete ? (
         <>
           {/* The line on matching sits right over the tags it's about. */}
-          <SetupHeading id={heading} avatarSrc={avatarSrc} avatarClassName={avatarClassName} title="Your work style" description={matching} />
-          <WorkStylePanel side={side} traits={traits} profileHref={profileHref} />
+          <SetupHeading id={heading} avatarSrc={avatarSrc} avatarClassName={avatarClassName} title="Your work style" description={matching}>
+            <WorkStyleActions side={side} profileHref={profileHref} />
+          </SetupHeading>
+          <TagPanel traits={traits} />
         </>
       ) : (
         <>
@@ -127,40 +128,38 @@ function SetupProgress({ done, total }: { done: number; total: number }) {
   );
 }
 
+/** The head's actions are links in its own type, so they read as part of it rather than as a form's buttons. */
+const ACTION = "inline-flex items-center gap-1 text-[13px] leading-[1.2] font-semibold text-primary hover:underline";
+
 /**
- * In place of the checklist once every step is done: the work style tags, then the way to the
- * profile where they're shown in full and, while the yearly retake is open, Retake quiz. Until it
- * is, the profile's own Retake says when it opens.
+ * Under the line on matching once setup is done: the way to the profile, where the tags are shown in
+ * full, and Retake quiz while the yearly retake is open. Until it is, the profile's own Retake says
+ * when it opens.
  */
-function WorkStylePanel({ side, traits, profileHref }: { side: WorkStyleSide; traits: readonly WorkStyleTag[]; profileHref: string }) {
+function WorkStyleActions({ side, profileHref }: { side: WorkStyleSide; profileHref: string }) {
   const [asking, setAsking] = useState(false);
   const canRetake = useNextRetake(side) === null;
   return (
-    <>
-      <div className="relative mt-4 flex flex-col gap-4 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
-        {traits.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {traits.map((t) => (
-              <TraitTag key={`${t.trait}-${t.label}`} tag={t} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-[14px] leading-[1.35] text-ink-2">Take the work style quiz to get your tags.</p>
-        )}
-        {/* The actions under what they act on, the row as tall with Retake quiz as without it. */}
-        <div className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[#eeeeee] pt-3">
-          <Link href={profileHref} className="inline-flex items-center gap-1 text-[13px] leading-[1.2] font-semibold text-primary hover:underline">
-            See your profile <ICONS.arrowForward size={16} aria-hidden />
-          </Link>
-          {canRetake && (
-            <Button size="sm" onClick={() => setAsking(true)}>
-              Retake quiz
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      <Link href={profileHref} className={ACTION}>
+        See your profile <ICONS.arrowForward size={16} aria-hidden />
+      </Link>
+      {canRetake && (
+        <button type="button" onClick={() => setAsking(true)} className={ACTION}>
+          <ICONS.restart size={16} aria-hidden /> Retake quiz
+        </button>
+      )}
       <RetakeQuizDialog side={side} open={asking} onClose={() => setAsking(false)} />
-    </>
+    </div>
+  );
+}
+
+/** In place of the checklist once every step is done: the work style tags, on their own. */
+function TagPanel({ traits }: { traits: readonly WorkStyleTag[] }) {
+  return (
+    <div className="relative mt-4 flex flex-wrap items-center gap-2 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
+      {traits.length > 0 ? traits.map((t) => <TraitTag key={`${t.trait}-${t.label}`} tag={t} />) : <p className="text-[14px] leading-[1.35] text-ink-2">Take the work style quiz to get your tags.</p>}
+    </div>
   );
 }
 
