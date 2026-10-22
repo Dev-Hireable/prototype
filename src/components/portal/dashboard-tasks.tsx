@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type DragEvent, type KeyboardEvent } from "react";
+import { useMemo, useRef, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
 import { DashboardSummaryCard } from "@/components/portal/dashboard";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
+import { slotAt, useCardDrag } from "@/components/workspace/card-drag";
 import { stepByKey } from "@/components/workspace/group-actions";
 import { firstName } from "@/components/workspace/labels";
 import { ChangesChip, DueChip } from "@/components/workspace/meta";
@@ -65,7 +66,7 @@ export function DashboardTasks({ side, me, base, allHref, about, counterpart, le
           {side === "independent" ? "You're all caught up. Nothing is waiting on you." : "Nothing is waiting on you: no work to review, and none of your own open."}
         </p>
       ) : (
-        <TaskList rows={rows} ctx={{ side, base, today, counterpart }} mover={mover} />
+        <TaskList rows={rows} byId={work.byId} ctx={{ side, base, today, counterpart }} mover={mover} />
       )}
       {rows.length > ROWS && (
         <Link href={allHref} className="mt-3 self-start text-[13px] leading-[1.2] font-medium tracking-[0.2px] text-primary hover:underline">
@@ -90,52 +91,62 @@ type Mover = ReturnType<typeof useMover>;
 /** What a row needs besides its task: whose list it is, where its sheet opens, today, and the other side's first name. */
 type RowCtx = { side: Side; base: string; today: Day; counterpart: string };
 
-/** The rows with the dragged one moved to where it's being dragged. */
-function movedTo(rows: readonly AgendaRow[], { id, at }: { id: string; at: number }): readonly AgendaRow[] {
-  const from = rows.findIndex((r) => r.item.id === id);
-  if (from < 0) return rows;
-  const rest = rows.filter((r) => r.item.id !== id);
-  return [...rest.slice(0, at), rows[from], ...rest.slice(at)];
+/** My tasks' one list, as the drag knows it. */
+const LIST = "my-tasks";
+
+/** Lands a dragged row at slot `index`: its new place in the manual order, in one save, unless that leaves it where it was. */
+function dropRow({ actions }: Mover, items: readonly WorkItem[], t: WorkItem, index: number) {
+  const place = placeAt(items, t.id, index);
+  const now = placeAt(items, t.id, items.findIndex((x) => x.id === t.id));
+  if (now.after === place.after && now.before === place.before) return;
+  void actions.move(t, place, { announce: `Moved ${refOf(t)}` });
 }
 
 /**
- * The first ROWS rows. A row dragged onto another takes its place there and then, the others making
- * room, and lands in the manual order when it's let go; Alt+Shift+↑/↓ moves a focused row a step.
- * Either way it's one save, shown at once, and the Work tab's order is the same one.
+ * The first ROWS rows, dragged the way the Board's cards are (card-drag): a row lifts out as a solid
+ * copy under the pointer, the others part where it would land, and it takes that place in the
+ * manual order when it's let go. Alt+Shift+↑/↓ moves a focused row a step. Either way it's one
+ * save, shown at once, and the Work tab's order is the same one.
  */
-function TaskList({ rows, ctx, mover }: { rows: readonly AgendaRow[]; ctx: RowCtx; mover: Mover }) {
-  const items = rows.map((r) => r.item);
-  const [drag, setDrag] = useState<{ id: string; at: number } | null>(null);
-  const shown = rows.slice(0, ROWS);
-  const order = drag ? movedTo(shown, drag) : shown;
-  const grab = (e: DragEvent, id: string, at: number) => {
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", id);
-    setDrag({ id, at });
-  };
-  const over = (e: DragEvent, at: number) => {
-    if (!drag) return;
-    e.preventDefault();
-    if (drag.at !== at) setDrag({ ...drag, at });
-  };
-  /** Let go over the list: one save of the row's new place, unless it's back where it was. */
-  const drop = (e: DragEvent) => {
-    if (!drag) return;
-    e.preventDefault();
-    const t = items.find((x) => x.id === drag.id);
-    if (t && items.indexOf(t) !== drag.at) void mover.actions.move(t, placeAt(items, t.id, drag.at), { announce: `Moved ${refOf(t)}` });
-    setDrag(null);
-  };
+function TaskList({ rows, byId, ctx, mover }: { rows: readonly AgendaRow[]; byId: ReadonlyMap<string, WorkItem>; ctx: RowCtx; mover: Mover }) {
+  const items = useMemo(() => rows.map((r) => r.item), [rows]);
+  const lists = useMemo(() => [{ key: LIST, items }], [items]);
+  const dnd = useCardDrag(lists, byId);
+  const cards = useRef(new Map<string, HTMLElement>());
+  const { drag, over, setOver } = dnd;
+  const rest = items.filter((t) => t.id !== drag?.id);
+  const room = drag && over ? drag.room : 0;
   const step = (e: KeyboardEvent, t: WorkItem) => {
     if (e.altKey && e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) stepByKey(t, items, e, mover.actions);
   };
   return (
-    <ul className="flex flex-col gap-2" onDragOver={(e) => over(e, drag?.at ?? 0)} onDrop={drop}>
-      {order.map((row, i) => (
-        <li key={row.item.id} onDragOver={(e) => over(e, i)} className={drag?.id === row.item.id ? "opacity-50" : undefined}>
-          <TaskRow row={row} ctx={ctx} drag={mover.canMove(row.item) ? { onStart: (e) => grab(e, row.item.id, i), onEnd: () => setDrag(null), onKey: (e) => step(e, row.item) } : undefined} />
+    <ul
+      className="flex flex-col gap-2"
+      onDragOver={(e) => {
+        if (!drag) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        const index = slotAt(items, e.clientY, drag.id, cards.current);
+        if (over?.index !== index) setOver({ key: LIST, index });
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(null);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const t = dnd.dragged;
+        const index = over?.index;
+        dnd.onDragEnd();
+        if (t && index !== undefined) dropRow(mover, items, t, index);
+      }}
+    >
+      {rows.slice(0, ROWS).map((row) => (
+        <li key={row.item.id} hidden={dnd.lifted === row.item.id} className={drag ? "transition-transform duration-200 ease-out" : undefined} style={over && rest.indexOf(row.item) >= over.index && room ? { transform: `translateY(${room}px)` } : undefined}>
+          <TaskRow row={row} ctx={ctx} cards={cards} drag={mover.canMove(row.item) ? { onStart: (e) => dnd.onDragStart(row.item, e), onEnd: dnd.onDragEnd, onKey: (e) => step(e, row.item) } : undefined} />
         </li>
       ))}
+      {/* After a row, -mt-2 takes back the list's gap before it, so a closed spacer adds nothing. */}
+      {drag && <li aria-hidden className="-mt-2 shrink-0 transition-[height] duration-200 ease-out" style={{ height: room }} />}
     </ul>
   );
 }
@@ -171,11 +182,15 @@ function LeadRow({ lead }: { lead: Lead }) {
 /** How a row this person places moves: dragged whole (its grip shows it can be), or Alt+Shift+↑/↓. */
 type RowDrag = { onStart: (e: DragEvent) => void; onEnd: () => void; onKey: (e: KeyboardEvent) => void };
 
-/** One task, opening its sheet: its status in words, number and title, then why it's on the list. */
-function TaskRow({ row: { item: t, reason }, ctx: { side, base, today, counterpart }, drag }: { row: AgendaRow; ctx: RowCtx; drag?: RowDrag }) {
+/** One task, opening its sheet: its status in words, number and title, then why it's on the list. It's in `cards` while it's drawn, for the drag to measure. */
+function TaskRow({ row: { item: t, reason }, ctx: { side, base, today, counterpart }, cards, drag }: { row: AgendaRow; ctx: RowCtx; cards: RefObject<Map<string, HTMLElement>>; drag?: RowDrag }) {
   return (
     <Link
       href={`${base}?task=${encodeURIComponent(t.id)}`}
+      ref={(el) => {
+        if (el) cards.current.set(t.id, el);
+        else cards.current.delete(t.id);
+      }}
       data-item-id={t.id}
       draggable={!!drag}
       onDragStart={drag?.onStart}
