@@ -62,8 +62,8 @@ export function DashboardSetupCard({ side, avatarSrc, avatarClassName = "", titl
   const complete = done === items.length;
 
   return (
-    // Stretches to the greeting column's height either way. When that leaves room, the head takes
-    // it (see SetupHeading), so the white panel ends where its content does.
+    // Stretches to the greeting column's height either way. Once setup is done the head stacks the
+    // photo over the copy from the top (see SetupHeading) and the tags take the rest (TagPanel).
     // data-tour: the getting-started tours point it out (@/lib/portal/tours).
     <section data-tour="setup" aria-labelledby={heading} className="relative flex w-full min-w-0 flex-col overflow-hidden rounded-[40px] bg-gradient-to-b from-[#edf9ff] via-[#f6f9f9] to-[#fff9f3] p-4">
       {/* Sized as a share of the card and anchored right, so it scales with the card instead of
@@ -75,7 +75,7 @@ export function DashboardSetupCard({ side, avatarSrc, avatarClassName = "", titl
       {complete ? (
         <>
           {/* The line on matching sits right over the tags it's about. */}
-          <SetupHeading id={heading} avatarSrc={avatarSrc} avatarClassName={avatarClassName} title="Your work style" description={matching}>
+          <SetupHeading id={heading} avatarSrc={avatarSrc} avatarClassName={avatarClassName} title="Your work style" description={matching} stacked>
             <WorkStyleActions side={side} profileHref={profileHref} />
           </SetupHeading>
           <TagPanel traits={traits} />
@@ -98,15 +98,17 @@ export function DashboardSetupCard({ side, avatarSrc, avatarClassName = "", titl
   );
 }
 
-/** The card's head: the avatar, what's left to do (or the work style, once nothing is), and the progress while there's some. */
-function SetupHeading({ id, avatarSrc, avatarClassName, title, description, children }: { id: string; avatarSrc: string; avatarClassName: string; title: string; description: string; children?: ReactNode }) {
+/**
+ * The card's head: the avatar, what's left to do (or the work style, once nothing is), and the
+ * progress while there's some. `stacked` puts the photo over the copy, from the top of the card:
+ * the done card is shorter than the greeting beside it, and a row of three short lines left
+ * empty bands above and below.
+ */
+function SetupHeading({ id, avatarSrc, avatarClassName, title, description, stacked = false, children }: { id: string; avatarSrc: string; avatarClassName: string; title: string; description: string; stacked?: boolean; children?: ReactNode }) {
   return (
-    // flex-1 + items-center: when the greeting beside the card is the taller column, the head takes
-    // the spare height with its copy centred in it, beside the art, rather than the white panel
-    // under it stretching round empty space.
     // On a phone the art takes the card's top-right third, so the copy keeps to the rest of the width.
-    <div className="relative flex flex-1 items-center gap-4 max-md:items-start max-md:gap-3 max-md:pr-[34%]">
-      <Image src={avatarSrc} alt="" width={96} height={96} className={`size-12 shrink-0 rounded-full bg-[#d2d8db] object-cover max-md:size-10 ${avatarClassName}`} />
+    <div className={`relative flex max-md:pr-[34%] ${stacked ? "flex-col items-start gap-3" : "items-center gap-4 max-md:items-start max-md:gap-3"}`}>
+      <Image src={avatarSrc} alt="" width={96} height={96} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover ${stacked ? "size-14 max-md:size-12" : "size-12 max-md:size-10"} ${avatarClassName}`} />
       {/* Capped so the copy wraps before it runs under the decorative art on the right. */}
       <div className="flex min-w-0 max-w-[50%] flex-1 flex-col gap-1.5 leading-[1.25] tracking-[0.2px] max-md:max-w-none">
         <h2 id={id} className="text-[18px] font-semibold text-ink max-md:text-[16px]">
@@ -154,10 +156,14 @@ function WorkStyleActions({ side, profileHref }: { side: WorkStyleSide; profileH
   );
 }
 
-/** In place of the checklist once every step is done: the work style tags, on their own. */
+/**
+ * In place of the checklist once every step is done: the work style tags, on their own. It takes
+ * whatever height the greeting beside the card leaves, with the tags centred in it, so the spare
+ * reads as room round the tags rather than an empty band under the head.
+ */
 function TagPanel({ traits }: { traits: readonly WorkStyleTag[] }) {
   return (
-    <div className="relative mt-4 flex flex-wrap items-center gap-2 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
+    <div className="relative mt-4 flex flex-1 flex-wrap content-center items-center gap-2 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
       {traits.length > 0 ? traits.map((t) => <TraitTag key={`${t.trait}-${t.label}`} tag={t} />) : <p className="text-[14px] leading-[1.35] text-ink-2">Take the work style quiz to get your tags.</p>}
     </div>
   );
