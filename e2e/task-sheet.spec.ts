@@ -1,5 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-import { api, closePanel, expect, notes, open, panel, savedItem, test } from "./fixtures";
+import { api, closePanel, expect, filePicker, notes, open, panel, savedItem, test, upload } from "./fixtures";
 
 // The item's sheet: its name heads it; subtasks go in one after another from the keyboard, and a
 // box that can't be ticked says why; the Independent says what their own work waits on; and
@@ -30,13 +30,21 @@ test.describe("task sheet · the name", () => {
     await expect(p).toHaveCount(0);
   });
 
-  test("the number and the name share the line beside the close; a name too long for it ends in … with the whole of it in a tooltip", async ({ page }) => {
+  test("the status leads the top bar and the next step ends it; the name heads the body on its left edge, and a name too long ends in … with the whole of it in a tooltip", async ({ page }) => {
     await open(page, "team", "?task=t-kickoff");
     const p = panel(page);
     const name = p.getByRole("textbox", { name: "Name" });
     const tip = page.locator('[data-slot="tooltip-content"]');
-    const top = async (l: import("@playwright/test").Locator) => Math.round(((await l.boundingBox())?.y ?? 0) + ((await l.boundingBox())?.height ?? 0) / 2);
-    expect(Math.abs((await top(name)) - (await top(p.getByRole("button", { name: "Close" }))))).toBeLessThanOrEqual(2);
+    const box = async (l: Locator) => (await l.boundingBox()) ?? { x: 0, y: 0, width: 0, height: 0 };
+    // The sheet slides in from the side: measure once it has stopped.
+    await p.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+    // Alex's own item: its status after the close, Mark done at the bar's end, both over the name.
+    const status = await box(p.getByRole("button", { name: /Change status/ }));
+    const done = await box(p.getByRole("button", { name: "Mark done" }));
+    expect(status.x).toBeLessThan(done.x);
+    expect(Math.max(status.y + status.height, done.y + done.height)).toBeLessThanOrEqual((await box(name)).y);
+    // The number starts on the body's left edge, where the properties' icons do.
+    expect(Math.abs((await box(p.getByText("#6", { exact: true }))).x - (await box(p.getByRole("term").filter({ hasText: "Assignee" }))).x)).toBeLessThanOrEqual(1);
     await name.hover();
     await page.waitForTimeout(800);
     await expect(tip).toHaveCount(0);
@@ -47,6 +55,34 @@ test.describe("task sheet · the name", () => {
     await page.mouse.move(0, 0);
     await name.hover();
     await expect(tip).toHaveText(long);
+  });
+});
+
+test.describe("task sheet · the next step", () => {
+  test("Send for review opens its panel under the top bar: the note goes with the request, Cancel hands the focus back, and the comment box steps aside meanwhile", async ({ page }) => {
+    await open(page, "independent", "?task=t-type");
+    const p = panel(page);
+    const comment = p.getByRole("textbox", { name: "Add a comment" });
+    // Who a comment reaches is said under the box, not in it.
+    await expect(p.getByText("Alex will be notified")).toBeVisible();
+    await p.getByRole("button", { name: "Send for review" }).click();
+    const note = p.getByRole("textbox", { name: "Note for Alex (optional)" });
+    await expect(note).toBeFocused();
+    await expect(comment).toHaveCount(0);
+    await p.getByRole("button", { name: "Cancel" }).click();
+    await expect(note).toHaveCount(0);
+    await expect(p.getByRole("button", { name: "Send for review" })).toBeFocused();
+    await expect(comment).toBeVisible();
+    expect((await savedItem(page, "t-type")).status).toBe("todo");
+
+    await p.getByRole("button", { name: "Send for review" }).click();
+    await note.fill("Two pairings, each on a sample page.");
+    await p.getByRole("button", { name: "Send for review" }).click();
+    await expect.poll(async () => (await savedItem(page, "t-type")).status).toBe("review");
+    expect((await savedItem(page, "t-type")).submitted).toMatchObject({ note: "Two pairings, each on a sample page." });
+    // In review the step is taking it back, and the focus is on the status the send moved.
+    await expect(p.getByRole("button", { name: "Take back to keep working" })).toBeVisible();
+    await expect(p.getByRole("button", { name: /^Status: In review/ })).toBeFocused();
   });
 });
 
@@ -161,5 +197,34 @@ test.describe("task sheet · comments", () => {
     await expect(panel(juan).getByRole("article", { name: "Comment from Juan Dela Cruz" })).toContainText("Trying one now.");
     await expect.poll(async () => (await notes(juan, "team"))[0]?.title).toBe("Juan Dela Cruz commented on a task");
     expect((await notes(juan, "team"))[0].href).toBe("/team/independents/juan-dela-cruz?task=t-type&focus=comments");
+  });
+});
+
+test.describe("task sheet · files on comments", () => {
+  test("files go with a comment, or make one alone: an image opens in the viewer, a document downloads, and the other side is told", async ({ page }) => {
+    await open(page, "team", "?task=t-type");
+    const p = panel(page);
+    await filePicker(p).setInputFiles([upload.png("tiles.png"), upload.doc("Brand brief.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")]);
+    const waiting = p.getByRole("list", { name: "Files to send" });
+    await expect(waiting.getByRole("listitem")).toHaveCount(2);
+    // A file the box doesn't take is refused by name; the others stay.
+    await filePicker(p).setInputFiles(upload.doc("setup.exe", "application/octet-stream"));
+    await expect(p.getByRole("alert")).toHaveText("setup.exe: only images, PDFs, Word, Excel, PowerPoint, CSV and text files can be attached.");
+    await expect(waiting.getByRole("listitem")).toHaveCount(2);
+    // Files alone make a comment.
+    await p.getByRole("button", { name: "Send", exact: true }).click();
+    const alex = p.getByRole("article", { name: "Comment from Alex Rivera" });
+    await expect(alex.getByRole("button", { name: /^Open tiles\.png/ })).toBeVisible();
+    await expect(alex.getByRole("link", { name: /^Download Brand brief\.docx/ })).toBeVisible();
+    await expect(waiting).toHaveCount(0);
+    expect((await savedItem(page, "t-type")).comments).toMatchObject([{ text: "", files: [{ name: "tiles.png", type: "image/png" }, { name: "Brand brief.docx" }] }]);
+    expect((await notes(page, "independent"))[0].body).toContain("Shared 2 files");
+    // The image opens full size; Escape closes the viewer, not the sheet under it.
+    await alex.getByRole("button", { name: /^Open tiles\.png/ }).click();
+    const viewer = page.getByRole("dialog", { name: "tiles.png" });
+    await expect(viewer.getByRole("img", { name: "tiles.png" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(viewer).toHaveCount(0);
+    await expect(p).toBeVisible();
   });
 });

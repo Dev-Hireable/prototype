@@ -75,7 +75,7 @@
   "id": "TB-010",
   "title": "Attach Files in Messages",
   "story": "As an employer, I want to attach files to a message, so that I can share documents, contracts, or references directly in the conversation.",
-  "ac": "- File attachment button available in the message composer - Supported file types: PDF, DOC, DOCX, PNG, JPG (max 10MB) - Attached file previewed before sending - Recipient can download the attachment from the thread"
+  "ac": "- File attachment button (paperclip) in the message composer; files can also be dropped on it or pasted - Supported file types: images (PNG, JPG, GIF, WebP), PDF, Word, Excel, PowerPoint, CSV and text, up to 6 files of 10MB each per message - Attached files previewed before sending, each removable - A message can be files alone - In the thread, images and PDFs open in a viewer and other files download; files stay after a reload"
  },
  {
   "id": "TB-012",
@@ -279,7 +279,7 @@
   "id": "TB-065",
   "title": "Comment on a Task",
   "story": "As a Team Builder, I want to comment on a task so that I can discuss the work with the Independent Contractor right where it happens.",
-  "ac": "- The task details panel keeps a comment box pinned at its foot, in reach however far the panel is scrolled - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a work chat in one Activity stream with the task's history, in time order: each turn shows the author's photo, name and time above the words; one person's comments within five minutes run on under one header; a divider marks each new day; Comments only hides the history - The Independent Contractor is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - An empty comment can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
+  "ac": "- The task details panel keeps a comment box pinned at its foot, in reach however far the panel is scrolled - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a work chat in one Activity stream with the task's history, in time order: each turn shows the author's photo, name and time above the words; one person's comments within five minutes run on under one header; a divider marks each new day; Comments only hides the history - The Independent Contractor is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - Files can go with a comment, or make one alone: the paperclip in the comment box (or drop and paste), up to 6 images, PDFs or Word, Excel, PowerPoint, CSV and text files of 10MB each; they show under the comment, images and PDFs opening in a viewer, other files downloading - Under the box, who a comment notifies, with their photo - An empty comment (no words and no files) can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
  },
  {
   "id": "TB-109",
@@ -753,7 +753,7 @@
   "id": "IN-010",
   "title": "Attach Files in Messages",
   "story": "As an Independent Contractor, I want to attach files in my messages, so that I can share documents, portfolios, or deliverables with Team Builders directly in the chat.",
-  "ac": "- File attachment button available in message composer - Supported types: PDF, DOC, DOCX, PNG, JPG (max 10MB) - Attached file previewed before sending - Recipient can download from message thread"
+  "ac": "- File attachment button (paperclip) in the message composer; files can also be dropped on it or pasted - Supported types: images (PNG, JPG, GIF, WebP), PDF, Word, Excel, PowerPoint, CSV and text, up to 6 files of 10MB each per message - Attached files previewed before sending, each removable - A message can be files alone - In the thread, images and PDFs open in a viewer and other files download; files stay after a reload"
  },
  {
   "id": "IN-012",
@@ -927,7 +927,7 @@
   "id": "IN-043",
   "title": "Comment on a Task",
   "story": "As an Independent Contractor, I want to comment on a task so that I can ask questions and share updates with the Team Builder right on the task.",
-  "ac": "- The task details panel keeps a comment box pinned at its foot, in reach however far the panel is scrolled - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a work chat in one Activity stream with the task's history, in time order: each turn shows the author's photo, name and time above the words; one person's comments within five minutes run on under one header; a divider marks each new day; Comments only hides the history - The Team Builder is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - An empty comment can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
+  "ac": "- The task details panel keeps a comment box pinned at its foot, in reach however far the panel is scrolled - Either side can comment on any task, whatever its status, while the contract is live - Comments read as a work chat in one Activity stream with the task's history, in time order: each turn shows the author's photo, name and time above the words; one person's comments within five minutes run on under one header; a divider marks each new day; Comments only hides the history - The Team Builder is notified of each new comment, and the notification opens the task on its comments; more comments on the same task while that notification is unread update it instead of adding another - Files can go with a comment, or make one alone: the paperclip in the comment box (or drop and paste), up to 6 images, PDFs or Word, Excel, PowerPoint, CSV and text files of 10MB each; they show under the comment, images and PDFs opening in a viewer, other files downloading - Under the box, who a comment notifies, with their photo - An empty comment (no words and no files) can't be posted - An ended contract is read-only — its comments stay visible but no new ones can be added"
  },
  {
   "id": "IN-044",

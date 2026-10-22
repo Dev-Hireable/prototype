@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
+import { FileTiles } from "@/components/portal/attachments";
 import { Avatar } from "@/components/portal/ui";
 import { keyed } from "@/lib/portal/keys";
 import { stampLabel, type Day } from "@/lib/work/dates";
@@ -111,11 +112,11 @@ function DayDivider({ label }: { label: string }) {
   );
 }
 
-/** A note's mark, in the photos' column so the stream reads as one: a small dot. */
+/** A note's mark, in the photos' column so the stream reads as one: a small ring, lighter than a photo. */
 function NoteMark() {
   return (
-    <span aria-hidden className="flex w-8 shrink-0 justify-center pt-[7px]">
-      <span className="size-1.5 rounded-full bg-[#c3c3c3]" />
+    <span aria-hidden className="flex w-8 shrink-0 justify-center pt-[5px]">
+      <span className="size-2 rounded-full border-[1.5px] border-[#c3c3c3]" />
     </span>
   );
 }
@@ -203,7 +204,13 @@ function Turn({ comment: c, runsOn }: { comment: FeedComment; runsOn: boolean })
             <time className="text-[12px] text-muted-2 tabular-nums">{time}</time>
           </p>
         )}
-        <p className={`text-[14px] leading-[1.5] whitespace-pre-line text-ink [overflow-wrap:anywhere] ${runsOn ? "" : "mt-0.5"}`}>{c.text}</p>
+        {c.text && <p className={`text-[14px] leading-[1.5] whitespace-pre-line text-ink [overflow-wrap:anywhere] ${runsOn ? "" : "mt-0.5"}`}>{c.text}</p>}
+        {/* What was sent with it: an image or a PDF opens in the viewer, a document downloads. */}
+        {c.files?.length ? (
+          <div className={c.text ? "mt-2" : "mt-1"}>
+            <FileTiles files={c.files} />
+          </div>
+        ) : null}
       </div>
     </article>
   );

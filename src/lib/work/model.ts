@@ -20,7 +20,13 @@ export type WorkType = "task" | "milestone" | "design" | "development" | "market
 export type Subtask = { id: string; title: string; done: boolean };
 /** Something that happened on an item. `ts` orders it against the comments in one feed. */
 export type WorkEvent = { ts: number; at: string; text: string };
-export type WorkComment = { id?: string; ts: number; at: string; side: Side; name: string; text: string };
+/** A file sent with a comment. The bytes live in the browser's file store; the comment keeps what names them. */
+export type WorkFile = { id: string; name: string; type: string; size: number };
+/** What someone said on an item: words, files, or both — a comment of files alone has no text. */
+export type WorkComment = { id?: string; ts: number; at: string; side: Side; name: string; text: string; files?: WorkFile[] };
+
+/** A comment or message of files alone, as a notification says it: "Shared a file: brief.pdf", "Shared 3 files". */
+export const filesNote = (files: readonly Pick<WorkFile, "name">[]) => (files.length === 1 ? `Shared a file: ${files[0].name}` : `Shared ${files.length} files`);
 
 export type WorkItem = {
   id: string;
@@ -160,6 +166,8 @@ export const hearsComments = (t: Pick<WorkItem, "assignee">, side: Side) => side
 export const TITLE_MAX = 200;
 export const DESCRIPTION_MAX = 5000;
 export const COMMENT_MAX = 2000;
+/** Files on one comment. */
+export const COMMENT_FILES_MAX = 6;
 export const TAG_MAX = 24;
 export const TAGS_PER_ITEM = 8;
 export const NOTE_MAX = 1000;

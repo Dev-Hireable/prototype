@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ClipboardEvent, type DragEvent } from "react";
 import type { Attachment } from "@/lib/disputes/case";
 
 /**
@@ -46,6 +46,89 @@ export function checkCaseFile(f: File): string | null {
   if (f.size > MAX_CASE_FILE_MB * 1024 * 1024) return `${f.name} is over ${MAX_CASE_FILE_MB} MB.`;
   return null;
 }
+
+/**
+ * What a task's comment or a chat message can carry: the files people send each other most —
+ * images, PDFs, Word, Excel and PowerPoint documents, CSV and plain text. Told apart by their
+ * extension, since a browser doesn't always know an office file's type.
+ */
+const SHARED_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "txt"];
+export const SHARED_FILE_ACCEPT = SHARED_EXTENSIONS.map((x) => `.${x}`).join(",");
+const MAX_SHARED_FILES = 6;
+
+const extensionOf = (name: string) => (name.includes(".") ? (name.split(".").pop() ?? "").toLowerCase() : "");
+
+/** Why a file can't go with a comment or a message, or null when it can. */
+function checkSharedFile(f: File): string | null {
+  if (!SHARED_EXTENSIONS.includes(extensionOf(f.name))) return `${f.name}: only images, PDFs, Word, Excel, PowerPoint, CSV and text files can be attached.`;
+  if (f.size > MAX_CASE_FILE_MB * 1024 * 1024) return `${f.name} is over ${MAX_CASE_FILE_MB} MB.`;
+  return null;
+}
+
+/** What a file is, for the icon it's drawn with and whether it opens in the viewer (an image or a PDF) or downloads. */
+export type FileKind = "image" | "pdf" | "doc" | "sheet" | "slides" | "text" | "file";
+
+export function fileKind({ name, type }: { name: string; type: string }): FileKind {
+  const ext = extensionOf(name);
+  if (type.startsWith("image/")) return "image";
+  if (type === "application/pdf" || ext === "pdf") return "pdf";
+  if (ext === "doc" || ext === "docx") return "doc";
+  if (ext === "xls" || ext === "xlsx" || ext === "csv") return "sheet";
+  if (ext === "ppt" || ext === "pptx") return "slides";
+  return ext === "txt" ? "text" : "file";
+}
+
+/**
+ * The files picked to go with the next comment or message, before they're sent: each checked as it's
+ * added (what's refused is said, the rest are kept), up to MAX_SHARED_FILES at a time.
+ */
+export function usePendingFiles() {
+  const [files, setFiles] = useState<File[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const add = (list: FileList | readonly File[] | null) => {
+    const picked = [...(list ?? [])];
+    if (!picked.length) return;
+    const next = [...files, ...picked.filter((f) => !checkSharedFile(f))];
+    setError(next.length > MAX_SHARED_FILES ? `Up to ${MAX_SHARED_FILES} files at a time.` : (picked.map(checkSharedFile).find(Boolean) ?? null));
+    setFiles(next.slice(0, MAX_SHARED_FILES));
+  };
+  const remove = (f: File) => {
+    setFiles(files.filter((g) => g !== f));
+    setError(null);
+  };
+  const clear = () => {
+    setFiles([]);
+    setError(null);
+  };
+  return { files, error, setError, add, remove, clear };
+}
+
+/**
+ * What lets files be dropped on a composer or pasted into it, as well as picked with its paperclip.
+ * Only a drag that carries files is taken: dragged text still drops into the text as usual.
+ */
+export function fileDropHandlers(add: (files: FileList) => void) {
+  const carriesFiles = (e: DragEvent) => [...e.dataTransfer.types].includes("Files");
+  return {
+    onDragOver: (e: DragEvent) => {
+      if (carriesFiles(e)) e.preventDefault();
+    },
+    onDrop: (e: DragEvent) => {
+      if (!carriesFiles(e)) return;
+      e.preventDefault();
+      add(e.dataTransfer.files);
+    },
+    onPaste: (e: ClipboardEvent) => {
+      if (e.clipboardData.files.length > 0) add(e.clipboardData.files);
+    },
+  };
+}
+
+/** Keep each picked file in this browser's file store, saying what each is. Throws when the browser won't store them. */
+export const keepFiles = (files: readonly File[]) => Promise.all(files.map(keepFile));
+
+/** "The files couldn't be saved": said when the browser won't keep what was picked. */
+export const KEEP_FAILED = "The files couldn't be saved in this browser. Try fewer or smaller ones.";
 
 /** A large screenshot is scaled to 1600px on its longest side before it's kept — still readable, far smaller. */
 async function shrink(f: File): Promise<Blob> {

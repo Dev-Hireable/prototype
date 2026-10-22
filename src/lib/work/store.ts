@@ -9,7 +9,7 @@ import { accessOf } from "./access";
 import { todayDay } from "./dates";
 import { isWorkError, messageOf, WorkError } from "./errors";
 import { migrateProjects } from "./migrate";
-import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, unfinishedOf, type TagColor, type WorkItem, type WorkProject, type WorkStatus } from "./model";
+import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, unfinishedOf, type TagColor, type WorkFile, type WorkItem, type WorkProject, type WorkStatus } from "./model";
 import { orderLast, placeBetween } from "./order";
 import { applyOps, type PendingOp } from "./overlay";
 import { sideOf, type Actor, type Names, type WorkAccess } from "./permissions";
@@ -431,9 +431,10 @@ function partActions(repo: WorkRepository) {
       return run({ ...msgs, itemId: t.id, set: { subtasks: t.subtasks.filter((s) => s.id !== subId) }, call: () => repo.removeSubtask(t.id, subId) });
     },
 
-    comment(t: WorkItem, text: string, msgs: Messages = {}) {
-      const c = { id: newId("c"), ts: Date.now(), at: momentLabel(), side: side ?? "team", name: repo.actor.name, text: text.trim() };
-      return run({ ...msgs, itemId: t.id, set: { comments: [...t.comments, c] }, call: () => repo.comment(t.id, { id: c.id, text }), retry: () => void actions.comment(t, text, msgs) });
+    /** Says something on the item, with files kept in the browser's file store beforehand (`files`), or files alone. */
+    comment(t: WorkItem, text: string, files: WorkFile[] = [], msgs: Messages = {}) {
+      const c = { id: newId("c"), ts: Date.now(), at: momentLabel(), side: side ?? "team", name: repo.actor.name, text: text.trim(), ...(files.length ? { files } : {}) };
+      return run({ ...msgs, itemId: t.id, set: { comments: [...t.comments, c] }, call: () => repo.comment(t.id, { id: c.id, text, files }), retry: () => void actions.comment(t, text, files, msgs) });
     },
   };
   return actions;

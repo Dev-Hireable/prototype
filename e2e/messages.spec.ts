@@ -1,4 +1,4 @@
-import { expect, open, test } from "./fixtures";
+import { expect, filePicker, open, stored, test, upload } from "./fixtures";
 
 // Messages and the quick chat: the thread's header opens the other side's profile in a sheet, and a
 // work screen's "Message …" opens the same thread in a small window over the page.
@@ -62,5 +62,31 @@ test.describe("messages · the quick chat", () => {
     await expect(chat.getByText("Morning, Juan")).toBeVisible();
     await chat.getByRole("button", { name: "Close chat" }).click();
     await expect(chat).toHaveCount(0);
+  });
+});
+
+test.describe("messages · files", () => {
+  test("files go with a message, or make one alone, and the other side opens them in the thread", async ({ page }) => {
+    await page.goto("/team/messages");
+    const message = page.getByRole("textbox", { name: "Message" });
+    const composer = page.locator("form").filter({ has: message });
+    await filePicker(composer).setInputFiles([upload.png("moodboard.png"), upload.doc("Launch budget.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]);
+    await expect(composer.getByRole("list", { name: "Files to send" }).getByRole("listitem")).toHaveCount(2);
+    await message.fill("Moodboard and the budget");
+    await composer.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(composer.getByRole("list", { name: "Files to send" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Open moodboard\.png/ })).toBeVisible();
+    // Then one of files alone.
+    await filePicker(composer).setInputFiles(upload.doc("Type specimen.pdf", "application/pdf"));
+    await composer.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.getByRole("button", { name: /^Open Type specimen\.pdf/ })).toBeVisible();
+
+    await page.goto("/independent/messages");
+    await expect(page.getByRole("button", { name: /^Open moodboard\.png/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^Download Launch budget\.xlsx/ })).toBeVisible();
+    // The last message is the file alone, saved with what names it.
+    const chat = (await stored(page, "live")).chat as { text?: string; files?: { name: string }[] }[];
+    expect(chat.at(-1)).toMatchObject({ files: [{ name: "Type specimen.pdf" }] });
+    expect(chat.at(-1)?.text).toBeUndefined();
   });
 });

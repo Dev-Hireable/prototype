@@ -1,6 +1,6 @@
 import { dayOf, isoOf, stampLabel, type Day } from "./dates";
 import { WorkError } from "./errors";
-import { datesOf, hearsComments, indexById, isArchived, isCompleted, isTagColor, PRIORITY_META, refOf, STATUS_META, TAG_COLORS, TYPE_META, type Assignee, type Side, type TagColor, type WorkItem, type WorkPriority, type WorkProject, type WorkStatus, type WorkType } from "./model";
+import { datesOf, filesNote, hearsComments, indexById, isArchived, isCompleted, isTagColor, PRIORITY_META, refOf, STATUS_META, TAG_COLORS, TYPE_META, type Assignee, type Side, type TagColor, type WorkItem, type WorkPriority, type WorkProject, type WorkStatus, type WorkFile, type WorkType } from "./model";
 import { orderLast, placeBetween } from "./order";
 import { AGREED, agreedNow, canCreate, canPlanProjects, capsFor, changeFor, lockedReason, PROJECTS_LATER, reorderFor, sideOf, tickRefusal, transitionFor, VIEWER_ONLY, type Actor, type Names, type TransitionKind, type WorkAccess, type WorkField } from "./permissions";
 import { checkComment, checkDates, checkDependency, checkDescription, checkEffort, checkNote, checkProjectName, checkSubtaskTitle, checkTag, checkTitle, normalizeTag, type Invalid } from "./validate";
@@ -762,18 +762,19 @@ function removeSubtask(r: Repo, id: string, subId: string) {
   });
 }
 
-function comment(r: Repo, id: string, c: { id: string; text: string }) {
+function comment(r: Repo, id: string, c: { id: string; text: string; files?: WorkFile[] }) {
   return runOnItem(r, "comment", id, (t, state, access, now) => {
     need(r, capsFor(t, r.actor, access).comment, () => access.closedReason ?? "This contract has ended, so comments are closed.");
     if (t.comments.some((x) => x.id === c.id)) return { result: { item: t } };
-    invalid(checkComment(c.text));
+    const files = c.files ?? [];
+    invalid(checkComment(c.text, files.length));
     const from = r.side as Side;
     const text = c.text.trim();
-    const { next, item } = save(r, state, { ...t, comments: [...t.comments, { id: c.id, ts: now.ms, at: now.moment, side: from, name: r.actor.name, text }] }, now, []);
+    const { next, item } = save(r, state, { ...t, comments: [...t.comments, { id: c.id, ts: now.ms, at: now.moment, side: from, name: r.actor.name, text, ...(files.length ? { files } : {}) }] }, now, []);
     // Said to the other side, so they hear it if it's theirs to follow (hearsComments) — a retry
-    // of the same comment (above) says nothing twice.
+    // of the same comment (above) says nothing twice. Files alone are said as files.
     const to: Side = from === "team" ? "independent" : "team";
-    return { next, result: { item, notices: hearsComments(t, to) ? [{ kind: "task_comment", from, task: { id: t.id, title: t.title }, note: text }] : [] } };
+    return { next, result: { item, notices: hearsComments(t, to) ? [{ kind: "task_comment", from, task: { id: t.id, title: t.title }, note: text || filesNote(files) }] : [] } };
   });
 }
 
@@ -805,6 +806,6 @@ export function createWorkRepository(opts: { actor: Actor; port: WorkPort; clock
     addSubtask: (id: string, sub: { id: string; title: string }) => addSubtask(r, id, sub),
     toggleSubtask: (id: string, subId: string, done: boolean) => toggleSubtask(r, id, subId, done),
     removeSubtask: (id: string, subId: string) => removeSubtask(r, id, subId),
-    comment: (id: string, c: { id: string; text: string }) => comment(r, id, c),
+    comment: (id: string, c: { id: string; text: string; files?: WorkFile[] }) => comment(r, id, c),
   };
 }

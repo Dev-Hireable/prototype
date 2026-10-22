@@ -1,5 +1,5 @@
 import { dayOf, isoOf, stampLabel, type Day } from "./dates";
-import { COMMENT_MAX, DESCRIPTION_MAX, EFFORT_MAX, isArchived, isCompleted, NOTE_MAX, PROJECT_NAME_MAX, refOf, TAG_MAX, TAGS_PER_ITEM, TITLE_MAX, type ById, type WorkItem, type WorkProject, type WorkType } from "./model";
+import { COMMENT_FILES_MAX, COMMENT_MAX, DESCRIPTION_MAX, EFFORT_MAX, isArchived, isCompleted, NOTE_MAX, PROJECT_NAME_MAX, refOf, TAG_MAX, TAGS_PER_ITEM, TITLE_MAX, type ById, type WorkItem, type WorkProject, type WorkType } from "./model";
 
 /**
  * The rules a work item has to satisfy, as pure checks. The repository runs them on every save, and
@@ -162,10 +162,12 @@ export function checkNote(raw: string | undefined, required: boolean, field = "n
   return null;
 }
 
-export function checkComment(raw: string): Invalid | null {
+/** A comment says something, or sends files (`files`, how many), or both. */
+export function checkComment(raw: string, files = 0): Invalid | null {
   const t = raw.trim();
-  if (!t) return { field: "comment", message: "Write something first." };
+  if (!t && !files) return { field: "comment", message: "Write something first." };
   if (t.length > COMMENT_MAX) return { field: "comment", message: `Keep comments under ${COMMENT_MAX.toLocaleString("en-US")} characters.` };
+  if (files > COMMENT_FILES_MAX) return { field: "comment", message: `Up to ${COMMENT_FILES_MAX} files on one comment.` };
   return null;
 }
 

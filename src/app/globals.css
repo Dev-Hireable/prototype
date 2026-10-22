@@ -506,6 +506,22 @@ summary {
 }
 
 /*
+ * A heading that sticks to the top of its scroll (the task sheet's name): a hairline under it once
+ * the content runs beneath, drawn by how far its scroller has scrolled rather than by a script.
+ * Browsers without scroll-driven animations go without the line.
+ */
+@keyframes stuck-edge {
+  to {
+    box-shadow: 0 1px 0 #ebebeb;
+  }
+}
+.stuck-edge {
+  animation: stuck-edge linear both;
+  animation-timeline: scroll();
+  animation-range: 24px 64px;
+}
+
+/*
  * UI scale. On a laptop — a window 1024–1535px wide, or one under 820px tall (a 14" screen at
  * 125–150% scaling, once the browser's toolbars take their share) — the whole app draws at 90%, the
  * size it reads best at there; big screens stay at 100%. `zoom` scales everything, the many fixed

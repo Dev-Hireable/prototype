@@ -7,7 +7,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Avatar, Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
-import { FilePreview } from "@/components/portal/file-preview";
+import { FileTiles } from "@/components/portal/attachments";
 import { Meter } from "@/components/portal/meter";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { PanelCard } from "@/components/portal/panel-card";
@@ -47,9 +47,9 @@ import {
   useDisputes,
   withdrawDispute,
 } from "@/lib/demo/disputes";
-import type { Attachment, CaseViewer, Dispute, DisputeParty, Entry, Escrow, Proposal } from "@/lib/demo/disputes";
+import type { CaseViewer, Dispute, DisputeParty, Entry, Escrow, Proposal } from "@/lib/demo/disputes";
 import type { PartyTurn } from "@/lib/disputes/case";
-import { CASE_FILE_TYPES, checkCaseFile, keepFile, MAX_CASE_FILE_MB, MAX_CASE_FILES, sizeLabel, useFileUrl, usePreviewUrl } from "@/lib/demo/files";
+import { CASE_FILE_TYPES, checkCaseFile, keepFile, MAX_CASE_FILE_MB, MAX_CASE_FILES, usePreviewUrl } from "@/lib/demo/files";
 import { PAIR, useLive, type LivePayment } from "@/lib/demo/live";
 import { keyed } from "@/lib/portal/keys";
 import { useToast, type SetToast } from "@/lib/portal/toast";
@@ -415,7 +415,7 @@ function Statement({ e }: { e: Entry }) {
   return (
     <>
       {e.text && <Quote>{e.text}</Quote>}
-      {e.attachments && e.attachments.length > 0 && <Attachments files={e.attachments} />}
+      {e.attachments && e.attachments.length > 0 && <FileTiles files={e.attachments} />}
       {e.link && (
         <a href={/^https?:\/\//.test(e.link) ? e.link : `https://${e.link}`} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 self-start text-[13px] font-medium break-all text-primary hover:underline">
           <ICONS.link size={15} aria-hidden className="shrink-0" /> {e.link}
@@ -828,52 +828,6 @@ function PickedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
         <ICONS.close size={14} aria-hidden />
       </button>
     </span>
-  );
-}
-
-/** Files on the case: image thumbnails that open full size, PDFs that open in a new tab. */
-function Attachments({ files }: { files: Attachment[] }) {
-  return (
-    <ul className="flex flex-wrap gap-2" aria-label="Attachments">
-      {files.map((f) => (
-        <li key={f.id}>
-          <AttachmentTile file={f} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function AttachmentTile({ file }: { file: Attachment }) {
-  const { url, missing } = useFileUrl(file.id);
-  const [open, setOpen] = useState(false);
-  const label = `${file.name} · ${sizeLabel(file.size)}`;
-  if (missing)
-    return (
-      <span className="flex h-10 items-center gap-2 rounded-lg bg-surface-2 px-3 text-[12.5px] text-ink-2">
-        <ICONS.document size={16} aria-hidden /> {file.name} (not in this browser)
-      </span>
-    );
-  if (file.type.startsWith("image/"))
-    return (
-      <>
-        <button type="button" onClick={() => setOpen(true)} aria-label={`Open ${label}`} className="block size-24 overflow-hidden rounded-lg bg-surface-2 outline -outline-offset-1 outline-border hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:outline-primary">
-          {url && (
-            // eslint-disable-next-line @next/next/no-img-element -- a file kept in this browser, shown from an object URL
-            <img src={url} alt={file.name} className="size-full object-cover" />
-          )}
-        </button>
-        <Modal open={open} onClose={() => setOpen(false)} title={file.name} width={960} closeButton>
-          {url && <FilePreview url={url} type={file.type} alt={file.name} />}
-        </Modal>
-      </>
-    );
-  return (
-    <a href={url ?? undefined} target="_blank" rel="noreferrer" aria-label={`Open ${label}`} className="flex h-10 max-w-[260px] items-center gap-2 rounded-lg bg-white px-3 text-[12.5px] text-ink outline -outline-offset-1 outline-border hover:outline-[#a6a6a6]">
-      <ICONS.pdf size={18} aria-hidden className="shrink-0 text-danger" />
-      <span className="truncate">{file.name}</span>
-      <span className="shrink-0 text-ink-2">{sizeLabel(file.size)}</span>
-    </a>
   );
 }
 

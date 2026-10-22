@@ -10,7 +10,8 @@ import { notifications as indSeed } from "@/lib/independent/data";
 import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
 import type { Notification as TeamNote } from "@/lib/team/data";
-import type { Side } from "@/lib/work/model";
+import { filesNote, type Side } from "@/lib/work/model";
+import type { Attachment } from "@/lib/disputes/case";
 import type { NoteCategory } from "@/lib/portal/notification-categories";
 
 /**
@@ -50,6 +51,9 @@ export type ChatMsg = {
   at?: number;
   /** TB-007 / IN-007 — something that happened rather than something said: logged in the thread, with where to see it. */
   event?: ChatEvent;
+  /** Files sent with it, kept in the browser's file store (@/lib/demo/files). */
+  files?: Attachment[];
+  /** A file sent before messages kept theirs: its name and size, which this browser no longer has. */
   file?: { name: string; meta: string };
   /** Where it was written, when that wasn't the thread itself — the inbox links back to it. */
   source?: ChatSource;
@@ -70,30 +74,6 @@ export type ChatSource = { kind: "proposal"; version: number; roleSlug: string; 
 
 /** Where a note written on the proposal came from, so both inboxes can link back to it. */
 export const proposalSource = (deal: Deal | null): ChatSource | undefined => (deal?.proposal ? { kind: "proposal", version: deal.proposal.version, roleSlug: deal.roleSlug, title: deal.title } : undefined);
-
-/* ----------------------------------------------------------- attachments */
-
-/** TB-010 / IN-010 — what the composer accepts. */
-export const ACCEPTED_FILES = ".pdf,.doc,.docx,.png,.jpg,.jpeg";
-const MAX_FILE_MB = 10;
-
-/**
- * Blob URLs for files attached this session, keyed by message id, so the recipient can download
- * from the thread. Only the name/size/type go into localStorage.
- * ponytail: in-memory, so a download link dies on refresh — fine until there's a real upload API.
- */
-const blobs = new Map<string, string>();
-export const fileUrl = (msgId: string) => blobs.get(msgId);
-
-/** Returns an error string when the file fails the type/size rules, otherwise null. */
-export function checkFile(file: File): string | null {
-  const ok = /\.(pdf|docx?|png|jpe?g)$/i.test(file.name);
-  if (!ok) return "Only PDF, DOC, DOCX, PNG and JPG files can be attached.";
-  if (file.size > MAX_FILE_MB * 1024 * 1024) return `Files must be ${MAX_FILE_MB} MB or smaller.`;
-  return null;
-}
-
-export const fileMeta = (file: File) => `${file.name.split(".").pop()?.toUpperCase()} · ${(file.size / 1024).toFixed(0)} KB`;
 
 /**
  * IN-051 — a payment recorded against a contract. It crosses portals: the Team Builder (or the
@@ -735,14 +715,14 @@ function markRead(side: Side, noteId?: string) {
  * TB-007 / IN-007 — a new message triggers a notification for the receiver. Consecutive
  * messages collapse into the one unread entry so a back-and-forth doesn't flood the feed.
  */
-export function sendChat(from: Side, text: string, source?: ChatSource): string | undefined {
+export function sendChat(from: Side, text: string, source?: ChatSource, files: Attachment[] = []): string | undefined {
   const body = text.trim();
-  if (!body) return;
+  if (!body && !files.length) return;
   refresh();
   const id = uid();
-  const chat = [...snapshot.chat, { id, from, text: body, time: clock(), at: Date.now(), source }];
+  const chat = [...snapshot.chat, { id, from, ...(body ? { text: body } : {}), ...(files.length ? { files } : {}), time: clock(), at: Date.now(), source }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, body);
+  noteMessage(from, body || filesNote(files));
   return id;
 }
 
@@ -774,21 +754,6 @@ function noteMessage(from: Side, body: string) {
     href: "/team/messages",
   };
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
-}
-
-/** TB-010 / IN-010 — send an attachment; the recipient can download it from the thread. */
-export function sendFile(from: Side, file: File, source?: ChatSource): string {
-  refresh();
-  const msgId = uid();
-  try {
-    blobs.set(msgId, URL.createObjectURL(file));
-  } catch {
-    /* ignore — the bubble still renders, just without a live download */
-  }
-  const chat = [...snapshot.chat, { id: msgId, from, time: clock(), at: Date.now(), file: { name: file.name, meta: `${fileMeta(file)} · ${clock()}` }, source }];
-  write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, `Sent an attachment: ${file.name}`);
-  return msgId;
 }
 
 /** TB-008 / IN-008 — the count clears when the conversation is opened, along with its notification. */

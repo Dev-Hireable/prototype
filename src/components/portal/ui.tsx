@@ -911,10 +911,11 @@ function useDrawerFocus(initialFocus: "first" | "close" | RefObject<HTMLElement 
  * portals, traps focus and closes on Escape or a click outside.
  *
  * `header` swaps the visible title for other content in that row (the title stays the dialog's
- * accessible name), `actions` sit at the row's right end, and `footer` pins below the body — the task
- * panel uses all three. A `header` may run to several lines (an eyebrow such as "#4", a name that
- * wraps), so its row aligns to the top, with the close and the actions centred on its first 32px
- * line, and a hairline under it: the body scrolls beneath it.
+ * accessible name), `actions` sit at the row's right end, `subheader` spans the width under the row,
+ * and `footer` pins below the body — the task sheet uses all four: its status and next step in the
+ * row, the step's note under it. A `header` may wrap onto a second line on a phone, so its row aligns
+ * to the top, with the close and the actions centred on its first 36px line, and a hairline under
+ * the whole header: the body scrolls beneath it.
  *
  * Opening moves the focus to the first control inside, unless one was already focused (autoFocus).
  * `initialFocus="close"` starts on the close button instead — for a header whose first control is a
@@ -930,6 +931,7 @@ export function Drawer({
   width = 800,
   header,
   actions,
+  subheader,
   footer,
   testId,
   initialFocus = "first",
@@ -941,6 +943,7 @@ export function Drawer({
   width?: number;
   header?: ReactNode;
   actions?: ReactNode;
+  subheader?: ReactNode;
   footer?: ReactNode;
   testId?: string;
   initialFocus?: "first" | "close" | RefObject<HTMLElement | null>;
@@ -949,26 +952,30 @@ export function Drawer({
   return (
     <Sheet side="right" open={open} onOpenChange={(next) => !next && onClose()}>
       <SheetContent showCloseButton={false} initialFocus={start} className="gap-0 data-[side=right]:w-full" style={{ maxWidth: width }} data-testid={testId}>
-        <SheetHeader className={`flex-row gap-3 px-6 py-5 ${header ? "items-start border-b border-border" : "items-center"}`}>
-          {/* The close leads, top left, pointing the way the sheet slides out — the mirror of the
-              sidebar's «. Beside a `header` it sits on the header's first 32px line. The negative
-              margin gives the icon a hover box without making the row taller. */}
-          <div className={`flex shrink-0 items-center ${header ? "h-8" : ""}`}>
-            <SheetClose ref={closeRef} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
-              <DrawerCloseGlyph />
-            </SheetClose>
+        <SheetHeader className={`gap-3 px-6 ${header ? "border-b border-border py-4" : "py-5"}`}>
+          <div className={`flex gap-3 ${header ? "items-start" : "items-center"}`}>
+            {/* The close leads, top left, pointing the way the sheet slides out — the mirror of the
+                sidebar's «. Beside a `header` it sits on the header's first 36px line. The negative
+                margin gives the icon a hover box without making the row taller. */}
+            <div className={`flex shrink-0 items-center ${header ? "h-9" : ""}`}>
+              <SheetClose ref={closeRef} aria-label="Close" className={`${ICON_BUTTON} -m-1.5 size-8`}>
+                <DrawerCloseGlyph />
+              </SheetClose>
+            </div>
+            {header ? (
+              <>
+                <SheetTitle className="sr-only">{title}</SheetTitle>
+                <div className="flex min-w-0 flex-1 items-center gap-2">{header}</div>
+              </>
+            ) : (
+              <SheetTitle className="min-w-0 flex-1 font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
+            )}
+            {actions && <div className={`flex shrink-0 items-center gap-1 ${header ? "h-9" : ""}`}>{actions}</div>}
           </div>
-          {header ? (
-            <>
-              <SheetTitle className="sr-only">{title}</SheetTitle>
-              <div className="flex min-w-0 flex-1 items-center gap-2">{header}</div>
-            </>
-          ) : (
-            <SheetTitle className="min-w-0 flex-1 font-sans text-[18px] leading-[1.4] font-semibold text-ink">{title}</SheetTitle>
-          )}
-          {actions && <div className={`flex shrink-0 items-center gap-1 ${header ? "h-8" : ""}`}>{actions}</div>}
+          {subheader}
         </SheetHeader>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
+        {/* `relative`: an absolutely placed child (an sr-only label) stays inside the scroll rather than stretching the page. */}
+        <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
         {footer && <div className="shrink-0 border-t border-border px-6 py-4">{footer}</div>}
       </SheetContent>
     </Sheet>

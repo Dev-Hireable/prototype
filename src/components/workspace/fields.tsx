@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
-import { ICONS, type IconName } from "@/components/icons";
+import { ICONS } from "@/components/icons";
 import { DatePicker } from "@/components/portal/date-picker";
 import { PriorityMenu, PriorityPill, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
-import { InfoTip, Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/portal/tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
@@ -210,12 +210,8 @@ export function ProjectField({ item }: { item: WorkItem }) {
   const here = projects.places.find((p) => p.key === key);
   const name = here?.name ?? NO_PROJECT_NAME;
   const targets = projects.places.filter((p) => p.kind === "none" || (p.kind === "project" && !p.finished));
-  const chip = (
-    <span className="inline-flex min-w-0 items-center gap-1.5 text-ink">
-      <ICONS.project size={16} aria-hidden className="shrink-0 text-ink-2" />
-      <span className="truncate">{name}</span>
-    </span>
-  );
+  // The sheet's row carries the project icon in its gutter, so the name stands alone.
+  const chip = <span className="min-w-0 truncate text-ink">{name}</span>;
   if (!projects.canPlan || !can) return <span className={READ_ONLY}>{chip}</span>;
   return (
     <DropdownMenu>
@@ -264,9 +260,10 @@ export function PriorityField({ item, compact = false, onLocked }: { item: WorkI
  * The start or the due date, on the app's DatePicker. Days that would break a rule — a due date in
  * the past, one before the start, anything after a trial's last day — can't be picked (checkDates
  * decides each day), and the same rules run again when the change is saved. A start with no day
- * left to pick, and none to clear, reads as text that says why.
+ * left to pick, and none to clear, reads as text that says why. In the sheet's dates line (`bare`) it
+ * has no calendar of its own, the line has one, and a date standing alone says which it is (`prefix`).
  */
-export function DateField({ item, which, compact = false, onLocked, ref }: { item: WorkItem; which: "start" | "due"; compact?: boolean; onLocked?: OnLocked; /** The picker's trigger — set only while there's a date to pick. */ ref?: Ref<HTMLButtonElement> }) {
+export function DateField({ item, which, compact = false, bare = false, prefix, onLocked, ref }: { item: WorkItem; which: "start" | "due"; compact?: boolean; bare?: boolean; /** "Due" before a date shown without the other one. */ prefix?: string; onLocked?: OnLocked; /** The picker's trigger — set only while there's a date to pick. */ ref?: Ref<HTMLButtonElement> }) {
   const env = useWorkspace();
   const { actions, today } = env;
   const rules: DateRules = { today, lastDay: dayOf(env.access.lastDay) };
@@ -275,8 +272,7 @@ export function DateField({ item, which, compact = false, onLocked, ref }: { ite
   const noDayLeft = can && which === "start" ? noStartReason(item, rules, env) : null;
   const value = dayOf(item[which]);
   const label = which === "start" ? "Start" : "Due";
-  const late = which === "due" && value !== null && value < today && item.status !== "done";
-  const face = <DateFace text={dateText(value, today, can && !noDayLeft, compact, label)} late={late} dated={value !== null} />;
+  const face = <DateFace text={prefixed(dateText(value, today, can && !noDayLeft, compact, label), prefix, value)} late={isLate(item, which, value, today)} dated={value !== null} bare={bare} />;
   if (!can || noDayLeft)
     return (
       <ReadOnly item={item} field={which} onLocked={onLocked} reason={noDayLeft ?? undefined}>
@@ -304,15 +300,21 @@ export function DateField({ item, which, compact = false, onLocked, ref }: { ite
   );
 }
 
-/** A date field's face: the calendar icon, then the words — in red, and saying so, once a due date has passed. */
-function DateFace({ text, late, dated }: { text: string; late: boolean; dated: boolean }) {
+/** A date field's face: the calendar icon (unless the field is `bare`), then the words — in red, and saying so, once a due date has passed. */
+function DateFace({ text, late, dated, bare }: { text: string; late: boolean; dated: boolean; bare: boolean }) {
   return (
     <>
-      <ICONS.calendar size={14} aria-hidden className={late ? "text-danger" : "text-ink-2"} />
+      {!bare && <ICONS.calendar size={14} aria-hidden className={late ? "text-danger" : "text-ink-2"} />}
       <span className={`truncate ${late ? "font-medium text-danger" : dated ? "text-ink" : ""}`}>{late ? `${text} · overdue` : text}</span>
     </>
   );
 }
+
+/** A due date that has gone by on work that isn't done. */
+const isLate = (item: WorkItem, which: "start" | "due", value: Day | null, today: Day) => which === "due" && value !== null && value < today && item.status !== "done";
+
+/** A date shown without the other one says which it is: "Due 5 Oct". */
+const prefixed = (text: string, prefix: string | undefined, value: Day | null) => (prefix && value !== null ? `${prefix} ${text}` : text);
 
 /** What a date field says: how far off the day is; with no day, how to set one or that there's none — a dash in a compact cell. */
 function dateText(value: Day | null, today: Day, can: boolean, compact: boolean, label: string): string {
@@ -333,15 +335,15 @@ function noStartReason(item: WorkItem, rules: DateRules, { actor, access, names 
   return changeFor(item, actor, access, "due", names).ok ? `${why} Move the due date first.` : why;
 }
 
-/** Effort: the presets, any whole number up to 999, or none. Relative — not hours. */
-export function EffortField({ item, compact = false, onLocked }: { item: WorkItem; compact?: boolean; onLocked?: OnLocked }) {
+/** Effort: the presets, any whole number up to 999, or none. Relative — not hours. In the sheet's property row (`bare`) it reads "Effort 3", the row's icon its only one. */
+export function EffortField({ item, compact = false, bare = false, onLocked }: { item: WorkItem; compact?: boolean; bare?: boolean; onLocked?: OnLocked }) {
   const { actions } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   // A milestone marks a date, so it has no effort.
   const milestone = item.type === "milestone";
   const can = useCanChange(item, "effort") && !milestone;
-  const face = <EffortFace effort={item.effort} can={can} compact={compact} />;
+  const face = <EffortFace effort={item.effort} can={can} compact={compact} bare={bare} />;
   if (milestone) return <span className={READ_ONLY}>—</span>;
   if (!can)
     return (
@@ -374,8 +376,16 @@ export function EffortField({ item, compact = false, onLocked }: { item: WorkIte
   );
 }
 
-/** Effort's face: the effort icon, then the number — or, with none, how to set it (a dash in a compact cell, or for someone who can't). */
-function EffortFace({ effort, can, compact }: { effort?: number; can: boolean; compact: boolean }) {
+/** Effort's face: the effort icon, then the number — or, with none, how to set it (a dash in a compact cell, or for someone who can't). `bare` names it in words instead of the icon. */
+function EffortFace({ effort, can, compact, bare }: { effort?: number; can: boolean; compact: boolean; bare: boolean }) {
+  if (bare)
+    return effort !== undefined ? (
+      <>
+        Effort <span className="text-ink tabular-nums">{effort}</span>
+      </>
+    ) : (
+      <>{can ? "Set effort" : "No effort"}</>
+    );
   return (
     <>
       <ICONS.effort size={14} aria-hidden className="text-ink-2" />
@@ -621,11 +631,11 @@ function TagOptions({ id, options, heading, current, onHover, onPick }: { id: st
 export function DependenciesField({ item, items, byId }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem> }) {
   const dependents = items.filter((t) => !isArchived(t) && t.dependsOn.includes(item.id));
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-1">
       <WaitsOn item={item} items={items} byId={byId} />
       {dependents.length > 0 && (
-        <div className="flex flex-col gap-1">
-          <p className="text-[12px] font-medium tracking-[0.2px] text-ink-2">Blocking</p>
+        <div className="flex flex-col">
+          <p className={CAPTION}>Blocking</p>
           <ul className="flex flex-col">
             {dependents.map((t) => (
               <DependencyRow key={t.id} item={t} />
@@ -637,6 +647,9 @@ export function DependenciesField({ item, items, byId }: { item: WorkItem; items
   );
 }
 
+/** A list's caption in the sheet's dependencies row: a line of its own, a row's height. */
+const CAPTION = "flex h-8 items-center px-1.5 text-[12px] font-medium tracking-[0.2px] text-ink-2";
+
 /** What the item waits on, each with Stop waiting for whoever may change that — and, for them, "Add a dependency". */
 function WaitsOn({ item, items, byId }: { item: WorkItem; items: readonly WorkItem[]; byId: ReadonlyMap<string, WorkItem> }) {
   const { actor, access, actions } = useWorkspace();
@@ -644,11 +657,11 @@ function WaitsOn({ item, items, byId }: { item: WorkItem; items: readonly WorkIt
   const picker = useDependencyPicker(item, items, byId);
   const blockers = item.dependsOn.map((id) => byId.get(id)).filter((t): t is WorkItem => !!t);
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col">
       {/* Only what's there is labelled — an empty list isn't a line of its own. */}
       {blockers.length > 0 && (
         <>
-          <p className="text-[12px] font-medium tracking-[0.2px] text-ink-2">Waits on</p>
+          <p className={CAPTION}>Waits on</p>
           <ul className="flex flex-col">
             {blockers.map((t) => (
               <DependencyRow key={t.id} item={t} onRemove={can ? () => void actions.removeDependency(item, t.id) : undefined} />
@@ -658,9 +671,8 @@ function WaitsOn({ item, items, byId }: { item: WorkItem; items: readonly WorkIt
       )}
       {can && (
         <Popover open={picker.open} onOpenChange={picker.onOpenChange}>
-          <PopoverTrigger className="flex h-8 items-center gap-1.5 self-start rounded-md px-1.5 text-[13px] text-ink-2 hover:bg-surface-2 hover:text-ink">
-            <ICONS.link size={15} aria-hidden /> Add a dependency
-          </PopoverTrigger>
+          {/* A quiet row, its link icon in the sheet's gutter. */}
+          <PopoverTrigger className="flex h-8 items-center self-start rounded-md px-1.5 text-[13.5px] text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">Add a dependency</PopoverTrigger>
           <PopoverContent align="start" className="flex w-80 flex-col gap-2 p-2">
             <input autoFocus value={picker.q} onChange={(e) => picker.search(e.target.value)} aria-label="Find an item it waits on" placeholder="Search by name or #number" className="h-9 rounded-md border border-border px-2 text-[14px] outline-none focus:border-primary" />
             {picker.error && (
@@ -714,7 +726,7 @@ function useDependencyPicker(item: WorkItem, items: readonly WorkItem[], byId: R
 function DependencyRow({ item: t, onRemove }: { item: WorkItem; onRemove?: () => void }) {
   const { openTask } = useWorkspace();
   return (
-    <li className="flex min-h-8 items-center gap-2 text-[13px]">
+    <li className="flex min-h-8 items-center gap-2 px-1.5 text-[13px]">
       <StatusCircle status={t.status} size={14} label={STATUS_META[t.status].label} />
       <button type="button" onClick={() => openTask(t.id)} className="min-w-0 flex-1 truncate text-left text-ink hover:underline">
         <span className="text-ink-2 tabular-nums">{refOf(t)}</span> {t.title}
@@ -748,25 +760,5 @@ function Candidate({ item: t, onPick }: { item: WorkItem; onPick: () => void }) 
       <span className="text-ink-2 tabular-nums">{refOf(t)}</span>
       <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
     </li>
-  );
-}
-
-/**
- * One property in the sheet's property list: an icon and label on the left, the value on the right,
- * a row each — read down the left for what's set, down the right for the values. The value's control
- * keeps its own 6px inset for its hover box, so it's pulled back by the same amount (`-mx-1.5`) and
- * the values start on one line. `flush` is for values that aren't one control (the tags).
- */
-export function Prop({ label, icon, children, hint, flush = false, ref }: { label: string; icon: IconName; children: ReactNode; hint?: string; flush?: boolean; ref?: Ref<HTMLDivElement> }) {
-  const Icon = ICONS[icon];
-  return (
-    <div ref={ref} className="grid min-h-10 grid-cols-[128px_minmax(0,1fr)] items-center gap-3 px-4 py-1 max-sm:grid-cols-[104px_minmax(0,1fr)]">
-      <dt className="flex items-center gap-2 text-[13px] leading-none text-ink-2">
-        <Icon size={16} aria-hidden className="shrink-0 text-[#8a8f98]" />
-        {label}
-        {hint && <InfoTip label={hint} about={label.toLowerCase()} />}
-      </dt>
-      <dd className={`flex min-h-8 min-w-0 items-center text-[13.5px] ${flush ? "" : "-mx-1.5"}`}>{children}</dd>
-    </div>
   );
 }
