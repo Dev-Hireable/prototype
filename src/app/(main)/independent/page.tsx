@@ -120,15 +120,15 @@ function Hero({ photo, workStyle, steps, tasks }: { photo: string; workStyle: re
       </DashboardGreeting>
 
       <DashboardSetupCard
+        side="independent"
         avatarSrc={photo}
         title={heading.title}
         description={heading.description}
-        completionHref="/independent/profile?edit=profile"
         items={steps}
         note={KYC_NOTE}
-        profileHref="/independent/profile"
         traits={traitTagsFor(workStyle, "independent")}
-        completeDescription="Your profile is live. These are the work style tags companies match you on."
+        matching="Companies match you on these tags."
+        profileHref="/independent/profile"
       />
     </DashboardHero>
   );

@@ -359,7 +359,7 @@ test.describe("onboarding · retaking the quiz", () => {
     await expectRetakeIntro(page, JUAN_TRAITS);
     await page.getByRole("link", { name: "Keep my current tags" }).click();
     await expect(page).toHaveURL(/\/independent$/);
-    await expect(page.getByText("Your work style tags", { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Your work style" })).toBeVisible();
     for (const trait of JUAN_TRAITS) await expect(page.getByText(trait, { exact: true })).toBeVisible();
     expect(await savedTraits(page, "ind")).toEqual([4, 5, 1, 2, 4, 5]);
   });

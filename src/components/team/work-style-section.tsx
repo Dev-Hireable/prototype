@@ -1,18 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
-import { Button, LinkButton, Modal } from "@/components/portal/ui";
+import { useState } from "react";
+import { Button, LinkButton } from "@/components/portal/ui";
 import { ProfileSection } from "@/components/portal/profile-editor";
+import { RetakeQuizDialog } from "@/components/portal/retake-quiz-dialog";
 import { Tip } from "@/components/portal/tip";
 import { TraitTag } from "@/components/portal/trait-tag";
 import { dayLabel } from "@/lib/portal/dates";
-import { nextRetake, quizPath, traitTagsFor } from "@/lib/demo/work-style";
+import { useNextRetake } from "@/lib/demo/retake";
+import { quizPath, traitTagsFor } from "@/lib/demo/work-style";
 import { useTeamAccount } from "@/lib/team/account";
-
-const NO_SUBSCRIBE = () => () => {};
-/** When the company may retake the quiz (epoch ms), or 0 when it may now. Read in the browser only. */
-const retakeAt = () => nextRetake("team")?.getTime() ?? 0;
 
 /**
  * TB-096 — the company's work-style tags, from its quiz: shown on the company profile and used for
@@ -21,9 +18,9 @@ const retakeAt = () => nextRetake("team")?.getTime() ?? 0;
  */
 export function WorkStyleSection() {
   const { workStyle } = useTeamAccount();
-  const router = useRouter();
   const [asking, setAsking] = useState(false);
-  const opensOn = useSyncExternalStore(NO_SUBSCRIBE, retakeAt, () => 0);
+  /** When the company may retake the quiz, or null when it may now. */
+  const opensOn = useNextRetake("team");
   const tags = traitTagsFor(workStyle, "team");
   return (
     <>
@@ -32,7 +29,7 @@ export function WorkStyleSection() {
         description="From your work style quiz. Shown on your company profile and used for matching."
         action={
           tags.length ? (
-            <Tip label={opensOn ? `You can retake the quiz on ${dayLabel(new Date(opensOn))}.` : undefined} wrap>
+            <Tip label={opensOn ? `You can retake the quiz on ${dayLabel(opensOn)}.` : undefined} wrap>
               <Button size="sm" disabled={!!opensOn} onClick={() => setAsking(true)}>
                 Retake quiz
               </Button>
@@ -55,22 +52,7 @@ export function WorkStyleSection() {
         )}
       </ProfileSection>
 
-      <Modal
-        open={asking}
-        onClose={() => setAsking(false)}
-        title="Retake the quiz?"
-        description="Your new results replace the current ones. You can retake once a year."
-        footer={
-          <>
-            <Button size="lg" onClick={() => setAsking(false)}>
-              Cancel
-            </Button>
-            <Button size="lg" variant="primary" onClick={() => router.push(quizPath("team"))}>
-              Start quiz
-            </Button>
-          </>
-        }
-      />
+      <RetakeQuizDialog side="team" open={asking} onClose={() => setAsking(false)} />
     </>
   );
 }

@@ -134,16 +134,15 @@ function SetupHero({ steps }: { steps: DashboardChecklistItem[] }) {
       </DashboardGreeting>
 
       <DashboardSetupCard
+        side="team"
         avatarSrc={profile.photo}
         avatarClassName="object-top"
         title="Finish setting up your account"
         description="Complete your account to start hiring."
-        completionHref="/team/profile/company"
         items={steps}
-        profileHref="/team/profile"
         traits={traitTagsFor(workStyle, "team")}
-        // The title already says "You're all set" once every step is done.
-        completeDescription="Independents are matched to these work style tags."
+        matching="Independents are matched to these tags."
+        profileHref="/team/profile"
       />
     </DashboardHero>
   );
