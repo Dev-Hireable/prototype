@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 import type { QuizChatMessage } from '../../_lib/quiz-types';
+import { TypingDots } from '@/components/portal/typing-dots';
 
 export type BubbleAnimationStyle = 'assistant' | 'user' | 'typing';
 export type AnimateBubbleIn = (
@@ -17,9 +18,6 @@ const ASSISTANT_BUBBLE_CLASS =
 
 const USER_BUBBLE_TEXT_CLASS =
   'font-secondary wrap-break-word text-foreground max-w-full text-left text-sm font-normal leading-[120%] tracking-[0.2px]';
-
-const CHAT_DOT_GROUP_CLASS =
-  'relative h-[22px] w-[42px] flex-none rounded-[8px]';
 
 /**
  * A chat bubble's tail: a curved point on the speaker's side, at the bottom, in the bubble's own
@@ -150,52 +148,6 @@ export function UserChatRow({ message, animateBubbleIn }: UserChatRowProps) {
   );
 }
 
-type ChatDotGroupProps = {
-  /** The bubble colour of whoever is typing: the assistant's blue, or the user's grey. */
-  tone: 'assistant' | 'user';
-  statusLabel?: string;
-  animateBubbleIn?: AnimateBubbleIn;
-  animationStyle?: BubbleAnimationStyle;
-};
-
-function ChatDotGroup({
-  tone,
-  statusLabel,
-  animateBubbleIn,
-  animationStyle,
-}: ChatDotGroupProps) {
-  return (
-    <div
-      data-chat-dot-group
-      ref={
-        animateBubbleIn && animationStyle
-          ? (node) => {
-              animateBubbleIn(node, animationStyle);
-            }
-          : undefined
-      }
-      className={`${CHAT_DOT_GROUP_CLASS} ${tone === 'assistant' ? 'bg-accent-bg' : 'bg-muted'}`}
-      role={statusLabel ? 'status' : undefined}
-      aria-live={statusLabel ? 'polite' : undefined}
-      aria-label={statusLabel}
-      aria-hidden={statusLabel ? undefined : true}
-    >
-      <span
-        data-chat-dot
-        className="bg-neutral-muted absolute left-2 top-2 size-1.5 rounded-full"
-      />
-      <span
-        data-chat-dot
-        className="bg-neutral-muted absolute left-4.5 top-2 size-1.5 rounded-full"
-      />
-      <span
-        data-chat-dot
-        className="bg-neutral-muted absolute left-7 top-2 size-1.5 rounded-full"
-      />
-    </div>
-  );
-}
-
 type AssistantTypingRowProps = {
   assistantName: string;
   assistantAvatarSrc: string;
@@ -216,11 +168,13 @@ export function AssistantTypingRow({
       assistantAvatarSrc={assistantAvatarSrc}
       place={{ first, last: true }}
     >
-      <ChatDotGroup
+      {/* Every chat's typing dots; the quiz brings the bubble in with its own entrance. */}
+      <TypingDots
         tone="assistant"
-        statusLabel={`${assistantName} is typing`}
-        animateBubbleIn={animateBubbleIn}
-        animationStyle="typing"
+        label={`${assistantName} is typing`}
+        bubbleRef={(node) => {
+          animateBubbleIn(node, 'typing');
+        }}
       />
     </AssistantRowShell>
   );
@@ -233,14 +187,12 @@ type UserPendingRowProps = {
 export function UserPendingRow({ animateBubbleIn }: UserPendingRowProps) {
   return (
     <div className={USER_ROW_CLASS}>
-      <div
-        data-user-pending-bubble
-        ref={(node) => {
+      <TypingDots
+        tone="user"
+        bubbleRef={(node) => {
           animateBubbleIn(node, 'user');
         }}
-      >
-        <ChatDotGroup tone="user" />
-      </div>
+      />
     </div>
   );
 }

@@ -121,95 +121,6 @@ function useChatBubbleEntranceAnimation(): AnimateBubbleIn {
   );
 }
 
-/** Sets the dots of each typing indicator in the chat bobbing in turn, collecting their tweens. */
-function bobChatDots(
-  gsap: typeof import('gsap').default,
-  chat: HTMLDivElement,
-  tweens: unknown[],
-) {
-  const dotGroups = chat.querySelectorAll<HTMLElement>(
-    '[data-chat-dot-group]',
-  );
-
-  dotGroups.forEach((group) => {
-    const dots = group.querySelectorAll<HTMLElement>('[data-chat-dot]');
-    if (dots.length === 0) return;
-
-    gsap.set(dots, { y: 0, opacity: 0.38 });
-    tweens.push(
-      gsap.to(dots, {
-        y: -3,
-        opacity: 1,
-        duration: 0.36,
-        ease: 'sine.inOut',
-        repeat: -1,
-        yoyo: true,
-        stagger: 0.14,
-      }),
-    );
-  });
-}
-
-/** Stops the tweens bobChatDots started. */
-function killTweens(tweens: unknown[]) {
-  tweens.forEach((tween) => {
-    if (
-      tween &&
-      typeof (tween as { kill?: () => void }).kill === 'function'
-    ) {
-      (tween as { kill: () => void }).kill();
-    }
-  });
-}
-
-type UseChatIndicatorsAnimationParams = {
-  chatScrollRef: RefObject<HTMLDivElement | null>;
-  messagesLength: number;
-  currentQuestionIndex: number;
-  isAssistantTyping: boolean;
-  hasCurrentUserResponse: boolean;
-  suppressIndicators: boolean;
-};
-
-function useChatIndicatorsAnimation({
-  chatScrollRef,
-  messagesLength,
-  currentQuestionIndex,
-  isAssistantTyping,
-  hasCurrentUserResponse,
-  suppressIndicators,
-}: UseChatIndicatorsAnimationParams) {
-  useEffect(() => {
-    const chat = chatScrollRef.current;
-    if (!chat) return;
-    if (suppressIndicators) return;
-    if (prefersReducedMotion()) return;
-
-    let cancelled = false;
-    const tweens: unknown[] = [];
-
-    void loadGsap()
-      .then(({ default: gsap }) => {
-        if (cancelled) return;
-
-        bobChatDots(gsap, chat, tweens);
-      })
-      .catch(reportGsapLoadError);
-
-    return () => {
-      cancelled = true;
-      killTweens(tweens);
-    };
-  }, [
-    messagesLength,
-    currentQuestionIndex,
-    isAssistantTyping,
-    hasCurrentUserResponse,
-    suppressIndicators,
-    chatScrollRef,
-  ]);
-}
-
 /** How near the bottom still counts as reading along, in px. */
 const FOLLOW_SLACK_PX = 48;
 /** Room left above the assistant's latest line when it has to be shown from its top, in px. */
@@ -488,16 +399,8 @@ export function QuizChatThread({
 }: QuizChatThreadProps) {
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  // The typing dots animate themselves (TypingDots, the same in every chat); only the bubbles' entrances are GSAP's.
   const animateBubbleIn = useChatBubbleEntranceAnimation();
-
-  useChatIndicatorsAnimation({
-    chatScrollRef,
-    messagesLength: messages.length,
-    currentQuestionIndex,
-    isAssistantTyping,
-    hasCurrentUserResponse,
-    suppressIndicators,
-  });
 
   useChatAutoScroll({
     chatScrollRef,

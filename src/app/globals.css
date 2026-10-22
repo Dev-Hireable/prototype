@@ -505,25 +505,44 @@ summary {
   }
 }
 
-/* The other side's typing dots (TypingBubble): each brightens in turn, a beat apart, without moving.
-   Without motion they stay still, half lit. */
+/* Typing dots (TypingDots), the same in every chat, the quiz's included: each dot rises 3px and
+   brightens, then settles, a beat after the one before. The bubble comes in with a quick rise
+   unless its chat animates it in itself. Without motion the dots stay still. */
 @keyframes typing-dot {
   0%,
-  60%,
   100% {
-    opacity: 0.3;
+    transform: translateY(0);
+    opacity: 0.38;
   }
-  30% {
+  50% {
+    transform: translateY(-3px);
     opacity: 1;
   }
 }
 .typing-dot {
-  animation: typing-dot 1.2s ease-in-out infinite;
+  animation: typing-dot 0.72s ease-in-out infinite both;
+}
+/* The stagger lives here too: this unlayered `animation` would beat a utility's animation-delay. */
+.typing-dot + .typing-dot {
+  animation-delay: 140ms;
+}
+.typing-dot + .typing-dot + .typing-dot {
+  animation-delay: 280ms;
+}
+@keyframes typing-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.96);
+  }
+}
+.typing-in {
+  transform-origin: left bottom;
+  animation: typing-in 0.2s ease-out both;
 }
 @media (prefers-reduced-motion: reduce) {
-  .typing-dot {
+  .typing-dot,
+  .typing-in {
     animation: none;
-    opacity: 0.6;
   }
 }
 
