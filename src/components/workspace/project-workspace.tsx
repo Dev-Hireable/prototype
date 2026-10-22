@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ICONS, type IconName } from "@/components/icons";
-import { Button, InfoBanner, Toast } from "@/components/portal/ui";
+import { Button, InfoBanner } from "@/components/portal/ui";
 import { PHONE_FAB } from "@/components/portal/styles";
 import { ViewTabsList } from "@/components/portal/view-switch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -13,7 +13,7 @@ import { countsOf, isArchived, type AssigneeKey, type WorkItem } from "@/lib/wor
 import { canCreate, canPlanProjects, canReorder, readOnlyReason, reorderFor, type Actor, type WorkAccess } from "@/lib/work/permissions";
 import { ALL, inScope, knownScope, NO_PROJECT, OPEN, openWorkOf, projectKeyOf, summarize, workCtx, type ProjectSummary, type Scope } from "@/lib/work/projects";
 import { activeFilterCount, applyFilters, EMPTY_FILTERS, groupItems, sortItems, VIEW_LABEL, VIEWS, type Group, type ViewKey, type WorkQuery } from "@/lib/work/query";
-import { onWorkMessage, useWork, useWorkActions, type WorkActions, type WorkMessage, type WorkSnapshot } from "@/lib/work/store";
+import { useWork, useWorkActions, type WorkActions, type WorkSnapshot } from "@/lib/work/store";
 import { BoardView } from "./board-view";
 import { CalendarView } from "./calendar-view";
 import { useWorkspace, useWorkspaceQuery, WorkspaceProvider, type DetailFocus, type WorkspaceEnv } from "./context";
@@ -26,6 +26,7 @@ import { TaskDetail } from "./task-detail";
 import { TimelineView } from "./timeline-view";
 import { FilterChips, Toolbar } from "./toolbar";
 import { focusItem, useWidth } from "./util";
+import { WorkMessages } from "./work-messages";
 import { WorkloadView } from "./workload-view";
 import { firstName, assigneeLabel as labelOf, type TaskPeople } from "@/components/workspace/labels";
 
@@ -51,7 +52,6 @@ export function ProjectWorkspace({ actor, people, context, closedNote }: Workspa
   const { env, projectScope } = useWorkspaceEnv(actor, people, work, query, openTask);
   const { split, scope, closedPlaceNote } = projectScope;
   useE2ESeam(env.actions.repo);
-  const { toast, closeToast, live } = useWorkMessages();
   const list = useWorkList(work, query, env.today, env.assigneeLabel, projectScope);
   const clearFilters = () => setQuery({ ...EMPTY_FILTERS, q: "" });
 
@@ -79,11 +79,7 @@ export function ProjectWorkspace({ actor, people, context, closedNote }: Workspa
         </Tabs>
         <ItemSheet shown={shown} open={!!open} work={work} focus={focus} onClose={closeTask} />
         {env.canCreate && <NewTaskDialog open={adding} onClose={() => setAdding(false)} />}
-        <WorkToast toast={toast} onClose={closeToast} />
-        {/* Stays audible while an item's sheet is open: the modal hides the page but keeps [aria-live]. */}
-        <p aria-live="polite" className="sr-only" data-testid="announcer">
-          {live}
-        </p>
+        <WorkMessages />
       </div>
     </WorkspaceProvider>
   );
@@ -238,22 +234,6 @@ function closedPlaceNoteOf(shownPlace: ProjectSummary | undefined, canPlan: bool
   return !shownPlace?.finished ? null : shownPlace.kind === "trial" ? "The trial is over. Its work stays as it was finished, for the record." : `“${shownPlace.name}” is ${shownPlace.archived ? "archived" : "finished"}, so its work is read-only.${canPlan ? " Reopen it to change anything." : ""}`;
 }
 
-/** What the actions have to say: a toast for what matters, and every outcome read out. */
-function useWorkMessages() {
-  const [toast, setToast] = useState<WorkMessage | null>(null);
-  const closeToast = useCallback(() => setToast(null), []);
-  const [live, setLive] = useState("");
-  useEffect(
-    () =>
-      onWorkMessage((m) => {
-        setLive(m.message);
-        if (!m.quiet) setToast(m);
-      }),
-    [],
-  );
-  return { toast, closeToast, live };
-}
-
 /**
  * The work the views draw — what's in scope, filtered, sorted and (where the view groups) grouped
  * the way the toolbar says — and the figures the header shows.
@@ -405,11 +385,6 @@ function CurrentView({ query, setQuery, groups, sorted, byId, pendingIds, width 
 function ItemSheet({ shown, open, work, focus, onClose }: { shown: WorkItem | undefined; open: boolean; work: WorkSnapshot; focus?: DetailFocus; onClose: () => void }) {
   if (!shown) return null;
   return <TaskDetail key={shown.id} open={open} item={work.byId.get(shown.id) ?? shown} items={work.items} byId={work.byId} focus={focus} pending={work.pendingIds.has(shown.id)} onClose={onClose} />;
-}
-
-/** The toast for what an action had to say, with its button when it offers one. */
-function WorkToast({ toast, onClose }: { toast: WorkMessage | null; onClose: () => void }) {
-  return <Toast toast={toast} action={toast?.action ? { label: toast.action.label, onClick: toast.action.run } : undefined} onClose={onClose} />;
 }
 
 /** A project with nothing in it yet, or the open work with nothing open — said plainly, with the way to add some. */

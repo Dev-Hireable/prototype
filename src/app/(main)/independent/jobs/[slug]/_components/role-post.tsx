@@ -17,7 +17,8 @@ export function RoleHeader({ role }: { role: Role }) {
   /** Three facts, as on the profile: the pay (with a part-time role's hours), how long or when, and the level. */
   const facts = jobFacts({ type: role.type, pay: role.rateRange, duration: role.duration, hours: role.hours, level: role.level });
   return (
-    <header className="flex max-w-[768px] flex-col gap-6">
+    // data-tour: the role's tour points at the role and at its work style (@/lib/portal/tours).
+    <header data-tour="role-head" className="flex max-w-[768px] flex-col gap-6">
       <div className="flex flex-col gap-2">
         <p className="text-[14px] leading-[1.4] text-ink-2">
           <span className="font-semibold text-ink">{role.company}</span> · {role.about.location} · {role.posted}
@@ -61,9 +62,12 @@ export function RoleSections({ role, theirs, mine, tasks, tasksShared }: { role:
         </div>
       </Section>
 
-      <Section title="Work style">
-        <WorkStyleMatch company={role.company} theirs={theirs} mine={mine} />
-      </Section>
+      {/* Section takes no extra props, so the tour's anchor is a wrapper. */}
+      <div data-tour="role-style">
+        <Section title="Work style">
+          <WorkStyleMatch company={role.company} theirs={theirs} mine={mine} />
+        </Section>
+      </div>
 
       {role.type === "trial" && <TrialTasks company={role.company} tasks={tasks} shared={tasksShared} />}
 

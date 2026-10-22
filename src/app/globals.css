@@ -505,6 +505,44 @@ summary {
   }
 }
 
+/* The other side's typing dots (TypingBubble): each brightens in turn, a beat apart, without moving.
+   Without motion they stay still, half lit. */
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+.typing-dot {
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .typing-dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/*
+ * A heading that sticks to the top of its scroll (the task sheet's name): a hairline under it once
+ * the content runs beneath, drawn by how far its scroller has scrolled rather than by a script.
+ * Browsers without scroll-driven animations go without the line.
+ */
+@keyframes stuck-edge {
+  to {
+    box-shadow: 0 1px 0 #ebebeb;
+  }
+}
+.stuck-edge {
+  animation: stuck-edge linear both;
+  animation-timeline: scroll();
+  animation-range: 24px 64px;
+}
+
 /*
  * UI scale. On a laptop — a window 1024–1535px wide, or one under 820px tall (a 14" screen at
  * 125–150% scaling, once the browser's toolbars take their share) — the whole app draws at 90%, the
@@ -559,4 +597,14 @@ summary {
 .badge-count {
   text-box: trim-both cap alphabetic;
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The same trim for a label in capitals beside an icon (the work style tags), so flex centring sets
+ * the icon level with the letters. In the full line box the caps sat up to 1.3px above its middle,
+ * and the icon looked low beside them. Material Symbols draws its icons at cap height, so on one of
+ * its glyphs the trim leaves the icon's own box, however the zoom rounds the line box.
+ */
+.trim-to-caps {
+  text-box: trim-both cap alphabetic;
 }

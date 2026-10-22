@@ -21,6 +21,9 @@ test.describe("validation · text", () => {
     expect(checkNote("x".repeat(1001), false)?.field).toBe("note");
     expect(checkComment("  ")?.field).toBe("comment");
     expect(checkComment("Looks good")).toBeNull();
+    // Files alone make a comment; more than six on one don't.
+    expect(checkComment("", 1)).toBeNull();
+    expect(checkComment("Two pairings", 7)?.message).toBe("Up to 6 files on one comment.");
   });
 });
 

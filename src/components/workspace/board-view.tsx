@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type RefObject } from "react";
+import { memo, useCallback, useRef, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
 import { KanbanColumn, KanbanEmpty, KanbanList, type ColumnFrame } from "@/components/portal/board";
 import { PriorityPill, StatusCircle } from "@/components/portal/tasks/task-bits";
@@ -9,13 +9,12 @@ import { dayOf } from "@/lib/work/dates";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, TYPE_META, type WorkItem } from "@/lib/work/model";
 import { capsFor, lockedReason, targetsFor, transitionFor } from "@/lib/work/permissions";
 import { sortItems, type Group, type WorkQuery } from "@/lib/work/query";
-import { uiZoom } from "@/lib/portal/zoom";
+import { slotAt, useCardDrag, type CardDrag, type Dragging } from "./card-drag";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "./group-actions";
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./item-menu";
 import { itemData } from "./item-data";
 import { AssigneeChip, BlockedChip, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, Ref, TagChip, TypeChip } from "./meta";
-import { liftCard, preloadDragImage } from "./drag-preview";
 import { dropPlan, placeAt, refusal, runPlan, sendForReview, type DropPlan } from "./moves";
 import { QuickAdd } from "./quick-add";
 import { useTimedMessage } from "./timed-message";
@@ -36,7 +35,8 @@ export function BoardView({ groups, byId, query, pendingIds }: { groups: Group[]
   const reorderable = env.canReorder && query.sort === "manual" && !query.archived;
   // A refusal explains itself for a few seconds, then gets out of the way.
   const [hint, setHint] = useTimedMessage();
-  const dnd = useCardDrag(groups, byId, setHint);
+  const clearHint = useCallback(() => setHint(null), [setHint]);
+  const dnd = useCardDrag(groups, byId, clearHint);
   const cards = useRef(new Map<string, HTMLElement>());
   const onKeyMove = useCallback((t: WorkItem, e: KeyboardEvent) => keyMove(t, e, { groups, env, reorderable, setHint }), [groups, env, reorderable, setHint]);
   const menuModel = useMenuModel(byId, groups, env, reorderable);
@@ -59,57 +59,6 @@ export function BoardView({ groups, byId, query, pendingIds }: { groups: Group[]
     </div>
   );
 }
-
-/** The card being dragged, the column it was picked up from, and the room it takes in a column (its height and the gap after it). */
-type Dragging = { id: string; from: string; room: number };
-
-/** The column the dragged card is over, and the slot in it where it would land. */
-type Over = { key: string; index: number };
-
-/**
- * A card on the move: which one and the column it left, the column and slot it's over, and when
- * it lifts out of its place. However the drag ends, it clears the lot — and the refusal said above the board.
- */
-function useCardDrag(groups: Group[], byId: ReadonlyMap<string, WorkItem>, setHint: (hint: string | null) => void) {
-  const [drag, setDrag] = useState<Dragging | null>(null);
-  /** The card being dragged leaves its place once its solid copy is up under the pointer. */
-  const [lifted, setLifted] = useState<string | null>(null);
-  const [over, setOver] = useState<Over | null>(null);
-  /** Puts the copy following the pointer away. */
-  const putAway = useRef<(() => void) | null>(null);
-  const groupOf = useCallback((id: string) => groups.find((g) => g.items.some((t) => t.id === id)), [groups]);
-  useEffect(preloadDragImage, []);
-
-  const onDragStart = useCallback(
-    (t: WorkItem, e: DragEvent) => {
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", t.id);
-      putAway.current?.();
-      putAway.current = liftCard(e.currentTarget as HTMLElement, e.nativeEvent);
-      const from = groupOf(t.id);
-      setDrag({ id: t.id, from: from?.key ?? "", room: roomOf(e.currentTarget as HTMLElement) });
-      setTimeout(() => {
-        setLifted(t.id);
-        // Its slot stays open where it was, so nothing jumps as it lifts out; it closes once the card leaves the column.
-        if (from) setOver({ key: from.key, index: from.items.findIndex((x) => x.id === t.id) });
-      }, 0);
-    },
-    [groupOf],
-  );
-
-  const onDragEnd = useCallback(() => {
-    putAway.current?.();
-    putAway.current = null;
-    setDrag(null);
-    setLifted(null);
-    setOver(null);
-    setHint(null);
-  }, [setHint]);
-
-  return { drag, dragged: drag ? byId.get(drag.id) : undefined, lifted, over, setOver, onDragStart, onDragEnd };
-}
-
-type CardDrag = ReturnType<typeof useCardDrag>;
 
 /** What a keyboard move on the board works from: the columns, the workspace, whether the order is manual, and where a refusal is said. */
 type BoardKeys = { groups: Group[]; env: WorkspaceEnv; reorderable: boolean; setHint: (hint: string) => void };
@@ -159,32 +108,6 @@ function columnDrop({ drag, dragged, over }: CardDrag, g: Group, env: WorkspaceE
   return { plan, denied, frame, dimmed: !!drag && !target && drag.from !== g.key, state: drag ? (target ? "allowed" : "denied") : undefined };
 }
 
-/** The room a card takes in its column: its height and the gap after it — what the others part by to let it in. */
-function roomOf(card: HTMLElement) {
-  const li = card.closest("li") ?? card;
-  const list = li.parentElement;
-  return li.offsetHeight + (list ? parseFloat(getComputedStyle(list).rowGap) || 0 : 0);
-}
-
-/**
- * The slot a card dragged to height `y` lands in: after every other card in the column whose middle
- * is above it. Measured where each card rests, not where it's sliding to make room — or the room
- * opening would move the slot it opened for.
- */
-function slotAt(g: Group, y: number, dragId: string | undefined, cards: ReadonlyMap<string, HTMLElement>) {
-  let i = 0;
-  for (const t of g.items) {
-    if (t.id === dragId) continue;
-    const el = cards.get(t.id);
-    if (!el) continue;
-    const r = el.getBoundingClientRect();
-    // The slide is a CSS length, drawn at the app's scale; the rect is in screen pixels.
-    const slid = new DOMMatrixReadOnly(getComputedStyle(el.closest("li") ?? el).transform).m42 * uiZoom();
-    if (y > r.top - slid + r.height / 2) i++;
-  }
-  return i;
-}
-
 /**
  * Where the card lands in column `g` when it isn't placed by hand (the order isn't manual, or isn't
  * this person's to set): its place in the column's sort, the way the column will show it after the drop.
@@ -227,7 +150,7 @@ function BoardColumn({ group: g, dnd, cards, reorderable, sort, archived, kit }:
         if (!plan) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = "move";
-        const index = placeable ? slotAt(g, e.clientY, drag?.id, cards.current) : dnd.dragged ? sortedSlot(g, dnd.dragged, sort) : g.items.length;
+        const index = placeable ? slotAt(g.items, e.clientY, drag?.id, cards.current) : dnd.dragged ? sortedSlot(g, dnd.dragged, sort) : g.items.length;
         if (over?.key !== g.key || over.index !== index) setOver({ key: g.key, index });
       }}
       onDragLeave={(e) => {

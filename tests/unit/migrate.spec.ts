@@ -64,6 +64,12 @@ test.describe("migration of saved task lists · hand-edited and half-written dat
     expect(y.effort).toBeUndefined();
   });
 
+  test("a comment's files come back with it; one that doesn't say what it is is dropped", () => {
+    const pdf = { id: "file-1", name: "brief.pdf", type: "application/pdf", size: 1200 };
+    const { items } = migrateItems([{ id: "a", title: "A", comments: [{ ts: 1, at: "x", side: "team", name: "Alex", text: "", files: [pdf, { id: "file-2", name: 5 }, "junk"] }] }]);
+    expect(items[0].comments[0]).toMatchObject({ text: "", files: [pdf] });
+  });
+
   test("keeps existing numbers and fills gaps after them", () => {
     const { items, nextNumber } = migrateItems([{ id: "a", title: "A", number: 7 }, { id: "b", title: "B", number: 7 }, { id: "c", title: "C" }], 3);
     expect(items.map((t) => t.number)).toEqual([7, 8, 9]);

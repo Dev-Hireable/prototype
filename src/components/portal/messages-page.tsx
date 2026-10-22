@@ -2,25 +2,33 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Highlight, SearchBox } from "@/components/portal/ui";
-import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
+import { ChatBubble, TypingBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { ChatSourceLink, EntryDetails } from "@/components/portal/chat-source-link";
 import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
 import { MONTHS } from "@/lib/portal/dates";
 import { entryDialogOf } from "@/lib/portal/entry-dialog";
 import { savedOffset } from "@/lib/demo/clocks";
-import { ACCEPTED_FILES, checkFile, fileMeta, fileUrl, openChat, readBy, sendChat, sendFile, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
+import { openChat, readBy, sendChat, taskHref, unreadChat, useLive, type ChatMsg, type ChatSource, type InterviewSlot, type Live, PAIR } from "@/lib/demo/live";
+import { useDeal } from "@/lib/demo/deal";
+import { fileDropHandlers, KEEP_FAILED, keepFiles, usePendingFiles } from "@/lib/demo/files";
+import { markTyping, stopTyping, useTyping } from "@/lib/demo/typing";
+import { AttachButton, FileTiles, PendingFiles } from "@/components/portal/attachments";
+import { SendButton } from "@/components/portal/comment-box";
+import { Tip } from "@/components/portal/tip";
+import { keyed } from "@/lib/portal/keys";
+import { readableRefs, taskOf, taskRefParts, tasksNamed } from "@/lib/work/refs";
+import { todayDay } from "@/lib/work/dates";
+import { TaskPreviews } from "@/components/workspace/task-preview";
 import { bothClocks } from "@/lib/portal/timezones";
-import type { Side } from "@/lib/work/model";
+import { filesNote, refOf, type Side } from "@/lib/work/model";
 
 const DoneAll = ICONS.doneAll;
 const Check = ICONS.check;
-const Attach = ICONS.attach;
 const Pdf = ICONS.pdf;
-const Download = ICONS.download;
 
 /** A conversation in either portal's inbox: who it's with, and the tab it's filed under. */
 type Thread<K extends string> = { id: string; name: string; sub: string; kind: K };
@@ -136,33 +144,34 @@ function useThreadView(first: string | undefined) {
 
 /**
  * The composer's state, kept by the page so a draft stays put while the thread pane changes: the
- * message, the attachment waiting to go with it (or why it can't), and sending both. Its keys are
- * the Composer's props.
+ * message, the files waiting to go with it (or why one can't), and sending them together. Its keys
+ * are the Composer's props.
  */
 export function useComposer(side: Side) {
   const [draft, setDraft] = useState("");
-  const [pending, setPending] = useState<File | null>(null);
-  const [fileError, setFileError] = useState<string | null>(null);
+  const pending = usePendingFiles();
 
-  const send = () => {
-    // TB-010 / IN-010: an attachment queued in the composer goes with this send.
-    if (pending) {
-      sendFile(side, pending);
-      setPending(null);
+  // TB-006 / IN-006: an empty message can't be sent. TB-010 / IN-010: the files waiting in the
+  // composer go with it, kept in the browser's file store first so the other side can open them.
+  const send = async () => {
+    if (!draft.trim() && !pending.files.length) return;
+    try {
+      sendChat(side, draft, undefined, await keepFiles(pending.files));
+    } catch {
+      return pending.setError(KEEP_FAILED);
     }
-    sendChat(side, draft); // TB-006 / IN-006: an empty message can't be sent
     setDraft("");
+    stopTyping(side);
+    pending.clear();
+  };
+  // The other side sees typing dots while there's something in the box (@/lib/demo/typing).
+  const onDraft = (text: string) => {
+    setDraft(text);
+    if (text.trim()) markTyping(side);
+    else stopTyping(side);
   };
 
-  /** TB-010 / IN-010 — validate type and size, then hold the file for preview before sending. */
-  const pick = (file: File | undefined) => {
-    if (!file) return;
-    const problem = checkFile(file);
-    setFileError(problem);
-    setPending(problem ? null : file);
-  };
-
-  return { draft, onDraft: setDraft, pending, onRemove: () => setPending(null), fileError, onPick: pick, onSend: send };
+  return { draft, onDraft, pending: pending.files, onRemove: pending.remove, fileError: pending.error, onPick: pending.add, onSend: () => void send() };
 }
 
 /**
@@ -200,9 +209,11 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
   onOpen: (id: string) => void;
 }) {
   const { live } = chat;
-  const latest = latestOf(chat);
+  /** The contract's tasks, so a pasted task link reads as the task in a row and is found by its name. */
+  const tasks = useDeal()?.contract?.tasks ?? [];
+  const latest = latestOf(chat, tasks);
   // TB-009 / IN-009: match the conversation's name AND the message content.
-  const hay = (c: C) => [c.name, c.sub, ...live.chat.filter((m) => seenBy(m, chat.side)).map(previewOf)].join(" ").toLowerCase();
+  const hay = (c: C) => [c.name, c.sub, ...live.chat.filter((m) => seenBy(m, chat.side)).map((m) => previewOf(m, tasks))].join(" ").toLowerCase();
   const needle = q.trim().toLowerCase();
   // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- `hay(c)` is a string: a substring search, not a list lookup
   const list = conversations.filter((c) => c.kind === tab && hay(c).includes(needle));
@@ -236,16 +247,19 @@ type Latest = { time?: string; text: string; receipt?: Receipt; unread: number }
 /** Whether `side` sees a message: everything, but a step logged for the other side only. */
 const seenBy = (m: ChatMsg, side: Side) => !m.event?.only || m.event.only === side;
 
-/** What a message says in one line: its text, its file, or its logged step. */
-const previewOf = (m: ChatMsg) => m.text ?? m.file?.name ?? m.event?.text ?? "";
+/** A thread's tasks, as far as a message's line names them. */
+type Tasks = Parameters<typeof readableRefs>[1];
+
+/** What a message says in one line: its text (a pasted task link read as the task), its file, or its logged step. */
+const previewOf = (m: ChatMsg, tasks: Tasks) => (m.text === undefined ? undefined : readableRefs(m.text, tasks)) ?? (m.files?.length ? filesNote(m.files) : undefined) ?? m.file?.name ?? m.event?.text ?? "";
 
 /** The latest message, read once for every row (the demo has the one shared thread). Its time is the thread's last. */
-function latestOf({ live, side, other }: Chat): Latest {
+function latestOf({ live, side, other }: Chat, tasks: Tasks): Latest {
   const index = live.chat.findLastIndex((m) => seenBy(m, side));
   const last = live.chat[index];
   return {
     time: last?.time,
-    text: last ? previewOf(last) : "",
+    text: last ? previewOf(last, tasks) : "",
     receipt: last && !last.event && last.from === side ? (readBy(live, other, index) ? "seen" : "sent") : undefined,
     unread: unreadChat(live, side),
   };
@@ -309,12 +323,14 @@ function ConversationHeader({ avatar, name, sub, badge, onBack, onProfile }: { a
 export function ChatLog<C extends { id: string; name: string }>({ conv, face, chat: { live, side, other }, q, focus }: { conv: C; face: Face<C>; chat: Chat; q: string; focus: string | null }) {
   // Messages has no calls any more: one saved before they went isn't shown.
   const rows = live.chat.map((m, i) => ({ m, i })).filter(({ m }) => seenBy(m, side) && !("call" in m));
+  const typing = useTyping(other);
   // The thread scrolls to its end as it opens; a notification's entry is then brought into view.
   useEffect(() => {
     if (focus) document.getElementById(`msg-${focus}`)?.scrollIntoView({ block: "center" });
   }, [focus, rows.length]);
   return (
-    <ThreadBody latest={`${conv.id}:${live.chat.length}`}>
+    // Its end moves with a new message and with the other side's typing dots, so both come into view.
+    <ThreadBody latest={`${conv.id}:${live.chat.length}:${typing}`}>
       {rows.length === 0 && <p className="py-6 text-center text-[12.5px] leading-[1.45] text-muted">No messages yet. Say hello. {conv.name} is notified.</p>}
       {rows.map(({ m, i }, n) => {
         const me = m.from === side;
@@ -334,19 +350,63 @@ export function ChatLog<C extends { id: string; name: string }>({ conv, face, ch
             <div className={`flex items-end gap-2 ${me ? "justify-end" : ""}`}>
               {!me && face(conv, 30)}
               {m.file ? (
-                <FileCard id={m.id} file={m.file} source={m.source} side={side} />
+                <FileCard file={m.file} source={m.source} side={side} />
               ) : (
                 <ChatBubble mine={me} time={m.time} receipt={readBy(live, other, i) ? "seen" : "sent"} className="max-w-[420px]" /* hugs its text; a note from a proposal says so, and opens it */ header={m.source && <ChatSourceLink source={m.source} side={side} mine={me} />}>
-                  <Highlight text={m.text ?? ""} query={q} />
+                  {/* TB-010 / IN-010: what was sent with it opens (an image, a PDF) or downloads straight from the thread. */}
+                  {m.files?.length ? <FileTiles files={m.files} /> : null}
+                  {m.text && <ChatText text={m.text} query={q} side={side} mine={me} />}
                 </ChatBubble>
               )}
             </div>
           </div>
         );
       })}
+      {typing && (
+        <div className="flex items-end gap-2">
+          {face(conv, 30)}
+          <TypingBubble name={conv.name} />
+        </div>
+      )}
     </ThreadBody>
   );
 }
+
+/**
+ * A message's words, with each task on the contract it names a link that opens it on this side's
+ * contract page, the task's name in its tip: a typed "#4" as typed, a pasted link (the sheet's Copy
+ * link) as the task's name rather than its address. Those tasks show as cards under the words. Any
+ * other "#n" or link stays as written, and what's searched for is marked throughout.
+ */
+function ChatText({ text, query, side, mine }: { text: string; query: string; side: Side; mine: boolean }) {
+  const deal = useDeal();
+  const tasks = deal?.contract?.tasks ?? [];
+  const parts = taskRefParts(text);
+  const named = deal ? tasksNamed(parts, tasks) : [];
+  return (
+    <>
+      {/* One inline run: the bubble stacks its children, so the words and their links share one span. */}
+      <span>
+        {keyed(parts, (p) => p.text).map(({ item: p, key }) => {
+          const t = deal ? taskOf(p, tasks) : undefined;
+          if (!t || !deal) return <Highlight key={key} text={p.text} query={query} />;
+          const name = `${refOf(t)} ${t.title}`;
+          return (
+            <Tip key={key} label={name}>
+              <Link href={taskHref(side, deal.roleSlug, t.id)} aria-label={name} className={`rounded font-semibold underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 ${mine ? "text-white underline focus-visible:outline-white" : "text-accent-ink focus-visible:outline-primary"}`}>
+                <Highlight text={p.taskId ? t.title : p.text} query={query} />
+              </Link>
+            </Tip>
+          );
+        })}
+      </span>
+      {deal && named.length > 0 && <TaskPreviews tasks={named} today={todayDay()} names={PAIR_NAMES} open={(t) => ({ href: taskHref(side, deal.roleSlug, t.id) })} />}
+    </>
+  );
+}
+
+/** Who has a task, as its card in a message says: the two people on the thread. */
+const PAIR_NAMES = { team: PAIR.team.name, independent: PAIR.independent.name };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -410,8 +470,11 @@ function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boo
   );
 }
 
-/** A file in the thread: its name and size, the note it came from, and its download — greyed out once the file is gone from this browser. */
-function FileCard({ id, file, source, side }: { id: string; file: { name: string; meta: string }; source?: ChatSource; side: Side }) {
+/**
+ * A file sent before messages kept theirs in the browser's file store: its name and size and the note
+ * it came from. The file itself is gone, so there's nothing to open.
+ */
+function FileCard({ file, source, side }: { file: { name: string; meta: string }; source?: ChatSource; side: Side }) {
   return (
     <div className="flex w-[420px] max-w-full min-w-0 items-center gap-3 rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white px-3.5 py-2.5 outline -outline-offset-1 outline-line">
       <span className="flex size-9 items-center justify-center rounded-lg bg-[#fdf2f2] text-danger">
@@ -422,53 +485,16 @@ function FileCard({ id, file, source, side }: { id: string; file: { name: string
         <span className="text-[10.5px] text-muted">{file.meta}</span>
         {source && <ChatSourceLink source={source} side={side} mine={false} />}
       </span>
-      {/* TB-010 / IN-010: the recipient downloads the attachment straight from the thread. */}
-      <a
-        href={fileUrl(id) ?? undefined}
-        download={file.name}
-        aria-label={`Download ${file.name}`}
-        aria-disabled={fileUrl(id) ? undefined : "true"}
-        className={`flex size-8 items-center justify-center rounded-full border border-border ${fileUrl(id) ? "text-ink hover:bg-surface-alt" : "pointer-events-none text-ink-2 opacity-50"}`}
-      >
-        <Download size={18} aria-hidden />
-      </a>
     </div>
   );
 }
 
-/** The attachment waiting to go with the next send: its name and size, and its remove. */
-function PendingFile({ file, onRemove }: { file: File; onRemove: () => void }) {
-  return (
-    <div className="flex items-center gap-2.5 self-start rounded-lg bg-surface-alt px-3 py-2 text-[12px] leading-[1.45]">
-      <Pdf size={16} aria-hidden className="text-danger" />
-      <span className="font-semibold text-ink-deep">{file.name}</span>
-      <span className="text-muted">{fileMeta(file)}</span>
-      <button type="button" aria-label="Remove attachment" onClick={onRemove} className="text-muted hover:text-ink">
-        ✕
-      </button>
-    </div>
-  );
-}
-
-/** The composer: the attachment waiting to go with the next send (or why it can't), attach, the message and Send. */
-export function Composer({
-  draft,
-  onDraft,
-  pending,
-  onRemove,
-  fileError,
-  onPick,
-  onSend,
-}: {
-  draft: string;
-  onDraft: (text: string) => void;
-  pending: File | null;
-  onRemove: () => void;
-  fileError: string | null;
-  onPick: (file: File | undefined) => void;
-  onSend: () => void;
-}) {
-  const fileInput = useRef<HTMLInputElement>(null);
+/**
+ * The composer: the files waiting to go with the next send (or why one can't), then one box — the
+ * paperclip at its start, the message, and the send glyph at its end, blue once there's something to
+ * send. Files can be dropped on it or pasted into it too.
+ */
+export function Composer({ draft, onDraft, pending, onRemove, fileError, onPick, onSend }: { draft: string; onDraft: (text: string) => void; pending: readonly File[]; onRemove: (file: File) => void; fileError: string | null; onPick: (files: FileList | null) => void; onSend: () => void }) {
   return (
     <form
       className="flex flex-col gap-2 border-t border-line px-[18px] py-3.5"
@@ -476,29 +502,23 @@ export function Composer({
         e.preventDefault();
         onSend();
       }}
+      {...fileDropHandlers(onPick)}
     >
-      {/* TB-010 / IN-010: the attachment is previewed here before it is sent. */}
-      {pending && <PendingFile file={pending} onRemove={onRemove} />}
-      {fileError && <p className="self-start text-[12px] leading-[1.45] text-danger">{fileError}</p>}
-      {/* One box: attach at its start, Send at its end, the message between them. */}
+      {/* TB-010 / IN-010: the files are previewed here before they're sent. */}
+      {pending.length > 0 && (
+        <div className="pt-1.5 pr-1.5">
+          <PendingFiles files={pending} onRemove={onRemove} />
+        </div>
+      )}
+      {fileError && (
+        <p role="alert" className="self-start text-[12px] leading-[1.45] text-danger">
+          {fileError}
+        </p>
+      )}
       <div className="flex h-11 items-center gap-1 rounded-lg border border-border px-1.5 focus-within:border-primary">
-        <input
-          ref={fileInput}
-          type="file"
-          accept={ACCEPTED_FILES}
-          className="hidden"
-          onChange={(e) => {
-            onPick(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-        <button type="button" aria-label="Attach file" onClick={() => fileInput.current?.click()} className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
-          <Attach size={20} aria-hidden />
-        </button>
+        <AttachButton onPick={onPick} />
         <input value={draft} onChange={(e) => onDraft(e.target.value)} aria-label="Message" placeholder="Send a message…" className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-[14px] tracking-[0.2px] outline-none placeholder:text-ink-2" />
-        <button type="submit" aria-label="Send" disabled={!draft.trim() && !pending} className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-[16px] leading-[1.45] font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:bg-ink-2">
-          ↑
-        </button>
+        <SendButton type="submit" disabled={!draft.trim() && !pending.length} />
       </div>
     </form>
   );

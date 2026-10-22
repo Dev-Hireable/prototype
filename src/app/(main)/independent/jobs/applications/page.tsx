@@ -87,7 +87,8 @@ function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw
     // along the panel's bottom edge, 8px in, like every vertical bar, instead of floating 48px up.
     // At rest the padding lines the columns up with the back-link row; scrolled, cards pass
     // through it and fade out at the edge (ScrollFade's mask) instead of being cut flush.
-    <div className="flex min-h-0 flex-1 pt-4">
+    // data-tour: My applications' tour points at its columns and a card (@/lib/portal/tours).
+    <div data-tour="applications" className="flex min-h-0 flex-1 pt-4">
       <ScrollFade className="flex w-full min-w-0">
         {/* overflow-y-hidden is load-bearing: `overflow-x: auto` alone implicitly turns the y axis
             into a second scrollbar nested inside the shell's. Columns take the vertical scroll. */}

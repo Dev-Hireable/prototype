@@ -36,6 +36,21 @@ export function ChatBubble({ mine, time, receipt, header, className = "w-[420px]
   );
 }
 
+/**
+ * The other side writing a message: three dots in their bubble, brightening one after another until
+ * they send it or stop. A screen reader hears "Juan Dela Cruz is typing" once, as a status.
+ */
+export function TypingBubble({ name }: { name: string }) {
+  return (
+    <div role="status" className="flex items-center gap-1 rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white px-3.5 py-3.5 outline -outline-offset-1 outline-line">
+      <span className="sr-only">{name} is typing</span>
+      <span aria-hidden className="typing-dot size-1.5 rounded-full bg-ink-2" />
+      <span aria-hidden className="typing-dot size-1.5 rounded-full bg-ink-2 [animation-delay:160ms]" />
+      <span aria-hidden className="typing-dot size-1.5 rounded-full bg-ink-2 [animation-delay:320ms]" />
+    </div>
+  );
+}
+
 function ReceiptTick({ receipt }: { receipt: Receipt }) {
   const seen = receipt === "seen";
   const Icon = seen ? DoneAll : Check;

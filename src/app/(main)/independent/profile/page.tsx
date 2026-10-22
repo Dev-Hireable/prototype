@@ -1,16 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { BioEditor, HeroEditor, LinksEditor, SkillsEditor } from "@/components/independent/profile-editors";
 import { SamplesEditor } from "@/components/independent/portfolio-editor";
-import { Button, Modal, Page, Toast } from "@/components/portal/ui";
+import { Page, Toast } from "@/components/portal/ui";
 import { EditButton } from "@/components/portal/inline-edit";
+import { RetakeQuizDialog } from "@/components/portal/retake-quiz-dialog";
 import { FlatBadge, TalentProfile } from "@/components/portal/talent-profile";
 import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
 import { usePortfolio, type Sample } from "@/lib/demo/portfolio";
-import { nextRetake } from "@/lib/demo/work-style";
+import { useNextRetake } from "@/lib/demo/retake";
 import { dayLabel } from "@/lib/portal/dates";
 import { pastEvaluations } from "@/lib/demo/deal";
 import { ME, type Contract } from "@/lib/independent/data";
@@ -41,7 +41,7 @@ export default function Profile() {
   const [toast, setToast] = useToast();
   const introVideo = useIntroVideo();
   const samples = usePortfolio();
-  const retakeOn = useNextRetake();
+  const retakeOn = useNextRetake("independent");
   /** Closes the editor whose part was just saved and says what was. */
   const saved = (message: string) => {
     done();
@@ -75,32 +75,9 @@ export default function Profile() {
       />
 
       {/* IN-064 — confirm before restarting; the current tags stand until the new answers are in. */}
-      <RetakeDialog open={retake} onClose={() => setRetake(false)} />
+      <RetakeQuizDialog side="independent" open={retake} onClose={() => setRetake(false)} />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
-  );
-}
-
-/** IN-064 — the quiz is the real app's onboarding (/onboarding/talent), started only once this says yes. */
-function RetakeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const router = useRouter();
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Retake the work-style quiz?"
-      description="Your current tags stay until you finish. Your tags and match scores update after. You can retake the quiz once a year."
-      footer={
-        <>
-          <Button size="lg" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button size="lg" variant="primary" onClick={() => router.push("/onboarding/talent")}>
-            Start quiz
-          </Button>
-        </>
-      }
-    />
   );
 }
 
@@ -114,15 +91,6 @@ function historyOf(contracts: Contract[]) {
     ...contracts.flatMap((c) => c.evaluations.map((e) => ({ company: c.company, role: c.title, type: c.type, date: e.date, stars: e.stars, feedback: e.feedback }))),
     ...pastEvaluations,
   ];
-}
-
-/** Nothing to subscribe to: the quiz's date is written on another page, and this one reads it as it loads. */
-const noSubscribe = () => () => {};
-
-/** The day the quiz can be taken again (nextRetake), read after hydration: the server has no storage. */
-function useNextRetake(): Date | null {
-  const at = useSyncExternalStore(noSubscribe, () => nextRetake("independent")?.getTime() ?? 0, () => 0);
-  return at ? new Date(at) : null;
 }
 
 /** The talent's own Add / Replace intro over the intro card: it picks a video, checks it and saves it. */

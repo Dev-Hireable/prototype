@@ -66,10 +66,11 @@ export default function Dashboard() {
 
         <DashboardSummaryGrid
           main={[
-            // IN-090 — straight to the work: their open tasks, most pressing first, each a click from its sheet.
+            // IN-090 — straight to the work: their open tasks, in the order they put them, each a click from its sheet.
             working && (
               <DashboardTasks key="tasks"
                 side="independent"
+                me={profile.name}
                 base={`/independent/contracts/${working.slug}`}
                 allHref={`/independent/contracts/${working.slug}?assignee=independent`}
                 about={`${working.title} at ${working.company}`}
@@ -120,15 +121,15 @@ function Hero({ photo, workStyle, steps, tasks }: { photo: string; workStyle: re
       </DashboardGreeting>
 
       <DashboardSetupCard
+        side="independent"
         avatarSrc={photo}
         title={heading.title}
         description={heading.description}
-        completionHref="/independent/profile?edit=profile"
         items={steps}
         note={KYC_NOTE}
-        profileHref="/independent/profile"
         traits={traitTagsFor(workStyle, "independent")}
-        completeDescription="Your profile is live. These are the work style tags companies match you on."
+        matching="Companies match you on these tags."
+        profileHref="/independent/profile"
       />
     </DashboardHero>
   );

@@ -156,9 +156,9 @@ test.describe("scheduling · dependencies", () => {
     await page.getByRole("textbox", { name: "Find an item it waits on" }).fill("#10");
     await page.getByRole("option", { name: /#10 Fix the icon grid/ }).click();
     await expect.poll(async () => (await savedItem(page, "t-type")).dependsOn).toEqual(["t-icons"]);
-    // Said once each: Blocked beside the status, and what it waits on under Dependencies.
+    // Said once each: Blocked beside the status, and what it waits on in its Dependencies row.
     await expect(panel.getByText("Blocked", { exact: true })).toBeVisible();
-    await expect(panel.getByRole("region", { name: "Dependencies" }).getByRole("button", { name: /#10 Fix the icon grid/ })).toBeVisible();
+    await expect(panel.getByRole("definition").filter({ hasText: "Waits on" }).getByRole("button", { name: /#10 Fix the icon grid/ })).toBeVisible();
     await closePanel(page);
     await expect(card(page, /#4 Pick a typography pairing/).getByText("Blocked")).toBeVisible();
 

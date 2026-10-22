@@ -154,7 +154,8 @@ function Totals({ all }: { all: Transaction[] }) {
   const held = Math.max(0, all.filter((t) => t.type === "Payment Deposited").reduce((n, t) => n + money(t.amount), 0) - spent - refunded);
   return (
     // Side by side; a tablet or a phone wraps them two to a row, the odd one out across the full width.
-    <div className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
+    // data-tour: the Payments tour starts here (@/lib/portal/tours).
+    <div data-tour="payment-totals" className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
       {/* The figure and what it is; only Total spent adds a line, the contracts it covers (a trial and the role it became are one). */}
       {(
         [
@@ -198,7 +199,10 @@ function FilterSummary({ filters }: { filters: Filters }) {
   );
 }
 
-/** The ledger table and its pager — or, when there's nothing to list, the empty state that says why. */
+/**
+ * The ledger table and its pager — or, when there's nothing to list, the empty state that says why.
+ * The table sits in a `data-tour` wrapper for the Payments tour (@/lib/portal/tours): Table takes no extra props.
+ */
 function TransactionTable({ filters, onView }: { filters: Filters; onView: (t: Transaction) => void }) {
   const { all, rows, shown, pages, current, setPage, clearAll } = filters;
   return all.length === 0 ? (
@@ -207,30 +211,32 @@ function TransactionTable({ filters, onView }: { filters: Filters; onView: (t: T
     <EmptyState title="No transactions match" body="Try a different filter, or clear the search to see the full ledger." action={<Button size="lg" variant="primary" onClick={clearAll}>Clear filters</Button>} />
   ) : (
     <>
-      <Table cols={COLS} head={["Date", "Contract", "Independent", "Type", "Amount", "Status", "Actions"]}>
-        {shown.map((t) => (
-          <Row key={t.id}>
-            <span className={COLS[0]}>{t.date}</span>
-            {/* TB-119 — the row itself opens the detail, not just the button at the end of it. */}
-            <button type="button" onClick={() => onView(t)} className={`${COLS[1]} truncate text-left text-[14px] text-ink hover:text-primary`}>
-              {t.contract}
-            </button>
-            <span className={COLS[2]}>{t.independent}</span>
-            <span className={COLS[3]}>
-              <Chip>{TYPE_LABEL[t.type]}</Chip>
-            </span>
-            <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
-            <span className={COLS[5]}>
-              <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
-            </span>
-            <span className={COLS[6]}>
-              <Button size="sm" onClick={() => onView(t)}>
-                View
-              </Button>
-            </span>
-          </Row>
-        ))}
-      </Table>
+      <div data-tour="payment-ledger">
+        <Table cols={COLS} head={["Date", "Contract", "Independent", "Type", "Amount", "Status", "Actions"]}>
+          {shown.map((t) => (
+            <Row key={t.id}>
+              <span className={COLS[0]}>{t.date}</span>
+              {/* TB-119 — the row itself opens the detail, not just the button at the end of it. */}
+              <button type="button" onClick={() => onView(t)} className={`${COLS[1]} truncate text-left text-[14px] text-ink hover:text-primary`}>
+                {t.contract}
+              </button>
+              <span className={COLS[2]}>{t.independent}</span>
+              <span className={COLS[3]}>
+                <Chip>{TYPE_LABEL[t.type]}</Chip>
+              </span>
+              <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
+              <span className={COLS[5]}>
+                <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
+              </span>
+              <span className={COLS[6]}>
+                <Button size="sm" onClick={() => onView(t)}>
+                  View
+                </Button>
+              </span>
+            </Row>
+          ))}
+        </Table>
+      </div>
 
       {/* TB-084 pagination — real page maths, not a fixed row of numbers. */}
       {pages > 1 && (

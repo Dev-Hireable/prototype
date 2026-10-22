@@ -10,7 +10,9 @@ import { notifications as indSeed } from "@/lib/independent/data";
 import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
 import type { Notification as TeamNote } from "@/lib/team/data";
-import type { Side } from "@/lib/work/model";
+import { filesNote, type Side } from "@/lib/work/model";
+import { readableRefs } from "@/lib/work/refs";
+import type { Attachment } from "@/lib/disputes/case";
 import type { NoteCategory } from "@/lib/portal/notification-categories";
 
 /**
@@ -50,6 +52,9 @@ export type ChatMsg = {
   at?: number;
   /** TB-007 / IN-007 — something that happened rather than something said: logged in the thread, with where to see it. */
   event?: ChatEvent;
+  /** Files sent with it, kept in the browser's file store (@/lib/demo/files). */
+  files?: Attachment[];
+  /** A file sent before messages kept theirs: its name and size, which this browser no longer has. */
   file?: { name: string; meta: string };
   /** Where it was written, when that wasn't the thread itself — the inbox links back to it. */
   source?: ChatSource;
@@ -70,30 +75,6 @@ export type ChatSource = { kind: "proposal"; version: number; roleSlug: string; 
 
 /** Where a note written on the proposal came from, so both inboxes can link back to it. */
 export const proposalSource = (deal: Deal | null): ChatSource | undefined => (deal?.proposal ? { kind: "proposal", version: deal.proposal.version, roleSlug: deal.roleSlug, title: deal.title } : undefined);
-
-/* ----------------------------------------------------------- attachments */
-
-/** TB-010 / IN-010 — what the composer accepts. */
-export const ACCEPTED_FILES = ".pdf,.doc,.docx,.png,.jpg,.jpeg";
-const MAX_FILE_MB = 10;
-
-/**
- * Blob URLs for files attached this session, keyed by message id, so the recipient can download
- * from the thread. Only the name/size/type go into localStorage.
- * ponytail: in-memory, so a download link dies on refresh — fine until there's a real upload API.
- */
-const blobs = new Map<string, string>();
-export const fileUrl = (msgId: string) => blobs.get(msgId);
-
-/** Returns an error string when the file fails the type/size rules, otherwise null. */
-export function checkFile(file: File): string | null {
-  const ok = /\.(pdf|docx?|png|jpe?g)$/i.test(file.name);
-  if (!ok) return "Only PDF, DOC, DOCX, PNG and JPG files can be attached.";
-  if (file.size > MAX_FILE_MB * 1024 * 1024) return `Files must be ${MAX_FILE_MB} MB or smaller.`;
-  return null;
-}
-
-export const fileMeta = (file: File) => `${file.name.split(".").pop()?.toUpperCase()} · ${(file.size / 1024).toFixed(0)} KB`;
 
 /**
  * IN-051 — a payment recorded against a contract. It crosses portals: the Team Builder (or the
@@ -705,6 +686,9 @@ const excerpt = (text: string, max = 140) => {
   return line.length <= max ? line : `${line.slice(0, max).replace(/\s+\S*$/, "")}…`;
 };
 
+/** Where a work item opens on each side: its contract's Work tab, with the item's sheet open. */
+export const taskHref = (side: Side, roleSlug: string, taskId: string) => `${side === "independent" ? `/independent/contracts/${roleSlug}` : `/team/independents/${PAIR.independent.slug}`}?task=${encodeURIComponent(taskId)}`;
+
 /**
  * TB-065 / IN-043 — a comment on a work item tells the side that didn't write it, and opens the
  * item on its comments. Another comment on the same item while that notification is still unread
@@ -713,8 +697,7 @@ const excerpt = (text: string, max = 140) => {
 export function noteComment(from: Side, role: { slug: string; title: string }, task: { id: string; title: string }, text: string) {
   refresh();
   const to: Side = from === "team" ? "independent" : "team";
-  const at = `?task=${encodeURIComponent(task.id)}&focus=comments`;
-  const href = to === "independent" ? `/independent/contracts/${role.slug}${at}` : `/team/independents/${PAIR.independent.slug}${at}`;
+  const href = `${taskHref(to, role.slug, task.id)}&focus=comments`;
   const note = { id: uid(), group: "Today" as const, title: `${PAIR[from].name} commented on a task`, body: `On “${task.title}” for ${role.title}: “${excerpt(text)}”`, time: clock(), at: Date.now(), unread: true, href, avatar: PAIR[from].avatar };
   const fresh = (n: { unread: boolean; href: string }) => !(n.unread && n.href === href);
   if (to === "independent") {
@@ -730,19 +713,66 @@ function markRead(side: Side, noteId?: string) {
   write({ ...snapshot, [side]: feed } as Live);
 }
 
+/** These notifications read, or unread again, on `side`'s feed: from a row's menu, or the ones picked in Select. */
+function markNotes(side: Side, ids: string[], unread: boolean) {
+  refresh();
+  const these = new Set(ids);
+  const feed = snapshot[side].map((n) => (these.has(n.id) && n.unread !== unread ? { ...n, unread } : n));
+  write({ ...snapshot, [side]: feed } as Live);
+}
+
+/** One notification, as either side's feed keeps it. */
+type Note = Live[Side][number];
+
+/** Notifications taken out of a feed, each with where it was, for an Undo. */
+type Deleted = { note: Note; index: number }[];
+
+/**
+ * Deleting takes these notifications out of `side`'s feed only (each side keeps its own), their unread
+ * with them, so the counts drop at once. It hands back how many went, and how to put them back for the
+ * toast's Undo; nothing when none of them was there.
+ */
+function deleteNotes(side: Side, ids: string[]): { count: number; undo: () => void } | undefined {
+  refresh();
+  const these = new Set(ids);
+  const feed: Note[] = snapshot[side];
+  const gone: Deleted = feed.flatMap((note, index) => (these.has(note.id) ? [{ note, index }] : []));
+  if (!gone.length) return;
+  write({ ...snapshot, [side]: feed.filter((n) => !these.has(n.id)) } as Live);
+  return { count: gone.length, undo: () => restoreNotes(side, gone) };
+}
+
+/**
+ * Undo: the notifications back as they were, each in its place by when it happened, since newer ones
+ * may have come in meanwhile. A record without a time goes back where it was.
+ */
+function restoreNotes(side: Side, gone: Deleted) {
+  refresh();
+  let feed: Note[] = snapshot[side];
+  for (const { note, index } of gone) {
+    if (feed.some((n) => n.id === note.id)) continue;
+    const when = note.at;
+    const older = when === undefined ? -1 : feed.findIndex((n) => n.at !== undefined && n.at < when);
+    const at = when === undefined ? Math.min(index, feed.length) : older < 0 ? feed.length : older;
+    feed = [...feed.slice(0, at), note, ...feed.slice(at)];
+  }
+  write({ ...snapshot, [side]: feed.slice(0, MAX_NOTES) } as Live);
+}
+
 /**
  * TB-006 / IN-006 — empty messages cannot be sent.
  * TB-007 / IN-007 — a new message triggers a notification for the receiver. Consecutive
  * messages collapse into the one unread entry so a back-and-forth doesn't flood the feed.
  */
-export function sendChat(from: Side, text: string, source?: ChatSource): string | undefined {
+export function sendChat(from: Side, text: string, source?: ChatSource, files: Attachment[] = []): string | undefined {
   const body = text.trim();
-  if (!body) return;
+  if (!body && !files.length) return;
   refresh();
   const id = uid();
-  const chat = [...snapshot.chat, { id, from, text: body, time: clock(), at: Date.now(), source }];
+  const chat = [...snapshot.chat, { id, from, ...(body ? { text: body } : {}), ...(files.length ? { files } : {}), time: clock(), at: Date.now(), source }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, body);
+  // A task's link pasted in reads there as the task's number and name, not its address.
+  noteMessage(from, body ? readableRefs(body, readDeal()?.contract?.tasks ?? []) : filesNote(files));
   return id;
 }
 
@@ -774,21 +804,6 @@ function noteMessage(from: Side, body: string) {
     href: "/team/messages",
   };
   write({ ...snapshot, team: [note, ...snapshot.team].slice(0, MAX_NOTES) });
-}
-
-/** TB-010 / IN-010 — send an attachment; the recipient can download it from the thread. */
-export function sendFile(from: Side, file: File, source?: ChatSource): string {
-  refresh();
-  const msgId = uid();
-  try {
-    blobs.set(msgId, URL.createObjectURL(file));
-  } catch {
-    /* ignore — the bubble still renders, just without a live download */
-  }
-  const chat = [...snapshot.chat, { id: msgId, from, time: clock(), at: Date.now(), file: { name: file.name, meta: `${fileMeta(file)} · ${clock()}` }, source }];
-  write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, `Sent an attachment: ${file.name}`);
-  return msgId;
 }
 
 /** TB-008 / IN-008 — the count clears when the conversation is opened, along with its notification. */
@@ -885,8 +900,16 @@ export function useStored<T>(store: Stored<T>): T {
   return useSyncExternalStore(store.subscribe, store.get, store.seed);
 }
 
-/** A portal's notifications, and marking one read (or all of them, with no id). */
+/**
+ * A portal's notifications: marking one read (or all of them, with no id), marking some read or unread
+ * again, and deleting some, which hands back how many went and their Undo.
+ */
 export function useNotifications<S extends Side>(side: S) {
   const notifications: Live[S] = useLive()[side];
-  return { notifications, markRead: (id?: string) => markRead(side, id) };
+  return {
+    notifications,
+    markRead: (id?: string) => markRead(side, id),
+    mark: (ids: string[], unread: boolean) => markNotes(side, ids, unread),
+    remove: (ids: string[]) => deleteNotes(side, ids),
+  };
 }

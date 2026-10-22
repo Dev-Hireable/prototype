@@ -221,6 +221,15 @@ export const toast = (page: Page, text: string | RegExp) => {
 /** An item's panel: the sheet that slides in over the view. */
 export const panel = (page: Page) => page.getByTestId("task-panel");
 
+/** A file to pick in a comment box or a chat composer: a 1×1 PNG under this name, or a document whose bytes don't matter. */
+export const upload = {
+  png: (name: string) => ({ name, mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64") }),
+  doc: (name: string, mimeType: string) => ({ name, mimeType, buffer: Buffer.from(`${name}, a stand-in`) }),
+};
+
+/** The hidden file input behind a box's paperclip, to pick files with. */
+export const filePicker = (box: Locator) => box.locator('input[type="file"]');
+
 /**
  * Closes the item's sheet, which holds the focus and hides the view behind it while it's open.
  * Escape closes whatever is on top first — a date picker or menu inside the sheet — so it takes as

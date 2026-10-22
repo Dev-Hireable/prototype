@@ -26,7 +26,8 @@ export function CompanyCard({ role, site, standing, isSaved, onApply, onToggleSa
   return (
     <Card className="flex flex-col gap-5 p-5">
       <AboutCompany role={role} site={site} />
-      <div className="flex flex-col gap-2">
+      {/* data-tour: the role's tour points at Apply, or View application once one is on file (@/lib/portal/tours). */}
+      <div data-tour="role-apply" className="flex flex-col gap-2">
         {/* An application already on file opens from here, rather than a greyed-out "Applied". */}
         {application ? (
           <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${application.id}`}>

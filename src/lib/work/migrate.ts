@@ -1,5 +1,5 @@
 import { isIsoDay, MONTH_SHORT } from "./dates";
-import { PRIORITIES, PROJECT_NAME_MAX, STATUSES, TAGS_PER_ITEM, WORK_TYPES, type Side, type Subtask, type WorkComment, type WorkEvent, type WorkItem, type WorkProject } from "./model";
+import { PRIORITIES, PROJECT_NAME_MAX, STATUSES, TAGS_PER_ITEM, WORK_TYPES, type Side, type Subtask, type WorkComment, type WorkEvent, type WorkFile, type WorkItem, type WorkProject } from "./model";
 import { ORDER_STEP } from "./order";
 import { checkEffort, normalizeTag } from "./validate";
 
@@ -152,11 +152,20 @@ const hasText = (x: unknown): x is Raw & { text: string } => isObj(x) && typeof 
 /** The feed: events with text; a time that can't be read reads as 0 and "". */
 const activityOf = (x: unknown): WorkEvent[] => listOf(x).filter(hasText).map((e) => ({ ts: num(e.ts) ?? 0, at: orEmpty(e.at), text: e.text }));
 
-/** The thread: comments with text. One saved without an id is given one from its item and place. */
+/** The thread: comments with text (empty on one of files alone), and their files. One saved without an id is given one from its item and place. */
 const commentsOf = (x: unknown, itemId: string): WorkComment[] =>
   listOf(x)
     .filter(hasText)
-    .map((c, k) => ({ id: str(c.id) ?? `c-${itemId}-${k + 1}`, ts: num(c.ts) ?? 0, at: orEmpty(c.at), side: side(c.side) ?? "independent", name: orEmpty(c.name), text: c.text }));
+    .map((c, k) => {
+      const files = filesOf(c.files);
+      return { id: str(c.id) ?? `c-${itemId}-${k + 1}`, ts: num(c.ts) ?? 0, at: orEmpty(c.at), side: side(c.side) ?? "independent", name: orEmpty(c.name), text: c.text, ...(files.length ? { files } : {}) };
+    });
+
+/** A comment's files: each with what names it — an id, a name, a type and a size. */
+const filesOf = (x: unknown): WorkFile[] =>
+  listOf(x)
+    .filter((f): f is Raw & { id: string; name: string; type: string } => isObj(f) && typeof f.id === "string" && typeof f.name === "string" && typeof f.type === "string")
+    .map((f) => ({ id: f.id, name: f.name, type: f.type, size: num(f.size) ?? 0 }));
 
 /** Subtasks with an id and a title; ticked off only when saved as done. */
 const subtasksOf = (x: unknown): Subtask[] =>

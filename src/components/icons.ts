@@ -120,6 +120,11 @@ import {
   MdPlayArrow,
   MdMinimize,
   MdOutlineCropSquare,
+  MdOutlineImage,
+  MdOutlineTableChart,
+  MdOutlineSlideshow,
+  MdOutlineInsertDriveFile,
+  MdOutlineTextSnippet,
 } from "react-icons/md";
 import type { IconType } from "react-icons";
 
@@ -207,6 +212,12 @@ export const ICONS = {
   visibilityOff: MdOutlineVisibilityOff,
   download: MdOutlineDownload,
   pdf: MdOutlinePictureAsPdf,
+  // A sent file's kind, beside its name.
+  fileImage: MdOutlineImage,
+  fileSheet: MdOutlineTableChart,
+  fileSlides: MdOutlineSlideshow,
+  fileText: MdOutlineTextSnippet,
+  file: MdOutlineInsertDriveFile,
   calendar: MdOutlineCalendarToday,
   description: MdOutlineDescription,
   target: MdOutlineTrackChanges,

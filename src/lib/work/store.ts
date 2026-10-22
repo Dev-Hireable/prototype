@@ -9,10 +9,11 @@ import { accessOf } from "./access";
 import { todayDay } from "./dates";
 import { isWorkError, messageOf, WorkError } from "./errors";
 import { migrateProjects } from "./migrate";
-import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, unfinishedOf, type TagColor, type WorkItem, type WorkProject, type WorkStatus } from "./model";
+import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, unfinishedOf, type TagColor, type WorkFile, type WorkItem, type WorkProject, type WorkStatus } from "./model";
 import { orderLast, placeBetween } from "./order";
 import { applyOps, type PendingOp } from "./overlay";
 import { sideOf, type Actor, type Names, type WorkAccess } from "./permissions";
+import { readableRefs } from "./refs";
 import { createWorkRepository, type Clock, type CreateInput, type Hook, type PatchField, type WorkNotice, type WorkPatch, type WorkPort, type WorkRepository, type WorkState } from "./repository";
 import { normalizeTag } from "./validate";
 
@@ -54,13 +55,17 @@ const clock: Clock = () => {
   return { ms: d.getTime(), today: todayDay(d), moment: momentLabel(d), stamp: dayLabel(d) };
 };
 
-/** A saved change the other side should hear about, as the notification the demo already sends. */
+/**
+ * A saved change the other side should hear about, as the notification the demo already sends. A task
+ * link pasted in what was written reads there as the task's number and name, not its address.
+ */
 function tell(n: WorkNotice) {
   const deal = getDeal();
   if (!deal) return;
   const role = { slug: deal.roleSlug, title: deal.title };
-  if (n.kind === "task_comment") noteComment(n.from, role, n.task, n.note);
-  else notifyMove(n.kind, role, { task: n.task, note: n.note });
+  const readable = (text: string) => readableRefs(text, deal.contract?.tasks ?? []);
+  if (n.kind === "task_comment") noteComment(n.from, role, n.task, readable(n.note));
+  else notifyMove(n.kind, role, { task: n.task, note: n.note === undefined ? undefined : readable(n.note) });
 }
 
 /* ---------------------------------------------------------- test seam */
@@ -185,6 +190,9 @@ function say(m: Omit<WorkMessage, "id">) {
 
 /** Says why something can't be changed, where no sheet is open to say it (a List cell's lock): a toast, and read out. */
 export const explain = (message: string) => say({ tone: "info", message });
+
+/** Says what a step outside the work's own actions did (a task's ID copied), or that it couldn't: a toast, and read out. */
+export const notice = (message: string, tone: ToastTone = "success") => say({ tone, message });
 
 /* --------------------------------------------------------------- queue */
 
@@ -431,9 +439,10 @@ function partActions(repo: WorkRepository) {
       return run({ ...msgs, itemId: t.id, set: { subtasks: t.subtasks.filter((s) => s.id !== subId) }, call: () => repo.removeSubtask(t.id, subId) });
     },
 
-    comment(t: WorkItem, text: string, msgs: Messages = {}) {
-      const c = { id: newId("c"), ts: Date.now(), at: momentLabel(), side: side ?? "team", name: repo.actor.name, text: text.trim() };
-      return run({ ...msgs, itemId: t.id, set: { comments: [...t.comments, c] }, call: () => repo.comment(t.id, { id: c.id, text }), retry: () => void actions.comment(t, text, msgs) });
+    /** Says something on the item, with files kept in the browser's file store beforehand (`files`), or files alone. */
+    comment(t: WorkItem, text: string, files: WorkFile[] = [], msgs: Messages = {}) {
+      const c = { id: newId("c"), ts: Date.now(), at: momentLabel(), side: side ?? "team", name: repo.actor.name, text: text.trim(), ...(files.length ? { files } : {}) };
+      return run({ ...msgs, itemId: t.id, set: { comments: [...t.comments, c] }, call: () => repo.comment(t.id, { id: c.id, text, files }), retry: () => void actions.comment(t, text, files, msgs) });
     },
   };
   return actions;

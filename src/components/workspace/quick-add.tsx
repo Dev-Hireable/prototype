@@ -6,14 +6,17 @@ import { ICON_BUTTON } from "@/components/portal/styles";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { checkTitle, type Invalid } from "@/lib/work/validate";
 
-/** Where the adder sits: a list row, a board card, a calendar cell, or inline on a white surface. */
-type Variant = "row" | "card" | "cell" | "inline";
+/**
+ * Where the adder sits: a list row, a board card, a calendar cell, or a quiet "Add …" row in an item
+ * sheet's property list (its subtasks), whose icon in the sheet's gutter already marks it.
+ */
+type Variant = "row" | "card" | "cell" | "prop";
 
 /** The "+ Add" button in each place. */
 const OPENER: Record<Variant, string> = {
   card: "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-white hover:text-ink focus-visible:outline-2 focus-visible:outline-primary",
   cell: `${ICON_BUTTON} size-6`,
-  inline: "-mx-1.5 flex h-8 items-center gap-2 self-start rounded-md px-1.5 text-[13.5px] leading-[1.2] font-medium text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary",
+  prop: "flex h-8 items-center self-start rounded-md px-1.5 text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary",
   row: "flex w-full items-center gap-2.5 border-t border-[#eeeeee] px-4 py-2.5 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
 };
 
@@ -21,7 +24,7 @@ const OPENER: Record<Variant, string> = {
 const ENTRY: Record<Variant, string> = {
   card: "flex flex-col gap-1.5 rounded-lg bg-white p-2 outline -outline-offset-1 outline-primary",
   cell: "flex flex-col gap-1 rounded-md bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,.12)] outline -outline-offset-1 outline-primary",
-  inline: "flex flex-col gap-1.5 rounded-lg bg-white py-1 pr-1 pl-2.5 outline -outline-offset-1 outline-primary ring-3 ring-primary/15",
+  prop: "flex flex-col gap-1.5 rounded-lg bg-white py-1 pr-1 pl-2.5 outline -outline-offset-1 outline-primary ring-3 ring-primary/15",
   row: "flex flex-col gap-1 border-t border-[#eeeeee] px-4 py-1.5",
 };
 
@@ -79,7 +82,7 @@ type QuickAddProps = {
   /** The name field's accessible name. */
   fieldLabel?: string;
   placeholder?: string;
-  /** `inline` sits on a white surface, like an item's sheet, and opens into an outlined entry row. */
+  /** `prop` is a quiet row in an item's sheet, on its white surface, and opens into an outlined entry row. */
   variant?: Variant;
   /** What the new item inherits, said beside the field ("In Design · assigned to Juan"). */
   hint?: string;
@@ -188,11 +191,11 @@ function Entry({ variant, field, check, onAdd, close }: { variant: Variant; fiel
   );
 }
 
-/** Closed: "+ Add task" — in a calendar cell just the "+", its name given to screen readers instead. */
+/** Closed: "+ Add task" — in a calendar cell just the "+", its name given to screen readers instead; in a property row just the words. */
 function Opener({ ref, variant, label, onOpen }: { ref: Ref<HTMLButtonElement>; variant: Variant; label: string; onOpen: () => void }) {
   return (
     <button ref={ref} type="button" onClick={onOpen} className={OPENER[variant]} aria-label={variant === "cell" ? label : undefined}>
-      <ICONS.add size={variant === "cell" || variant === "inline" ? 16 : 18} aria-hidden />
+      {variant !== "prop" && <ICONS.add size={variant === "cell" ? 16 : 18} aria-hidden />}
       {variant !== "cell" && label}
     </button>
   );

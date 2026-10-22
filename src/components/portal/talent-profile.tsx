@@ -138,7 +138,8 @@ export function TalentProfile({ person, viewer, hired = false, badge, actions, n
           hasIntro ? "@lg:grid-cols-[minmax(0,1fr)_clamp(160px,30%,240px)] @lg:gap-x-8 @2xl:grid-cols-[minmax(0,1fr)_clamp(200px,34%,320px)] @2xl:gap-x-10" : ""
         }`}
       >
-        <header className="flex min-w-0 flex-col gap-6">
+        {/* data-tour: a candidate's tour points at who they are (@/lib/portal/tours). */}
+        <header data-tour="talent-head" className="flex min-w-0 flex-col gap-6">
           {editor.profile || <Hero person={p} hired={hired} badge={badge} edit={edit.profile} photoAction={photoAction} actions={actions} note={note} />}
         </header>
 

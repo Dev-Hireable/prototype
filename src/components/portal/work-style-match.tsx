@@ -15,8 +15,8 @@ const FIT: Record<TraitFit, { tone: Tone; label: string }> = {
 /**
  * Rows sized by the room they have (a container query, so the job page's wide column and the
  * application page's narrow one both read well): their tag, yours and the fit in columns, with the
- * trait's name first where there's more room. Narrow, the two tags keep their columns and the fit
- * goes under them, so the column labels read at every width.
+ * trait's name first where there's more room. Narrow, theirs stays on the left and yours on the
+ * right, under the column labels, and the fit goes under them.
  */
 const COLS = "grid-cols-2 @min-[480px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_88px] @min-[660px]:grid-cols-[minmax(96px,0.8fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_88px]";
 const ROW = `grid items-center gap-x-3 gap-y-2 px-4 ${COLS}`;
@@ -61,15 +61,20 @@ export function WorkStyleMatch({ company, theirs, mine }: { company: string; the
         <div className={`${HEAD} bg-surface-2 py-2 text-[12.5px] leading-[1.4] font-medium text-ink-2`}>
           <span className="hidden @min-[660px]:block">Trait</span>
           <span className="truncate">{company}</span>
-          <span>You</span>
+          <span className="text-right @min-[480px]:text-left">You</span>
           <span className="sr-only">Fit</span>
         </div>
         {rows.map((r) => (
           <div key={r.trait} className={`${ROW} border-t border-[#eeeeee] py-2.5`}>
             <span className="hidden text-[13px] leading-[1.3] font-medium text-ink @min-[660px]:block">{r.trait}</span>
-            {/* A long tag in a phone's narrow column breaks rather than running under the next one. */}
-            <span className="min-w-0 [overflow-wrap:anywhere]">{r.them ? <TraitTag tag={r.them} view="other" /> : <span className="text-ink-2">—</span>}</span>
-            <span className="min-w-0 [overflow-wrap:anywhere]">{r.you ? <TraitTag tag={r.you} view="self" /> : <span className="text-ink-2">—</span>}</span>
+            {/* Narrow, the two tags share a line while both fit, and yours drops under theirs when
+                they don't: half a phone's width is narrower than the longest tags, which then broke
+                mid-word. Only a tag wider than the whole row still breaks. With room, the tags are
+                the table's own columns. */}
+            <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-2 @min-[480px]:contents">
+              <span className="min-w-0 [overflow-wrap:anywhere]">{r.them ? <TraitTag tag={r.them} view="other" /> : <span className="text-ink-2">—</span>}</span>
+              <span className="ml-auto min-w-0 [overflow-wrap:anywhere] @min-[480px]:ml-0">{r.you ? <TraitTag tag={r.you} view="self" /> : <span className="text-ink-2">—</span>}</span>
+            </div>
             <span className="col-span-2 @min-[480px]:col-span-1">{r.fit && <StatusDot tone={FIT[r.fit].tone}>{FIT[r.fit].label}</StatusDot>}</span>
           </div>
         ))}

@@ -444,6 +444,23 @@ test.describe("subtasks and comments", () => {
   });
 });
 
+test.describe("subtasks and comments · files", () => {
+  test("a comment carries files, or is files alone, and the other side is told what was shared", async () => {
+    const { store, notices, alex, juan } = setup();
+    const brief = { id: "file-1", name: "brief.pdf", type: "application/pdf", size: 1200 };
+    const tiles = { id: "file-2", name: "tiles.png", type: "image/png", size: 5400 };
+    await juan.comment("a", { id: "c1", text: "", files: [brief] });
+    await alex.comment("a", { id: "c2", text: "Thanks, see the tiles", files: [brief, tiles] });
+    expect(store.get("a").comments.map((c) => [c.text, c.files?.map((f) => f.name)])).toEqual([
+      ["", ["brief.pdf"]],
+      ["Thanks, see the tiles", ["brief.pdf", "tiles.png"]],
+    ]);
+    expect(notices.map(({ n }) => n.kind === "task_comment" && n.note)).toEqual(["Shared a file: brief.pdf", "Thanks, see the tiles"]);
+    // Nothing said and nothing sent is still refused.
+    expect((await rejection(juan.comment("a", { id: "c3", text: "  ", files: [] }))).message).toBe("Write something first.");
+  });
+});
+
 test.describe("failures", () => {
   test("a failed save leaves nothing behind and tells nobody", async () => {
     const { store, notices, juan } = setup([item({ id: "a", status: "doing" })]);

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useState } from 'react';
 
 import { dayLabel } from '@/lib/portal/dates';
 
 import type { PublicSignupRole } from '@/web-app/lib/auth/auth-role-mapping';
+import { useNextRetake } from '@/lib/demo/retake';
 import {
-  nextRetake,
   sideOfQuizRole,
   storedWorkStyle,
   traitTagsFor,
@@ -34,13 +34,11 @@ export function useCurrentTraits(role: PublicSignupRole): WorkStyleTag[] {
   return traits;
 }
 
-const NO_SUBSCRIBE = () => () => {};
-
 /**
  * The quiz can be retaken once a year: the day this side may take it again, or undefined when it
  * may now. Read in the browser only (the date is kept there).
  */
 export function useRetakeOpensOn(role: PublicSignupRole): string | undefined {
-  const at = useSyncExternalStore(NO_SUBSCRIBE, () => nextRetake(sideOfQuizRole(role))?.getTime() ?? 0, () => 0);
-  return at ? dayLabel(new Date(at)) : undefined;
+  const next = useNextRetake(sideOfQuizRole(role));
+  return next ? dayLabel(next) : undefined;
 }

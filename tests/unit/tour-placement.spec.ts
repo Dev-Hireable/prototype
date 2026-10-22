@@ -78,3 +78,19 @@ test.describe("guided tours · the tours themselves", () => {
     }
   });
 });
+
+test.describe("guided tours · a screen of many", () => {
+  test("a role, a candidate and an application each have their own, wherever the id", () => {
+    expect(tourFor("/team/hire/roles/brand-designer")?.id).toBe("team.role");
+    expect(tourFor("/team/hire/roles/brand-designer/candidates/deal")?.id).toBe("team.candidate");
+    expect(tourFor("/independent/jobs/applications/deal")?.id).toBe("independent.application");
+    expect(tourFor("/team/hire/roles")).toBeUndefined();
+  });
+
+  test("a role on the Job Board isn't the pages beside it", () => {
+    expect(tourFor("/independent/jobs/brand-designer")?.id).toBe("independent.role");
+    expect(tourFor("/independent/jobs/applications")?.id).toBe("independent.applications");
+    expect(tourFor("/independent/jobs/saved")).toBeUndefined();
+    expect(tourFor("/independent/jobs/interviews")).toBeUndefined();
+  });
+});
