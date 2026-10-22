@@ -11,8 +11,8 @@ import type { PaymentMethod } from "@/lib/team/data";
 import { useCards } from "@/lib/team/account";
 
 /**
- * TB-102 — the cards on file. None is needed to start: a card is asked for when it's first used, the
- * first proposal or offer (TB-105), with the same Add a card form as here.
+ * TB-102 — the cards on file. None is needed to start, and a new account has none: a card is asked
+ * for when it's first used, at the first offer (TB-105), with the same Add a card form as here.
  */
 export default function PaymentMethods() {
   const { cards, setDefaultCard } = useCards();
@@ -31,9 +31,9 @@ export default function PaymentMethods() {
           </Button>
         </div>
         {cards.length === 0 ? (
-          <EmptyState title="No card yet" body="You'll be asked for one when your first proposal comes in or you send an offer. You can also add it now." />
+          <EmptyState title="No card yet" body="You'll be asked for a card when you send your first offer." />
         ) : (
-          <p className="text-[13px] leading-[1.4] text-ink-2">Trial escrow and salaries are charged to your default card.</p>
+          <p className="text-[13px] leading-[1.4] text-ink-2">Trial escrow and monthly pay are charged to your default card.</p>
         )}
         {cards.map((c) => (
           <CardRow

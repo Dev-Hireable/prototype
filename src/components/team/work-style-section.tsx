@@ -29,7 +29,7 @@ export function WorkStyleSection() {
     <>
       <ProfileSection
         title="Work style"
-        description="From your work-style quiz. Shown on your company profile and used for matching."
+        description="From your work style quiz. Shown on your company profile and used for matching."
         action={
           tags.length ? (
             <Tip label={opensOn ? `You can retake the quiz on ${dayLabel(new Date(opensOn))}.` : undefined} wrap>
@@ -51,7 +51,7 @@ export function WorkStyleSection() {
             ))}
           </div>
         ) : (
-          <p className="text-[13px] leading-[1.4] text-ink-2">No tags yet. Take the work-style quiz and your tags appear here.</p>
+          <p className="text-[13px] leading-[1.4] text-ink-2">No tags yet. Take the work style quiz and your tags appear here.</p>
         )}
       </ProfileSection>
 

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Button, LinkButton, Modal, Page, Row, StatusDot, Table, Toast } from "@/components/portal/ui";
-import { canJoin } from "@/lib/portal/dates";
+import { canJoin, JOIN_OPENS_MINUTES } from "@/lib/portal/dates";
 import type { Interview } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
+import { useInterviewTime } from "@/lib/independent/interview-time";
 import { useQueryState } from "@/lib/portal/query-state";
 import { useToast } from "@/lib/portal/toast";
 import { ROW_LINK } from "@/components/portal/toolbar";
@@ -13,27 +14,28 @@ import { ViewSwitch } from "@/components/portal/view-switch";
 import { useWithReturn } from "@/components/portal/return";
 import { RescheduleDialog } from "@/components/independent/reschedule-dialog";
 
-const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" | "neutral" | "danger" }> = {
-  // A booking the talent hasn't answered yet. It read "Starts in 12 min" whatever the date was.
-  starts: { label: "Awaiting reply", tone: "info" },
+const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" | "neutral" | "danger" | "warn" }> = {
+  // A booking the talent hasn't answered yet: the same words, and the same orange, as on the application.
+  starts: { label: "Awaiting your reply", tone: "warn" },
   accepted: { label: "Confirmed", tone: "ok" },
   completed: { label: "Completed", tone: "neutral" },
   declined: { label: "Declined", tone: "danger" },
   cancelled: { label: "Cancelled", tone: "neutral" },
-  reschedule: { label: "New time asked", tone: "info" },
+  reschedule: { label: "New time requested", tone: "warn" },
 };
 
 /**
  * Role flex · Company · Date and time · Format · Status · Actions, on the same grid table as every
- * other portal list (it was a hand-rolled one without column rules). Date and time take two lines,
- * as on the Team Builder's side, so a long slot can't run into Format.
+ * other portal list (it was a hand-rolled one without column rules). The time takes two lines, the
+ * talent's own clock over the Team Builder's, so a long slot can't run into Format.
  */
-const COLS = ["min-w-[220px] flex-1", "w-[180px]", "w-[150px]", "w-[120px]", "w-[130px]", "w-[290px]"];
+const COLS = ["min-w-[200px] flex-1", "w-[170px]", "w-[190px]", "w-[120px]", "w-[150px]", "w-[290px]"];
 
 export default function Interviews() {
   const [tab, setTab] = useQueryState("tab", "upcoming", ["upcoming", "past"] as const);
   /** IN-070 — the interviews the Team Builder has actually booked, not a copy in page state. */
   const { interviews: items, declineInterview, requestReschedule, setStage } = useApplications();
+  const clock = useInterviewTime();
   const withReturn = useWithReturn();
   const [declining, setDeclining] = useState<Interview | null>(null);
   const [rescheduling, setRescheduling] = useState<Interview | null>(null);
@@ -43,7 +45,7 @@ export default function Interviews() {
   const rows = tab === "upcoming" ? upcoming : past;
   /** IN-070 — accepting confirms the slot, and it shows as confirmed on the application. */
   const accept = (iv: Interview) => {
-    setStage(iv.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: iv.when });
+    setStage(iv.id, "invite_accepted", { label: "Interview confirmed", tone: "info", slot: { when: iv.when, offset: iv.offset } });
     setToast("Interview accepted");
   };
 
@@ -53,15 +55,12 @@ export default function Interviews() {
       <InterviewsToolbar tab={tab} onTab={setTab} upcoming={upcoming.length} past={past.length} />
       <Table cols={COLS} head={["Role", "Company", "Date and time", "Format", "Status", "Actions"]}>
         {rows.map((iv) => (
-          <InterviewRow key={iv.id} iv={iv} href={withReturn(iv.roleHref)} onAccept={() => accept(iv)} onDecline={() => setDeclining(iv)} onReschedule={() => setRescheduling(iv)} />
+          <InterviewRow key={iv.id} iv={iv} time={clock.both(iv)} href={withReturn(iv.roleHref)} onAccept={() => accept(iv)} onDecline={() => setDeclining(iv)} onReschedule={() => setRescheduling(iv)} />
         ))}
         {rows.length === 0 && (
-          <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">
-            {tab === "upcoming" ? "No interviews coming up. Invitations from Team Builders land here." : "No past interviews yet."}
-          </p>
+          <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">{tab === "upcoming" ? "No interviews yet. Invitations from Team Builders will show here." : "No past interviews yet."}</p>
         )}
       </Table>
-      <p className="text-[12px] leading-[1.4] text-ink-2">Accept to confirm the slot; Join call then opens the meeting link. Can't make it? Ask for a new time, or decline — the employer gets a note and your application stays open.</p>
 
       <DeclineInterview
         interview={declining}
@@ -71,14 +70,18 @@ export default function Interviews() {
           setDeclining(null);
           setToast("Interview declined");
         }}
+        onReschedule={() => {
+          setRescheduling(declining);
+          setDeclining(null);
+        }}
       />
       <RescheduleDialog
         open={!!rescheduling}
         company={rescheduling?.company ?? ""}
-        when={rescheduling?.when ?? ""}
+        when={rescheduling ? clock.mine(rescheduling) : ""}
         onClose={() => setRescheduling(null)}
         onSend={(when, note) => {
-          if (rescheduling) requestReschedule(rescheduling.id, when, note);
+          if (rescheduling) requestReschedule(rescheduling.id, when, note, clock.viewer);
           setToast(`New time sent to ${rescheduling?.company}`);
         }}
       />
@@ -107,8 +110,9 @@ function InterviewsToolbar({ tab, onTab, upcoming, past }: { tab: "upcoming" | "
 /** One interview: the role (the whole row opens its application), the company, when, the format and status, and what can be done. */
 type Answers = { onAccept: () => void; onDecline: () => void; onReschedule: () => void };
 
-function InterviewRow({ iv, href, ...answers }: { iv: Interview; href: string } & Answers) {
-  const [date, time] = iv.when.split(", ");
+function InterviewRow({ iv, time, href, ...answers }: { iv: Interview; time: string; href: string } & Answers) {
+  // "Tue 29 Sep, 10:00 AM your time · 10:00 PM Alex's time": the talent's clock over the Team Builder's.
+  const [mine, theirs] = time.split(" · ");
   return (
     // The whole row opens the application; the buttons stay their own.
     <Row className="relative">
@@ -118,9 +122,9 @@ function InterviewRow({ iv, href, ...answers }: { iv: Interview; href: string } 
         </Link>
       </span>
       <span className={`${COLS[1]} truncate`}>{iv.company}</span>
-      <span className={COLS[2]}>
-        <span className="block">{date}</span>
-        <span className="block text-[12px] text-ink-2">{time}</span>
+      <span className={`${COLS[2]} !whitespace-normal`}>
+        <span className="block">{mine}</span>
+        {theirs && <span className="block text-[12px] text-ink-2">{theirs}</span>}
       </span>
       <span className={`${COLS[3]} text-ink-2`}>{iv.format}</span>
       <span className={COLS[4]}>
@@ -143,7 +147,7 @@ function RowActions({ iv, href, onAccept, onDecline, onReschedule }: { iv: Inter
       </LinkButton>
     );
   }
-  const joinable = iv.status === "accepted" && !!iv.link && canJoin(iv.when);
+  const joinable = iv.status === "accepted" && !!iv.link && canJoin(iv.when, iv.offset);
   return (
     <>
       {/* IN-070 — an invitation is answered here too, not only from the application page. */}
@@ -156,7 +160,7 @@ function RowActions({ iv, href, onAccept, onDecline, onReschedule }: { iv: Inter
           size="sm"
           variant="primary"
           disabled={!joinable}
-          title={joinable ? undefined : !iv.link ? "No meeting link yet — ask the Team Builder to share one" : "Opens 15 minutes before the start"}
+          title={joinable ? undefined : !iv.link ? "No meeting link yet. Ask the Team Builder to share one." : `Opens ${JOIN_OPENS_MINUTES} minutes before the start`}
           onClick={() => iv.link && window.open(iv.link, "_blank", "noopener")}
         >
           Join call
@@ -165,26 +169,30 @@ function RowActions({ iv, href, onAccept, onDecline, onReschedule }: { iv: Inter
       <Button size="sm" onClick={onReschedule}>
         New time
       </Button>
-      <Button size="sm" variant="danger" onClick={onDecline}>
+      {/* Declining keeps the application open, so it's a plain button here; the confirm is the red one. */}
+      <Button size="sm" onClick={onDecline}>
         Decline
       </Button>
     </>
   );
 }
 
-/** Declining an interview: the company gets a note, and the application for the role stays open. */
-function DeclineInterview({ interview, onClose, onDecline }: { interview: Interview | null; onClose: () => void; onDecline: () => void }) {
+/** Declining an interview: the company gets a note, and the application stays open. If it's only the time, a new one is a click away. */
+function DeclineInterview({ interview, onClose, onDecline, onReschedule }: { interview: Interview | null; onClose: () => void; onDecline: () => void; onReschedule: () => void }) {
   return (
     <Modal
       open={!!interview}
       onClose={onClose}
       tone="danger"
       title="Decline this interview?"
-      description={`${interview?.company} gets a note and your application for ${interview?.role} stays open, but nothing moves on until you agree a new time. If it's only the time, use New time instead.`}
+      description="Can't make it? Ask for another time, or decline. Your application stays open either way."
       footer={
         <>
           <Button size="lg" onClick={onClose}>
             Cancel
+          </Button>
+          <Button size="lg" onClick={onReschedule}>
+            Ask for a new time
           </Button>
           <Button size="lg" variant="danger" onClick={onDecline}>
             Decline

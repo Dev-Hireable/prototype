@@ -15,6 +15,7 @@ import { useIndependentAccount } from "@/lib/independent/account";
 import { useQueryState } from "@/lib/portal/query-state";
 import { useToast } from "@/lib/portal/toast";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
+import { ConversionOfferDialog } from "@/components/independent/conversion-offer-dialog";
 import { CompanyCard } from "./_components/company";
 import { TrackerDialogs } from "./_components/dialogs";
 import { EvaluationTab } from "./_components/evaluations";
@@ -22,6 +23,9 @@ import { Crumbs, HeaderActions } from "./_components/header";
 import { ContractTab, OverviewTab } from "./_components/tabs";
 import { closedNote } from "./_lib/copy";
 import { trackerOf, useTrackerDialogs } from "./_lib/tracker";
+
+/** IN-084 — the post-trial offer's dialog, kept in the URL (`?offer=open`) so a link or a notification can open it. */
+const OFFER_VIEWS = ["closed", "open"] as const;
 
 export default function ContractTrackerPage({ params }: { params: Promise<{ slug: string }> }) {
   return (
@@ -46,6 +50,8 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   const dialogs = useTrackerDialogs();
   const contract = contracts.find((c) => c.slug === slug);
   const [tab, setTab] = useQueryState("tab", "tasks", CONTRACT_TABS);
+  const [offerView, setOfferView] = useQueryState("offer", "closed", OFFER_VIEWS);
+  const reviewOffer = () => setOfferView("open");
   const withReturn = useWithReturn();
   const [toast, setToast] = useToast();
   if (!contract) notFound();
@@ -65,7 +71,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
   /** IN-091 — the talent takes back the notice they gave. */
   const withdraw = () => {
     const r = withdrawNotice();
-    setToast(r.ok ? "Notice withdrawn — the role carries on" : r.error, r.ok ? "success" : "danger");
+    setToast(r.ok ? "Notice withdrawn. The role carries on" : r.error, r.ok ? "success" : "danger");
   };
 
   return (
@@ -73,7 +79,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
       fill={tab === "tasks"}
       title={
         <>
-          {contract.title} — {contract.company} <JobBadge type={contract.type} />
+          {contract.title} at {contract.company} <JobBadge type={contract.type} />
           <StatusDot tone={contract.status.tone}>{contract.status.label}</StatusDot>
         </>
       }
@@ -83,12 +89,13 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
     >
       {tab === "tasks" && <ContractWork live={view.onDeal} contract={contract} life={view.life} notice={view.notice} cancelled={view.cancelled} ended={t.ended} scoreFinal={t.scoreFinal} actor={t.actor} people={t.people} closedNote={closedNote(contract, view, t.ended)} />}
       {tab === "evaluation" && <EvaluationTab contract={contract} view={view} thread={thread} score={score} ended={t.ended} />}
-      {tab === "contract" && <ContractTab t={t} wallet={wallet} score={score} company={company} onFile={() => dialogs.setFiling(true)} onEnd={() => dialogs.setEnding(true)} onWithdraw={withdraw} />}
+      {tab === "contract" && <ContractTab t={t} wallet={wallet} score={score} company={company} onFile={() => dialogs.setFiling(true)} onEnd={() => dialogs.setEnding(true)} onWithdraw={withdraw} onReviewOffer={reviewOffer} />}
       {/* IN-076 — the contract at a glance: its terms, how far the work has got, what's waiting on
           you (changes asked for), what's due next and what changed. */}
-      {tab === "overview" && <OverviewTab t={t} score={score} company={company} onReadEvaluation={() => setTab("evaluation")} />}
+      {tab === "overview" && <OverviewTab t={t} score={score} company={company} onReadEvaluation={() => setTab("evaluation")} onReviewOffer={reviewOffer} />}
 
       <TrackerDialogs t={t} dialogs={dialogs} endContract={endContract} onToast={setToast} />
+      <ConversionOfferDialog slug={contract.slug} open={offerView === "open"} onClose={() => setOfferView("closed")} onToast={setToast} />
 
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>

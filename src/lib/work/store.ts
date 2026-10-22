@@ -9,7 +9,7 @@ import { accessOf } from "./access";
 import { todayDay } from "./dates";
 import { isWorkError, messageOf, WorkError } from "./errors";
 import { migrateProjects } from "./migrate";
-import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, type TagColor, type WorkItem, type WorkProject, type WorkStatus } from "./model";
+import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, unfinishedOf, type TagColor, type WorkItem, type WorkProject, type WorkStatus } from "./model";
 import { orderLast, placeBetween } from "./order";
 import { applyOps, type PendingOp } from "./overlay";
 import { sideOf, type Actor, type Names, type WorkAccess } from "./permissions";
@@ -112,6 +112,16 @@ const NO_PROJECTS: readonly WorkProject[] = [];
 /** The list as it looks now: saved, with this tab's pending changes on top. */
 function currentItems(): readonly WorkItem[] {
   return applyOps(getDeal()?.contract?.tasks ?? EMPTY_ITEMS, pending);
+}
+
+/**
+ * What an item still has open (unfinishedOf), read from the list as it is now: a card's, a row's or a
+ * menu's send for review asks first while there's any. Read when someone acts, not while drawing, so
+ * no card re-renders for it.
+ */
+export function unfinishedNow(t: WorkItem) {
+  const byId = indexById(currentItems());
+  return unfinishedOf(byId.get(t.id) ?? t, byId);
 }
 
 export type WorkSnapshot = {
@@ -442,17 +452,17 @@ function projectActions(repo: WorkRepository) {
       return run({ announce: `Renamed “${p.name}” to “${name.trim()}”`, ...msgs, itemId: `project:${p.id}`, call: () => repo.renameProject(p.id, name) });
     },
     finishProject(p: WorkProject, msgs: Messages = {}) {
-      return run({ success: `Finished “${p.name}” — it's out of the open work, and its items are kept`, undo: { label: "Reopen", run: () => void actions.reopenProject(p) }, ...msgs, itemId: `project:${p.id}`, call: () => repo.finishProject(p.id) });
+      return run({ success: `Finished “${p.name}”. It's out of the open work, and its items are kept.`, undo: { label: "Reopen", run: () => void actions.reopenProject(p) }, ...msgs, itemId: `project:${p.id}`, call: () => repo.finishProject(p.id) });
     },
     archiveProject(p: WorkProject, msgs: Messages = {}) {
-      return run({ success: `Archived “${p.name}” — it's under Archived in the project list`, undo: { label: "Undo", run: () => void actions.unarchiveProject(p, { announce: `Unarchived “${p.name}”` }) }, ...msgs, itemId: `project:${p.id}`, call: () => repo.archiveProject(p.id) });
+      return run({ success: `Archived “${p.name}”. It's under Archived in the project list.`, undo: { label: "Undo", run: () => void actions.unarchiveProject(p, { announce: `Unarchived “${p.name}”` }) }, ...msgs, itemId: `project:${p.id}`, call: () => repo.archiveProject(p.id) });
     },
     unarchiveProject(p: WorkProject, msgs: Messages = {}) {
-      return run({ success: `Unarchived “${p.name}” — it's back under Finished`, ...msgs, itemId: `project:${p.id}`, call: () => repo.unarchiveProject(p.id) });
+      return run({ success: `Unarchived “${p.name}”. It's back under Finished.`, ...msgs, itemId: `project:${p.id}`, call: () => repo.unarchiveProject(p.id) });
     },
     /** Resolves true once it's gone. Its items leave the project with the save, so nothing shows before it. */
     deleteProject(p: WorkProject, items: number, msgs: Messages = {}) {
-      return run({ success: items ? `Deleted “${p.name}” — its ${items === 1 ? "item is" : `${items} items are`} kept, outside a project` : `Deleted “${p.name}”`, ...msgs, itemId: `project:${p.id}`, call: () => repo.deleteProject(p.id) });
+      return run({ success: items ? `Deleted “${p.name}”. ${items === 1 ? "Its task stays" : `Its ${items} tasks stay`} on the contract.` : `Deleted “${p.name}”`, ...msgs, itemId: `project:${p.id}`, call: () => repo.deleteProject(p.id) });
     },
     reopenProject(p: WorkProject, msgs: Messages = {}) {
       return run({ success: `Reopened “${p.name}”`, ...msgs, itemId: `project:${p.id}`, call: () => repo.reopenProject(p.id) });

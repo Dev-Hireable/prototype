@@ -4,10 +4,10 @@ import Image from "next/image";
 import { useState } from "react";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
 import { IdStatus } from "@/components/independent/id-verification";
-import { Button, Card, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { Button, Card, EmptyState, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
-import { payoutTitle, useWallet } from "@/lib/independent/wallet";
+import { payoutTitle, removeBlocker, useWallet } from "@/lib/independent/wallet";
 import { useToast } from "@/lib/portal/toast";
 
 export default function PayoutSettings() {
@@ -33,11 +33,12 @@ export default function PayoutSettings() {
             Add payout method
           </Button>
         </div>
-        <p className="text-[13px] leading-[1.4] text-ink-2">Trial payouts and salaries go to your default method.</p>
+        <p className="text-[13px] leading-[1.4] text-ink-2">Released pay waits in your balance until you withdraw it to a verified payout method.</p>
         {/* KYC: payouts go only to a verified name, so the methods say where the ID check stands. */}
         <IdStatus onToast={setToast} />
+        {payouts.length === 0 && <EmptyState title="No payout method yet" body="You'll be asked for one before your first proposal." />}
         {payouts.map((m) => (
-          <MethodRow key={m.id} method={m} only={only} onSetDefault={() => makeDefault(m)} onRemove={() => setRemoving(m)} />
+          <MethodRow key={m.id} method={m} removeOff={removeBlocker(m, payouts.length)} onSetDefault={() => makeDefault(m)} onRemove={() => setRemoving(m)} />
         ))}
         {only && (
           <div className="w-full max-w-[530px]">
@@ -52,7 +53,7 @@ export default function PayoutSettings() {
         onClose={() => setRemoving(null)}
         tone="danger"
         title={`Remove ${removing?.brand}?`}
-        description="Payouts already scheduled to this method complete; nothing new is sent here."
+        description="Payouts already on the way to this account will still arrive. No new payouts will be sent here."
         footer={
           <>
             <Button size="lg" onClick={() => setRemoving(null)}>
@@ -71,9 +72,9 @@ export default function PayoutSettings() {
 
 /**
  * One payout method: its brand, the account, what kind it is, and its buttons — Set as default once
- * it's verified, and Remove unless it's the default or the `only` one.
+ * it's verified, and Remove unless it's the default or the only one (`removeOff` says which).
  */
-function MethodRow({ method: m, only, onSetDefault, onRemove }: { method: PayoutMethod; only: boolean; onSetDefault: () => void; onRemove: () => void }) {
+function MethodRow({ method: m, removeOff, onSetDefault, onRemove }: { method: PayoutMethod; removeOff: string | undefined; onSetDefault: () => void; onRemove: () => void }) {
   return (
     <PaymentMethodRow
       brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
@@ -92,7 +93,7 @@ function MethodRow({ method: m, only, onSetDefault, onRemove }: { method: Payout
             </Button>
           )}
           {/* Quiet here, so a list of methods isn't a column of red; the confirm dialog's Remove is the red one. */}
-          <Button size="sm" variant="secondary" disabled={only || m.isDefault} title={only ? "Your only payout method can't be removed. Add another first." : m.isDefault ? "Set another method as default to remove this one." : undefined} onClick={onRemove}>
+          <Button size="sm" variant="secondary" disabled={!!removeOff} title={removeOff} onClick={onRemove}>
             Remove
           </Button>
         </>

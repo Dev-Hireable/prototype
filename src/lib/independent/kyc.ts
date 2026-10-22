@@ -26,3 +26,14 @@ export function proposalBlocker(payouts: readonly PayoutMethod[], idVerified: bo
   if (!payout && !idVerified) return "Add a payout method and verify your ID first.";
   return payout ? "Verify your ID first." : "Add a payout method first.";
 }
+
+/**
+ * Said early, beside the request for a proposal: what's still to set up before the first one can
+ * go, naming only what's missing. Undefined once both are in.
+ */
+export function proposalSetupNote(payouts: readonly PayoutMethod[], idVerified: boolean): string | undefined {
+  const payout = payouts.length > 0;
+  if (payout && idVerified) return undefined;
+  const todo = !payout && !idVerified ? "verify your ID and add a payout method" : payout ? "verify your ID" : "add a payout method";
+  return `You'll need to ${todo} before sending your first proposal.`;
+}

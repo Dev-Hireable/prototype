@@ -20,13 +20,13 @@ const pass = (check: string, checked = "25 Aug 2026"): Check => ({ check, result
 
 const genericStats = (company: string, type: string, applicants: string): Stat[] => [
   { label: "Company", value: company, sub: "—" },
-  { label: "Type", value: type, sub: type === "Trial" ? "30 days" : "permanent" },
-  { label: "Budget", value: "—", sub: "not set" },
+  { label: "Type", value: type, sub: type === "Trial" ? "30 working days" : "permanent" },
+  { label: "Pay", value: "—", sub: "not set" },
   { label: "Applicants", value: applicants, sub: "—" },
 ];
 
 const genericChecks = (checked: string): Check[] => [
-  pass("Budget within platform range", checked),
+  pass("Pay within platform range", checked),
   pass("Description screened for restricted terms", checked),
   pass("Company profile complete", checked),
   pass("Trial tasks present", checked),
@@ -44,12 +44,13 @@ export const roles: Role[] = [
     tone: "ok",
     stats: [
       { label: "Company", value: "Nairobi Solutions", sub: "Growth plan" },
-      { label: "Type", value: "Trial", sub: "30 days" },
-      { label: "Budget", value: "$1,600 /mo", sub: "suggested $1,400–1,800" },
+      { label: "Type", value: "Trial", sub: "30 working days" },
+      // A trial pays one total for the whole trial.
+      { label: "Pay", value: "$1,600 for the trial", sub: "suggested $1,400 to $1,800" },
       { label: "Applicants", value: "24", sub: "6 matched" },
     ],
     checks: [
-      pass("Budget within platform range"),
+      pass("Pay within platform range"),
       pass("Description screened for restricted terms"),
       pass("Company profile complete"),
       {
@@ -96,7 +97,7 @@ export const roles: Role[] = [
     tone: "danger",
     stats: genericStats("Vela Partners", "Trial", "19"),
     checks: [
-      pass("Budget within platform range", "18 Aug 2026"),
+      pass("Pay within platform range", "18 Aug 2026"),
       {
         check: "Description screened for restricted terms",
         result: "Review — flagged by automated check",

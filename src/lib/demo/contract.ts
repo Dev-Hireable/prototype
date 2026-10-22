@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { type Lifecycle, nextPay, noticeLastDay, type Notice, type PayPeriod, payPeriods } from "@/lib/contract/lifecycle";
 import type { Dispute } from "@/lib/disputes/case";
 import { dayLabel, isoDay, parseDay, today } from "@/lib/portal/dates";
-import { contractTypeOf, type Deal, type DealEvaluation, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, type RoleHold, settleEscrow, startedAsTrial, trialEvaluationOf, updateDeal } from "@/lib/demo/deal";
+import { contractTypeOf, type Deal, type DealEvaluation, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, type RoleHold, settleEscrow, startedAsTrial, sweepInterview, trialEvaluationOf, updateDeal } from "@/lib/demo/deal";
 // disputes.ts reaches back only through a lazy import() of sweepContract, so neither module needs the
 // other while it loads: a cycle on paper, not at runtime.
 // fallow-ignore-next-line circular-dependency
@@ -117,7 +117,7 @@ export function acceptConversion(): AcceptResult {
   if (offer.status === "withdrawn") return fail(`${d.company} withdrew this offer, so it can't be accepted.`);
   if (offer.status !== "sent" && offer.status !== "expired") return fail("This offer has already been answered.");
   if (l.phase !== "offer") return fail(`This offer expired on ${dayLabel(offer.start)}, its start date, without an answer. ${d.company} can send you a new one.`);
-  const released = releaseEscrow(d, `Trial complete — hired ${JOB_TYPE_LABEL[offer.type].toLowerCase()}`);
+  const released = releaseEscrow(d, `Trial complete (hired ${JOB_TYPE_LABEL[offer.type].toLowerCase()})`);
   updateDeal((x) => (x.conversion ? { ...x, conversion: { ...x.conversion, status: "accepted", accepted: today() } } : x));
   move("hire_accepted", role(d), { type: offer.type });
   return { ok: true, released };
@@ -213,13 +213,13 @@ export function endContract(by: EndSide, how: "cancel" | "close" | "notice" | "n
   // Now: paid through the notice's last day — the part after today in lieu of the notice.
   const paid = payUpTo(d, lastDay, true);
   updateDeal((x) => (x.contract ? { ...x, contract: { ...x.contract, ended: true, endedOn: on, notice: undefined } } : x));
-  move("contract_ended", role(d), { type, note: paid > 0 ? `Your pay through ${dayLabel(lastDay)}, ${usd(paid)}, has been recorded — the notice period included.` : undefined });
+  move("contract_ended", role(d), { type, note: paid > 0 ? `Your pay through ${dayLabel(lastDay)}, ${usd(paid)}, has been recorded, including the notice period.` : undefined });
   return { ok: true, released: 0, paid };
 }
 
 function refusal(phase: string, by: EndSide, how: string) {
   if (phase === "trial") return "The trial is still running. It can be ended once it's over and evaluated.";
-  if (phase === "evaluation") return "Send the trial's evaluation first: it makes the Trial Fit Score final and settles the escrow.";
+  if (phase === "evaluation") return "Send the trial's evaluation first: it makes the trial fit score final and settles the escrow.";
   if ((phase === "decision" || phase === "offer") && by === "independent") return "The trial is over. The company decides what's next: a role, or closing the contract.";
   if (how === "now" && by === "independent") return "Give notice to end the contract. It carries on, and is paid, through the notice period.";
   if (how === "notice") return "Notice has already been given on this contract.";
@@ -238,9 +238,9 @@ export function withdrawNotice(by: EndSide): { ok: true } | { ok: false; error: 
   return { ok: true };
 }
 
-/** A contract notice for one side, opening the contract. */
-function tell(d: Deal, to: EndSide, title: string, body: string, tab?: string) {
-  notify(to, { title, body, href: to === "team" ? teamHref(tab) : talentHref(d, tab), avatar: to === "team" ? PAIR.independent.avatar : PAIR.team.avatar, kind: "payments" });
+/** A contract notice for one side, opening the contract. `system`: Hireable's own (the notice ran out), not the other side's doing. */
+function tell(d: Deal, to: EndSide, title: string, body: string, tab?: string, system = false) {
+  notify(to, { title, body, href: to === "team" ? teamHref(tab) : talentHref(d, tab), avatar: to === "team" ? PAIR.independent.avatar : PAIR.team.avatar, kind: "payments", system });
 }
 
 /* ----------------------------------------------------------------- pay */
@@ -305,8 +305,8 @@ function syncHolds(d: Deal): Record<string, RoleHold> {
     const refund = refundOf(x);
     const back = Math.min(refund, h.withheld);
     const paidOn = cents(h.withheld - back);
-    if (back > 0) recordLedger({ ...row, amount: usd(back), period: `Dispute · ${x.reason} — refunded from the pay held`, kind: "refunded" });
-    if (paidOn > 0) recordPayment({ ...row, amount: usd(paidOn), period: `Pay held for the dispute (${x.reason}) — paid out` });
+    if (back > 0) recordLedger({ ...row, amount: usd(back), period: `Dispute · ${x.reason}: refunded from the pay held`, kind: "refunded" });
+    if (paidOn > 0) recordPayment({ ...row, amount: usd(paidOn), period: `Pay held for the dispute (${x.reason}), paid out` });
     out[x.id] = { ...h, withheld: 0, deduct: c.ended ? 0 : cents(refund - back), closed: true };
   }
   return out;
@@ -346,13 +346,13 @@ function payUpTo(d: Deal, until: Date, closing = false): number {
         heldBy[id] = { ...h, deduct: cents(h.deduct - take) };
         amount = cents(amount - take);
         notes.push(`${usd(take)} refunded for a dispute`);
-        recordLedger({ ...row, amount: usd(take), period: `Dispute · ${h.reason} — kept from the pay for ${dayLabel(p.from)} – ${dayLabel(p.to)}`, kind: "refunded" });
+        recordLedger({ ...row, amount: usd(take), period: `Dispute · ${h.reason}: kept from the pay for ${dayLabel(p.from)} to ${dayLabel(p.to)}`, kind: "refunded" });
       }
     }
     const inLieu = p.to > now ? " · in lieu of notice" : "";
     const label = `${dayLabel(p.from)} – ${dayLabel(p.to)}${inLieu}${notes.length ? ` · less ${notes.join(", ")}` : ""}`;
     if (amount > 0) recordPayment({ ...row, amount: usd(amount), period: label });
-    else notify("independent", { title: "Pay held for a dispute", body: `Your ${d.title} pay for ${dayLabel(p.from)} – ${dayLabel(p.to)} is held while the dispute is open. It's paid out, or refunded, when the case closes.`, href: "/independent/wallet", kind: "payments" });
+    else notify("independent", { title: "Pay held for a dispute", body: `Your ${d.title} pay for ${dayLabel(p.from)} – ${dayLabel(p.to)} is held while the dispute is open. It's paid out, or refunded, when the case closes.`, href: "/independent/wallet", kind: "payments", system: true });
     total += amount;
   }
   const last = periods.at(-1);
@@ -375,7 +375,7 @@ function releaseSettledTrial(d: Deal, l: Lifecycle, who: string) {
     const released = releaseEscrow(d);
     if (released > 0 && overdue && !fired(d, "escrow-released")) {
       fire("escrow-released");
-      notify("team", { title: `${who}'s trial budget was released`, body: `The evaluation window closed on ${dayLabel(l.trial?.evaluationDue)} with no evaluation, so the ${usd(released)} held in escrow${e.onHold > 0 ? ` (less ${usd(e.onHold)} a dispute is keeping)` : ""} went to ${who}. You can still send your evaluation.`, href: teamHref("contract"), avatar: PAIR.independent.avatar, kind: "payments" });
+      notify("team", { title: `${who}'s trial budget was released`, body: `The evaluation window closed on ${dayLabel(l.trial?.evaluationDue)} with no evaluation, so the ${usd(released)} held in escrow${e.onHold > 0 ? ` (less ${usd(e.onHold)} a dispute is keeping)` : ""} went to ${who}. You can still send your evaluation.`, href: teamHref("contract"), kind: "payments", system: true });
     }
   }
 }
@@ -386,8 +386,8 @@ function expireOffer(d: Deal, l: Lifecycle, who: string) {
   const kind = JOB_TYPE_LABEL[d.conversion.type].toLowerCase();
   const start = dayLabel(d.conversion.start);
   updateDeal((x) => (x.conversion?.status === "sent" ? { ...x, conversion: { ...x.conversion, status: "expired" } } : x));
-  notify("team", { title: `Your ${kind} offer to ${who} expired`, body: `${who} didn't answer it by ${start}, its start date, so it can't be accepted any more. Send a new one with a later start, or end the contract.`, href: teamHref(), avatar: PAIR.independent.avatar, kind: "payments" });
-  notify("independent", { title: "Offer expired", body: `The ${kind} offer for ${d.title} passed its start date, ${start}, without an answer. ${d.company} can send you a new one.`, href: talentHref(d), avatar: PAIR.team.avatar, kind: "payments" });
+  notify("team", { title: `Your ${kind} offer to ${who} expired`, body: `${who} didn't answer it by ${start}, its start date, so it can't be accepted any more. Send a new one with a later start, or end the contract.`, href: teamHref(), kind: "payments", system: true });
+  notify("independent", { title: "Offer expired", body: `The ${kind} offer for ${d.title} passed its start date, ${start}, without an answer. ${d.company} can send you a new one.`, href: talentHref(d), kind: "payments", system: true });
 }
 
 /**
@@ -421,7 +421,7 @@ export function sweepContract(now = new Date()) {
       const eve = new Date(due.getFullYear(), due.getMonth(), due.getDate() - 1);
       if (now >= eve && !l.trial.evaluationOverdue && !fired(d, "evaluation-reminder")) {
         fire("evaluation-reminder");
-        notify("team", { title: `${who}'s evaluation is due tomorrow`, body: `Send your evaluation of the ${d.title} trial by ${dayLabel(due)}. If the window closes without one, the escrow is released to ${who}.`, href: teamHref("evaluation"), avatar: PAIR.independent.avatar, kind: "payments" });
+        notify("team", { title: `${who}'s evaluation is due tomorrow`, body: `Send your evaluation of the ${d.title} trial by ${dayLabel(due)}. If the window closes without one, the escrow is released to ${who}.`, href: teamHref("evaluation"), kind: "payments", system: true });
       }
     }
 
@@ -440,8 +440,8 @@ export function sweepContract(now = new Date()) {
       const paid = payUpTo(readDeal() ?? d, last, true);
       updateDeal((x) => (x.contract ? { ...x, contract: { ...x.contract, ended: true, endedOn: dayLabel(last) } } : x));
       const body = `The ${d.title} contract ended after ${dayLabel(last)}, the last day of the notice.${paid > 0 ? ` The last pay, ${usd(paid)}, has been recorded.` : ""}`;
-      tell(d, "team", "Contract ended", body);
-      tell(d, "independent", "Contract ended", body);
+      tell(d, "team", "Contract ended", body, undefined, true);
+      tell(d, "independent", "Contract ended", body, undefined, true);
     }
   });
 }
@@ -449,7 +449,11 @@ export function sweepContract(now = new Date()) {
 /** Runs the clock in every open portal: on load, each minute, and when a tab comes back. */
 export function useContractClock() {
   useEffect(() => {
-    const run = () => void sweepContract();
+    // Before the contract, the interview: a confirmed slot that has passed is marked held (IN-018).
+    const run = () => {
+      sweepInterview();
+      void sweepContract();
+    };
     run();
     const timer = setInterval(run, 60_000);
     const back = () => {

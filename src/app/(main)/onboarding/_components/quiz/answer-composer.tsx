@@ -85,7 +85,7 @@ function ComposerSendIcon({
 
 /**
  * The send button: its arrow lights up once there's something to send, and turns to a spinner
- * while the answer goes. Its label says "See Results" on the last question.
+ * while the answer goes. Its label says "See results" on the last question.
  */
 function ComposerSendButton({
   state,
@@ -108,7 +108,7 @@ function ComposerSendButton({
       onBlur={onControlBlur}
       onKeyDown={onSendKeyDown}
       disabled={!canSend || isSubmitting}
-      aria-label={state.question === 'last' ? 'See Results' : 'Send response'}
+      aria-label={state.question === 'last' ? 'See results' : 'Send response'}
       className={cn(
         COMPOSER_SEND_BUTTON_BASE_CLASS,
         canSend

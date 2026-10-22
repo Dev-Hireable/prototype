@@ -8,7 +8,7 @@ const tip = (page: Page) => page.locator('[data-slot="tooltip-content"]');
 
 /** Points at the Trial Fit Score's ring, whose tooltip says when the final score lands. */
 async function hoverTrialFitScore(page: Page) {
-  const card = page.locator("section").filter({ has: page.getByRole("heading", { name: "Trial Fit Score" }) });
+  const card = page.locator("section").filter({ has: page.getByRole("heading", { name: "Trial fit score" }) });
   await card.locator('[data-slot="tooltip-trigger"]').first().hover();
 }
 
@@ -24,11 +24,11 @@ test("the Trial Fit Score's tooltip is in each side's own words", async ({ page,
 });
 
 test.describe("a proposal's match", () => {
-  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600 /month", letter: "Hi" } } } });
+  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600", letter: "Hi" } } } });
 
   test("the talent's own proposal explains the match in the talent's words", async ({ page }) => {
     await page.goto("/independent/jobs/applications/deal");
-    await page.getByRole("button", { name: "View proposal & history" }).click();
+    await page.getByRole("button", { name: "View proposal", exact: true }).click();
     await page.getByRole("dialog").getByText(/^\d+% match$/).hover();
     await expect(tip(page)).toHaveText("Work Style fit against your quiz answers. Once your profile is complete it also weighs your skills and rate against the role; trial performance and the Team Builder's evaluation fold in later.");
   });

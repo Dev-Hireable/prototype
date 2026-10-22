@@ -9,18 +9,18 @@
     "quiz": true,
     "offer": {
       "type": "trial",
-      "rate": "$1,600 /month",
+      "rate": "$1,600",
       "start": "2026-09-21",
       "end": "2026-10-30",
       "tasks": [],
       "status": "accepted",
       "sent": "18 Sep 2026",
-      "deposit": { "escrow": 1600, "fee": 80 }
+      "deposit": { "escrow": 1600, "fee": 160 }
     },
     "contract": {
       "started": "2026-09-21",
       "ends": "2026-10-30",
-      "rate": "$1,600 /month",
+      "rate": "$1,600",
       "deposit": 1600,
       "activity": [],
       "streak": 0,

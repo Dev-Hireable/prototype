@@ -33,9 +33,8 @@ export type Role = {
   rate: string;
   rateRange: string;
   level: string;
+  /** "Posted 21 Sep 2026": the day it was first published. */
   posted: string;
-  closes: string;
-  savedAgo: string;
   blurb: string;
   skills: string[];
   description: string[];
@@ -63,8 +62,6 @@ export function roleFromPosting(p: Posting): Role {
     rateRange: p.rateRange,
     level: p.level,
     posted: p.posted,
-    closes: p.closes,
-    savedAgo: "Saved just now",
     blurb: p.description[0] ?? "",
     skills: p.skills,
     description: p.description,
@@ -87,26 +84,33 @@ export type Application = {
   match: number;
   submitted: string;
   stage: Stage;
-  status?: { label: string; tone: "info" | "ok" | "danger" | "neutral" | "warn"; meta?: string };
+  /**
+   * `slot`: the interview the status is about, read in each person's clock where it's shown
+   * (`offset`: the clock it was picked in; `theirs`: the Team Builder's, when that's another one).
+   */
+  status?: { label: string; tone: "info" | "ok" | "danger" | "neutral" | "warn"; meta?: string; slot?: { when: string; offset?: number; theirs?: number } };
+  /** Turned down by the Team Builder or withdrawn: it sits under Closed and nothing on it moves. */
+  closed?: boolean;
 };
 
 
 export const applications: Application[] = [];
 
-/** My Applications' kanban columns and their header colours. */
-export const COLUMNS: { key: string; label: string; stages: Stage[]; bg: string; text: string; count: string }[] = [
+/** My Applications' kanban columns and their header colours. `closed` holds the closed applications, whatever stage they stopped at. */
+export const COLUMNS: { key: string; label: string; stages: Stage[]; closed?: boolean; bg: string; text: string; count: string }[] = [
   { key: "applications", label: "Applications", stages: ["applied"], bg: "#e5e5e5", text: "#616161", count: "#d8d8d8" },
   { key: "matched", label: "Matched", stages: ["matched"], bg: "#ebf8fe", text: "#004675", count: "#c9eeff" },
   { key: "interviews", label: "Interviews", stages: ["invited", "invite_accepted", "interviewed"], bg: "#fff5ec", text: "#a6520d", count: "#ffe0c4" },
   { key: "proposals", label: "Proposals", stages: ["proposal_requested", "proposal_sent"], bg: "#fff3fb", text: "#6e0e52", count: "#ffdbf3" },
   { key: "offers", label: "Offers", stages: ["offer_received", "offer_accepted"], bg: "#fffbeb", text: "#8e6f12", count: "#fff0b6" },
   { key: "hired", label: "Hired", stages: ["hired"], bg: "#f0fdf4", text: "#1d6f3f", count: "#c6ffd2" },
+  { key: "closed", label: "Closed", stages: [], closed: true, bg: "#eef2f6", text: "#34465a", count: "#d9e1ea" },
 ];
 
 /* ---------------------------------------------------------- interviews ---- */
 
-/** `starts` is an invitation still waiting on the talent's answer. */
-export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined" | "cancelled" | "reschedule"; past?: boolean };
+/** `starts` is an invitation still waiting on the talent's answer; `offset` is the clock (minutes off UTC) the slot was booked in. */
+export type Interview = { id: string; role: string; roleHref: string; company: string; when: string; offset?: number; format: string; link?: string; status: "starts" | "accepted" | "completed" | "declined" | "cancelled" | "reschedule"; past?: boolean };
 
 export const interviews: Interview[] = [];
 
@@ -126,9 +130,6 @@ export type Contract = {
   status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" | "info" };
   /** The first day, while the contract is signed but hasn't started yet. */
   startsOn?: string;
-  progressLabel: string;
-  progress: number;
-  progressTone: "primary" | "ok" | "danger";
   manager: string;
   managerFirst: string;
   started: string;
@@ -146,6 +147,8 @@ export type Contract = {
   hours?: number;
   /** IN-076 — the shared task list, the same one the Team Builder reviews. */
   tasks: Task[];
+  /** TB-143 — the live contract's work as its Work tab opens on it (workTabItems): what its Overview and card count. Unset on a listed one, which counts all its tasks. */
+  counted?: Task[];
   /** IN-076 Trial Fit Score — the same breakdown the Team Builder sees; null on a direct hire, which had no trial. */
   tfs: FitScore | null;
   phase: 3 | 4;
@@ -174,7 +177,8 @@ export const COMPANIES: Record<string, CompanyProfile> = {
     name: "Nairobi Solutions Inc.",
     description: "B2B SaaS agency based in New York. We build outbound teams for early-stage fintechs and keep them accountable with weekly metrics.",
     industry: "Sales and marketing services",
-    location: "New York, USA · remote team",
+    // Only until the company publishes a role: then the sheet reads what its profile says (companyLocation's "· Remote team").
+    location: "New York, USA · Remote team",
     url: "www.nairobisolutions.com",
   },
 };
@@ -194,10 +198,11 @@ const TXN_TYPES = ["Payment Deposited", "Payment Released", "Payment Refunded", 
 
 /**
  * IN-053 — Earnings states the same rows in the independent's own terms: a release is money
- * received, a payout is a withdrawal. The contract tab keeps IN-032's wording for the same event.
+ * received, a deposit is the trial's escrow (the Team Builder's ledger names it the same), a payout
+ * is a withdrawal. The contract tab keeps IN-032's wording for the same event.
  */
-export const EARNINGS_LABEL: Record<string, string> = { "Payment Released": "Payment Received", "Payment Deposited": "Payment Deposited", "Payment Refunded": "Payment Refunded", Payout: "Withdrawal" };
-export const EARNINGS_TYPES = ["Payment Received", "Payment Deposited", "Payment Refunded", "Withdrawal"] as const;
+export const EARNINGS_LABEL: Record<string, string> = { "Payment Released": "Payment Received", "Payment Deposited": "Escrow deposit", "Payment Refunded": "Payment Refunded", Payout: "Withdrawal" };
+export const EARNINGS_TYPES = ["Payment Received", "Escrow deposit", "Payment Refunded", "Withdrawal"] as const;
 export type TxnType = (typeof TXN_TYPES)[number];
 
 /** IN-032 — `contract` is the slug the row belongs to, so a contract can list its own history. */
@@ -213,6 +218,8 @@ export type Transaction = {
   contractTitle?: string;
   amount: string;
   status: { label: string; tone: "ok" | "warn" | "danger" | "neutral" };
+  /** What's still open on it, in USD: a released payment's part not yet withdrawn, or a deposit's part still in escrow. */
+  left?: number;
 };
 
 export const transactions: Transaction[] = [];
@@ -276,6 +283,9 @@ export const profile = {
 /** The saved profile's parts a Team Builder reads first: the profile step is done only once all three are filled. */
 type ProfileBasics = { bio: string; skills: readonly string[]; rate: string };
 
+/** The checklist steps the dashboard names by label (as `requires` does): the profile, then the first application. */
+export const SETUP_STEP = { profile: "Set up profile", apply: "Apply to a role" } as const;
+
 /**
  * IN-003 account setup checklist. `done` is computed from the saved state, never stored, so
  * completing a step actually moves the bar. The payout method and ID check aren't steps here:
@@ -287,9 +297,9 @@ export function setupSteps({ applications, workStyle = [], profile: p }: { appli
     // Nothing in the demo tracks email confirmation, so this one is simply already true.
     { label: "Verify email", done: true, href: "/independent/settings", hint: "Confirm the address we send role alerts to." },
     { label: "Answer Work Style Quiz", done: workStyle.length > 0, href: "/onboarding/talent", hint: "Drives your match score against every open role." },
-    { label: "Set up profile", done: profileDone, href: "/independent/profile", hint: "Bio, skills and rate. Team Builders see this first.", action: "Set up" },
+    { label: SETUP_STEP.profile, done: profileDone, href: "/independent/profile", hint: "Bio, skills and rate. Team Builders see this first.", action: "Set up" },
     // No point applying before there is a profile to send.
-    { label: "Apply to a role", done: applications.length > 0, href: "/independent/jobs", hint: "Browse matched roles and send your first application.", requires: ["Set up profile"], action: "Browse roles" },
+    { label: SETUP_STEP.apply, done: applications.length > 0, href: "/independent/jobs", hint: "Browse matched roles and send your first application.", requires: [SETUP_STEP.profile], action: "Browse roles" },
   ];
 }
 
@@ -302,7 +312,7 @@ export const KYC_NOTE = "You'll verify your ID before your first proposal.";
  * `at` is when it happened (epoch ms), so the feed can say Today / Yesterday / Earlier as days pass;
  * `group` and `time` are what a record without it falls back to. `avatar` is who it is from.
  */
-export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: NoteCategory; href: string; at?: number; avatar?: string; /** The company's initials, on a notification from the company rather than a person. */ initials?: string };
+export type Notification = { id: string; group: "Today" | "Yesterday" | "Earlier"; title: string; body: string; time: string; unread: boolean; kind: NoteCategory; href: string; at?: number; avatar?: string; /** The company's initials, on a notification from the company rather than a person: the feed shows its logo when it has one. */ initials?: string; /** A notice from Hireable itself (a reminder, an expiry): drawn with its category's icon, not a face. */ system?: boolean };
 
 export const notifications: Notification[] = [];
 

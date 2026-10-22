@@ -56,7 +56,7 @@ export function processChecks(d: Dispute, facts: DisputeFacts): Check[] {
     { check: "Tasks approved", result: tasksTotal ? `${tasksDone} of ${tasksTotal} approved` : "No tasks on record", source: "task log" },
     ...(d.type === "trial"
       ? [
-          { check: "Escrow funded at offer", result: `Pass — ${usd(facts.escrowFunded ?? rateAmount(d.rate))} deposited ${facts.started}`, source: "payments" },
+          { check: "Escrow funded at offer", result: `Pass — ${usd(facts.escrowFunded ?? rateAmount(d.rate))} deposited ${facts.escrowFundedOn ?? facts.started}`, source: "payments" },
           { check: "Amount in question within escrow", result: d.amount <= d.facts.escrowHeld ? `Pass — ${usd(d.amount)} of ${usd(d.facts.escrowHeld)} held when filed` : `Check — more than the ${usd(d.facts.escrowHeld)} held`, source: "payments" },
         ]
       : []),

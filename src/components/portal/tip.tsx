@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactElement, ReactNode } from "react";
+import { ICONS } from "@/components/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /**
@@ -44,5 +45,20 @@ export function Tip({
       )}
       <TooltipContent side={side}>{label}</TooltipContent>
     </Tooltip>
+  );
+}
+
+/**
+ * A small info button beside a line that keeps the longer explanation out of it: keyboard
+ * shortcuts, how a number is worked out, what a colour means. `about` names it for screen readers
+ * ("About the timeline").
+ */
+export function InfoTip({ label, about, side = "top" }: { label: ReactNode; about: string; side?: "top" | "bottom" | "left" | "right" }) {
+  return (
+    <Tip label={label} side={side}>
+      <button type="button" aria-label={`About ${about}`} className="inline-flex size-5 shrink-0 items-center justify-center rounded-full align-middle text-ink-2 hover:bg-surface-2">
+        <ICONS.info size={13} aria-hidden />
+      </button>
+    </Tip>
   );
 }

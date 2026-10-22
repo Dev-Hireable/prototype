@@ -52,7 +52,7 @@ async function addLogoSizeSheet(page: Page) {
 async function finishBrandRefresh(page: Page, made: { id: string }) {
   // Nothing open can drop out of sight: finishing waits on the work.
   await page.getByRole("button", { name: "Actions for the project Brand refresh" }).click();
-  await expect(page.getByRole("menuitem", { name: "Finish — 1 still open" })).toBeDisabled();
+  await expect(page.getByRole("menuitem", { name: "Finish (1 still open)" })).toBeDisabled();
   await page.keyboard.press("Escape");
   expect(await api(page, "transition", made.id, { to: "done" })).toMatchObject({ ok: true });
   await page.getByRole("button", { name: "Actions for the project Brand refresh" }).click();
@@ -106,9 +106,9 @@ async function deleteBrandRefresh(page: Page, made: { id: string }) {
   await page.getByRole("button", { name: "Actions for the project Brand refresh" }).click();
   await page.getByRole("menuitem", { name: "Delete…" }).click();
   const confirm = page.getByRole("dialog", { name: "Delete “Brand refresh”?" });
-  await expect(confirm).toContainText("Its item stays on the contract, outside a project");
+  await expect(confirm).toContainText("This deletes the project only. Its task and its history stay on the contract.");
   await confirm.getByRole("button", { name: "Delete project" }).click();
-  await expect(toast(page, "Deleted “Brand refresh” — its item is kept, outside a project")).toBeVisible();
+  await expect(toast(page, "Deleted “Brand refresh”. Its task stays on the contract.")).toBeVisible();
   await expect(projectPicker(page, "Open work")).toBeVisible();
   await expect.poll(async () => (await saved(page))[made.id]?.project).toBeUndefined();
   expect((await saved(page))[made.id]).toMatchObject({ status: "done" });

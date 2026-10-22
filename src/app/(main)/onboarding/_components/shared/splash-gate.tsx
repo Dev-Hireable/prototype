@@ -26,12 +26,20 @@ type OnboardingSplashGateProps = {
   children: ReactNode;
 };
 
+/**
+ * How long the splash stays once the page has hydrated, in ms: a brief transition into the intro.
+ * Nothing loads behind it by then (the wizard is already rendered and the stored traits are read in
+ * the same commit's effects), so it used to hold a full screen with nothing to do for 4.2 s, between
+ * sign-up's Continue and the intro.
+ */
+const SPLASH_MS = 1000;
+
 export function OnboardingSplashGate({ children }: OnboardingSplashGateProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 4200);
+    const timer = setTimeout(() => setIsLoading(false), SPLASH_MS);
     return () => clearTimeout(timer);
   }, []);
 

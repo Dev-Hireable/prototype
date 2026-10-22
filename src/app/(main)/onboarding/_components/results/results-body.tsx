@@ -104,7 +104,7 @@ function ResultsTags({
         ))
       ) : (
         <p className="worktrait-tag text-muted-foreground text-center text-sm">
-          Complete the quiz to see your workstyle tags.
+          Complete the quiz to see your work style tags.
         </p>
       )}
     </div>

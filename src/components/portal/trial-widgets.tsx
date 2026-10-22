@@ -31,9 +31,9 @@ export function TrialFitScore({ contract, viewer, final = false }: { contract: S
 
   return (
     <PanelCard
-      title="Trial Fit Score"
+      title="Trial fit score"
       /* TB-074: on a full-time contract this is the trial's final score and stops moving. */
-      sub={final ? "Final score from the completed trial · read-only" : `${w.label} · Phase ${contract.phase}`}
+      sub={final ? "Final trial score" : `${w.label} · Phase ${contract.phase}`}
       aside={
         <Tip label={TFP_TOOLTIP[viewer]}>
           <span className="cursor-help rounded-full">
@@ -74,7 +74,7 @@ export function MatchAtHire({ match, who, className = "" }: { match: number; who
     <PanelCard
       title="Match at hire"
       className={className}
-      sub={`${who} hired straight onto this role, with no trial, so there is no Trial Fit Score. This is the work-style and profile match the application started on.`}
+      sub={`${who} hired straight onto this role, with no trial, so there is no trial fit score. This is the work-style and profile match the application started on.`}
       aside={<ScoreRing value={match} />}
     />
   );

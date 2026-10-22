@@ -3,9 +3,11 @@
 import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { ICONS } from "@/components/icons";
+import { ApplicationOfferDialog } from "@/components/independent/application-offer-dialog";
 import { ApplicationProposalDialog } from "@/components/independent/application-proposal-dialog";
 import { RescheduleDialog } from "@/components/independent/reschedule-dialog";
-import { Button, Card, Chip, JobBadge, Modal, Page, PipelineTracker, Toast } from "@/components/portal/ui";
+import { LockedTasks } from "@/components/portal/tasks/locked-tasks";
+import { Button, Card, Chip, JobBadge, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { FactStrip } from "@/components/portal/page-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
@@ -14,13 +16,14 @@ import { useDeal } from "@/lib/demo/deal";
 import { jobFacts } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { storedWorkStyle } from "@/lib/demo/work-style";
-import { useJobView, type JobView } from "@/lib/independent/job-view";
+import { trialTasksShared, useJobView, type JobView } from "@/lib/independent/job-view";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentAccount } from "@/lib/independent/account";
+import { useInterviewTime } from "@/lib/independent/interview-time";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { ReturnNav } from "@/components/portal/return";
 import { NextStep } from "./_components/next-step";
-import type { InterviewActions, StepProps } from "./_lib/steps";
+import { stageBadgeOf, type InterviewActions, type StepProps } from "./_lib/steps";
 
 const Flag = ICONS.flag;
 const Pin = ICONS.location;
@@ -35,24 +38,27 @@ const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-de
 export default function ApplicationDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { workStyle } = useIndependentAccount();
-  const { applications, setStage } = useApplications();
-  const app = applications.find((a) => a.id === id);
+  const { applications, withdrawnApplications, setStage } = useApplications();
+  /** A withdrawn application still opens, from Closed (#132). */
+  const app = applications.find((a) => a.id === id) ?? withdrawnApplications.find((a) => a.id === id);
   if (!app) notFound();
   const job = useJobView(app);
   /** `?proposal=1` — a deep link that lands with the proposal dialog open. */
   const search = useSearchParams();
   const deal = useDeal();
-  /** TB-106 — the Team Builder's note and the version it applies to, off the shared engagement. */
-  const live = deal?.roleSlug === app.roleSlug ? deal : null;
+  /** TB-106 — the Team Builder's note and the version it applies to, off the shared engagement. A withdrawn one has none left. */
+  const live = deal?.roleSlug === app.roleSlug && applications.includes(app) ? deal : null;
   const [declining, setDeclining] = useState(false);
   const [rescheduling, setRescheduling] = useState(false);
   /** TB-106 — their proposal as the Team Builder reads it, with its history (the same dialog). */
   const [reading, setReading] = useState(() => search.get("proposal") === "1");
+  /** IN-074 — the offer, over the application; `?offer=1` (an old link to its page, a thread entry) lands with it open. */
+  const [offering, setOffering] = useState(() => search.get("offer") === "1");
   const [toast, setToast] = useToast();
 
   const accept = () => {
     // IN-070 names this status "Interview confirmed".
-    setStage(app.id, "invite_accepted", { label: "Interview confirmed", tone: "info", meta: `${job.interview.date} · ${job.interview.time}` });
+    setStage(app.id, "invite_accepted", { label: "Interview confirmed", tone: "info", slot: job.interview });
     setToast("Invitation accepted");
   };
 
@@ -62,14 +68,15 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
         {/* pt-4: both columns start 24px down, where the right one sticks (below the scroller's top
             fade), so they line up at rest and the right one doesn't jump when it catches. */}
         <div className="flex items-start justify-center gap-6 pt-4 max-lg:flex-col max-lg:items-stretch">
-          <RoleColumn job={job} tasksShared={job.type === "trial" && app.stage !== "applied"} mine={workStyle} />
-          <ActionColumn app={app} job={job} live={live} onAccept={accept} onDecline={() => setDeclining(true)} onReschedule={() => setRescheduling(true)} onToast={setToast} onReadProposal={() => setReading(true)} />
+          <RoleColumn job={job} stage={stageBadgeOf(app)} tasksShared={trialTasksShared(app.stage) && !app.closed} mine={workStyle} />
+          <ActionColumn app={app} job={job} live={live} onAccept={accept} onDecline={() => setDeclining(true)} onReschedule={() => setRescheduling(true)} onToast={setToast} onReadProposal={() => setReading(true)} onReviewOffer={() => setOffering(true)} />
         </div>
       </div>
 
       <InvitationDialogs appId={app.id} job={job} declining={declining} rescheduling={rescheduling} onDeclining={setDeclining} onRescheduling={setRescheduling} onToast={setToast} />
       {/* The same Review proposal dialog the Team Builder opens: one layout, one history, both sides. */}
-      <ApplicationProposalDialog app={app} open={reading} onClose={() => setReading(false)} onToast={setToast} />
+      <ApplicationProposalDialog app={app} open={reading} onClose={() => setReading(false)} />
+      <ApplicationOfferDialog app={app} open={offering} onClose={() => setOffering(false)} />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
@@ -86,11 +93,11 @@ function InvitationDialogs({ appId, job, declining, rescheduling, onDeclining, o
   onToast: SetToast;
 }) {
   const { declineInterview, requestReschedule } = useApplications();
+  const clock = useInterviewTime();
   return (
     <>
       <DeclineInvitation
         open={declining}
-        company={job.company}
         onClose={() => onDeclining(false)}
         onDecline={() => {
           declineInterview(appId);
@@ -105,10 +112,10 @@ function InvitationDialogs({ appId, job, declining, rescheduling, onDeclining, o
       <RescheduleDialog
         open={rescheduling}
         company={job.company}
-        when={`${job.interview.date}, ${job.interview.time}`}
+        when={clock.mine(job.interview)}
         onClose={() => onRescheduling(false)}
         onSend={(when, note) => {
-          requestReschedule(appId, when, note);
+          requestReschedule(appId, when, note, clock.viewer);
           onToast(`New time sent to ${job.company}`);
         }}
       />
@@ -116,34 +123,43 @@ function InvitationDialogs({ appId, job, declining, rescheduling, onDeclining, o
   );
 }
 
-/** The role, as its job post has it: what it is, its pay and terms, a trial's tasks, the skills and how the company works. */
-function RoleColumn({ job, tasksShared, mine }: { job: JobView; tasksShared: boolean; mine: readonly number[] }) {
-  /** The company's quiz answers, from the Team Builder's portal — what its badges say about how it works. */
+/**
+ * The role, as its job post has it: the stage the application is at, what the role is, its pay and
+ * terms, a trial's tasks, the skills and how the company works.
+ */
+function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: ReturnType<typeof stageBadgeOf>; tasksShared: boolean; mine: readonly number[] }) {
+  /** The company's quiz answers, from the Team Builder's portal — what its tags say about how it works. */
   const theirs = job.company === PAIR.team.company ? storedWorkStyle("team") : [];
   return (
     <div className="flex w-[576px] min-w-0 flex-col gap-4 max-lg:w-full">
       <Card className="flex min-h-[223px] flex-col gap-4 p-4">
-        <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-          {job.title}
-        </h2>
+        {/* Where the pipeline tracker was: the stage, as one badge beside the title. */}
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+            {job.title}
+          </h2>
+          <span className="mt-1.5 shrink-0">
+            <StatusDot tone={stage.tone}>{stage.label}</StatusDot>
+          </span>
+        </div>
         <p className="flex items-center gap-2 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
           <JobBadge type={job.type} /> {job.posted}
         </p>
         <p className="text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink">{job.description}</p>
       </Card>
       <Card className="flex flex-col gap-4 p-4">
-        <h3 className={H2}>Budget &amp; details</h3>
+        <h3 className={H2}>Pay &amp; details</h3>
         {/* The job page's facts strip, so a role reads the same wherever it's shown. */}
         <FactStrip size="sm" cells={jobFacts({ type: job.type, pay: job.budget, duration: job.duration, hours: job.hours, level: job.experience })} />
       </Card>
-      {/* TB-025 — a trial's tasks are shared once the company has matched with the talent or invited them. */}
-      {tasksShared && (
+      {/* TB-025 — a trial's tasks are shared once the talent's proposal is accepted (the offer); until then, how many. */}
+      {job.type === "trial" && (
         <Card className="flex flex-col gap-4 p-4">
           <div className="flex flex-col gap-1">
             <h3 className={H2}>Trial tasks</h3>
-            <p className="text-[13px] leading-[1.4] text-ink-2">{job.company} set these for the trial. Your proposal prices them, and they become its task list once the offer is signed.</p>
+            {tasksShared && <p className="text-[13px] leading-[1.4] text-ink-2">{job.company} set these for the trial. They become its task list once you sign the offer.</p>}
           </div>
-          <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet. They're agreed in the proposal, before any offer.`} />
+          {tasksShared ? <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet.`} /> : <LockedTasks company={job.company} count={job.tasks.length} />}
         </Card>
       )}
       <Card className="flex flex-col gap-6 p-4">
@@ -166,19 +182,20 @@ function RoleColumn({ job, tasksShared, mine }: { job: JobView; tasksShared: boo
 }
 
 /**
- * The action column: the stage's next step, the proposal as the Team Builder reads it, where the
- * pipeline has got to, the note sent with the application, the company, and flagging the post.
+ * The action column: the stage's next step, the proposal as the Team Builder reads it, the note
+ * sent with the application, the company, and flagging the role. (The stage itself is the badge by
+ * the role's title, where a pipeline tracker used to stand here.)
  */
-function ActionColumn({ app, job, live, onReadProposal, ...actions }: StepProps & InterviewActions & { onReadProposal: () => void }) {
+function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...actions }: StepProps & InterviewActions & { onReadProposal: () => void; onReviewOffer: () => void }) {
   const proposal = live?.proposal;
   return (
     // The next step stays in view while the application scrolls — 24px down, below the scroller's
     // top fade (ScrollFade's RAMP), so the fade never thins it.
     <div className="sticky top-6 flex w-[385px] shrink-0 flex-col gap-4 max-lg:static max-lg:order-first max-lg:w-full">
-      <NextStep app={app} job={job} live={live} {...actions} />
+      <NextStep app={app} job={job} live={live} onReviewOffer={onReviewOffer} {...actions} />
 
-      {/* TB-106 — the proposal they sent, as the Team Builder reads it, with its history: every
-          version, revision request and note. At every stage from the first submission on. */}
+      {/* TB-106 — the proposal they sent, as the Team Builder reads it, opened over the page. At
+          every stage from the first submission on. */}
       {proposal && live && (
         <Card className="flex flex-col gap-3 p-4">
           <div className="flex items-baseline justify-between gap-3">
@@ -187,14 +204,11 @@ function ActionColumn({ app, job, live, onReadProposal, ...actions }: StepProps 
               v{proposal.version} · {proposal.sent}
             </span>
           </div>
-          <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">See it as {job.company} does, with every version, revision request and note in its history.</p>
-          <Button size="lg" onClick={onReadProposal}>
-            View proposal &amp; history
-          </Button>
+          <button type="button" onClick={onReadProposal} className="self-start text-[14px] font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+            View proposal
+          </button>
         </Card>
       )}
-
-      <PipelineTracker stage={app.stage} mode="milestone" />
 
       {live?.note && (
         <Card className="flex flex-col gap-2 p-4">
@@ -204,8 +218,8 @@ function ActionColumn({ app, job, live, onReadProposal, ...actions }: StepProps 
       )}
 
       <AboutCompany job={job} />
-      <button type="button" onClick={() => actions.onToast("Thanks — our team will review this post")} className="flex items-center gap-2 text-[14px] font-medium text-accent-ink">
-        <Flag size={20} aria-hidden /> Flag job post
+      <button type="button" onClick={() => actions.onToast("Thanks. Our team will review this role.")} className="flex items-center gap-2 text-[14px] font-medium text-accent-ink">
+        <Flag size={20} aria-hidden /> Flag role
       </button>
     </div>
   );
@@ -216,7 +230,7 @@ function AboutCompany({ job }: { job: JobView }) {
   const initials = job.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
     <Card className="flex flex-col gap-4 p-4">
-      <h3 className={H2}>About the team builder</h3>
+      <h3 className={H2}>About the Team Builder</h3>
       <div className="flex items-center gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#5b5bd6] text-[15px] leading-none font-semibold text-white">{initials}</span>
         <span className="min-w-0 truncate text-[15px] leading-[1.3] font-semibold text-ink">{job.company}</span>
@@ -241,14 +255,14 @@ function AboutCompany({ job }: { job: JobView }) {
  * Declining the interview invitation: the company gets a note, and the application stays open but
  * goes no further until a new slot is agreed. If it's only the time, asking for another is one click.
  */
-function DeclineInvitation({ open, company, onClose, onDecline, onReschedule }: { open: boolean; company: string; onClose: () => void; onDecline: () => void; onReschedule: () => void }) {
+function DeclineInvitation({ open, onClose, onDecline, onReschedule }: { open: boolean; onClose: () => void; onDecline: () => void; onReschedule: () => void }) {
   return (
     <Modal
       open={open}
       onClose={onClose}
       tone="danger"
       title="Decline this invitation?"
-      description={`${company} gets a note and your application stays open, but nothing moves on until you agree a new time. If it's only the time, ask for another instead.`}
+      description="Can't make it? Ask for another time, or decline. Your application stays open either way."
       footer={
         <>
           <Button size="lg" onClick={onClose}>

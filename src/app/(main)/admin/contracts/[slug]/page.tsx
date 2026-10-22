@@ -29,7 +29,7 @@ export default function AdminContractPage({ params }: { params: Promise<{ slug: 
     <AdminPage
       bleed
       nav={<ReturnNav fallback={<BreadcrumbBack href="/admin/disputes">Back to all disputes</BreadcrumbBack>} />}
-      title={live ? `${live.title} — ${PAIR.team.company} and ${PAIR.independent.name}` : "Contract"}
+      title={live ? `${live.title} at ${PAIR.team.company}` : "Contract"}
     >
       {live?.contract ? (
         <ProjectWorkspace
@@ -37,7 +37,7 @@ export default function AdminContractPage({ params }: { params: Promise<{ slug: 
           people={PEOPLE}
           context={
             <span>
-              {JOB_TYPE_LABEL[contractTypeOf(live)]} · started {dayLabel(live.contract.started)}
+              {JOB_TYPE_LABEL[contractTypeOf(live)]} with {PAIR.independent.name} · started {dayLabel(live.contract.started)}
               {live.contract.ended ? " · ended" : ""}
             </span>
           }

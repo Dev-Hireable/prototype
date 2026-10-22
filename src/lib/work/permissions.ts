@@ -214,7 +214,7 @@ function capOf(caps: Caps, field: WorkField): boolean {
 function roleReason(t: WorkItem, actor: Pick<Actor, "role">, field: WorkField, names: Names): string {
   if (field === "title" || field === "description") return t.status === "review" || t.status === "done" ? "It can't be reworded once it's been sent for review." : "Only whoever added it can reword it.";
   if (actor.role === "contributor" && field === "start") return t.assignee !== "independent" ? `It isn't yours to work on, so ${names.team} sets when it starts.` : "Its start is set once it's been sent for review.";
-  if (actor.role === "contributor") return `${names.team} plans the work — the due dates, effort, work type, priority, tags and who does it.`;
+  if (actor.role === "contributor") return `${names.team} plans the work: the due dates, effort, work type, priority, tags and who does it.`;
   if (field === "assignee") return "It can only be reassigned while it's To do or In progress.";
   return "It's done, so its plan is final. Reopen it to change it.";
 }
@@ -260,7 +260,7 @@ export const canReorder = (actor: Pick<Actor, "role">, access: WorkAccess) => (a
 export function reorderFor(t: WorkItem, actor: Pick<Actor, "role">, access: WorkAccess, names: Names): { ok: true } | { ok: false; reason: string } {
   if (!canReorder(actor, access)) return { ok: false, reason: `${names.team} sets the order of the work.` };
   if (actor.role === "manager" || t.assignee === "independent") return { ok: true };
-  return { ok: false, reason: t.assignee === "team" ? `This is ${names.team}'s item, so only they place it.` : `Nobody is assigned to it yet — ${names.team} places it.` };
+  return { ok: false, reason: t.assignee === "team" ? `This is ${names.team}'s item, so only they place it.` : `Nobody is assigned to it yet, so ${names.team} places it.` };
 }
 
 /* ------------------------------------------------------------ transitions */
@@ -314,7 +314,7 @@ export function transitionFor(t: WorkItem, actor: Pick<Actor, "role">, access: W
   }
 
   // The Independent.
-  if (t.assignee !== "independent") return no(t.assignee === "team" ? `This is ${names.team}'s item, so only they move it.` : `Nobody is assigned to it yet — ${names.team} assigns work.`);
+  if (t.assignee !== "independent") return no(t.assignee === "team" ? `This is ${names.team}'s item, so only they move it.` : `Nobody is assigned to it yet. ${names.team} assigns work.`);
   if (!access.open) return no(access.trialClosed ? `The trial is over, so its work is with ${names.team} for the evaluation.` : closed);
   if (access.startsOn) return no(`The contract starts on ${access.startsOn}, so work opens then.`);
   if (isCompleted(from)) return no("It's been approved, so it stays Done.");

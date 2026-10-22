@@ -1,4 +1,5 @@
 import { isArchived, isCompleted, type WorkItem, type WorkProject } from "./model";
+import type { WorkAccess } from "./permissions";
 
 /**
  * Projects on a full-time or part-time contract (TB-148). The Team Builder makes every project —
@@ -39,6 +40,16 @@ export type ProjectCtx = {
 };
 
 export const projectCtx = (split: boolean, projects: readonly WorkProject[], roleSince?: number): ProjectCtx => ({ split, byId: new Map(projects.map((p) => [p.id, p])), roleSince });
+
+/**
+ * A contract's places as its access reads them: projects are on once it isn't a trial, and the role's
+ * first day (local midnight) closes the trial's chapter. The Work tab and every summary of the
+ * contract build it this way, so they sort the work the same.
+ */
+export function workCtx(access: Pick<WorkAccess, "trial" | "roleSince">, projects: readonly WorkProject[]): ProjectCtx {
+  const roleSince = access.roleSince ? new Date(`${access.roleSince}T00:00:00`).getTime() : undefined;
+  return projectCtx(!access.trial, projects, roleSince);
+}
 
 /**
  * The trial's chapter: trial work finished before the role began (or before finishing was dated).
@@ -102,6 +113,15 @@ export function inScope(t: WorkItem, scope: Scope, ctx: ProjectCtx & { now: numb
   if (!isCompleted(t.status)) return true;
   // Finished work outside a project stays a while, so the week's progress shows, then drops out.
   return t.completedAt !== undefined && ctx.now - t.completedAt <= RECENT_DONE_DAYS * DAY_MS;
+}
+
+/**
+ * TB-143 — the work the Work tab opens on (OPEN): on a role the open work, on a trial all of it. The
+ * contract's Overview, its card and row in All independents and All contracts, and admin's live
+ * contract count this too, so each says what the Work tab's header says.
+ */
+export function openWorkOf(items: readonly WorkItem[], ctx: ProjectCtx, now: number): WorkItem[] {
+  return items.filter((t) => inScope(t, OPEN, { ...ctx, now }));
 }
 
 /** A scope as the picker names it. */

@@ -4,7 +4,7 @@ import { useMemo, useState, type KeyboardEvent, type ReactNode, type Ref } from 
 import { ICONS, type IconName } from "@/components/icons";
 import { DatePicker } from "@/components/portal/date-picker";
 import { PriorityMenu, PriorityPill, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
-import { Tip } from "@/components/portal/tip";
+import { InfoTip, Tip } from "@/components/portal/tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
@@ -17,6 +17,7 @@ import { LockedValue } from "./contract-lock";
 import { lockable } from "./lockable";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { AssigneeChip, TagChip, TypeChip } from "./meta";
+import { sendForReview } from "./moves";
 import { fromISODate, isoDay } from "@/lib/portal/dates";
 import { TYPE_ICON } from "./labels";
 
@@ -63,7 +64,7 @@ function ReadOnly({ item, field, onLocked, reason, children }: { item: WorkItem;
       {/* react-doctor-disable-next-line react-doctor/no-noninteractive-tabindex -- focusable so a keyboard can open the tip with the reason */}
       <span tabIndex={0} className={`${READ_ONLY} rounded-md focus-visible:outline-2 focus-visible:outline-primary`}>
         {children}
-        <span className="sr-only">{` — ${reason}`}</span>
+        <span className="sr-only">{`. ${reason}`}</span>
       </span>
     </Tip>
   );
@@ -75,7 +76,7 @@ const KIND_LABEL = (kind: TransitionKind, to: WorkStatus, names: { team: string 
     pause: "To do",
     submit: `Send to ${names.team} for review`,
     takeBack: `Take back to ${STATUS_META[to].label}`,
-    approve: "Approve — mark Done",
+    approve: "Approve (mark Done)",
     requestChanges: "Request changes…",
     complete: "Done",
     reopen: `Reopen as ${STATUS_META[to].label}`,
@@ -105,8 +106,11 @@ export function StatusField({ item }: { item: WorkItem }) {
             <DropdownMenuItem
               key={to}
               onClick={() => {
+                const announce = `${refOf(item)} moved to ${STATUS_META[to].label}`;
                 if (t.needsNote) openTask(item.id, "changes");
-                else void actions.transition(item, to, undefined, { announce: `${refOf(item)} moved to ${STATUS_META[to].label}` });
+                // Unfinished work (it waits on something, or has subtasks open) is asked about first, in its sheet.
+                else if (t.kind === "submit") sendForReview({ actions, names, openTask }, item, { announce });
+                else void actions.transition(item, to, undefined, { announce });
               }}
             >
               <StatusCircle status={to} size={14} /> {KIND_LABEL(t.kind, to, names)}
@@ -174,7 +178,7 @@ export function TypeField({ item, iconOnly = false, onLocked }: { item: WorkItem
             // A milestone is a single date with no effort: clear them in the same save, and say so.
             const clears = type === "milestone" ? { ...(item.start ? { start: null } : {}), ...(item.effort !== undefined ? { effort: null } : {}) } : {};
             const cleared = Object.keys(clears).map((k) => (k === "start" ? "start date" : "effort"));
-            void actions.patch(item, { type, ...clears }, cleared.length ? { success: `Now a milestone — its ${cleared.join(" and ")} ${cleared.length > 1 ? "were" : "was"} cleared, since a milestone is a single date.` } : { announce: `${refOf(item)} is now ${TYPE_META[type].label}` });
+            void actions.patch(item, { type, ...clears }, cleared.length ? { success: `Now a milestone: its ${cleared.join(" and ")} ${cleared.length > 1 ? "were" : "was"} cleared, since a milestone is a single date.` } : { announce: `${refOf(item)} is now ${TYPE_META[type].label}` });
           }}
         >
           {WORK_TYPES.map((k) => {
@@ -525,7 +529,7 @@ function TagInput({ item, known, text, setText, tag, error }: { item: WorkItem; 
         aria-activedescendant={list.shown ? `${listId}-${list.current}` : undefined}
         aria-label="Add a tag"
         aria-invalid={!!error}
-        placeholder={item.tags.length ? "Add tag" : known.length ? "Add a tag — pick or type one" : "Add a tag — press Enter"}
+        placeholder={item.tags.length ? "Add tag" : known.length ? "Add a tag: pick or type one" : "Add a tag, then press Enter"}
         className="h-7 min-w-0 bg-transparent px-1.5 text-[13px] text-ink outline-none placeholder:text-ink-2"
       />
       {list.shown && <TagOptions id={listId} options={options} heading={matches.length > 0} current={list.current} onHover={list.setActive} onPick={add} />}
@@ -760,13 +764,7 @@ export function Prop({ label, icon, children, hint, flush = false, ref }: { labe
       <dt className="flex items-center gap-2 text-[13px] leading-none text-ink-2">
         <Icon size={16} aria-hidden className="shrink-0 text-[#8a8f98]" />
         {label}
-        {hint && (
-          <Tip label={hint}>
-            <button type="button" aria-label={`About ${label.toLowerCase()}`} className="-ml-1 flex size-5 items-center justify-center rounded-full text-ink-2 hover:bg-surface-2">
-              <ICONS.info size={13} aria-hidden />
-            </button>
-          </Tip>
-        )}
+        {hint && <InfoTip label={hint} about={label.toLowerCase()} />}
       </dt>
       <dd className={`flex min-h-8 min-w-0 items-center text-[13.5px] ${flush ? "" : "-mx-1.5"}`}>{children}</dd>
     </div>

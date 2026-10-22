@@ -96,6 +96,8 @@ export type DisputeFacts = {
   escrowHeld: number;
   /** What was actually deposited into escrow; absent on disputes filed before it was recorded. */
   escrowFunded?: number;
+  /** The day it was deposited, when the offer went out with it; absent on disputes filed before it was recorded. */
+  escrowFundedOn?: string;
 };
 
 export type Dispute = {
@@ -178,15 +180,44 @@ export function partyCan(d: Dispute, party: DisputeParty, now: number) {
 export function checkSplit(amount: number, refund: number, release: number): string | null {
   if (![refund, release].every((n) => Number.isFinite(n) && n >= 0)) return "Enter amounts of $0.00 or more.";
   const cents = (n: number) => Math.round(n * 100);
-  if (cents(refund) + cents(release) !== cents(amount)) return `The two parts have to add up to ${usd(amount)}, the amount in question.`;
+  if (cents(refund) + cents(release) !== cents(amount)) return `Must total ${usd(amount)}.`;
   return null;
 }
 
-/** The outcome in one line, or null while there isn't one. */
-export function outcomeOf(d: Dispute): string | null {
-  const r = d.resolution;
-  if (d.status === "Rejected") return "Rejected — the agreed process was followed";
-  if (d.status !== "Resolved" || !r) return null;
+/** Who is reading the case: one of the two parties, or Hireable support. */
+export type CaseViewer = DisputeParty | "admin";
+
+/** A party inside a sentence, as the viewer reads it: "you", or their name. */
+export const nameIn = (d: Pick<Dispute, "team" | "independent">, p: DisputeParty, viewer: CaseViewer) => (p === viewer ? "you" : partyName(d, p));
+
+/** One full stop at the end, even after a name that ends in one ("Nairobi Solutions Inc."). */
+export const sentence = (s: string) => (s.endsWith(".") ? s : `${s}.`);
+
+/**
+ * A split as one of the two parties reads it: "You received $400.00 and $400.00 went back to
+ * Nairobi Solutions Inc." once it has moved (`done`), "You get $400.00 and $400.00 goes back to
+ * Nairobi Solutions Inc." while it's still a proposal.
+ */
+export function splitWords(d: Pick<Dispute, "team" | "independent">, s: { refund: number; release: number }, viewer: DisputeParty, done: boolean): string {
+  const [back, paid] = [usd(s.refund), usd(s.release)];
+  const parts =
+    viewer === "independent"
+      ? [s.release > 0 && (done ? `You received ${paid}` : `You get ${paid}`), s.refund > 0 && `${back} ${done ? "went" : "goes"} back to ${d.team.company}`]
+      : [s.refund > 0 && (done ? `${back} came back to you` : `You get ${back} back`), s.release > 0 && `${paid} ${done ? "went" : "goes"} to ${d.independent.name}`];
+  const said = parts.filter(Boolean).join(" and ");
+  return said ? sentence(said) : "No money moved.";
+}
+
+/** Where a ruling, or a turn that ran out, sent the money, as a party reads it. */
+function moneyWords(d: Dispute, r: Resolution, viewer: DisputeParty): string {
+  const moved = usd(r.moved ?? d.amount);
+  if (r.payment === "refunded") return sentence(`${moved} refunded to ${nameIn(d, "team", viewer)}`);
+  if (r.payment === "released") return sentence(`${moved} released to ${nameIn(d, "independent", viewer)}`);
+  return sentence(`Hireable support releases the ${usd(d.amount)} to ${nameIn(d, "independent", viewer)} next`);
+}
+
+/** Support's own line for a closed case: both sides by name, and the money. */
+function supportOutcome(d: Dispute, r: Resolution): string {
   if (r.kind === "agreement" && r.split) return `Settled by agreement · ${usd(r.split.refund)} back to ${d.team.company} · ${usd(r.split.release)} to ${d.independent.name}`;
   const winner = r.favor ?? "independent";
   const money =
@@ -195,8 +226,24 @@ export function outcomeOf(d: Dispute): string | null {
       : r.payment === "released"
         ? `${usd(r.moved ?? d.amount)} released to ${d.independent.name}`
         : `${usd(d.amount)} to be released to ${d.independent.name}`;
-  if (r.kind === "default") return `Closed for ${partyName(d, winner)} — ${partyName(d, otherParty(winner))} didn't respond in time · ${money}`;
+  if (r.kind === "default") return `Closed for ${partyName(d, winner)}: ${partyName(d, otherParty(winner))} didn't respond in time · ${money}`;
   return `Resolved in favor of ${partyName(d, winner)} · ${money}`;
+}
+
+/**
+ * The outcome in one line, or null while there isn't one. A party reads it about themselves
+ * ("Resolved in your favor. $200.00 refunded to you."); support, and any list without a viewer,
+ * reads both sides by name.
+ */
+export function outcomeOf(d: Dispute, viewer: CaseViewer = "admin"): string | null {
+  const r = d.resolution;
+  if (d.status === "Rejected") return "Rejected. The agreed process was followed.";
+  if (d.status !== "Resolved" || !r) return null;
+  if (viewer === "admin") return supportOutcome(d, r);
+  if (r.kind === "agreement" && r.split) return `Settled. ${splitWords(d, r.split, viewer, true)}`;
+  const winner = r.favor ?? "independent";
+  const whose = winner === viewer ? "your" : `${partyName(d, winner)}'s`;
+  return `${r.kind === "default" ? "Closed" : "Resolved"} in ${whose} favor. ${moneyWords(d, r, viewer)}`;
 }
 
 /* --------------------------------------------------------------- steps */
@@ -255,7 +302,7 @@ export function openCase(input: NewDispute, ctx: Ctx): Step {
         to: them,
         from: input.filedBy,
         title: `${by} filed a dispute`,
-        body: `${by} raised a dispute on the ${input.title} contract over ${usd(input.amount)} (${input.reason}). You have until ${ctx.when(turn.due)} to respond — if you don't, it closes in their favor.`,
+        body: `${by} raised a dispute on the ${input.title} contract over ${usd(input.amount)} (${input.reason}). You have until ${ctx.when(turn.due)} to respond. If you don't, it closes in their favor.`,
       },
     ],
   };
@@ -273,14 +320,14 @@ export function respond(d: Dispute, party: DisputeParty, say: Say, ctx: Ctx): St
   return {
     ok: true,
     next,
-    notices: [{ to: otherParty(party), from: party, title: `${name} responded to the dispute`, body: `${name} answered on the ${d.title} dispute. Hireable support is reviewing it now — you can read their response on the case.` }],
+    notices: [{ to: otherParty(party), from: party, title: `${name} responded to the dispute`, body: `${name} answered on the ${d.title} dispute. Hireable support is reviewing it now, and you can read their response on the case.` }],
   };
 }
 
 /** Either side adds what support should see, without it being their turn. */
 export function addInfo(d: Dispute, party: DisputeParty, say: Say, ctx: Ctx): Step | Refusal {
   if (!isOpen(d)) return refuse("This dispute is closed.");
-  if (partyTurn(d)?.who === party) return refuse("It's your turn — respond instead.");
+  if (partyTurn(d)?.who === party) return refuse("It's your turn, so respond instead.");
   const s = clean(say);
   if (!s.text) return refuse("Write something before sending it.");
   const next = withEntry(d, { at: ctx.now, by: party, kind: "info", ...s }, ctx.now);
@@ -302,7 +349,7 @@ export function ask(d: Dispute, party: DisputeParty, note: string, ctx: Ctx): St
     ok: true,
     next,
     notices: [
-      { to: party, from: "support", title: "Hireable support needs more information", body: `On the ${d.title} dispute: ${note.trim()} Respond by ${ctx.when(turn.due)} — if you don't, it closes in ${other}'s favor.` },
+      { to: party, from: "support", title: "Hireable support needs more information", body: `On the ${d.title} dispute: ${note.trim()} Respond by ${ctx.when(turn.due)}. If you don't, it closes in ${other}'s favor.` },
       { to: otherParty(party), from: "support", title: "Hireable support asked for more information", body: `Support asked ${name} for more on the ${d.title} dispute. There's nothing you need to do.` },
     ],
   };
@@ -391,13 +438,13 @@ export function expire(d: Dispute, ctx: Ctx): Step | null {
   const won = partyName(d, winner);
   const resolution: Resolution = { kind: "default", favor: winner, notes: `${lost} didn't respond by ${ctx.when(t.due)}, so the dispute closed in ${won}'s favor.`, at: ctx.now, payment, moved };
   const next = withEntry({ ...d, status: "Resolved", turn: undefined, resolution, proposals: voidOpen(d.proposals) }, { at: t.due, by: "system", kind: "missed", to: loser, due: t.due }, ctx.now);
-  const line = winner === "team" ? `${usd(moved ?? d.amount)} is refunded to ${d.team.company}.` : `${usd(d.amount)} will be released to ${d.independent.name}.`;
+  const line = winner === "team" ? `${d.team.company} gets ${usd(moved ?? d.amount)} back.` : `${usd(d.amount)} will be released to ${d.independent.name}.`;
   return {
     ok: true,
     next,
     money,
     notices: [
-      { to: loser, from: "system", title: "The dispute closed — no response", body: `You didn't respond on the ${d.title} dispute by ${ctx.when(t.due)}, so it closed in ${won}'s favor. ${line}` },
+      { to: loser, from: "system", title: "The dispute closed: no response", body: `You didn't respond on the ${d.title} dispute by ${ctx.when(t.due)}, so it closed in ${won}'s favor. ${line}` },
       { to: winner, from: "system", title: "The dispute closed in your favor", body: `${lost} didn't respond on the ${d.title} dispute by ${ctx.when(t.due)}. ${line}` },
     ],
   };
@@ -421,7 +468,7 @@ export function rule(d: Dispute, favor: DisputeParty, notes: string, ctx: Ctx): 
   const { money, payment, moved } = moneyFor(d, favor, ctx.held);
   const resolution: Resolution = { kind: "ruling", favor, notes: notes.trim(), at: ctx.now, payment, moved };
   const next = withEntry({ ...d, status: "Resolved", turn: undefined, resolution, handler: d.handler ?? ctx.handler, proposals: voidOpen(d.proposals) }, { at: ctx.now, by: "support", name: ctx.handler, kind: "ruling", to: favor, text: notes.trim() }, ctx.now);
-  const line = favor === "team" ? `${usd(moved ?? d.amount)} is refunded to ${d.team.company}.` : `${usd(d.amount)} will be released to ${d.independent.name}.`;
+  const line = favor === "team" ? `${d.team.company} gets ${usd(moved ?? d.amount)} back.` : `${usd(d.amount)} will be released to ${d.independent.name}.`;
   const body = `Hireable support ruled on the ${d.title} dispute. ${line} Notes: ${notes.trim()}`;
   return { ok: true, next, money, notices: (["team", "independent"] as const).map((to) => ({ to, from: "support" as const, title: `Dispute resolved in favor of ${partyName(d, favor)}`, body })) };
 }

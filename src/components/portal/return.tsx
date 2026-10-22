@@ -18,14 +18,11 @@ import { BreadcrumbBack } from "@/components/portal/nav";
 const ORIGINS: [RegExp, string][] = [
   [/^\/team\/hire\/roles\/[^/]+\/candidates\/[^/]+$/, "candidate"],
   [/^\/team\/hire\/roles\/[^/]+$/, "pipeline"],
-  [/^\/team\/hire\/interviews$/, "interviews"],
-  [/^\/team\/hire\/offers$/, "offers"],
   [/^\/team\/independents\/[^/]+$/, "contract"],
   [/^\/team\/independents$/, "independents"],
   [/^\/team\/notifications$/, "notifications"],
   // "View in pipeline" leaves from these, so the board's back link can say where it goes.
-  [/^\/team\/discover\/saved$/, "saved independents"],
-  [/^\/team\/discover\/[^/]+$/, "profile"],
+  [/^\/team\/discover\/saved$/, "saved Independents"],
   [/^\/team\/discover$/, "Discover"],
   [/^\/team$/, "dashboard"],
   [/^\/independent\/jobs\/applications\/[^/]+$/, "application"],

@@ -11,7 +11,7 @@ test.describe("after the trial's last day", () => {
   test("it waits on the evaluation: reviews can be approved, nothing is sent back", async ({ page, secondPage }) => {
     await page.goto(`${PATH.team}?tab=overview`);
     await expect(page.getByText("Evaluation due", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/The trial has ended\. Send your evaluation of Juan by 29 Sep 2026: it makes the Trial Fit Score final and releases the \$1,600\.00 in escrow to Juan\./)).toBeVisible();
+    await expect(page.getByText(/Trial ended\. Send your evaluation by 29 Sep 2026 to release \$1,600\.00 to Juan\./)).toBeVisible();
     await page.goto(PATH.team);
     await expect(page.getByTestId("workspace")).toBeVisible();
     // Sent back now, it could never come back.
@@ -26,11 +26,15 @@ test.describe("after the trial's last day", () => {
 
   test("the trial's evaluation makes the score final and pays out the escrow", async ({ page }) => {
     await page.goto(`${PATH.team}?tab=evaluation`);
+    // Nothing is scored to start with: each of the five is picked, like the recommendation and the comments.
+    for (const [criterion, score] of [["Quality of work", "4"], ["Communication", "5"], ["Reliability", "4"], ["Initiative", "3"], ["Collaboration", "4"]]) {
+      await page.getByRole("group", { name: criterion }).getByRole("button", { name: score, exact: true }).click();
+    }
     await page.getByRole("button", { name: "Recommendation" }).click();
     await page.getByRole("option", { name: "Hire full-time" }).click();
-    await page.getByRole("textbox", { name: "Comments for the independent" }).fill("Clear, careful work — ready for more.");
+    await page.getByRole("textbox", { name: "Comments for Juan" }).fill("Clear, careful work — ready for more.");
     await page.getByRole("button", { name: "Send evaluation" }).click();
-    await expect(toast(page, /Evaluation sent — Juan's Trial Fit Score is final and \$1,600\.00 was released to them/)).toBeVisible();
+    await expect(toast(page, /Evaluation sent\. Juan's Trial fit score is final and \$1,600\.00 was released to them/)).toBeVisible();
     expect(await savedEscrow(page)).toEqual({ released: 1600, refunded: 0 });
     const deal = await savedDeal(page);
     expect(deal.contract.trialScore).toMatchObject({ phase: 4 });
@@ -48,7 +52,7 @@ test.describe("an offer out, then ending", () => {
   test("ending is final: the offer still out is withdrawn, and nothing can be hired or reopened", async ({ page, secondPage }) => {
     await page.goto(`${PATH.team}?tab=overview`);
     await expect(page.getByText("Full-time offer sent", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/Your full-time offer — \$4,000 \/month, from 28 Sep 2026 — is with Juan\./)).toBeVisible();
+    await expect(page.getByText(/Full-time offer sent to Juan: \$4,000 \/month, starting 28 Sep 2026\. Tasks reopen when Juan accepts\./)).toBeVisible();
     await expect(page.getByRole("button", { name: "Withdraw offer" })).toBeVisible();
 
     await page.goto(`${PATH.team}?tab=evaluation`);
@@ -74,7 +78,7 @@ test.describe("converted to full-time", () => {
     await open(page, "team");
     await expect(page.getByText("Active", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Full-time since 21 Sep 2026")).toBeVisible();
-    await expect(page.getByText(/Trial Fit Score \d+% · final/)).toBeVisible();
+    await expect(page.getByText(/Trial fit score \d+% · final/)).toBeVisible();
 
     await page.goto(`${PATH.team}?tab=contract`);
     await expect(page.getByText("Next payment")).toBeVisible();
@@ -86,7 +90,7 @@ test.describe("converted to full-time", () => {
     await expect(benefits).toContainText("Not included");
     await expect(page.getByRole("listitem").filter({ hasText: "Health Insurance Coverage" })).toContainText("Included");
     // Disputes stay open for as long as the contract runs — about the pay, now.
-    await expect(page.getByRole("button", { name: "File a Dispute" }).first()).toBeEnabled();
+    await expect(page.getByRole("button", { name: "File a dispute" })).toBeEnabled();
 
     const juan = await secondPage();
     await juan.goto(`${PATH.independent}?tab=evaluation`);
@@ -126,8 +130,8 @@ test.describe("a full-time role that has ended", () => {
 
     // The escrow deposit was the trial's, whatever the contract became.
     await page.goto("/team/payments");
-    // (The only money on this seed is the trial's deposit: it used to read "— full-time".)
-    await expect(page.getByRole("button", { name: "Brand Designer — trial" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Brand Designer — full-time" })).toHaveCount(0);
+    // (The only money on this seed is the trial's deposit: it used to read "(full-time)".)
+    await expect(page.getByRole("button", { name: "Brand Designer (trial)" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Brand Designer (full-time)" })).toHaveCount(0);
   });
 });

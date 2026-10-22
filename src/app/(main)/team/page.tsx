@@ -14,11 +14,12 @@ import {
   DashboardStat,
   DashboardSummaryCard,
   DashboardSummaryGrid,
+  type DashboardChecklistItem,
 } from "@/components/portal/dashboard";
 import { DashboardTasks } from "@/components/portal/dashboard-tasks";
 import { useTeamAccount, useTeamBanner } from "@/lib/team/account";
 import { useTeamContracts } from "@/lib/team/contracts";
-import { usePipeline } from "@/lib/team/pipeline";
+import { slotForTeam, usePipeline } from "@/lib/team/pipeline";
 import { useRoles } from "@/lib/team/roles";
 import { dayLabel } from "@/lib/portal/dates";
 import { shortName } from "@/lib/portal/names";
@@ -51,7 +52,7 @@ function contractFocus(deal: Deal | null, active: Contract[]) {
   const contractHref = working ? `/team/independents/${working.slug}` : "";
   const lead =
     life?.phase === "evaluation" && life.trial
-      ? { href: `${contractHref}?tab=evaluation`, title: `Send ${who}'s trial evaluation`, meta: life.trial.evaluationOverdue ? `Overdue since ${dayLabel(life.trial.evaluationDue)}` : `Due ${dayLabel(life.trial.evaluationDue)}` }
+      ? { href: `${contractHref}?tab=evaluation`, title: `Send ${who}'s trial evaluation`, meta: life.trial.evaluationOverdue ? `Overdue since ${dayLabel(life.trial.evaluationDue)}` : `Due ${dayLabel(life.trial.evaluationDue)}`, overdue: life.trial.evaluationOverdue }
       : life?.phase === "decision"
         ? { href: `${contractHref}?tab=overview`, title: `Hire ${who}, or end the contract`, meta: "The trial is evaluated" }
         : undefined;
@@ -61,8 +62,8 @@ function contractFocus(deal: Deal | null, active: Contract[]) {
 }
 
 /**
- * The Team Builder's dashboard, built to TB-001: dismissible marketing banner,
- * 5-step setup checklist with per-step shortcuts, active contracts widget with a + Hire button
+ * The Team Builder's dashboard, built to TB-001: dismissible marketing banner (once setup is done),
+ * 4-step setup checklist with per-step shortcuts, active contracts widget with a + Hire button
  * and an empty state, and two always-visible quick action cards.
  */
 export default function Dashboard() {
@@ -77,27 +78,30 @@ export default function Dashboard() {
   const upcoming = interviews.filter((iv) => !iv.past).slice(0, 3);
   const deal = useDeal();
   const { working, talent, who, lead, frozen } = contractFocus(deal, active);
+  const steps = useSetupSteps();
 
   return (
     <Page title="Dashboard" padded={false}>
       <DashboardFrame>
-        <DashboardBanner banner={MARKETING_BANNER} dismissed={banner.dismissed} onDismiss={banner.dismiss} />
+        {/* The banner's Create a role waits until setup is done, so it never sits above a checklist still asking for the company profile. */}
+        <DashboardBanner banner={steps.every((s) => s.done) ? MARKETING_BANNER : null} dismissed={banner.dismissed} onDismiss={banner.dismiss} />
 
-        <SetupHero />
+        <SetupHero steps={steps} />
 
+        {/* New applications first, with My tasks beside them; Interviews and Active contracts under them. */}
         <DashboardSummaryGrid
           main={[
+            <ApplicantsCard key="Applicants" candidates={candidates} active={active} />,
+
+            <DashboardSummaryCard key="Interviews" title="Interviews" href="/team/hire/roles">
+              <UpcomingInterviews upcoming={upcoming} />
+            </DashboardSummaryCard>,
+          ]}
+          side={[
             // TB-147 — straight to what needs you: work sent for your review first, then your own tasks, each a click from its sheet.
             working && (
               <DashboardTasks key="tasks" side="team" base={`/team/independents/${working.slug}`} allHref={`/team/independents/${working.slug}`} about={`${talent} · ${working.role}`} counterpart={who} lead={lead} frozen={frozen} />
             ),
-
-            <ApplicantsCard key="Applicants" candidates={candidates} active={active} />,
-          ]}
-          side={[
-            <DashboardSummaryCard key="Interviews" title="Interviews" href="/team/hire/roles">
-              <UpcomingInterviews upcoming={upcoming} />
-            </DashboardSummaryCard>,
 
             // Active contracts: every ongoing Trial and Full-Time engagement, + Hire at the bottom.
             <DashboardSummaryCard key="Active contracts" title="Active contracts" href="/team/independents">
@@ -111,17 +115,21 @@ export default function Dashboard() {
   );
 }
 
-/** The greeting with the two quick actions, beside the account setup checklist. */
-function SetupHero() {
-  /* TB-120/121 — the greeting and the avatar follow whatever the profile page saved. */
+/** TB-001 — the setup steps, computed from what is actually set up, so finishing a step moves the bar. */
+function useSetupSteps() {
   const { roles } = useRoles();
-  const { profile, company, workStyle } = useTeamAccount();
-  /* TB-001 — computed from what is actually set up, so finishing a step moves the bar. */
-  const steps = setupSteps({ company, roles, workStyle });
+  const { company, workStyle } = useTeamAccount();
+  return setupSteps({ company, roles, workStyle });
+}
+
+/** The greeting with the two quick actions, beside the account setup checklist. */
+function SetupHero({ steps }: { steps: DashboardChecklistItem[] }) {
+  /* TB-120/121 — the greeting and the avatar follow whatever the profile page saved. */
+  const { profile, workStyle } = useTeamAccount();
   return (
     <DashboardHero>
       <DashboardGreeting name={profile.name.split(" ")[0]} dateClassName="text-[15px] leading-[1.2] tracking-[0.2px] text-ink-2">
-        <DashboardQuickAction tour="create-role" title="Create a Role" body="Post a job and start collecting applications." href="/team/hire" icon={<Add size={20} aria-hidden />} />
+        <DashboardQuickAction tour="create-role" title="Create a role" body="Post a role and start collecting applications." href="/team/hire" icon={<Add size={20} aria-hidden />} />
         <DashboardQuickAction title="Discover Independents" body="Browse matched talent and invite them to apply." href="/team/discover" icon={<Search size={20} aria-hidden />} />
       </DashboardGreeting>
 
@@ -134,7 +142,8 @@ function SetupHero() {
         items={steps}
         profileHref="/team/profile"
         traits={traitTagsFor(workStyle, "team")}
-        completeDescription="Your account is ready. These are the work-style traits candidates are matched against."
+        // The title already says "You're all set" once every step is done.
+        completeDescription="Independents are matched to these work style tags."
       />
     </DashboardHero>
   );
@@ -182,7 +191,8 @@ function UpcomingInterviews({ upcoming }: { upcoming: Interview[] }) {
             <Link href={href} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] tracking-[0.2px]">
               {/* Not hired yet, so the surname stays an initial. */}
               <span className="truncate text-[14px] font-semibold text-ink hover:text-primary">{shortName(nameOf(iv.independent, iv.independent))}</span>
-              <span className="truncate text-[12px] text-ink-2">{iv.when.replace(/^\w{3} /, "")}</span>
+              {/* #312 — in the Team Builder's clock, with the talent's beside it. */}
+              <span className="line-clamp-2 text-[12px] leading-[1.35] text-ink-2">{slotForTeam(iv.when, iv.offset, iv.independent)}</span>
             </Link>
             <Link href={href} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
               Join
@@ -200,7 +210,7 @@ function ActiveContracts({ active }: { active: Contract[] }) {
     <>
       {active.length === 0 ? (
         <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">
-          No active engagements yet. Hire an independent to see their contract here.
+          No active engagements yet. Hire an Independent to see their contract here.
         </p>
       ) : (
         // Capped so a long roster doesn't stretch every card in the row to its height —

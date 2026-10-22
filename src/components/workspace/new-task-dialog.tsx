@@ -78,7 +78,7 @@ function useNewTask(onClose: () => void) {
     const input = { title, assignee: assigneeOf(draft.assignee), type, due: due || undefined, effort: effort.trim() && type !== "milestone" ? Number(effort) : undefined, description: draft.description.trim() || undefined };
     reset();
     onClose();
-    const id = await actions.create({ ...input, ...newItemPlace(env) }, { success: `Added “${input.title.trim()}”${input.assignee === "independent" ? ` — ${assigneeLabel("independent")} has been told` : ""}` });
+    const id = await actions.create({ ...input, ...newItemPlace(env) }, { success: `Added “${input.title.trim()}”${input.assignee === "independent" ? `. ${assigneeLabel("independent")} has been told.` : ""}` });
     if (id) openTask(id);
   };
 
@@ -93,15 +93,17 @@ function NewTaskForm({ draft, set, errors, onSubmit }: { draft: Draft; set: (pat
   const assigneeOptions = ASSIGNEE_KEYS.map((k) => assigneeLabel(k));
   const typeOptions = WORK_TYPES.map((k) => TYPE_META[k].label);
   return (
+    // The form checks itself (`errors`), so a missing name is said in its words, not the browser's.
     <form
+      noValidate
       className="flex flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
       }}
     >
-      <Field label="Name" error={errors.title}>
-        <Input autoFocus value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="What needs doing" maxLength={400} aria-invalid={!!errors.title} />
+      <Field label="Name" required error={errors.title}>
+        <Input autoFocus required value={draft.title} onChange={(e) => set({ title: e.target.value })} placeholder="What needs doing" maxLength={400} aria-invalid={!!errors.title} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Assignee">

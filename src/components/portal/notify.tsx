@@ -76,7 +76,7 @@ export function dismissToast(id: string | number) {
 }
 
 /** A toast for something done on the spot, with no page to hold it — a success unless a tone says otherwise. */
-export function notify(message: string, tone: PageToast["tone"] = "success", action?: ToastAction) {
+function notify(message: string, tone: PageToast["tone"] = "success", action?: ToastAction) {
   raiseToast({ message, tone }, action);
 }
 

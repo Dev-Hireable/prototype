@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ICONS } from "@/components/icons";
 import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "@/components/portal/ui";
-import { hoursLabel } from "@/lib/contract/job-types";
+import { hoursLabel, payFor } from "@/lib/contract/job-types";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Application, Role } from "@/lib/independent/data";
 import { useSavedRoles } from "@/lib/independent/saved";
@@ -14,16 +14,17 @@ import { toggleSavedWithNote } from "@/components/portal/notify";
 const Bookmark = ICONS.saved;
 const Bookmarked = ICONS.bookmark;
 
-/** Discover (Save + View role) and Saved roles (Remove + Apply) variants. */
+/**
+ * A role on Discover or Saved roles: the save toggle (unsaving says so, with Undo), then View role,
+ * or on Saved roles the application already on file, or why the role is closed to them.
+ */
 export function RoleCard({ role, variant = "discover" }: { role: Role; variant?: "discover" | "saved" }) {
-  const { applications, withdrawnRoleSlugs, declinedRoleSlugs, engagement } = useApplications();
-  const { saved, toggleSaved } = useSavedRoles();
+  const { applications, withdrawnRoleSlugs, declinedRoleSlugs } = useApplications();
+  const { saved, savedOn, toggleSaved } = useSavedRoles();
   const isSaved = saved.includes(role.slug);
   const application = applications.find((a) => a.roleSlug === role.slug);
   const withdrawn = withdrawnRoleSlugs.includes(role.slug);
   const declined = !application && declinedRoleSlugs.includes(role.slug);
-  /** One engagement at a time — another role's is on file, so this one can't be applied to yet. */
-  const engagedElsewhere = !application && !!engagement && engagement.roleSlug !== role.slug;
   const withReturn = useWithReturn();
   /** From Saved roles the next page leads back there; from Discover the role page's own link already does. */
   const out = (href: string) => (variant === "saved" ? withReturn(href) : href);
@@ -47,14 +48,12 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {variant === "saved" ? (
-            <SavedActions role={role} application={application} closed={closedButton(role, withdrawn, declined, engagedElsewhere, engagement?.title)} out={out} onRemove={() => toggleSavedWithNote(role.title, true, () => toggleSaved(role.slug))} />
-          ) : (
-            <DiscoverActions slug={role.slug} isSaved={isSaved} onToggle={() => toggleSavedWithNote(role.title, isSaved, () => toggleSaved(role.slug))} />
-          )}
+          {/* #82 — unsaving is the same bookmark toggle on both lists, undone from its toast; it isn't a red Remove. */}
+          <SaveToggle isSaved={isSaved} onToggle={() => toggleSavedWithNote(role.title, isSaved, () => toggleSaved(role.slug))} />
+          {variant === "saved" ? <SavedAction role={role} application={application} closed={closedLabel(role, withdrawn, declined)} out={out} /> : <ViewRole href={`/independent/jobs/${role.slug}`} />}
         </div>
       </div>
-      <p className="text-[14px] leading-[1.4] text-ink-2">{metaLine(role, variant)}</p>
+      <p className="text-[14px] leading-[1.4] text-ink-2">{metaLine(role, variant === "saved" ? savedOn[role.slug] : undefined)}</p>
       <p className="text-[14px] leading-[1.4] text-ink">{role.blurb}</p>
       <div className="flex flex-wrap gap-2">
         {role.skills.map((s) => (
@@ -65,68 +64,51 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
   );
 }
 
-/** Saved roles: Remove, then the way on — the application on file, a disabled button saying why the role is closed to them, or Apply. */
-function SavedActions({ role, application, closed, out, onRemove }: { role: Role; application: Application | undefined; closed: { label: string; hint?: string } | null; out: (href: string) => string; onRemove: () => void }) {
-  return (
-    <>
-      <Button size="sm" variant="danger" onClick={onRemove}>
-        Remove
-      </Button>
-      {/* A saved role that has already been applied to opens that application; it used to
-          keep offering "Apply", which just landed on the role page. */}
-      {application ? (
-        <LinkButton size="sm" variant="primary" href={out(`/independent/jobs/applications/${application.id}`)}>
-          View application
-        </LinkButton>
-      ) : closed ? (
-        <Button size="sm" disabled title={closed.hint}>
-          {closed.label}
-        </Button>
-      ) : (
-        <LinkButton size="sm" variant="primary" href={out(`/independent/jobs/${role.slug}?apply=1`)}>
-          Apply
-        </LinkButton>
-      )}
-    </>
-  );
-}
-
-/** Discover: the save toggle, and View role. */
-function DiscoverActions({ slug, isSaved, onToggle }: { slug: string; isSaved: boolean; onToggle: () => void }) {
+/** The bookmark: saved or not, the same on Discover and Saved roles. */
+function SaveToggle({ isSaved, onToggle }: { isSaved: boolean; onToggle: () => void }) {
   const Mark = isSaved ? Bookmarked : Bookmark;
   return (
-    <>
-      <button
-        type="button"
-        aria-label={isSaved ? "Unsave role" : "Save role"}
-        aria-pressed={isSaved}
-        onClick={onToggle}
-        className="flex size-7 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary"
-      >
-        <Mark size={16} aria-hidden />
-      </button>
-      <LinkButton size="sm" variant="primary" href={`/independent/jobs/${slug}`}>
-        View role
-      </LinkButton>
-    </>
+    <button type="button" aria-label={isSaved ? "Unsave role" : "Save role"} aria-pressed={isSaved} onClick={onToggle} className="flex size-7 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary">
+      <Mark size={16} aria-hidden />
+    </button>
   );
 }
 
-/** The line under the title: the rate, the level and when it was posted — on Saved roles, when it was saved and when it closes. */
-function metaLine(role: Role, variant: "discover" | "saved") {
-  /** A part-time role says how much of the week it is, beside its rate. */
-  const rate = role.type === "part-time" && role.hours ? `${role.rate} · ${hoursLabel(role.hours)}` : role.rate;
-  return variant === "saved" ? `${rate} · ${role.level} · ${role.savedAgo} · ${role.closes}` : `${rate} · ${role.level} · ${role.posted}`;
+/** #83 — every role card opens the role with "View role"; applying is the role page's "Apply now". */
+function ViewRole({ href }: { href: string }) {
+  return (
+    <LinkButton size="sm" variant="primary" href={href}>
+      View role
+    </LinkButton>
+  );
 }
 
-/**
- * A saved role the talent can't apply to — withdrawn, turned down, filled, or another engagement on
- * file — as its disabled button says it, with the hint naming that engagement; null when it's open.
- */
-function closedButton(role: Role, withdrawn: boolean, declined: boolean, engagedElsewhere: boolean, engagedOn: string | undefined) {
-  if (!(withdrawn || declined || role.filled || engagedElsewhere)) return null;
-  return {
-    label: withdrawn ? "Withdrawn" : declined ? "Not selected" : role.filled ? "Position filled" : "Apply",
-    hint: engagedElsewhere && !withdrawn && !declined && !role.filled ? `You're already engaged on ${engagedOn} — one engagement at a time` : undefined,
-  };
+/** Saved roles: the application on file, a disabled button saying why the role is closed to them, or View role. */
+function SavedAction({ role, application, closed, out }: { role: Role; application: Application | undefined; closed: string | null; out: (href: string) => string }) {
+  // A saved role that has already been applied to opens that application.
+  if (application)
+    return (
+      <LinkButton size="sm" variant="primary" href={out(`/independent/jobs/applications/${application.id}`)}>
+        View application
+      </LinkButton>
+    );
+  if (closed)
+    return (
+      <Button size="sm" disabled>
+        {closed}
+      </Button>
+    );
+  return <ViewRole href={out(`/independent/jobs/${role.slug}`)} />;
+}
+
+/** The line under the title: the pay, the level and when it was posted, or on Saved roles when it was saved (`savedOn`). */
+function metaLine(role: Role, savedOn: string | undefined) {
+  /** A part-time role says how much of the week it is, beside its pay. */
+  const pay = role.type === "part-time" && role.hours ? `${payFor(role.type, role.rate)} · ${hoursLabel(role.hours)}` : payFor(role.type, role.rate);
+  return [pay, role.level, savedOn ? `Saved ${savedOn}` : role.posted].filter(Boolean).join(" · ");
+}
+
+/** Why a saved role can't be applied to (withdrawn, turned down, filled), as its disabled button says it; null when it's open. */
+function closedLabel(role: Role, withdrawn: boolean, declined: boolean) {
+  return withdrawn ? "Withdrawn" : declined ? "Not selected" : role.filled ? "Position filled" : null;
 }

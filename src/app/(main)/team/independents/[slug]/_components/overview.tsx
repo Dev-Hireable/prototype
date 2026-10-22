@@ -1,13 +1,11 @@
-import type { ReactNode } from "react";
 import { Button } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
 import { ContractActivity, ContractScore, SummaryRows } from "@/components/portal/contract-parts";
 import { PanelCard } from "@/components/portal/panel-card";
 import { Tip } from "@/components/portal/tip";
 import { dayLabel } from "@/lib/portal/dates";
-import { hoursLabel } from "@/lib/contract/job-types";
 import { refOf } from "@/lib/work/model";
-import { decisionNote, evaluationDueNote, evaluationsNote, summaryRows } from "../_lib/copy";
+import { decisionNote, evaluationDueNote, evaluationsNote, offerSentNote, summaryRows } from "../_lib/copy";
 import type { Tracker } from "../_lib/tracker";
 
 type CalloutActions = { onReview: (id: string) => void; onEvaluate: () => void; onEnd: () => void; onHire: () => void; onWithdrawOffer: () => void; onWithdrawNotice: () => void };
@@ -17,7 +15,7 @@ type CalloutActions = { onReview: (id: string) => void; onEvaluate: () => void; 
  * after it, the offer that's out — and what's coming: a start date, or notice.
  */
 export function OverviewCallouts({ t, ...on }: { t: Tracker } & CalloutActions) {
-  const { view, first, typeLabel, ended, trialOver, submitted, offerType } = t;
+  const { view, first, typeLabel, ended, trialOver, submitted } = t;
   const { life, phase, conversion } = view;
   return (
     <>
@@ -43,12 +41,12 @@ export function OverviewCallouts({ t, ...on }: { t: Tracker } & CalloutActions) 
             </Button>
           }
         >
-          Your {offerType} offer — {conversion.salary} /month{conversion.hours ? `, ${hoursLabel(conversion.hours)}` : ""}, from {dayLabel(conversion.start)} — is with {first}. The work reopens when they accept.
+          {offerSentNote(t)}
         </Callout>
       )}
       {phase === "starts" && life?.converted && (
         <Callout>
-          {first} starts {typeLabel.toLowerCase()} on {dayLabel(life.since)}. Plan the work now — {first} can start on it then.
+          {first} starts {typeLabel.toLowerCase()} on {dayLabel(life.since)}. Plan the work now, and {first} can start on it then.
         </Callout>
       )}
       {/* TB-071 / IN-091 — notice is in: the role runs, paid, to its last day, then ends on its own. */}
@@ -57,39 +55,55 @@ export function OverviewCallouts({ t, ...on }: { t: Tracker } & CalloutActions) 
   );
 }
 
-/** What the talent sent for review and is waiting on the Team Builder: the first by name, and how many more. */
+/**
+ * What the talent sent for review and is waiting on the Team Builder: the first by name, and how many
+ * more. A review is a to-do, so it's the info style; the one warning is a closed trial before its
+ * evaluation, when approving is the last word on it. Once the evaluation is in, it was left unreviewed.
+ */
 function ReviewWaiting({ t, onReview }: { t: Tracker; onReview: (id: string) => void }) {
   const { waiting, first, view } = t;
   if (waiting.length === 0) return null;
-  return (
-    <Callout
-      tone="warn"
-      action={
-        <Button size="sm" variant="primary" onClick={() => onReview(waiting[0].id)}>
-          Review
-        </Button>
-      }
-    >
-      {/* Says which item, not "an item": the button opens that one. The how-to lives in the review sheet. */}
-      {first} sent{" "}
+  const one = waiting.length === 1;
+  // Says which item, not "an item": the button opens that one. The how-to lives in the review sheet.
+  const item = (
+    <>
       <span className="font-semibold">
         {refOf(waiting[0])} {waiting[0].title}
       </span>
-      {waiting.length > 1 && ` and ${waiting.length - 1} more`} for review.
-      {view.closedTrial && ` Approve ${waiting.length === 1 ? "it" : "them"} before your evaluation — the trial is over, so nothing can be sent back.`}
+      {!one && ` and ${waiting.length - 1} more`}
+    </>
+  );
+  const review = (
+    <Button size="sm" variant="primary" onClick={() => onReview(waiting[0].id)}>
+      Review
+    </Button>
+  );
+  if (view.closedTrial && view.phase !== "evaluation") {
+    return (
+      <Callout action={review}>
+        {item} {one ? "was" : "were"} left unreviewed.
+      </Callout>
+    );
+  }
+  const lastCall = view.phase === "evaluation";
+  return (
+    <Callout tone={lastCall ? "warn" : "info"} action={review}>
+      {first} sent {item} for review.
+      {lastCall && ` Approve ${one ? "it" : "them"} before you send your evaluation. The trial is over, so ${one ? "it" : "they"} can't be sent back.`}
     </Callout>
   );
 }
 
-/** The trial is evaluated: hire them, or end the contract — unless a dispute is holding its escrow. */
+/** The trial is evaluated: hire them (the main action), or end the contract, unless a dispute is holding its escrow. */
 function Decision({ t, onEnd, onHire }: { t: Tracker; onEnd: () => void; onHire: () => void }) {
   const blocked = t.ends.close?.blocked;
   return (
     <Callout
       action={
         <span className="flex gap-2">
+          {/* A quiet opener beside Hire; the End dialog's confirm is the red one. */}
           <Tip label={blocked} wrap>
-            <Button size="sm" variant="danger" disabled={!!blocked} onClick={onEnd}>
+            <Button size="sm" disabled={!!blocked} onClick={onEnd}>
               End contract
             </Button>
           </Tip>
@@ -125,11 +139,15 @@ function NoticeGiven({ t, onWithdraw }: { t: Tracker; onWithdraw: () => void }) 
   );
 }
 
-/** The Overview's sidebar: the score, the activity, the evaluations and the contract's money at a glance. */
-export function OverviewAside({ t, onEvaluate, disputeButton }: { t: Tracker; onEvaluate: () => void; disputeButton: ReactNode }) {
+/**
+ * The Overview's sidebar: the score, the activity, the evaluations and the contract's money at a
+ * glance. Filing a dispute has one place, the Disputes card under Contract & Payment.
+ */
+export function OverviewAside({ t, onEvaluate }: { t: Tracker; onEvaluate: () => void }) {
   const { contract, first, isTrial, ended, submitted, canEvaluate } = t;
   /** An evaluation can be sent from here: a role's review, or a trial's one evaluation not yet sent. */
   const open = canEvaluate && !(isTrial && submitted);
+  const note = evaluationsNote(t);
   return (
     <>
       {/* TB-058 live during a trial; TB-074 keeps it visible once it converts, as the final
@@ -137,14 +155,13 @@ export function OverviewAside({ t, onEvaluate, disputeButton }: { t: Tracker; on
       <ContractScore contract={contract} final={!isTrial || submitted} who={`${first} was`} viewer="team" />
       <ContractActivity contract={contract} ended={ended} />
       <PanelCard title={isTrial ? "Trial evaluation" : "Evaluations"}>
-        <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">{evaluationsNote(t)}</p>
+        {note && <p className="max-w-[320px] text-[13px] leading-[1.4] text-ink-2">{note}</p>}
         <Button size="lg" variant={open ? "primary" : "secondary"} onClick={onEvaluate}>
           {open ? "Send evaluation" : "View evaluation"}
         </Button>
       </PanelCard>
       <PanelCard title="Contract & payment">
         <SummaryRows rows={summaryRows(t)} />
-        {disputeButton}
       </PanelCard>
     </>
   );

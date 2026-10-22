@@ -38,6 +38,9 @@ export function useCards() {
   return { cards: useStored(cardsStore), addCard, removeCard, setDefaultCard };
 }
 
+/** A new account starts with no card on file: one is asked for at its first offer (TB-105). */
+export const clearCards = () => cardsStore.set([]);
+
 /**
  * TB-001 — publishing waits until the company profile is complete (drafts are always fine). A card
  * isn't part of it (#364): it's asked for when it's first needed, at a trial offer's deposit.

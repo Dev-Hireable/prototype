@@ -2,7 +2,7 @@
 
 import { Button, Card, CardHeading, Chip, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { useToast } from "@/lib/portal/toast";
-import { PLAN, PLANS } from "@/lib/team/data";
+import { PLAN, PLANS, planRenewal } from "@/lib/team/data";
 
 type Plan = (typeof PLANS)[number];
 
@@ -60,7 +60,7 @@ function PlanTerms({ current }: { current: Plan }) {
           ["Plan", current.name],
           ["Billing cycle", PLAN.cycle],
           ["Price", `${current.price} ${PLAN.cycle === "Monthly" ? "per month" : "per year"}`],
-          ["Renews on", PLAN.renews],
+          ["Renews on", planRenewal()],
           ["Billed to", PLAN.billedTo],
         ] as const
       ).map(([k, v]) => (

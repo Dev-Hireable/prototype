@@ -4,22 +4,21 @@ import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
-import { Button, Card, Chip, EmptyState, InfoBanner, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/portal/ui";
+import { Button, Card, Chip, EmptyState, Field, InfoBanner, Input, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/portal/ui";
 import { PHONE_FILTER_ROW } from "@/components/portal/styles";
 import { MenuAction } from "@/components/portal/controls";
 import { useDeal } from "@/lib/demo/deal";
-import { escrowOf, useDisputes, type Dispute } from "@/lib/demo/disputes";
+import { useDisputes, type Dispute } from "@/lib/demo/disputes";
 import { PAIR } from "@/lib/demo/live";
 import { EARNINGS_LABEL, EARNINGS_TYPES } from "@/lib/independent/data";
 import type { PayoutMethod, Transaction } from "@/lib/independent/data";
-import { heirOf, useWallet } from "@/lib/independent/wallet";
+import { escrowRow, payoutTitle, removeBlocker, useWallet, withdrawalProblem } from "@/lib/independent/wallet";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { keyed } from "@/lib/portal/keys";
 import { useToast } from "@/lib/portal/toast";
 
 const Verified = ICONS.checkCircle;
 const Check = ICONS.check;
-const Add = ICONS.add;
 const SetDefault = ICONS.checkCircleOutline;
 const History = ICONS.history;
 const Trash = ICONS.trash;
@@ -30,7 +29,7 @@ const BRAND: Partial<Record<PayoutMethod["brand"], { src: string; w: number; cls
   GCash: { src: "/brands/gcash.png", w: 110, cls: "h-[26px] w-[110px]" },
 };
 
-const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[150px]", "w-[110px]", "w-[120px]", "w-[80px]"];
+const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[150px]", "w-[110px]", "w-[130px]", "w-[80px]"];
 /** IN-078 date ranges, measured from the newest row rather than the wall clock. */
 const RANGES = { "All time": Infinity, "Last 30 days": 30, "Last 90 days": 90 } as const;
 type Range = keyof typeof RANGES;
@@ -47,10 +46,8 @@ const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigi
 type ContractName = (t: Transaction) => string;
 
 export default function Wallet() {
-  const { payouts, setDefaultPayout, removePayout, available, withdrawFunds, transactions } = useWallet();
+  const { payouts, setDefaultPayout, removePayout, available, withdrawOff, withdrawFunds, transactions } = useWallet();
   const allDisputes = useDisputes();
-  /** The live trial's escrow, as its contract tab shows it — the ledger has no row for a deposit. */
-  const liveEscrow = escrowOf(useDeal(), allDisputes);
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<PayoutMethod | null>(null);
   const [withdrawing, setWithdrawing] = useState(false);
@@ -58,14 +55,11 @@ export default function Wallet() {
   const [detail, setDetail] = useState<Transaction | null>(null);
   const [toast, setToast] = useToast();
   const { all, contractName, filters } = useLedger(transactions);
-  const defaultPayout = payouts.find((p) => p.isDefault);
-  /** Why Withdraw is off, shown as its tip; nothing while it's on. */
-  const noWithdraw = available <= 0 ? "Nothing is available to withdraw yet." : defaultPayout?.verified.startsWith("Verified") ? undefined : "No verified payout method to send it to yet.";
 
   return (
     <Page title="Earnings">
       <div className="flex flex-col gap-6">
-        <Balances all={all} available={available} escrowHeld={liveEscrow?.held ?? 0} />
+        <Balances all={all} available={available} />
 
         <PayoutMethods
           payouts={payouts}
@@ -79,8 +73,9 @@ export default function Wallet() {
         />
 
         <FilterBar filters={filters} total={all.length}>
-          <Button variant="primary" size="lg" className="ml-auto" disabled={!!noWithdraw} title={noWithdraw} onClick={() => setWithdrawing(true)}>
-            Withdraw {money(available)}
+          {/* Off, with why as its tip, until something is available, the ID is verified and a verified method can take it. */}
+          <Button variant="primary" size="lg" className="ml-auto" disabled={!!withdrawOff} title={withdrawOff} onClick={() => setWithdrawing(true)}>
+            Withdraw
           </Button>
         </FilterBar>
 
@@ -93,8 +88,16 @@ export default function Wallet() {
       <TransactionDetail detail={detail} contractName={contractName} onClose={() => setDetail(null)} onReceipt={() => setToast("Receipt downloaded")} />
 
       <AddPayoutModal open={adding} onClose={() => setAdding(false)} onAdded={(m) => setToast(`${m.brand} ····${m.last4} added${m.isDefault ? " and set as default" : ""}`)} />
-      <RemoveMethod method={removing} heir={removing ? heirOf(payouts, removing.id) : undefined} onClose={() => setRemoving(null)} onRemove={() => { if (removing) removePayout(removing.id); setRemoving(null); setToast("Payout method removed"); }} />
-      <WithdrawDialog open={withdrawing} amount={available} to={defaultPayout} onClose={() => setWithdrawing(false)} onWithdraw={() => { withdrawFunds(); setWithdrawing(false); setToast(`${money(available)} on its way`); }} />
+      <RemoveMethod method={removing} onClose={() => setRemoving(null)} onRemove={() => { if (removing) removePayout(removing.id); setRemoving(null); setToast("Payout method removed"); }} />
+      {/* Mounted as it opens, so each time it starts on the default method and all that's available. */}
+      {withdrawing && (
+        <WithdrawDialog
+          available={available}
+          methods={payouts.filter((m) => m.verified.startsWith("Verified"))}
+          onClose={() => setWithdrawing(false)}
+          onWithdraw={(to, amount) => { withdrawFunds(to.id, amount); setWithdrawing(false); setToast(`${money(amount)} on its way to ${to.brand} ····${to.last4}`); }}
+        />
+      )}
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
@@ -103,8 +106,10 @@ export default function Wallet() {
 /** The rows the page lists, the contract each one belongs to, and the filters over them. */
 function useLedger(transactions: Transaction[]) {
   const { contracts } = useIndependentContracts();
+  /** The live trial's escrow, a row of its own: Held until it's paid out, so the Held in escrow total has a row behind it. */
+  const deposit = escrowRow(useDeal());
   /** IN-053 — newest first, before anything is filtered out of it. */
-  const all = [...transactions].sort((a, b) => b.at - a.at);
+  const all = (deposit ? [deposit, ...transactions] : [...transactions]).sort((a, b) => b.at - a.at);
   /** The contract a row belongs to, by the title it was recorded with — it looked names up in an empty seed, so every row said "—". */
   const contractName: ContractName = (t) => t.contractTitle ?? contracts.find((c) => c.slug === t.contract)?.title ?? "—";
   const filters = useFilters(all, contractName);
@@ -127,21 +132,15 @@ function DisputesNote({ all }: { all: Dispute[] }) {
   );
 }
 
-/** What removing `method` means: for the default, the method that takes over (`heir`), or that none can yet. */
-function removalNote(method: PayoutMethod | null, heir: PayoutMethod | undefined) {
-  if (!method?.isDefault) return "Payouts already scheduled to this method complete; nothing new is sent here.";
-  return heir ? `This is your default method. Your next payout goes to ${heir.brand} ····${heir.last4} instead.` : "This is your default method, and no other is verified yet: withdrawing waits until one is.";
-}
-
-/** Removing a payout method: what's already scheduled to it still arrives — and, for the default, where the next payout goes. */
-function RemoveMethod({ method, heir, onClose, onRemove }: { method: PayoutMethod | null; heir: PayoutMethod | undefined; onClose: () => void; onRemove: () => void }) {
+/** Removing a payout method, never the default (removeBlocker): a payout already on its way to it still arrives. */
+function RemoveMethod({ method, onClose, onRemove }: { method: PayoutMethod | null; onClose: () => void; onRemove: () => void }) {
   return (
     <Modal
       open={!!method}
       onClose={onClose}
       tone="danger"
       title={`Remove ${method?.brand} ····${method?.last4}?`}
-      description={removalNote(method, heir)}
+      description="Payouts already on the way to this account will still arrive. No new payouts will be sent here."
       footer={
         <>
           <Button size="lg" onClick={onClose}>
@@ -156,25 +155,38 @@ function RemoveMethod({ method, heir, onClose, onRemove }: { method: PayoutMetho
   );
 }
 
-/** Withdrawing everything available, to the default payout method. */
-function WithdrawDialog({ open, amount, to, onClose, onWithdraw }: { open: boolean; amount: number; to: PayoutMethod | undefined; onClose: () => void; onWithdraw: () => void }) {
+/**
+ * Withdrawing by hand: which verified method it goes to (the default to start with) and how much (all
+ * that's available to start with, never more).
+ */
+function WithdrawDialog({ available, methods, onClose, onWithdraw }: { available: number; methods: PayoutMethod[]; onClose: () => void; onWithdraw: (to: PayoutMethod, amount: number) => void }) {
+  const [to, setTo] = useState<PayoutMethod | undefined>(() => methods.find((m) => m.isDefault) ?? methods[0]);
+  const [amount, setAmount] = useState(() => available.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const problem = withdrawalProblem(amount, available);
   return (
     <Modal
-      open={open}
+      open
       onClose={onClose}
-      title={`Withdraw ${money(amount)}?`}
-      description={`Sent to your default method (${to?.brand ?? "—"} ····${to?.last4 ?? ""}). Usually lands within one working day.`}
+      title="Withdraw"
+      description={`${money(available)} is available. Payouts usually arrive within one working day.`}
       footer={
         <>
           <Button size="lg" onClick={onClose}>
             Cancel
           </Button>
-          <Button size="lg" variant="primary" onClick={onWithdraw}>
+          <Button size="lg" variant="primary" disabled={!!problem || !to} title={problem} onClick={() => to && onWithdraw(to, amountOf(amount))}>
             Withdraw
           </Button>
         </>
       }
-    />
+    >
+      <Field label="Payout method">
+        <Select options={methods.map(payoutTitle)} value={to ? payoutTitle(to) : ""} onChange={(e) => setTo(methods.find((m) => payoutTitle(m) === e.target.value))} />
+      </Field>
+      <Field label="Amount (USD)" required error={problem}>
+        <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" required />
+      </Field>
+    </Modal>
   );
 }
 
@@ -236,11 +248,12 @@ function useFilters(all: Transaction[], contractName: ContractName) {
 type Filters = ReturnType<typeof useFilters>;
 
 /** IN-052 — every figure is added up from the ledger, so a recorded payment moves it at once. */
-function Balances({ all, available, escrowHeld }: { all: Transaction[]; available: number; escrowHeld: number }) {
+function Balances({ all, available }: { all: Transaction[]; available: number }) {
   const received = all.filter((t) => t.type === "Payment Released").reduce((n, t) => n + amountOf(t.amount), 0);
-  const heldRows = all.filter((t) => t.type === "Payment Deposited" && t.status.label === "Held");
-  const held = heldRows.reduce((n, t) => n + amountOf(t.amount), 0) + escrowHeld;
-  const heldTrials = heldRows.length + (escrowHeld > 0 ? 1 : 0);
+  // What's still in escrow is what's left on the deposit rows: a split or a refund takes part of one.
+  const heldRows = all.filter((t) => t.type === "Payment Deposited" && (t.left ?? 0) > 0);
+  const held = heldRows.reduce((n, t) => n + (t.left ?? 0), 0);
+  const heldTrials = heldRows.length;
   const withdrawals = all.filter((t) => t.type === "Payout");
   const withdrawn = withdrawals.reduce((n, t) => n + amountOf(t.amount), 0);
   const releases = all.filter((t) => t.type === "Payment Released");
@@ -266,7 +279,7 @@ function Balances({ all, available, escrowHeld }: { all: Transaction[]; availabl
   );
 }
 
-/** The payout cards, each with its ⋮ menu, and a tile that adds another. */
+/** The payout cards, each with its ⋮ menu, under the one Add payout method. */
 function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { payouts: PayoutMethod[]; onAdd: () => void; onSetDefault: (m: PayoutMethod) => void; onHistory: () => void; onRemove: (m: PayoutMethod) => void }) {
   const [menu, setMenu] = useState<string | null>(null);
   return (
@@ -279,50 +292,41 @@ function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { 
           Add payout method
         </Button>
       </div>
-      <p className="text-[13px] leading-[1.4] text-ink-2">
-        Trial, full-time and part-time payments are released to your default method at the end of each payment cycle. The ⋮ menu on each card opens Set as default, View payout history and Remove.
-      </p>
-      <div className="grid grid-cols-3 gap-4 pt-3.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
-        {payouts.map((m) => (
-          <PayoutCard
-            key={m.id}
-            method={m}
-            open={menu === m.id}
-            onOpenChange={(open) => setMenu(open ? m.id : null)}
-            removable={payouts.length !== 1}
-            onSetDefault={() => {
-              onSetDefault(m);
-              setMenu(null);
-            }}
-            onHistory={() => {
-              setMenu(null);
-              onHistory();
-            }}
-            onRemove={() => {
-              onRemove(m);
-              setMenu(null);
-            }}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={onAdd}
-          className="flex h-[190px] flex-col items-center justify-center gap-1.5 rounded-[14px] border border-dashed border-border bg-[#fafbfc] text-ink hover:bg-surface-alt"
-        >
-          <Add size={24} aria-hidden />
-          <span className="text-[13px] leading-[1.3] font-semibold">Add payout method</span>
-          <span className="text-[11px] leading-[1.3] text-ink-2">Bank · GCash · Maya</span>
-        </button>
-      </div>
-      <div className="w-[530px] max-w-full">
-        <InfoBanner>Bank (InstaPay / PESONet), GCash and Maya are supported. Payouts usually land within one working day of release.</InfoBanner>
-      </div>
+      <p className="text-[13px] leading-[1.4] text-ink-2">Released pay waits in your balance until you withdraw it to a verified payout method.</p>
+      {payouts.length === 0 ? (
+        <EmptyState title="No payout method yet" body="You'll be asked for one before your first proposal." />
+      ) : (
+        <div className="grid grid-cols-3 gap-4 pt-3.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
+          {payouts.map((m) => (
+            <PayoutCard
+              key={m.id}
+              method={m}
+              open={menu === m.id}
+              onOpenChange={(open) => setMenu(open ? m.id : null)}
+              removeOff={removeBlocker(m, payouts.length)}
+              onSetDefault={() => {
+                onSetDefault(m);
+                setMenu(null);
+              }}
+              onHistory={() => {
+                setMenu(null);
+                onHistory();
+              }}
+              onRemove={() => {
+                onRemove(m);
+                setMenu(null);
+              }}
+            />
+          ))}
+        </div>
+      )}
+      <InfoBanner>Payouts usually arrive within one working day.</InfoBanner>
     </Card>
   );
 }
 
-/** One payout method: its brand, the last four digits, who holds it and whether it's verified. */
-function PayoutCard({ method: m, open, onOpenChange, removable, onSetDefault, onHistory, onRemove }: { method: PayoutMethod; open: boolean; onOpenChange: (open: boolean) => void; removable: boolean; onSetDefault: () => void; onHistory: () => void; onRemove: () => void }) {
+/** One payout method: its brand, the last four digits, who holds it and whether it's verified. `removeOff` says why Remove is off (removeBlocker). */
+function PayoutCard({ method: m, open, onOpenChange, removeOff, onSetDefault, onHistory, onRemove }: { method: PayoutMethod; open: boolean; onOpenChange: (open: boolean) => void; removeOff: string | undefined; onSetDefault: () => void; onHistory: () => void; onRemove: () => void }) {
   const brand = BRAND[m.brand];
   const verified = m.verified.startsWith("Verified");
   return (
@@ -348,7 +352,7 @@ function PayoutCard({ method: m, open, onOpenChange, removable, onSetDefault, on
           <MenuAction onClick={onHistory} icon={<History size={18} aria-hidden />}>
             View payout history
           </MenuAction>
-          <MenuAction destructive disabled={!removable} title={removable ? undefined : "Your only payout method can't be removed. Add another first."} onClick={onRemove} icon={<Trash size={18} aria-hidden />}>
+          <MenuAction destructive disabled={!!removeOff} title={removeOff} onClick={onRemove} icon={<Trash size={18} aria-hidden />}>
             Remove
           </MenuAction>
         </KebabMenu>
@@ -401,7 +405,7 @@ function FilterBar({ filters: f, total, children }: { filters: Filters; total: n
 
 /** IN-053 — every row across every contract, newest first, paginated. */
 function TransactionList({ all, filters: f, contractName, onView }: { all: Transaction[]; filters: Filters; contractName: ContractName; onView: (t: Transaction) => void }) {
-  if (all.length === 0) return <EmptyState title="No transactions yet" body="Escrow deposits, released payments and withdrawals appear here as soon as a contract starts." />;
+  if (all.length === 0) return <EmptyState title="No transactions yet" body="Transactions will appear here once activity is recorded for a contract." />;
   if (f.rows.length === 0) {
     return (
       <EmptyState
@@ -497,17 +501,7 @@ function TransactionDetail({ detail, contractName, onClose, onReceipt }: { detai
     >
       {detail && (
         <dl className="flex flex-col gap-2 rounded-lg bg-[#fafafa] p-4 text-[13px] leading-[1.45] outline -outline-offset-1 outline-border">
-          {(
-            [
-              ["Date", detail.date],
-              ["Contract", contractName(detail)],
-              ["Company", detail.party],
-              ["Type", EARNINGS_LABEL[detail.type] ?? detail.type],
-              ["Amount", detail.amount],
-              ["Status", detail.status.label],
-              ["Reference", detail.desc],
-            ] as const
-          ).map(([k, v]) => (
+          {detailRows(detail, contractName).map(([k, v]) => (
             <div key={k} className="flex gap-4">
               <span className="w-[130px] shrink-0 text-ink-2">{k}</span>
               <span className="min-w-0 flex-1 text-ink">{v}</span>
@@ -517,4 +511,11 @@ function TransactionDetail({ detail, contractName, onClose, onReceipt }: { detai
       )}
     </Modal>
   );
+}
+
+/** A row's lines in its detail, with what's still open on it when that's only part of it: a payment partly withdrawn, or escrow partly paid out. */
+function detailRows(t: Transaction, contractName: ContractName): [string, string][] {
+  const left = t.left ?? 0;
+  const part: [string, string][] = left > 0 && left < amountOf(t.amount) ? [[t.type === "Payment Deposited" ? "Still in escrow" : "Still to withdraw", money(left)]] : [];
+  return [["Date", t.date], ["Contract", contractName(t)], ["Company", t.party], ["Type", EARNINGS_LABEL[t.type] ?? t.type], ["Amount", t.amount], ["Status", t.status.label], ...part, ["Reference", t.desc]];
 }

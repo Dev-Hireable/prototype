@@ -5,6 +5,8 @@ import { useState } from "react";
 import { AuthError, AuthLink, AuthShell, PasswordInput, PasswordRules } from "@/components/portal/auth-shell";
 import { Button, Field, Input, StatusDot } from "@/components/portal/ui";
 import { emailOk, PASSWORD_RULES, passwordOk, signUp, type Role } from "@/lib/demo/auth";
+import { clearPayouts } from "@/lib/independent/wallet";
+import { clearCards } from "@/lib/team/account";
 
 type Step = "details" | "verify";
 type SignUpRole = Exclude<Role, "admin">;
@@ -27,7 +29,7 @@ export default function SignUp() {
   // it, and the mark above them stays as it is.
   if (form.step === "verify")
     return (
-      <AuthShell title="Check your email" subtitle={`We sent a verification link to ${form.email}. Confirm it to secure the account — in this demo it is already confirmed for you.`}>
+      <AuthShell title="Check your email" subtitle={`We sent a verification link to ${form.email}. Confirm it to secure your account.`}>
         <VerifyEmailStep email={form.email} role={form.role} />
       </AuthShell>
     );
@@ -35,7 +37,7 @@ export default function SignUp() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Hire through a 30-day Trial Drive, or get hired through one."
+      subtitle="Hire through a paid trial, or get hired through one."
       footer={<AuthLink prompt="Already have an account?" linkText="Login" href="/login" />}
     >
       <DetailsForm form={form} />
@@ -109,6 +111,9 @@ function useSignUpForm() {
   const createAccount = () => {
     const result = signUp({ email, password, name: name.trim(), role, detail: detail.trim() });
     if ("error" in result) return setError(result.error);
+    // A new account has nothing saved to pay with or be paid to: a card is asked for at the first offer, a payout method before the first proposal.
+    if (role === "team") clearCards();
+    else clearPayouts();
     setStep("verify");
   };
 
@@ -134,7 +139,7 @@ function RoleToggle({ role, onChoose }: { role: SignUpRole; onChoose: (role: Sig
   );
 }
 
-/** The step after the details: the email is verified, and the quiz is next. */
+/** The step after the details: the email is verified, and Continue goes on to the onboarding. */
 function VerifyEmailStep({ email, role }: { email: string; role: SignUpRole }) {
   const router = useRouter();
 
@@ -145,11 +150,12 @@ function VerifyEmailStep({ email, role }: { email: string; role: SignUpRole }) {
         <span className="text-[13px] leading-[1.4] text-ink-2">{email}</span>
       </div>
       {/* OB-002 / OB-003 — the quiz is a required step before the dashboard, not an optional one. It is
-          the real app's onboarding, which finishes on the dashboard for this account's role. */}
+          the real app's onboarding, which finishes on the dashboard for this account's role. Its intro
+          says what the quiz is for and has the Start quiz button, so this step only leads on to it: a
+          quiz pitch and button here made two start-the-quiz screens in a row. */}
       <Button size="xl" variant="primary" onClick={() => router.push(role === "team" ? "/onboarding/client" : "/onboarding/talent")}>
-        Start the Work Style Quiz
+        Continue
       </Button>
-      <p className="text-[12.5px] leading-[1.45] text-ink-2">One step left. The quiz takes about two minutes and generates the workplace tags on your profile.</p>
     </>
   );
 }

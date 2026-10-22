@@ -47,7 +47,7 @@ export const ONBOARDING_COPY: Record<PublicSignupRole, OnboardingCopy> = {
     results: {
       title: 'Your Work Style Profile',
       description:
-        'These traits help us recommend Independents aligned with your communication and collaboration style.',
+        'These tags help us recommend Independents aligned with your communication and collaboration style.',
       badgeAlt: 'Work style profile illustration',
     },
   },
@@ -58,13 +58,13 @@ export const ONBOARDING_COPY: Record<PublicSignupRole, OnboardingCopy> = {
       successAlt: 'Hireable mascot celebrating your new account',
       title: 'Your account is ready.',
       description:
-        "Answer a few quick questions about how you like to work. We'll use them to match you with Team Builders who work the same way. It takes about two minutes.",
+        "Answer a few quick questions about how you like to work. We'll use them to recommend you to Team Builders who match your style. It takes about two minutes.",
       startLabel: 'Start quiz',
     },
     results: {
       title: 'Your Work Style Profile',
       description:
-        'These traits help match you with Team Builders who share a similar work style.',
+        'These tags help match you with Team Builders who share a similar work style.',
       badgeAlt: 'Work style profile illustration',
     },
   },
@@ -72,16 +72,17 @@ export const ONBOARDING_COPY: Record<PublicSignupRole, OnboardingCopy> = {
 
 /**
  * The welcome for someone retaking the quiz. The account isn't new, so there's no confetti;
- * they're welcomed back, shown the traits the quiz will replace, and the assistant skips
- * introducing itself again. The quiz can be retaken once a year, and the copy says so.
+ * they're welcomed back, shown the tags the quiz will replace, and the assistant skips
+ * introducing itself again. The quiz can be retaken once a year, and the copy says so. The quiz's
+ * results are called tags wherever the reader sees them, as on the profile.
  */
 export type RetakeCopy = {
   intro: IntroCopy;
   greeting: string;
 };
 
-export const RETAKE_TRAITS_LABEL = 'Your current traits';
-export const RETAKE_KEEP_LABEL = 'Keep my current traits';
+export const RETAKE_TAGS_LABEL = 'Your current tags';
+export const RETAKE_KEEP_LABEL = 'Keep my current tags';
 
 export const ONBOARDING_RETAKE_COPY: Record<PublicSignupRole, RetakeCopy> = {
   client: {
@@ -90,7 +91,7 @@ export const ONBOARDING_RETAKE_COPY: Record<PublicSignupRole, RetakeCopy> = {
       successAlt: 'Hireable mascot welcoming you back',
       title: 'Welcome back.',
       description:
-        'Retake the work style quiz to refine your Independent recommendations. Your current traits stay until you finish. You can retake once a year.',
+        'Retake the work style quiz to refine your Independent recommendations. Your current tags stay until you finish. You can retake once a year.',
       startLabel: 'Retake quiz',
     },
     greeting:
@@ -102,7 +103,7 @@ export const ONBOARDING_RETAKE_COPY: Record<PublicSignupRole, RetakeCopy> = {
       successAlt: 'Hireable mascot welcoming you back',
       title: 'Welcome back.',
       description:
-        'Retake the work style quiz to keep your profile current and get yourself recommended to teams that fit how you work. Your current traits stay until you finish. You can retake once a year.',
+        'Retake the work style quiz to keep your profile current and get yourself recommended to teams that fit how you work. Your current tags stay until you finish. You can retake once a year.',
       startLabel: 'Retake quiz',
     },
     greeting:

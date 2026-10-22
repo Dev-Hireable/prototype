@@ -5,6 +5,8 @@
  * were. The offset is today's: a zone on daylight saving shows its summer offset in summer.
  */
 
+import { slotInstant } from "./dates";
+
 export type TimeZoneOption = { label: string; zone: string; minutes: number };
 
 /** "GMT+8" / "GMT+5:30" / "GMT" for `zone` at `at`. */
@@ -68,16 +70,39 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /**
- * #153 — an interview slot ("Tue 29 Sep 2026, 10:00 AM", in the clock of whoever booked it, `from`
- * minutes off UTC) as it reads at `to` minutes off UTC: "Tue 29 Sep, 9:00 AM". Undefined if the
- * slot doesn't read as a date and time.
+ * An interview slot (in the clock of whoever booked it, `from` minutes off UTC) as it reads at `to`
+ * minutes off UTC: "Tue 29 Sep, 9:00 AM". Undefined if the slot doesn't read as a date and time.
  */
 export function slotAt(when: string, from: number, to: number): string | undefined {
-  const m = when.match(/(\d{1,2}) (\w{3}) (\d{4}), (\d{1,2}):(\d{2}) ([AP]M)/);
-  if (!m) return undefined;
-  const hour = (Number(m[4]) % 12) + (m[6] === "PM" ? 12 : 0);
-  const utc = Date.UTC(Number(m[3]), MONTH_NAMES.indexOf(m[2]), Number(m[1]), hour, Number(m[5])) - from * 60_000;
-  const d = new Date(utc + to * 60_000);
+  const at = slotInstant(when, from);
+  if (at === undefined) return undefined;
+  const d = new Date(at + to * 60_000);
   const h = d.getUTCHours();
   return `${WEEKDAYS[d.getUTCDay()]} ${d.getUTCDate()} ${MONTH_NAMES[d.getUTCMonth()]}, ${h % 12 || 12}:${String(d.getUTCMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/**
+ * An interview's time in the viewer's clock and the other person's: `mine` "Tue 29 Sep, 10:00 AM",
+ * `theirs` "10:00 PM" (with its day, "Mon 28 Sep, 10:00 PM", when that differs) or undefined when
+ * both clocks read the same. Undefined altogether if the slot doesn't read as a date and time.
+ */
+export function slotClocks(when: string, booked: number, viewer: number, other: number): { mine: string; theirs?: string } | undefined {
+  const mine = slotAt(when, booked, viewer);
+  const theirs = slotAt(when, booked, other);
+  if (!mine || !theirs) return undefined;
+  if (theirs === mine) return { mine };
+  const [myDay] = mine.split(", ");
+  const [theirDay, theirTime] = theirs.split(", ");
+  return { mine, theirs: theirDay === myDay ? theirTime : theirs };
+}
+
+/**
+ * The one-line form every interview screen uses: "Tue 29 Sep, 10:00 AM your time · 10:00 PM Juan's
+ * time", or "Tue 29 Sep, 10:00 AM, your time and Juan's" when the two clocks agree. A slot that
+ * doesn't read as a date and time is shown as it was saved.
+ */
+export function bothClocks(when: string, booked: number, viewer: number, other: { offset: number; first: string }): string {
+  const c = slotClocks(when, booked, viewer, other.offset);
+  if (!c) return when;
+  return c.theirs ? `${c.mine} your time · ${c.theirs} ${other.first}'s time` : `${c.mine}, your time and ${other.first}'s`;
 }

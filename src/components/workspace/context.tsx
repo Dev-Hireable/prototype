@@ -54,8 +54,11 @@ export type WorkspaceProjects = {
   showPlace: boolean;
 };
 
-/** Where an opened item starts. `comments` comes from a comment's notification (`?focus=comments`). */
-export type DetailFocus = "changes" | "dates" | "title" | "comments";
+/**
+ * Where an opened item starts. `comments` comes from a comment's notification (`?focus=comments`);
+ * `submit` is a send for review, from a card, row or menu, that asks first (the work is unfinished).
+ */
+export type DetailFocus = "changes" | "dates" | "title" | "comments" | "submit";
 
 const Ctx = createContext<WorkspaceEnv | null>(null);
 export const WorkspaceProvider = Ctx.Provider;

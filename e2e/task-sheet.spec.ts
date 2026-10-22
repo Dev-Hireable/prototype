@@ -97,6 +97,10 @@ test.describe("task sheet · ticking subtasks", () => {
     const mine = panel(page).getByRole("checkbox", { name: "Accessible contrast pairs" });
     await expect(mine).toBeEnabled();
     await panel(page).getByRole("button", { name: "Send for review" }).click();
+    // #3 still waits on #2 and has a subtask open: it asks once, saying so, and goes when told to.
+    await expect(panel(page).getByText("#3 is waiting on #2 Draft two logo directions and has 1 open subtask. Send it for review anyway?")).toBeVisible();
+    expect((await savedItem(page, "t-palette")).status).toBe("doing");
+    await panel(page).getByRole("button", { name: "Send for review" }).click();
     await expect(mine).toBeDisabled();
     await expect(await tipOn(page, mine)).toHaveText("Its subtasks are locked while it's in review or done.");
     await expect.poll(async () => (await savedItem(page, "t-palette")).status).toBe("review");

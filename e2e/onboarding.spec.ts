@@ -85,14 +85,13 @@ async function letTimeRun(page: Page) {
 }
 
 /**
- * Waits out the splash that covers every onboarding page for 4.2 s after it hydrates: first for it
- * to be drawn (reduced motion sets it straight to full opacity), then for it to go, so a slow
- * hydration doesn't eat into the wait for its timer.
+ * Waits out the brief splash that covers every onboarding page for a second after it hydrates. It's
+ * in the page from the first paint (transparent until it hydrates), so it's hidden only once it has
+ * played and gone. Waiting first for it at full opacity could miss a splash this short between two
+ * polls.
  */
 async function waitOutSplash(page: Page) {
-  const splash = page.getByRole("status").filter({ hasText: "Loading…" });
-  await expect(splash).toHaveCSS("opacity", "1");
-  await expect(splash).toBeHidden();
+  await expect(page.getByRole("status").filter({ hasText: "Loading…" })).toBeHidden();
 }
 
 /** Opens a side's onboarding with the clock running. */
@@ -101,12 +100,12 @@ async function openOnboarding(page: Page, quiz: "client" | "talent") {
   await page.goto(`/onboarding/${quiz}`);
 }
 
-/** A first run's intro — one screen, the account ready and no traits to keep — then Start quiz. */
+/** A first run's intro — one screen, the account ready and no tags to keep — then Start quiz. */
 async function startFirstQuiz(page: Page) {
   await waitOutSplash(page);
   await expect(page.getByRole("heading", { name: "Your account is ready." })).toBeVisible();
-  await expect(page.getByText("Your current traits", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Keep my current traits" })).toHaveCount(0);
+  await expect(page.getByText("Your current tags", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Keep my current tags" })).toHaveCount(0);
   await page.getByRole("button", { name: "Start quiz" }).click();
   await expect(page.getByText("Question 1 of 6")).toBeVisible();
   await sayReady(page);
@@ -125,20 +124,20 @@ async function sayReady(page: Page) {
   await expect(page.getByRole("textbox", { name: "Other answer" })).toBeVisible();
 }
 
-/** A retake's intro: welcome back, the traits the quiz would replace, and the two ways on. */
+/** A retake's intro: welcome back, the tags the quiz would replace, and the two ways on. */
 async function expectRetakeIntro(page: Page, traits: readonly string[]) {
   await waitOutSplash(page);
   await expect(page.getByRole("heading", { name: "Welcome back." })).toBeVisible();
-  await expect(page.getByText("Your current traits", { exact: true })).toBeVisible();
+  await expect(page.getByText("Your current tags", { exact: true })).toBeVisible();
   for (const trait of traits) await expect(page.getByText(trait, { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Keep my current traits" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Keep my current tags" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Retake quiz" })).toBeVisible();
 }
 
-/** Answers question n by clicking an option; until then the send button (See Results on the last) is off. */
+/** Answers question n by clicking an option; until then the send button (See results on the last) is off. */
 async function answerByClick(page: Page, n: number, option: string) {
   await expect(page.getByText(`Question ${n} of 6`)).toBeVisible();
-  await expect(page.getByRole("button", { name: n === 6 ? "See Results" : "Send response" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: n === 6 ? "See results" : "Send response" })).toBeDisabled();
   await page.getByRole("radio", { name: option }).click();
   await expect(page.getByRole("log")).toContainText(option);
 }
@@ -222,7 +221,7 @@ test.describe("onboarding · verifying the email", () => {
       const auth = await savedAuth(page);
       expect(auth?.accounts).toContainEqual(expect.objectContaining({ email, name: who.name, role: who.role, detail: who.value, verified: true }));
       expect(auth?.session).toEqual({ email, name: who.name, role: who.role });
-      await page.getByRole("button", { name: "Start the Work Style Quiz" }).click();
+      await page.getByRole("button", { name: "Continue", exact: true }).click();
       await expect(page).toHaveURL(new RegExp(`/onboarding/${who.quiz}$`));
     });
   }
@@ -286,7 +285,7 @@ test.describe("onboarding · a first quiz", () => {
     await letTimeRun(page);
     await fillSignUp(page, TEAM, "new.team@example.test");
     await page.getByRole("button", { name: "Create account" }).click();
-    await page.getByRole("button", { name: "Start the Work Style Quiz" }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page).toHaveURL(/\/onboarding\/client$/);
     await waitOutSplash(page);
     await page.getByRole("button", { name: "Start quiz" }).click();
@@ -358,9 +357,9 @@ test.describe("onboarding · retaking the quiz", () => {
   test("a returning Independent is shown their current traits, and keeping them goes back to the dashboard unchanged", async ({ page }) => {
     await openOnboarding(page, "talent");
     await expectRetakeIntro(page, JUAN_TRAITS);
-    await page.getByRole("link", { name: "Keep my current traits" }).click();
+    await page.getByRole("link", { name: "Keep my current tags" }).click();
     await expect(page).toHaveURL(/\/independent$/);
-    await expect(page.getByText("Your work style", { exact: true })).toBeVisible();
+    await expect(page.getByText("Your work style tags", { exact: true })).toBeVisible();
     for (const trait of JUAN_TRAITS) await expect(page.getByText(trait, { exact: true })).toBeVisible();
     expect(await savedTraits(page, "ind")).toEqual([4, 5, 1, 2, 4, 5]);
   });

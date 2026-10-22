@@ -108,9 +108,11 @@ function summaryOf(c: Contract, withReturn: (href: string) => string): ContractS
     // The live thread is with the demo's Team Builder; anyone else lands on the inbox.
     messageHref: withReturn(c.manager === PAIR.team.name ? "/independent/messages?with=c1" : "/independent/messages"),
     type: c.type,
-    tasks: c.tasks,
+    // TB-143 — the live contract counts what its Work tab shows (counted); a listed one, all its tasks.
+    tasks: c.counted ?? c.tasks,
     tfs: c.tfs?.overall ?? null,
     left: c.left,
+    over: c.over,
     inactive: isInactive(c),
     ended: c.endedOn ?? c.ends,
     started: c.started,

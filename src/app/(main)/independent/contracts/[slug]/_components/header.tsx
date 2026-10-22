@@ -22,7 +22,7 @@ export function Crumbs({ contract, tab }: { contract: Contract; tab: Section }) 
         {tab === "tasks" ? (
           <BreadcrumbItem>
             <BreadcrumbPage>
-              {contract.title} — {contract.company}
+              {contract.title} at {contract.company}
             </BreadcrumbPage>
           </BreadcrumbItem>
         ) : (
@@ -30,7 +30,7 @@ export function Crumbs({ contract, tab }: { contract: Contract; tab: Section }) 
             {/* On a tab, the contract crumb leads back to its default Tasks tab. */}
             <BreadcrumbItem>
               <BreadcrumbLink render={<Link href={`/independent/contracts/${contract.slug}`} />}>
-                {contract.title} — {contract.company}
+                {contract.title} at {contract.company}
               </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />

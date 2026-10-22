@@ -18,7 +18,7 @@ export const readImage = (file: File) =>
 /** Returns the reason an upload was rejected, or null when it is fine. */
 export function checkImage(file: File) {
   if (!IMAGE_TYPES.includes(file.type)) return "That file has to be a JPG or a PNG.";
-  if (file.size > IMAGE_MAX_MB * 1024 * 1024) return `That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the limit is ${IMAGE_MAX_MB}MB.`;
+  if (file.size > IMAGE_MAX_MB * 1024 * 1024) return `That file is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is ${IMAGE_MAX_MB}MB.`;
   return null;
 }
 

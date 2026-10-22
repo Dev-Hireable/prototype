@@ -5,7 +5,14 @@ import type { Deal, Posting } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { JobType } from "@/lib/contract/job-types";
 import type { PlannedTask } from "@/lib/demo/tasks";
+import type { Stage } from "@/lib/portal/stages";
 import type { Application } from "./data";
+
+/** Where a trial's tasks become the Independent's to read: from the offer on, once their proposal is accepted. */
+const TASKS_FROM: Stage[] = ["offer_received", "offer_accepted", "hired"];
+
+/** Whether an application at `stage` (none: not applied) can read the trial's tasks; before that only how many there are. */
+export const trialTasksShared = (stage: Stage | undefined) => !!stage && TASKS_FROM.includes(stage);
 
 /** The job behind an application, as the talent's application, proposal and offer screens show it. */
 export type JobView = {
@@ -28,7 +35,8 @@ export type JobView = {
   attachment?: string;
   location: string;
   industry: string;
-  interview: { date: string; time: string; link: string };
+  /** The slot booked on it ("" before one is), the clock it was booked in, and the meeting link. */
+  interview: { when: string; offset?: number; link: string };
 };
 
 /**
@@ -65,10 +73,8 @@ function postingView(posting: Posting | undefined, app: Application): Omit<JobVi
   };
 }
 
-/** The interview booked on the shared engagement, when it's for this role; dashes until one is. */
+/** The interview booked on the shared engagement, when it's for this role. */
 function interviewOf(deal: Deal | null, roleSlug: string): JobView["interview"] {
   const interview = deal?.roleSlug === roleSlug ? deal.interview : undefined;
-  // Booked as "30/09/2026, 09:30 AM (EST)" — the date, then the time.
-  const [date = "—", time = "—"] = interview?.when.split(", ") ?? [];
-  return { date, time, link: interview?.link ?? "" };
+  return { when: interview?.when ?? "", offset: interview?.offset, link: interview?.link ?? "" };
 }

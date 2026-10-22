@@ -10,6 +10,7 @@ import { byName, conversationsFor } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useRoles } from "@/lib/team/roles";
 import { useDeal } from "@/lib/demo/deal";
+import { PAIR } from "@/lib/demo/live";
 import { threadStage } from "@/lib/portal/stages";
 
 /** The Team Builder's inbox; the Independent's is the same page (MessagesPage). */
@@ -20,11 +21,13 @@ export default function Messages() {
   const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
   const contract = contracts[0];
   const deal = useDeal();
-  const pipelineRole = roles.find((r) => r.slug === candidates.find((c) => c.independent === "juan-dela-cruz")?.role)?.title;
-  // TB-006 — a candidate thread opens when they are invited to interview, not when they apply.
+  /** Their card in a role's pipeline: invited to apply, an application, or further on. */
+  const card = candidates.find((c) => c.independent === PAIR.independent.slug);
+  const pipelineRole = roles.find((r) => r.slug === card?.role)?.title;
+  // TB-006 — the thread opens with the first contact: the invite to apply, or their application.
   const conversations = conversationsFor({
     hired: contracts.length > 0,
-    inPipeline: canChat,
+    inPipeline: canChat || !!card,
     role: contract?.role ?? pipelineRole,
     contract: contract ? (contract.status.label === "Ended" ? "Ended" : JOB_TYPE_LABEL[contract.type]) : undefined,
   });
@@ -32,15 +35,14 @@ export default function Messages() {
     <MessagesPage
       side="team"
       conversations={conversations}
-      // Candidates first: a thread starts there, and moves to Conversations once they're hired.
+      // One thread per person; the tabs filter it by stage. Candidates, the first and the one Messages
+      // opens on, is everyone still in hiring; Conversations, the people you're working with.
       tabs={["candidates", "conversations"] as const}
-      // TB-009 — the tabs split the list the way the sheet defines them: Conversations is talent under
-      // an active contract, Candidates anyone with an offer sent or an interview scheduled.
       // With no thread at all, the thread pane says so once; the list stays quiet.
-      emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "candidates" ? "This thread moved to Conversations when they were hired." : "No contract threads yet. The thread is under Candidates.")}
-      emptyThread="A thread opens when you invite someone to interview."
+      emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "candidates" ? "No candidates in progress." : "No conversations yet.")}
+      emptyThread="A thread opens when an Independent applies or you invite them to apply."
       face={(c, size) => <Avatar src={c.avatar} size={size} />}
-      stage={deal ? threadStage(deal.stage, contract ? (contract.status.label === "Ended" ? "Ended" : JOB_TYPE_LABEL[contract.type]) : undefined) : undefined}
+      stage={deal ? threadStage(deal.stage, contract ? (contract.status.label === "Ended" ? "Ended" : JOB_TYPE_LABEL[contract.type]) : undefined) : card ? "Invited" : undefined}
       badge={trial && (
         <Badge variant="solid" tone="trial">
           TRIAL · {trial.day}

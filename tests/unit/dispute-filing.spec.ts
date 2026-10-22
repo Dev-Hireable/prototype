@@ -6,7 +6,7 @@ import { fileBlock, fileBlockHint, type Escrow } from "../../src/lib/demo/disput
 // long as the contract runs — not before its first day, not while the trial runs, not after it ends.
 
 const KEY = "deal:brand-designer:2026-09-21";
-const HELD: Escrow = { total: 1600, released: 0, refunded: 0, held: 1600, onHold: 0 };
+const HELD: Escrow = { total: 1600, released: 0, refunded: 0, held: 1600, onHold: 0, funded: "18 Sep 2026" };
 const PAID_OUT: Escrow = { ...HELD, released: 1600, held: 0 };
 const dispute = (over: Partial<Dispute>) => ({ id: "d1", contract: KEY, filedBy: "team", status: "Pending", amount: 800, ...over }) as Dispute;
 
@@ -28,6 +28,16 @@ test.describe("filing a dispute, by where the contract is", () => {
     expect(fileBlock([], KEY, "team", PAID_OUT, "decision").block).toBe("settled");
   });
 
+  test("each block says why, naming the day it changes", () => {
+    const days = { starts: "28 Sep 2026", trialEnds: "30 Oct 2026" };
+    expect(fileBlockHint("starts", "team", days)).toBe("Filing opens on 28 Sep 2026, the contract's first day");
+    expect(fileBlockHint("trial", "independent", days)).toBe("Available after the trial ends on 30 Oct 2026");
+    expect(fileBlockHint("ended", "team", days)).toBe("This contract has ended, so it can't be disputed any more");
+    expect(fileBlockHint(null, "team", days)).toBeUndefined();
+  });
+});
+
+test.describe("filing a dispute, by where the contract is · what's already on file", () => {
   test("a dispute already on it comes first: the other side answers that one instead", () => {
     const open = dispute({});
     expect(fileBlock([open], KEY, "independent", HELD, "ended")).toMatchObject({ block: "open", dispute: open });
@@ -45,11 +55,21 @@ test.describe("filing a dispute, by where the contract is", () => {
     expect(fileBlock([dispute({ type: "trial" })], KEY, "independent", null, "ongoing", "role").block).toBe("open");
   });
 
-  test("each block says why, naming the day it changes", () => {
+  test("one per chapter in total: once either side has filed about the trial, neither can again (user rule 2026-10-22)", () => {
+    // The Independent's closed dispute about the trial uses it up for the Team Builder too, and the other way round.
+    const theirs = dispute({ filedBy: "independent", status: "Resolved", type: "trial" });
+    expect(fileBlock([theirs], KEY, "team", HELD, "decision", "trial")).toMatchObject({ block: "filed", dispute: theirs });
+    expect(fileBlock([dispute({ status: "Rejected", type: "trial" })], KEY, "independent", HELD, "decision", "trial").block).toBe("filed");
+    // Nor can the side that filed it file a second about the same chapter.
+    expect(fileBlock([dispute({ status: "Resolved", type: "trial" })], KEY, "team", HELD, "decision", "trial").block).toBe("filed");
+    // A withdrawn one counts too, for both sides — and says so.
+    const withdrawn = dispute({ status: "Withdrawn", type: "trial" });
+    expect(fileBlock([withdrawn], KEY, "independent", HELD, "decision", "trial").block).toBe("withdrawn");
+    expect(fileBlock([withdrawn], KEY, "team", HELD, "decision", "trial").block).toBe("withdrawn");
+    // The role it became still gets its own.
+    expect(fileBlock([theirs, withdrawn], KEY, "team", null, "ongoing", "role").block).toBeNull();
     const days = { starts: "28 Sep 2026", trialEnds: "30 Oct 2026" };
-    expect(fileBlockHint("starts", "team", days)).toBe("Filing opens on 28 Sep 2026, the contract's first day");
-    expect(fileBlockHint("trial", "independent", days)).toBe("Available once the trial ends on 30 Oct 2026");
-    expect(fileBlockHint("ended", "team", days)).toBe("This contract has ended, so it can't be disputed any more");
-    expect(fileBlockHint(null, "team", days)).toBeUndefined();
+    expect(fileBlockHint("filed", "team", days, "trial")).toBe("Only one dispute can be filed about this trial, and one already has been");
+    expect(fileBlockHint("withdrawn", "independent", days, "role")).toBe("The dispute about this role was withdrawn, so another can't be filed");
   });
 });

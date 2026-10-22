@@ -139,7 +139,7 @@ function ProjectActions({ place: current, project, onRename, onDelete }: { place
           ) : (
             // Said in the row, not a tooltip: what's left before it can finish.
             <MenuAction disabled={current.open > 0} onClick={() => void actions.finishProject(project)} icon={<ICONS.check size={18} aria-hidden />}>
-              {current.open > 0 ? `Finish — ${current.open} still open` : "Mark finished"}
+              {current.open > 0 ? `Finish (${current.open} still open)` : "Mark finished"}
             </MenuAction>
           )}
         </>
@@ -186,11 +186,10 @@ function DeleteProjectDialog({ place, project, onClose, onDeleted }: { place: Pr
   );
 }
 
-/** What deleting a project does to the work in it — nothing is lost with it. */
+/** What deleting a project does to the work in it: nothing is lost with it. */
 function deleteNote(total: number) {
-  return total
-    ? `The project is removed for good. Its ${total === 1 ? "item stays" : `${total} items stay`} on the contract, outside a project, with ${total === 1 ? "its" : "their"} history — work is the contract's record, so it isn't deleted with the project.`
-    : "The project is removed for good. There's nothing in it.";
+  if (!total) return "This deletes the project. There's nothing in it.";
+  return `This deletes the project only. ${total === 1 ? "Its task and its history stay" : `Its ${total} tasks and their history stay`} on the contract.`;
 }
 
 function Row({ name, detail }: { name: string; detail: string }) {

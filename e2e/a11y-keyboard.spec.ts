@@ -1,4 +1,4 @@
-import { card, column, expect, filterButton, open, panel, ROLE, savedItem, test } from "./fixtures";
+import { card, column, expect, filterButton, open, panel, ROLE, savedItem, test, toast } from "./fixtures";
 
 // Keyboard alternatives to every drag, focus that goes where you'd expect, and nothing said in
 // colour alone.
@@ -89,8 +89,8 @@ test.describe("keyboard and accessibility · menus", () => {
 });
 
 test.describe("keyboard and accessibility · a Select in a dialog", () => {
-  const ROLE_SEED = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00 /mo", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
-  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600 /month", letter: "Happy to help." } }, stores: { "team.roles": [ROLE_SEED] } } });
+  const ROLE_SEED = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
+  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600", letter: "Happy to help." } }, stores: { "team.roles": [ROLE_SEED] } } });
 
   test("a Select's list takes the focus the first time it opens from the keyboard", async ({ page }) => {
     await page.goto("/team/hire/roles/brand-designer/candidates/deal");
@@ -116,8 +116,8 @@ test.describe("keyboard and accessibility · a Select in a dialog", () => {
 });
 
 test.describe("keyboard and accessibility · a dialog that gives way to another", () => {
-  const ROLE = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00 /mo", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
-  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600 /month", letter: "Happy to help." } } } });
+  const ROLE = { slug: "brand-designer", title: "Brand Designer", type: "trial", status: "Active", candidates: null, matched: null, interviews: null, offers: null, hired: null, updated: "25 Sep 2026", description: "Brand work.", budget: "$1,600.00 - $2,000.00", duration: "30 Days", experience: "Advanced (5–8 years)", skills: ["Branding"], expectation: "", attachment: "", tasks: [{ title: "Take over inbox triage", week: 1, priority: "high" }] };
+  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600", letter: "Happy to help." } } } });
 
   test("closing the review after a long round trip hands the focus back to its opener", async ({ page }) => {
     await page.goto("/team/hire/roles");
@@ -175,5 +175,31 @@ test.describe("keyboard and accessibility · inline editing", () => {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("combobox")).toBeHidden();
     await expect(pencil).toBeFocused();
+  });
+});
+
+test.describe("keyboard and accessibility · a player over the profile sheet", () => {
+  test.use({ seedOptions: { empty: true } });
+
+  test("Escape closes the intro video alone, and the next one closes the sheet", async ({ page }) => {
+    // The talent replaces the intro still with a video of their own (any bytes will do: it's never played
+    // here) for the sheet to play.
+    await page.goto("/independent/profile");
+    const chooser = page.waitForEvent("filechooser");
+    await page.getByRole("button", { name: "Replace intro" }).click();
+    await (await chooser).setFiles({ name: "intro.mp4", mimeType: "video/mp4", buffer: Buffer.alloc(64) });
+    await expect(toast(page, "Intro video replaced")).toBeVisible();
+
+    await page.goto("/team/discover");
+    await page.getByRole("button", { name: "Juan D." }).click();
+    const sheet = page.getByRole("dialog", { name: "Independent profile" });
+    await sheet.getByRole("button", { name: "Play Juan's intro video" }).click();
+    const player = page.getByRole("dialog", { name: "Juan's intro video" });
+    await expect(player).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(player).toHaveCount(0);
+    await expect(sheet).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
   });
 });

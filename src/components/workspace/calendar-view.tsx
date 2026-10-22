@@ -94,7 +94,7 @@ export function CalendarView({ items, query, setQuery, narrow }: { items: readon
         {header("border-b border-border px-3 py-2")}
         <div ref={grid} className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-auto" data-testid="calendar">
           {scheduled === 0 && items.length > 0 && (
-            <p className="border-b border-border bg-[#fafafa] px-4 py-2.5 text-[13px] leading-[1.4] text-ink-2">Nothing here has dates yet — set a start or due date and it shows on the calendar. Everything else is under Unscheduled.</p>
+            <p className="border-b border-border bg-[#fafafa] px-4 py-2.5 text-[13px] leading-[1.4] text-ink-2">Nothing here has dates yet. Set a start or due date and it shows on the calendar. Everything else is under Unscheduled.</p>
           )}
           {dnd.hint && (
             <p role="alert" className="flex items-center justify-between gap-2 border-b border-border bg-[#fcf2f2] px-4 py-2 text-[13px] text-[#8f1d1d]">
@@ -294,7 +294,7 @@ function DayAdd({ day, onClose }: { day: Day; onClose: () => void }) {
       <QuickAdd
         variant="cell"
         startOpen
-        placeholder={`Due ${shortLabel(day, today)} — name it`}
+        placeholder={`Due ${shortLabel(day, today)}: name it`}
         onClose={onClose}
         onAdd={(title) => actions.create({ title, due: isoOf(day) }, { announce: `Added “${title}”, due ${longLabel(day)}` })}
       />

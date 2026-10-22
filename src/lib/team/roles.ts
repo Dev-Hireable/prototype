@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { today } from "@/lib/portal/dates";
+import { durationDays, today } from "@/lib/portal/dates";
+import { trialTotal } from "@/lib/contract/job-types";
 import { closePosting, publishPosting, usePostings } from "@/lib/demo/deal";
 import { persisted, useStored } from "@/lib/demo/live";
 import { canPublishNow, companyStore, useCanPublish } from "./account";
@@ -12,6 +13,9 @@ import { postingFrom } from "./deal-view";
 /* The Team Builder's roles: drafts, and the ones published to the talent's job board. */
 
 const rolesStore = persisted("team.roles", seedRoles);
+
+/** A trial role saved when its pay was a monthly range reads as the range for the whole trial (trialTotal). */
+const withTrialTotal = (r: Role): Role => (r.type === "trial" ? { ...r, budget: trialTotal(r.budget, durationDays(r.duration)) } : r);
 
 /** A role as a notification names it — the slug, if the role has gone. */
 export const roleOf = (slug: string) => ({ slug, title: rolesStore.get().find((r) => r.slug === slug)?.title ?? slug });
@@ -61,7 +65,7 @@ function setRoleStatus(slug: string, status: RoleStatus) {
   if (status === "Active" && !canPublishNow()) return;
   const role = rolesStore.get().find((r) => r.slug === slug);
   rolesStore.set((rs) => rs.map((r) => (r.slug === slug ? { ...r, status, updated: today() } : r)));
-  if (role && status === "Active") publishPosting(postingFrom({ ...role, status }, companyStore.get()));
+  if (role && status === "Active") publishPosting(postingFrom(withTrialTotal({ ...role, status }), companyStore.get()));
   else closePosting(slug);
 }
 
@@ -78,6 +82,6 @@ export function useRoles() {
    * A role whose last seat was hired reads as Closed — its posting has left the board. Reopening
    * republishes the posting without the filled mark, so the role reads Active again.
    */
-  const roles = useMemo(() => stored.map((r) => (r.status === "Active" && postings.some((p) => p.slug === r.slug && p.filled) ? { ...r, status: "Closed" as const } : r)), [stored, postings]);
+  const roles = useMemo(() => stored.map(withTrialTotal).map((r) => (r.status === "Active" && postings.some((p) => p.slug === r.slug && p.filled) ? { ...r, status: "Closed" as const } : r)), [stored, postings]);
   return { roles, canPublish, addRole, duplicateRole, setRoleStatus, removeRole };
 }

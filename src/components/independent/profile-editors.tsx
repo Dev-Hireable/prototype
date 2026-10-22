@@ -34,7 +34,7 @@ const linkError = (v: string) => (v.trim() && !isUrl(v) ? "Enter a link, like yo
 const cap = (s: string) => s.replace(/^\w/, (c) => c.toUpperCase());
 
 /** Create Role's helper row under a field: what the field asks for on the left, a count on the right. */
-function Helper({ left, right }: { left: string; right: string }) {
+export function Helper({ left, right }: { left: string; right: string }) {
   return (
     <span className="flex justify-between text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
       <span>{left}</span>
@@ -142,7 +142,7 @@ function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved
     <div className="flex items-center gap-4">
       <ImagePicker
         image={<Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />}
-        label={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
+        label={`Change photo (JPG or PNG, up to ${IMAGE_MAX_MB}MB)`}
         onPick={async (f) => {
           if (!f) return;
           const problem = checkImage(f);
@@ -150,7 +150,7 @@ function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved
           onPhoto(await readImage(f));
         }}
       />
-      <p className="text-[12.5px] leading-[1.4] text-ink-2">{photo !== saved ? "New photo — saved with the rest when you press Save." : `Your photo · JPG or PNG, up to ${IMAGE_MAX_MB}MB`}</p>
+      <p className="text-[12.5px] leading-[1.4] text-ink-2">{photo !== saved ? "New photo, saved with the rest when you press Save." : `Your photo · JPG or PNG, up to ${IMAGE_MAX_MB}MB`}</p>
     </div>
   );
 }

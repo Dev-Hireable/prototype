@@ -3,10 +3,11 @@
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Avatar, Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
+import { FilePreview } from "@/components/portal/file-preview";
 import { Meter } from "@/components/portal/meter";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { PanelCard } from "@/components/portal/panel-card";
@@ -15,14 +16,19 @@ import { useDeal, useHydrated } from "@/lib/demo/deal";
 import {
   addToDispute,
   answerSettlement,
+  chapterOf,
+  chapterTerms,
   checkSplit,
   contractName,
   dateOf,
+  deadlineOf,
   dealContract,
   escrowOf,
   factsFor,
+  holds,
   isOpen,
   leftLabel,
+  nameIn,
   openProposal,
   otherParty,
   outcomeOf,
@@ -31,7 +37,9 @@ import {
   partyTurn,
   proposeSettlement,
   respondToDispute,
+  sentence,
   SLA_DAYS,
+  splitWords,
   stampOf,
   STATUS_TONE,
   TURN_DAYS,
@@ -39,9 +47,9 @@ import {
   useDisputes,
   withdrawDispute,
 } from "@/lib/demo/disputes";
-import type { Attachment, Dispute, DisputeParty, Entry, Proposal } from "@/lib/demo/disputes";
+import type { Attachment, CaseViewer, Dispute, DisputeParty, Entry, Escrow, Proposal } from "@/lib/demo/disputes";
 import type { PartyTurn } from "@/lib/disputes/case";
-import { CASE_FILE_TYPES, checkCaseFile, keepFile, MAX_CASE_FILE_MB, MAX_CASE_FILES, sizeLabel, useFileUrl } from "@/lib/demo/files";
+import { CASE_FILE_TYPES, checkCaseFile, keepFile, MAX_CASE_FILE_MB, MAX_CASE_FILES, sizeLabel, useFileUrl, usePreviewUrl } from "@/lib/demo/files";
 import { PAIR, useLive, type LivePayment } from "@/lib/demo/live";
 import { keyed } from "@/lib/portal/keys";
 import { useToast, type SetToast } from "@/lib/portal/toast";
@@ -54,15 +62,13 @@ import { useNow } from "@/lib/portal/use-now";
  * reply from here; support acts from its own header (the admin page).
  */
 
-export type CaseViewer = DisputeParty | "admin";
-
 /**
  * Each side's colour on the timeline, and how they're labelled — Hireable's: the Independent in the
- * brand pink, the company (the client) in the brand blue. The tags use a dark shade of each on its
- * own tint so the label clears AA; the avatar ring is the brand colour itself.
+ * brand pink, the Team Builder in the brand blue. The tags use a dark shade of each on its own tint
+ * so the label clears AA; the avatar ring is the brand colour itself.
  */
 const ACTOR: Record<Entry["by"], { mark: string; tag: string; role: string }> = {
-  team: { mark: "ring-brand-blue", tag: "bg-[#e6f6fe] text-[#005b8a]", role: "Company" },
+  team: { mark: "ring-brand-blue", tag: "bg-[#e6f6fe] text-[#005b8a]", role: "Team Builder" },
   independent: { mark: "ring-brand-pink", tag: "bg-[#ffebf1] text-[#a3123f]", role: "Independent" },
   support: { mark: "ring-[#d99a00]", tag: "bg-[#fff3cc] text-[#7a5e0a]", role: "Hireable support" },
   system: { mark: "ring-[#8a8f98]", tag: "bg-surface-2 text-ink-2", role: "Hireable" },
@@ -77,13 +83,14 @@ function nameFor(d: Dispute, by: Entry["by"], viewer: CaseViewer, name?: string)
   if (by === "support") return viewer === "admin" && name ? name : "Hireable support";
   return "Hireable";
 }
-/** A party inside a sentence: "you" or their name. */
-const them = (d: Dispute, p: DisputeParty, viewer: CaseViewer) => (p === viewer ? "you" : partyName(d, p));
 
 /* --------------------------------------------------------------- page -- */
 
-/** TB-092 / IN-081 — a party's own view of the case, reached from Disputes or any notification about it. */
-export function DisputeCasePage({ side, id }: { side: DisputeParty; id: string }) {
+/**
+ * TB-092 / IN-081 — a party's own view of the case, reached from Disputes or any notification about
+ * it. `offset` is the viewer's saved time zone, in minutes off UTC: the case reads in their clock.
+ */
+export function DisputeCasePage({ side, id, offset }: { side: DisputeParty; id: string; offset?: number }) {
   const hydrated = useHydrated();
   const d = useDisputes().find((x) => x.id === id);
   const now = useNow();
@@ -110,62 +117,69 @@ export function DisputeCasePage({ side, id }: { side: DisputeParty; id: string }
         ) : undefined
       }
     >
-      <DisputeCase dispute={d} viewer={side} onToast={setToast} />
-      {/* TB-093 / IN-082 — confirmed first; it can't be undone and closes the contract to a refile. */}
-      <Modal
-        open={withdrawing}
-        onClose={() => setWithdrawing(false)}
-        tone="danger"
-        title="Withdraw this dispute?"
-        description={`The case closes and the ${usd(d.amount)} hold is lifted. ${partyName(d, otherParty(side))} and Hireable support are told. It stays on file as Withdrawn, and you can't file another one on this contract.`}
-        footer={
-          <>
-            <Button size="lg" onClick={() => setWithdrawing(false)}>
-              Keep it open
-            </Button>
-            <Button
-              size="lg"
-              variant="danger"
-              onClick={async () => {
-                const r = await withdrawDispute(d.id, side);
-                setWithdrawing(false);
-                setToast(r.ok ? "Dispute withdrawn — the other side and Hireable support have been told" : r.error, r.ok ? "success" : "danger");
-              }}
-            >
-              Withdraw dispute
-            </Button>
-          </>
-        }
-      />
+      <DisputeCase dispute={d} viewer={side} offset={offset} onToast={setToast} />
+      <WithdrawDialog d={d} side={side} open={withdrawing} onClose={() => setWithdrawing(false)} onToast={setToast} />
       <Toast toast={toast} onClose={() => setToast(null)} />
     </Page>
   );
 }
 
-/** The case itself, for whichever of the three is looking. */
-export function DisputeCase({ dispute: d, viewer, onToast }: { dispute: Dispute; viewer: CaseViewer; onToast: SetToast }) {
+/**
+ * TB-093 / IN-082 — confirmed first: it can't be undone, and the part of the contract it was about
+ * (the trial, or the role) can't be disputed again. What follows is said as a list, that first.
+ */
+function WithdrawDialog({ d, side, open, onClose, onToast }: { d: Dispute; side: DisputeParty; open: boolean; onClose: () => void; onToast: SetToast }) {
+  const other = partyName(d, otherParty(side));
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      tone="danger"
+      title="Withdraw this dispute?"
+      footer={
+        <>
+          <Button size="lg" onClick={onClose}>
+            Keep it open
+          </Button>
+          <Button
+            size="lg"
+            variant="danger"
+            onClick={async () => {
+              const r = await withdrawDispute(d.id, side);
+              onClose();
+              onToast(r.ok ? `Dispute withdrawn. ${other} and Hireable support have been told.` : r.error, r.ok ? "success" : "danger");
+            }}
+          >
+            Withdraw dispute
+          </Button>
+        </>
+      }
+    >
+      <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-[1.4] text-ink-2">
+        <li>You can&apos;t file another dispute about this {chapterOf(d)}.</li>
+        <li>The {usd(d.amount)} hold is lifted.</li>
+        <li>{other} and Hireable support are notified.</li>
+      </ul>
+    </Modal>
+  );
+}
+
+/** The case itself, for whichever of the three is looking; `offset` is the viewer's clock (this device's without one). */
+export function DisputeCase({ dispute: d, viewer, offset, onToast }: { dispute: Dispute; viewer: CaseViewer; offset?: number; onToast: SetToast }) {
   const now = useNow();
-  const reply = useRef<HTMLTextAreaElement>(null);
-  const [mode, setMode] = useState<"say" | "propose">("say");
   const proposal = openProposal(d);
-  const toReply = () => {
-    setMode("say");
-    document.getElementById("reply")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    // After the form is back on "say" — the textarea may only just have mounted.
-    requestAnimationFrame(() => reply.current?.focus());
-  };
   return (
     <div className="flex flex-col gap-5">
-      <TurnBanner d={d} viewer={viewer} now={now} onRespond={toReply} />
+      <TurnBanner d={d} viewer={viewer} now={now} offset={offset} />
       <div className={WITH_SIDE}>
         <div className="flex w-full min-w-0 flex-1 flex-col gap-4">
-          <Parties d={d} viewer={viewer} now={now} />
+          <Parties d={d} viewer={viewer} />
           {proposal && <ProposalCard d={d} p={proposal} viewer={viewer} onToast={onToast} />}
           {/* No visible heading: the thread reads as what it is. Screen readers still get the region's name. */}
           <section aria-label="Case timeline" className="flex flex-col gap-3">
-            <Timeline d={d} viewer={viewer} now={now} />
+            <Timeline d={d} viewer={viewer} offset={offset} />
           </section>
-          {viewer !== "admin" && isOpen(d) && <Composer d={d} side={viewer} now={now} mode={mode} setMode={setMode} textRef={reply} onToast={onToast} />}
+          {viewer !== "admin" && isOpen(d) && <Composer d={d} side={viewer} now={now} onToast={onToast} />}
         </div>
         <CaseSide d={d} viewer={viewer} />
       </div>
@@ -175,62 +189,59 @@ export function DisputeCase({ dispute: d, viewer, onToast }: { dispute: Dispute;
 
 /* ------------------------------------------------------------- banner -- */
 
-/** Whose move it is and until when — or how it ended. */
-function TurnBanner({ d, viewer, now, onRespond }: { d: Dispute; viewer: CaseViewer; now: number; onRespond: () => void }) {
+/** Whose move it is and until when — or how it ended. The deadline is said here only. */
+function TurnBanner({ d, viewer, now, offset }: { d: Dispute; viewer: CaseViewer; now: number; offset?: number }) {
   const t = partyTurn(d);
   if (d.status === "Withdrawn") return <Callout>{d.filedBy === viewer ? "You withdrew this dispute" : `${partyName(d, d.filedBy)} withdrew this dispute`}, so the case closed and the hold was lifted. It stays on file.</Callout>;
   if (!isOpen(d)) return <ClosedBanner d={d} viewer={viewer} />;
-  if (t) return <PartyTurnBanner d={d} t={t} viewer={viewer} now={now} onRespond={onRespond} />;
+  if (t) return <PartyTurnBanner d={d} t={t} viewer={viewer} now={now} offset={offset} />;
   if (viewer === "admin")
     return (
       <Callout tone="warn">
-        <span className="font-semibold">Your turn to review.</span> Rule for one side, reject it, or ask one side for more — they&apos;ll have {TURN_DAYS} days to answer.
+        <span className="font-semibold">Your turn to review.</span> Rule for one side, reject it, or ask one side for more. They&apos;ll have {TURN_DAYS} days to answer.
       </Callout>
     );
-  return <Callout>Hireable support is reviewing the case — usually within {SLA_DAYS} working days. You can still add information or propose a settlement meanwhile.</Callout>;
+  return <Callout>Hireable support is reviewing the case. This usually takes up to {SLA_DAYS} working days. You can still add to the case or propose a settlement.</Callout>;
 }
 
-/** How the case ended: the outcome, support's note, and what happens to the money next. */
+/**
+ * How the case ended, worded for the viewer ("Resolved in your favor. $200.00 refunded to you."), in
+ * green once it's settled or resolved. The reasons are on the timeline, so a party reads the outcome
+ * alone; support also reads its notes and what's left for it to do.
+ */
 function ClosedBanner({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
   const r = d.resolution;
-  // The same banner as every other state of the case (it had a green box of its own): the
-  // outcome, support's note, and what happens to the money next.
+  const support = viewer === "admin";
   return (
     <div role="status">
-      <Callout>
+      <Callout tone={d.status === "Resolved" ? "success" : "info"}>
         <span className="flex flex-col gap-1">
-          <span className="font-semibold">{outcomeOf(d)}</span>
-          {r?.notes && <span className="whitespace-pre-line">{r.notes}</span>}
-          {r?.payment === "awaiting release" && <span>{viewer === "admin" ? "Release the payment to pay it out." : `Hireable support releases the ${usd(d.amount)} next.`}</span>}
+          <span className="font-semibold">{outcomeOf(d, viewer)}</span>
+          {support && r?.notes && <span className="whitespace-pre-line">{r.notes}</span>}
+          {support && r?.payment === "awaiting release" && <span>Release the payment to pay it out.</span>}
         </span>
       </Callout>
     </div>
   );
 }
 
-/** A party's turn and its deadline: theirs to respond to, or — to everyone else — who the case is waiting on. */
-function PartyTurnBanner({ d, t, viewer, now, onRespond }: { d: Dispute; t: PartyTurn; viewer: CaseViewer; now: number; onRespond: () => void }) {
-  const due = `${stampOf(t.due)} (${leftLabel(t.due, now).toLowerCase()})`;
+/**
+ * A party's turn and its deadline, in the viewer's clock: theirs to respond to ("Your turn to respond
+ * by 29 Sep, 4:45 PM your time (3 days left)."), or who the case is waiting on and until when.
+ */
+function PartyTurnBanner({ d, t, viewer, now, offset }: { d: Dispute; t: PartyTurn; viewer: CaseViewer; now: number; offset?: number }) {
+  const due = `${deadlineOf(t.due, offset)} your time (${leftLabel(t.due, now).toLowerCase()})`;
   const winner = partyName(d, otherParty(t.who));
   if (viewer === t.who)
     return (
-      <Callout
-        tone="warn"
-        action={
-          <Button size="sm" variant="primary" onClick={onRespond}>
-            Respond
-          </Button>
-        }
-      >
-        <span className="font-semibold">It&apos;s your turn to respond</span> — by {due}.{" "}
-        {t.why === "asked" && t.note ? <>Hireable support asked: “{t.note}” </> : null}
-        If you don&apos;t respond in time, the dispute closes in {winner}&apos;s favor.
+      <Callout tone="warn">
+        <span className="font-semibold">Your turn to respond by {due}.</span> {t.why === "asked" && t.note ? <>Hireable support asked: “{t.note}” </> : null}
+        If you miss it, the dispute closes in {winner}&apos;s favor.
       </Callout>
     );
   return (
     <Callout>
-      Waiting on {partyName(d, t.who)} to {t.why === "asked" ? "answer Hireable support" : "respond"} — they have until {due}.{" "}
-      {viewer === "admin" ? `If they don't respond, it closes in ${winner}'s favor.` : "If they don't, the dispute closes in your favor."}
+      Waiting on {partyName(d, t.who)} {t.why === "asked" ? "to answer Hireable support " : ""}until {due}.{viewer === "admin" ? ` If they don't respond, it closes in ${winner}'s favor.` : ""}
     </Callout>
   );
 }
@@ -247,8 +258,8 @@ const DID: Partial<Record<Entry["kind"], string>> = {
   withdrawn: "Withdrew the dispute",
 };
 
-/** Where each side stands, at a glance: whose turn it is, and what each last did. */
-function Parties({ d, viewer, now }: { d: Dispute; viewer: CaseViewer; now: number }) {
+/** Where each side stands, at a glance: whose turn it is (the banner says until when), and what each last did. */
+function Parties({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
   const t = partyTurn(d);
   const cell = (by: "team" | "independent" | "support") => {
     const last = [...d.entries].reverse().find((e) => e.by === by && (by === "support" || DID[e.kind]));
@@ -261,7 +272,7 @@ function Parties({ d, viewer, now }: { d: Dispute; viewer: CaseViewer; now: numb
             ? `Reviewing since ${dateOf(d.turn?.since ?? d.updated)}`
             : "Reviews once they've responded"
         : turn && t
-          ? `${viewer === by ? "Your" : "Their"} turn · ${leftLabel(t.due, now).toLowerCase()}`
+          ? `${viewer === by ? "Your" : "Their"} turn`
           : last
             ? `${DID[last.kind]} · ${dateOf(last.at)}`
             : "No response yet";
@@ -272,7 +283,8 @@ function Parties({ d, viewer, now }: { d: Dispute; viewer: CaseViewer; now: numb
       <li key={by} className={`flex min-w-0 flex-1 items-center gap-3 rounded-lg bg-white p-3 ${turn ? "ring-2 ring-primary" : "outline -outline-offset-1 outline-border"}`} aria-current={turn ? "step" : undefined}>
         {avatar && <Avatar src={avatar} size={36} />}
         <span className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-[13.5px] leading-[1.3] font-semibold text-ink">{by === "support" ? (d.handler && viewer === "admin" ? d.handler : "Hireable support") : nameFor(d, by, viewer) === "You" ? `You · ${partyName(d, by)}` : partyName(d, by)}</span>
+          {/* The whole name, on two lines if it needs them: "You · Nairobi Sol…" said too little. */}
+          <span className="text-[13.5px] leading-[1.3] font-semibold break-words text-ink">{by === "support" ? (d.handler && viewer === "admin" ? d.handler : "Hireable support") : nameFor(d, by, viewer) === "You" ? `You · ${partyName(d, by)}` : partyName(d, by)}</span>
           <span className="text-[12px] leading-[1.3] text-ink-2">{ACTOR[by].role}</span>
           <span className={`text-[12.5px] leading-[1.3] ${turn ? "font-semibold text-primary" : "text-ink-2"}`}>{status}</span>
         </span>
@@ -285,7 +297,7 @@ function Parties({ d, viewer, now }: { d: Dispute; viewer: CaseViewer; now: numb
 /* ----------------------------------------------------------- timeline -- */
 
 function headline(d: Dispute, e: Entry, viewer: CaseViewer): string {
-  const to = e.to ? them(d, e.to, viewer) : "";
+  const to = e.to ? nameIn(d, e.to, viewer) : "";
   switch (e.kind) {
     case "filed":
       return "filed the dispute";
@@ -304,7 +316,7 @@ function headline(d: Dispute, e: Entry, viewer: CaseViewer): string {
     case "declined":
       return "declined the settlement";
     case "missed":
-      return `closed the case — ${to} didn't respond in time`;
+      return `closed the case: ${to} didn't respond in time`;
     case "ruling":
       return `ruled in favor of ${to}`;
     case "rejected":
@@ -318,14 +330,16 @@ function headline(d: Dispute, e: Entry, viewer: CaseViewer): string {
   }
 }
 
-/** One timeline, oldest first — each entry marked with who it's from. */
-function Timeline({ d, viewer, now }: { d: Dispute; viewer: CaseViewer; now: number }) {
-  const t = partyTurn(d);
+/**
+ * One timeline, oldest first — each entry marked with who it's from, in the viewer's clock. Whose turn
+ * it is and until when is the banner's to say, so the timeline doesn't end on it again.
+ */
+function Timeline({ d, viewer, offset }: { d: Dispute; viewer: CaseViewer; offset?: number }) {
   const entries = [...d.entries].sort((a, b) => a.at - b.at);
   return (
     // A thread, as comments read on Facebook or Reddit: a rail from each avatar down to the next (the
-    // last entry's stops at its own card, unless the waiting row follows), and a rounded elbow from
-    // the rail into each entry's card. Both start behind the avatar, so nothing reads as cut off.
+    // last entry's stops at its own card), and a rounded elbow from the rail into each entry's card.
+    // Both start behind the avatar, so nothing reads as cut off.
     <ol className="flex flex-col gap-4 [&>li:last-child]:after:hidden">
       {entries.map((e) => {
         const avatar = avatarOf(d, e.by);
@@ -347,26 +361,14 @@ function Timeline({ d, viewer, now }: { d: Dispute; viewer: CaseViewer; now: num
                 <span className="text-ink">{headline(d, e, viewer)}</span>
                 <span className={`rounded px-1.5 py-0.5 text-[11.5px] font-medium ${ACTOR[e.by].tag}`}>{ACTOR[e.by].role}</span>
                 <time dateTime={new Date(e.at).toISOString()} className="ml-auto text-[12px] whitespace-nowrap text-ink-2">
-                  {stampOf(e.at)}
+                  {stampOf(e.at, offset)}
                 </time>
               </p>
-              <EntryBody d={d} e={e} />
+              <EntryBody d={d} e={e} viewer={viewer} offset={offset} />
             </div>
           </li>
         );
       })}
-      {isOpen(d) && (
-        <li className="relative flex items-center gap-3" data-entry="waiting">
-          <span className="relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border-2 border-dashed border-[#c3c3c3] bg-white">
-            <ICONS.hourglass size={16} aria-hidden className="text-ink-2" />
-          </span>
-          <p className="text-[13px] leading-[1.4] text-ink-2">
-            {t
-              ? `${t.who === viewer ? "Your turn" : `Waiting on ${partyName(d, t.who)}`} — respond by ${stampOf(t.due)} · ${leftLabel(t.due, now).toLowerCase()}`
-              : `With Hireable support for review since ${stampOf(d.turn?.since ?? d.updated)}`}
-          </p>
-        </li>
-      )}
     </ol>
   );
 }
@@ -375,7 +377,7 @@ function Quote({ children }: { children: ReactNode }) {
   return <p className="text-[14px] leading-[1.5] whitespace-pre-line break-words text-ink">{children}</p>;
 }
 
-type EntryProps = { d: Dispute; e: Entry };
+type EntryProps = { d: Dispute; e: Entry; viewer: CaseViewer; offset?: number };
 
 /** What each kind of entry shows under its headline; a kind that isn't here shows nothing more. */
 const ENTRY_BODY: Partial<Record<Entry["kind"], (props: EntryProps) => ReactNode>> = {
@@ -391,9 +393,9 @@ const ENTRY_BODY: Partial<Record<Entry["kind"], (props: EntryProps) => ReactNode
   released: ReleasedBody,
 };
 
-function EntryBody({ d, e }: EntryProps) {
-  const Body = ENTRY_BODY[e.kind];
-  return Body ? <Body d={d} e={e} /> : null;
+function EntryBody(props: EntryProps) {
+  const Body = ENTRY_BODY[props.e.kind];
+  return Body ? <Body {...props} /> : null;
 }
 
 /** A filing: what it's about and the amount in question, then what the filer said. */
@@ -424,39 +426,48 @@ function Statement({ e }: { e: Entry }) {
 }
 
 /** Support's question, and when the answer is due. */
-function AskedBody({ e }: EntryProps) {
+function AskedBody({ e, offset }: EntryProps) {
   return (
     <>
       {e.text && <Quote>{e.text}</Quote>}
-      {e.due && <p className="text-[12.5px] leading-[1.4] text-ink-2">Respond by {stampOf(e.due)}</p>}
+      {e.due && <p className="text-[12.5px] leading-[1.4] text-ink-2">Respond by {stampOf(e.due, offset)}</p>}
     </>
   );
 }
 
 /** The new deadline support gave. */
-function ExtendedBody({ e }: EntryProps) {
-  return e.due ? <p className="text-[13px] leading-[1.4] text-ink-2">New deadline: {stampOf(e.due)}</p> : null;
+function ExtendedBody({ e, offset }: EntryProps) {
+  return e.due ? <p className="text-[13px] leading-[1.4] text-ink-2">New deadline: {stampOf(e.due, offset)}</p> : null;
 }
 
-/** The settlement proposed: how it splits the amount, its note, and where it stands now. */
-function SettlementBody({ d, e }: EntryProps) {
+/** Where a proposal that's off the table ended up. Declining keeps the case going, so it isn't red. */
+const SETTLED_AS: Record<Exclude<Proposal["state"], "open">, [string, "ok" | "neutral"]> = { accepted: ["Accepted", "ok"], declined: ["Declined", "neutral"], replaced: ["Replaced by a newer proposal", "neutral"], void: ["Closed without an answer", "neutral"] };
+
+/**
+ * A settlement proposed: the one still open is the card above the timeline, so its entry is the
+ * headline alone; an earlier one reads in a line — how it split the amount — with its note and where
+ * it ended up.
+ */
+function SettlementBody({ d, e, viewer }: EntryProps) {
   const p = d.proposals.find((x) => x.id === e.proposal);
-  if (!p) return null;
-  const STATE: Record<Proposal["state"], [string, "warn" | "ok" | "danger" | "neutral"]> = { open: ["Waiting for an answer", "warn"], accepted: ["Accepted", "ok"], declined: ["Declined", "danger"], replaced: ["Replaced by a newer proposal", "neutral"], void: ["Closed without an answer", "neutral"] };
+  if (!p || p.state === "open") return null;
+  const [said, tone] = SETTLED_AS[p.state];
   return (
     <>
-      <Split d={d} p={p} />
+      <p className="text-[13px] leading-[1.4] text-ink-2 tabular-nums">
+        {usd(p.refund)} back to {nameIn(d, "team", viewer)} · {usd(p.release)} to {nameIn(d, "independent", viewer)}
+      </p>
       {p.note && <Quote>{p.note}</Quote>}
       <span className="self-start">
-        <StatusDot tone={STATE[p.state][1]}>{STATE[p.state][0]}</StatusDot>
+        <StatusDot tone={tone}>{said}</StatusDot>
       </span>
     </>
   );
 }
 
 /** The deadline that ran out, and whose favor the case closed in. */
-function MissedBody({ d, e }: EntryProps) {
-  return e.due ? <p className="text-[13px] leading-[1.45] text-ink-2">The deadline was {stampOf(e.due)}, so the case closed in {partyName(d, otherParty(e.to ?? "independent"))}&apos;s favor.</p> : null;
+function MissedBody({ d, e, offset }: EntryProps) {
+  return e.due ? <p className="text-[13px] leading-[1.45] text-ink-2">The deadline was {stampOf(e.due, offset)}, so the case closed in {partyName(d, otherParty(e.to ?? "independent"))}&apos;s favor.</p> : null;
 }
 
 /** Support's reasons for a ruling or a rejection. */
@@ -471,26 +482,27 @@ function ReleasedBody({ d }: EntryProps) {
 
 /* ---------------------------------------------------------- settlement -- */
 
-/** A proposal's two parts, and how the amount in question divides between them. */
-function Split({ d, p }: { d: Dispute; p: Pick<Proposal, "refund" | "release"> }) {
+/** A proposal's two parts, and how the amount in question divides between them — the viewer's own part as theirs ("To you"). */
+function Split({ d, p, viewer }: { d: Dispute; p: Pick<Proposal, "refund" | "release">; viewer: CaseViewer }) {
   const share = d.amount > 0 ? (p.refund / d.amount) * 100 : 50;
+  const [company, talent] = [nameIn(d, "team", viewer), nameIn(d, "independent", viewer)];
   return (
     <div className="flex flex-col gap-2">
-      {/* Each side's share in its colour: the company's refund blue, the Independent's release pink. */}
+      {/* Each side's share in its colour: the Team Builder's refund blue, the Independent's release pink. */}
       <Meter
         parts={[
           { value: share, color: "var(--color-brand-blue)", label: "refund" },
           { value: 100 - share, color: "var(--color-brand-pink)", label: "release" },
         ]}
-        label={`${usd(p.refund)} back to ${d.team.company}, ${usd(p.release)} to ${d.independent.name}`}
+        label={`${usd(p.refund)} back to ${company}, ${usd(p.release)} to ${talent}`}
       />
       <dl className="grid grid-cols-2 gap-3 text-[13px] leading-[1.4]">
         <div className="flex flex-col gap-0.5">
-          <dt className="text-ink-2">Back to {d.team.company}</dt>
+          <dt className="text-ink-2">Back to {company}</dt>
           <dd className="text-[16px] font-semibold text-ink tabular-nums">{usd(p.refund)}</dd>
         </div>
         <div className="flex flex-col gap-0.5">
-          <dt className="text-ink-2">To {d.independent.name}</dt>
+          <dt className="text-ink-2">To {talent}</dt>
           <dd className="text-[16px] font-semibold text-ink tabular-nums">{usd(p.release)}</dd>
         </div>
       </dl>
@@ -498,7 +510,10 @@ function Split({ d, p }: { d: Dispute; p: Pick<Proposal, "refund" | "release"> }
   );
 }
 
-/** The settlement on the table: the other side accepts or declines; the proposer and support wait. */
+/**
+ * The settlement on the table: the other side accepts or declines; the proposer and support wait.
+ * Declining keeps the case going, so it's a plain button beside Accept, not a red one.
+ */
 function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; viewer: CaseViewer; onToast: SetToast }) {
   const receiver = otherParty(p.by);
   const [confirming, setConfirming] = useState(false);
@@ -509,7 +524,7 @@ function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; view
     try {
       const r = await answerSettlement(d.id, viewer, accept);
       setConfirming(false);
-      onToast(r.ok ? (accept ? "Settled — the dispute is closed and the money has moved" : `Declined — ${partyName(d, p.by)} has been told`) : r.error, r.ok ? "success" : "danger");
+      onToast(r.ok ? (accept ? "Settled. The dispute is closed and the money has moved." : `Declined. ${partyName(d, p.by)} has been told.`) : r.error, r.ok ? "success" : "danger");
     } finally {
       setBusy(false);
     }
@@ -517,12 +532,12 @@ function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; view
   return (
     <section aria-label="Settlement proposal" className="flex flex-col gap-3 rounded-lg bg-[#f7fbfe] p-4 outline -outline-offset-1 outline-accent-soft">
       <p className="text-[14px] leading-[1.4] font-semibold text-ink">{p.by === viewer ? "You proposed a settlement" : `${partyName(d, p.by)} proposed a settlement`}</p>
-      <Split d={d} p={p} />
+      <Split d={d} p={p} viewer={viewer} />
       {p.note && <Quote>{p.note}</Quote>}
       {viewer === receiver ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <span className="mr-auto text-[12.5px] leading-[1.4] text-ink-2">Accepting closes the dispute and moves the money straight away.</span>
-          <Button size="md" variant="danger" disabled={busy} onClick={() => void decide(false)}>
+          <Button size="md" disabled={busy} onClick={() => void decide(false)}>
             Decline
           </Button>
           <Button size="md" variant="primary" disabled={busy} onClick={() => setConfirming(true)}>
@@ -536,7 +551,7 @@ function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; view
         open={confirming}
         onClose={() => setConfirming(false)}
         title="Accept this settlement?"
-        description={`The dispute closes and the money moves straight away: ${usd(p.refund)} back to ${d.team.company} and ${usd(p.release)} to ${d.independent.name}. This can't be undone.`}
+        description={viewer === "admin" ? undefined : `${splitWords(d, p, viewer, false)} The dispute closes and this can't be undone.`}
         footer={
           <>
             <Button size="lg" onClick={() => setConfirming(false)}>
@@ -554,7 +569,9 @@ function ProposalCard({ d, p, viewer, onToast }: { d: Dispute; p: Proposal; view
 
 /* ------------------------------------------------------------ replying -- */
 
-function Composer({ d, side, now, mode, setMode, textRef, onToast }: { d: Dispute; side: DisputeParty; now: number; mode: "say" | "propose"; setMode: (m: "say" | "propose") => void; textRef: RefObject<HTMLTextAreaElement | null>; onToast: SetToast }) {
+/** The party's reply: a response or more for the case, or a settlement to propose. The one place to respond from. */
+function Composer({ d, side, now, onToast }: { d: Dispute; side: DisputeParty; now: number; onToast: SetToast }) {
+  const [mode, setMode] = useState<"say" | "propose">("say");
   const can = partyCan(d, side, now);
   if (!can.respond && !can.add && !can.propose) return null;
   return (
@@ -568,13 +585,13 @@ function Composer({ d, side, now, mode, setMode, textRef, onToast }: { d: Disput
           { value: "propose", label: "Propose a settlement" },
         ]}
       />
-      {mode === "say" ? <SayForm d={d} side={side} respond={can.respond} textRef={textRef} onToast={onToast} /> : <ProposeForm d={d} side={side} onDone={() => setMode("say")} onToast={onToast} />}
+      {mode === "say" ? <SayForm d={d} side={side} respond={can.respond} onToast={onToast} /> : <ProposeForm d={d} side={side} onDone={() => setMode("say")} onToast={onToast} />}
     </section>
   );
 }
 
 /** A response (when it's their turn) or more for the case (when it isn't), with files and a link. */
-function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: DisputeParty; respond: boolean; textRef: RefObject<HTMLTextAreaElement | null>; onToast: SetToast }) {
+function SayForm({ d, side, respond, onToast }: { d: Dispute; side: DisputeParty; respond: boolean; onToast: SetToast }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [link, setLink] = useState("");
@@ -592,7 +609,7 @@ function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: Dis
       setText("");
       setFiles([]);
       setLink("");
-      onToast(respond ? "Response sent — Hireable support is reviewing the case" : `Added to the case — ${other} and Hireable support can read it`);
+      onToast(respond ? "Response sent. Hireable support is reviewing the case." : `Added to the case. ${other} and Hireable support can read it.`);
     } catch {
       setError("The files couldn't be saved in this browser. Try fewer or smaller ones.");
     } finally {
@@ -601,11 +618,11 @@ function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: Dis
   };
   return (
     <div className="flex flex-col gap-3">
-      <Field label={respond ? "Your response" : "What should Hireable support know?"} error={error ?? undefined}>
-        <Textarea ref={textRef} rows={4} value={text} onChange={(e) => (setText(e.target.value), setError(null))} placeholder="Dates, what was agreed and what happened. Support checks it against the task log and the payments." maxLength={4000} />
+      <Field label={respond ? "Your response" : "What should Hireable support know?"} error={error ?? undefined} required>
+        <Textarea rows={4} required value={text} onChange={(e) => (setText(e.target.value), setError(null))} placeholder="Dates, what was agreed and what happened. Support checks it against the task log and the payments." maxLength={4000} />
       </Field>
       <div className="flex flex-col gap-2">
-        <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Screenshots and files</p>
+        <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Screenshots and files (optional)</p>
         <AttachmentPicker files={files} onChange={setFiles} onError={setError} />
       </div>
       <Field label="Link (optional)">
@@ -621,13 +638,20 @@ function SayForm({ d, side, respond, textRef, onToast }: { d: Dispute; side: Dis
   );
 }
 
-/** How to split the amount in question — the other side accepts it to close the case. */
+/**
+ * How to split the amount in question — the other side accepts it to close the case. The viewer's
+ * own part reads as theirs ("To you"), the line under the two amounts says what they must total
+ * (and turns into the error when they don't), and Send proposal says why it's off.
+ */
 function ProposeForm({ d, side, onDone, onToast }: { d: Dispute; side: DisputeParty; onDone: () => void; onToast: SetToast }) {
   const { refund, release, note, setNote, busy, error, problem, setPart, preset, send } = useSettlementDraft(d, side, () => {
     onDone();
-    onToast(`Proposal sent — ${partyName(d, otherParty(side))} can accept or decline`);
+    onToast(`Proposal sent. ${partyName(d, otherParty(side))} can accept or decline.`);
   });
   const half = Math.floor((d.amount * 100) / 2) / 100;
+  const [company, talent] = [nameIn(d, "team", side), nameIn(d, "independent", side)];
+  const blank = !refund.trim() || !release.trim();
+  const why = busy ? undefined : (problem ?? (blank ? `Enter how to split the ${usd(d.amount)}` : undefined));
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[13px] leading-[1.45] text-ink-2">
@@ -635,28 +659,33 @@ function ProposeForm({ d, side, onDone, onToast }: { d: Dispute; side: DisputePa
       </p>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Quick splits">
         <Button size="sm" onClick={() => preset(d.amount)}>
-          All back to {d.team.company}
+          All back to {company}
         </Button>
         <Button size="sm" onClick={() => preset(half)}>
           Half each
         </Button>
         <Button size="sm" onClick={() => preset(0)}>
-          All to {d.independent.name}
+          All to {talent}
         </Button>
       </div>
-      <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
-        <Field label={`Back to ${d.team.company}`}>
-          <Input value={refund} inputMode="decimal" onChange={(e) => setPart("refund", e.target.value)} placeholder="0.00" />
-        </Field>
-        <Field label={`To ${d.independent.name}`}>
-          <Input value={release} inputMode="decimal" onChange={(e) => setPart("release", e.target.value)} placeholder="0.00" />
-        </Field>
+      <div className="flex flex-col gap-2">
+        <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          <Field label={`Back to ${company}`} required>
+            <Input value={refund} required inputMode="decimal" onChange={(e) => setPart("refund", e.target.value)} placeholder="0.00" />
+          </Field>
+          <Field label={`To ${talent}`} required>
+            <Input value={release} required inputMode="decimal" onChange={(e) => setPart("release", e.target.value)} placeholder="0.00" />
+          </Field>
+        </div>
+        <p role={problem ? "alert" : undefined} className={`text-[13px] leading-[1.2] tracking-[0.2px] ${problem ? "text-danger" : "text-ink-2"}`}>
+          {problem ?? `Must total ${usd(d.amount)}.`}
+        </p>
       </div>
-      <Field label="Note (optional)" error={error ?? problem ?? undefined}>
+      <Field label="Note (optional)" error={error ?? undefined}>
         <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why this split is fair" maxLength={1000} />
       </Field>
       <div className="flex justify-end">
-        <Button size="lg" variant="primary" disabled={busy || !!problem || !refund.trim() || !release.trim()} onClick={() => void send()}>
+        <Button size="lg" variant="primary" disabled={busy || !!problem || blank} title={why} onClick={() => void send()}>
           {busy ? "Sending…" : "Send proposal"}
         </Button>
       </div>
@@ -679,10 +708,13 @@ function useSettlementDraft(d: Dispute, side: DisputeParty, onSent: () => void) 
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** Typing one part fills in the other, so the two always add up. */
+  /**
+   * Typing one part fills in the other, so the two always add up. More than the whole leaves the
+   * other at 0.00, so the line under them says what they must total rather than asking for a number.
+   */
   const setPart = (which: "refund" | "release", v: string) => {
     const n = num(v);
-    const rest = Number.isFinite(n) && n >= 0 && n <= d.amount ? cents(d.amount - n) : "";
+    const rest = Number.isFinite(n) && n >= 0 ? cents(Math.max(0, d.amount - n)) : "";
     if (which === "refund") {
       setRefund(v);
       setRelease(rest);
@@ -772,28 +804,10 @@ export function AttachmentPicker({ files, onChange, onError }: { files: File[]; 
         }}
       />
       <p className="text-[12px] leading-[1.4] text-ink-2">
-        Screenshots or PDFs — drag them here or add them. Up to {MAX_CASE_FILES} files, {MAX_CASE_FILE_MB} MB each.
+        Screenshots or PDFs. Up to {MAX_CASE_FILES} files, {MAX_CASE_FILE_MB} MB each.
       </p>
     </div>
   );
-}
-
-/**
- * A picked image as a URL for its preview, made once it's on screen and let go when it leaves. Made
- * in an effect, not during render: Strict Mode's remount revoked the memoized URL and blanked the
- * preview.
- */
-function usePreviewUrl(file: File | null): string | null {
-  const [state, setState] = useState<{ file: File; url: string } | null>(null);
-  useEffect(() => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    // The URL is a browser resource made and let go here — the external system this effect syncs.
-    // oxlint-disable-next-line react/set-state-in-effect
-    setState({ file, url });
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-  return state && state.file === file ? state.url : null;
 }
 
 function PickedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
@@ -837,7 +851,7 @@ function AttachmentTile({ file }: { file: Attachment }) {
   if (missing)
     return (
       <span className="flex h-10 items-center gap-2 rounded-lg bg-surface-2 px-3 text-[12.5px] text-ink-2">
-        <ICONS.document size={16} aria-hidden /> {file.name} — not in this browser
+        <ICONS.document size={16} aria-hidden /> {file.name} (not in this browser)
       </span>
     );
   if (file.type.startsWith("image/"))
@@ -850,15 +864,7 @@ function AttachmentTile({ file }: { file: Attachment }) {
           )}
         </button>
         <Modal open={open} onClose={() => setOpen(false)} title={file.name} width={960} closeButton>
-          {url && (
-            <div className="flex flex-col gap-3">
-              {/* eslint-disable-next-line @next/next/no-img-element -- a file kept in this browser, shown from an object URL */}
-              <img src={url} alt={file.name} className="max-h-[calc(70vh/var(--ui-scale))] w-full rounded-lg bg-surface-2 object-contain" />
-              <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 self-start text-[13px] font-semibold text-primary hover:underline">
-                Open full size <ICONS.northEast size={16} aria-hidden />
-              </a>
-            </div>
-          )}
+          {url && <FilePreview url={url} type={file.type} alt={file.name} />}
         </Modal>
       </>
     );
@@ -873,7 +879,7 @@ function AttachmentTile({ file }: { file: Attachment }) {
 
 /* --------------------------------------------------------------- money -- */
 
-/** The amount, the contract's payments — paid, refunded, still held — and the contract itself. */
+/** The amount, the contract's money in short, and the contract itself as its page shows it now. */
 function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
   const deal = useDeal();
   const all = useDisputes();
@@ -882,8 +888,11 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
   // A dispute about the trial moves the trial's escrow — even after the contract converts; one about
   // the role holds pay back instead (@/lib/demo/contract). The store decides it the same way.
   const escrow = onDeal && d.type === "trial" ? escrowOf(deal, all) : null;
-  const facts = onDeal ? factsFor({ key: d.contract, links: d.links, title: d.title, type: d.type, rate: d.rate, started: d.facts.started, ends: d.facts.ends }, deal, all) : d.facts;
-  const rows = live.payments.filter((p) => p.contract === d.links.independent || p.contract === d.links.team);
+  // The dates and pay of the part it's about, read from the live contract: the contract page's own.
+  const terms = chapterTerms(d, deal);
+  const facts = onDeal ? factsFor({ key: d.contract, links: d.links, title: d.title, type: d.type, rate: terms.pay, started: terms.started, ends: terms.ends }, deal, all) : d.facts;
+  // The money of that part only: the trial's escrow and what it paid, or the role's pay.
+  const rows = live.payments.filter((p) => (p.contract === d.links.independent || p.contract === d.links.team) && (p.chapter === "trial") === (d.type === "trial"));
   const contractHref = contractHrefFor(d, viewer, onDeal);
   return (
     // The same side column as a contract's tabs: a third of the width, 340–440px.
@@ -893,16 +902,17 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
           {usd(d.amount)}
         </p>
         <p className="text-[13px] leading-[1.45] text-ink-2">
-          {d.reason} · {whereItStands(d, !!escrow, onDeal)}
+          {d.reason} · {whereItStands(d, viewer, !!escrow, onDeal)}
         </p>
       </PanelCard>
-      <PaymentsPanel d={d} escrow={escrow} rows={rows} />
+      <PaymentSummary d={d} viewer={viewer} escrow={escrow} rows={rows} />
       <PanelCard title="Contract">
         <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
           <Line k="Contract" v={contractName(d)} />
-          <Line k="Runs" v={`${facts.started} – ${facts.ends}`} />
-          <Line k="Rate" v={d.rate} />
-          <Line k="Tasks approved" v={facts.tasksTotal ? `${facts.tasksDone} of ${facts.tasksTotal}` : "No tasks on record"} />
+          <Line k="Runs" v={`${terms.started} – ${terms.ends}`} />
+          <Line k="Pay" v={terms.pay} />
+          {/* Counted as the contract page counts it: the trial's scored tasks, or the role's work. */}
+          <Line k={d.type === "trial" ? "Trial tasks done" : `${d.independent.name.split(" ")[0]}'s tasks done`} v={facts.tasksTotal ? `${facts.tasksDone} of ${facts.tasksTotal}` : "No tasks on record"} />
         </dl>
         {contractHref && (
           <Link href={contractHref} className="inline-flex items-center gap-1.5 self-start text-[13px] font-semibold text-primary hover:underline">
@@ -914,17 +924,20 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
   );
 }
 
-/** Where the amount in question stands: held while the case is open, then wherever the ruling sent it. */
-function whereItStands(d: Dispute, inEscrow: boolean, onDeal: boolean): string {
+/**
+ * Where the amount in question stands: held while the case is open, then wherever the ruling sent it
+ * (the banner already says how much went where, so a settlement isn't split out again here).
+ */
+function whereItStands(d: Dispute, viewer: CaseViewer, inEscrow: boolean, onDeal: boolean): string {
   if (d.status === "Pending") {
     if (inEscrow) return "Held in escrow until the case closes.";
-    return onDeal ? "Kept back from the pay until the case closes." : "In question until the case closes.";
+    return onDeal ? "Held from the next pay until the case closes." : "In question until the case closes.";
   }
   const r = d.resolution;
-  if (r?.payment === "split" && r.split) return `${usd(r.split.refund)} back to ${d.team.company} · ${usd(r.split.release)} to ${d.independent.name}`;
-  if (r?.payment === "refunded") return `Refunded to ${d.team.company}.`;
-  if (r?.payment === "released") return `Released to ${d.independent.name}.`;
-  if (r?.payment === "awaiting release") return `To be released to ${d.independent.name}.`;
+  if (r?.payment === "split") return "Settled by agreement.";
+  if (r?.payment === "refunded") return sentence(`Refunded to ${nameIn(d, "team", viewer)}`);
+  if (r?.payment === "released") return sentence(`Released to ${nameIn(d, "independent", viewer)}`);
+  if (r?.payment === "awaiting release") return sentence(`To be released to ${nameIn(d, "independent", viewer)}`);
   return "The hold was lifted.";
 }
 
@@ -935,42 +948,74 @@ function contractHrefFor(d: Dispute, viewer: CaseViewer, onDeal: boolean): strin
   return onDeal ? `/admin/contracts/${d.links.independent}` : null;
 }
 
-/** The contract's money: what the trial's escrow was funded with and where it went — or, on a role, the payments recorded. */
-function PaymentsPanel({ d, escrow, rows }: { d: Dispute; escrow: ReturnType<typeof escrowOf>; rows: LivePayment[] }) {
+/**
+ * The contract's money in short. On a trial: what its escrow still holds (funded, less what it paid
+ * out and refunded) and what it paid the Independent; on a role, what its pay paid out. A refund only
+ * when there was one, then what this case is holding while it's open, over the payments themselves.
+ */
+function PaymentSummary({ d, viewer, escrow, rows }: { d: Dispute; viewer: CaseViewer; escrow: Escrow | null; rows: LivePayment[] }) {
   const sum = (list: LivePayment[]) => list.reduce((n, p) => n + (Number(p.amount.replace(/[^0-9.]/g, "")) || 0), 0);
-  const paid = sum(rows.filter((p) => p.kind !== "refunded"));
-  const refunded = sum(rows.filter((p) => p.kind === "refunded"));
+  const paidOut = escrow ? escrow.released : sum(rows.filter((p) => p.kind !== "refunded"));
+  const refunded = escrow ? escrow.refunded : sum(rows.filter((p) => p.kind === "refunded"));
+  // This case's own amount, while it's holding it: in escrow on a trial, from the next pay on a role.
+  const held = holds(d) ? (escrow ? Math.min(d.amount, escrow.held) : d.amount) : 0;
   return (
-    <PanelCard title="Payments on this contract">
-      <dl className="flex flex-col gap-2 text-[13px] leading-[1.4]">
-        {escrow && <Line k="Escrow funded" v={usd(escrow.total)} />}
-        <Line k={`Paid to ${d.independent.name.split(" ")[0]}`} v={usd(escrow ? escrow.released : paid)} />
-        <Line k={`Refunded to ${d.team.company}`} v={usd(escrow ? escrow.refunded : refunded)} />
-        {escrow && <Line k="Pending — still in escrow" v={usd(escrow.held)} strong />}
-        {escrow && escrow.onHold > 0 && <Line k="On hold for disputes" v={usd(escrow.onHold)} />}
+    <PanelCard title="Payment summary">
+      <dl className={`grid gap-3 ${escrow ? "grid-cols-2" : "grid-cols-1"}`}>
+        {escrow && <Figure k="Total held in escrow" v={usd(escrow.held)} />}
+        <Figure k="Paid out" v={usd(paidOut)} />
       </dl>
-      {rows.length > 0 ? (
-        <ul className="flex flex-col border-t border-border pt-2">
-          {rows.map((p) => (
-            <li key={p.id} className="flex items-center gap-2 py-1.5 text-[12.5px] leading-[1.35]">
-              <span className="w-[76px] shrink-0 text-ink-2">{p.date}</span>
-              <span className="min-w-0 flex-1 truncate text-ink">{p.kind === "refunded" ? `Refunded · ${p.period}` : `Released · ${p.period}`}</span>
-              <span className="shrink-0 font-medium text-ink tabular-nums">{p.amount}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-[12.5px] leading-[1.4] text-ink-2">{escrow ? "Nothing has been paid out of escrow yet." : "No payments recorded on this contract yet."}</p>
+      {refunded > 0 && (
+        <dl className="text-[13px] leading-[1.4]">
+          <Line k={`Refunded to ${nameIn(d, "team", viewer)}`} v={usd(refunded)} />
+        </dl>
       )}
+      {held > 0 && (
+        <div className="flex items-start justify-between gap-3 border-t border-border pt-3 text-[13px] leading-[1.4]">
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium text-ink">Under dispute</span>
+            <span className="text-ink-2">{escrow ? "Held while the dispute is resolved" : "Held from the next pay"}</span>
+          </span>
+          <span className="font-semibold text-ink tabular-nums">{usd(held)}</span>
+        </div>
+      )}
+      {rows.length > 0 && <PaymentRows rows={rows} />}
     </PanelCard>
   );
 }
 
-function Line({ k, v, strong = false }: { k: string; v: string; strong?: boolean }) {
+/** One of the summary's two large figures. */
+function Figure({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[12.5px] leading-[1.4] text-ink-2">{k}</dt>
+      <dd className="font-display text-[22px] leading-[1.2] font-semibold text-ink tabular-nums" style={{ fontVariationSettings: '"opsz" 14' }}>
+        {v}
+      </dd>
+    </div>
+  );
+}
+
+/** Each payment recorded on that part of the contract: when, what, and how much. */
+function PaymentRows({ rows }: { rows: LivePayment[] }) {
+  return (
+    <ul className="flex flex-col border-t border-border pt-2">
+      {rows.map((p) => (
+        <li key={p.id} className="flex items-center gap-2 py-1.5 text-[12.5px] leading-[1.35]">
+          <span className="w-[76px] shrink-0 text-ink-2">{p.date}</span>
+          <span className="min-w-0 flex-1 truncate text-ink">{p.kind === "refunded" ? `Refunded · ${p.period}` : `Released · ${p.period}`}</span>
+          <span className="shrink-0 font-medium text-ink tabular-nums">{p.amount}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Line({ k, v }: { k: string; v: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="text-ink-2">{k}</dt>
-      <dd className={`text-right tabular-nums ${strong ? "font-semibold text-ink" : "text-ink"}`}>{v}</dd>
+      <dd className="text-right text-ink tabular-nums">{v}</dd>
     </div>
   );
 }

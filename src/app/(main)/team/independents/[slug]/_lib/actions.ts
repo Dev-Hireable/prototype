@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { trialClock } from "@/lib/portal/dates";
 import type { SetToast } from "@/lib/portal/toast";
 import { useTeamContracts } from "@/lib/team/contracts";
 import { CONVERSION_ID, useOffers } from "@/lib/team/offers";
@@ -17,7 +18,7 @@ export function useTrackerActions(t: Tracker, draft: EvaluationDraft, toast: Set
   const [converting, setConverting] = useState(false);
   const [ending, setEnding] = useState(false);
   /** TB-072 — the post-trial offer, pre-filled from what they earn on the trial. */
-  const [hire, setHire] = useState(() => hireFormFor(t.contract.rate));
+  const [hire, setHire] = useState(() => hireFormFor(t.contract.rate, trialClock(t.contract.started, t.contract.ends).total));
   const [disputing, setDisputing] = useState(false);
   const { contract, view, first, isTrial } = t;
   return {
@@ -36,17 +37,19 @@ export function useTrackerActions(t: Tracker, draft: EvaluationDraft, toast: Set
       setConverting(true);
     },
     sendEvaluation: () => {
+      // Every score, the recommendation and the comments are required; Send is off until they're in.
+      if (!draft.ready) return;
       const r = addEvaluation(contract.slug, { stars: Math.round(draft.scores.reduce((a, b) => a + b, 0) / draft.scores.length), scores: SCORES.map((label, i) => ({ label, value: draft.scores[i] })), feedback: draft.feedback.trim(), recommendation: draft.recommendation });
       if (r.ok && !isTrial) draft.clear();
       toast(evaluationToast(r, first), r.ok ? "success" : "danger");
     },
     withdrawOffer: () => {
       withdrawOffer(CONVERSION_ID);
-      toast(`Offer withdrawn — ${first} has been told`);
+      toast(`Offer withdrawn. ${first} has been told.`);
     },
     withdrawNotice: () => {
       const r = withdrawNotice();
-      toast(r.ok ? `Notice withdrawn — ${first}'s role carries on` : r.error, r.ok ? "success" : "danger");
+      toast(r.ok ? `Notice withdrawn. ${first}'s role carries on.` : r.error, r.ok ? "success" : "danger");
     },
   };
 }

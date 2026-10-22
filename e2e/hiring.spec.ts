@@ -15,7 +15,7 @@ const ROLE = {
   hired: null,
   updated: "25 Sep 2026",
   description: "Brand work for a B2B agency.",
-  budget: "$1,600.00 - $2,000.00 /mo",
+  budget: "$1,600.00 - $2,000.00",
   duration: "30 Days",
   experience: "Advanced (5–8 years)",
   skills: ["Branding"],
@@ -38,10 +38,10 @@ async function deleteDropped(page: import("@playwright/test").Page) {
   await page.goto(`/team/hire/roles/${ROLE.slug}`);
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   const confirm = page.getByRole("dialog", { name: "Delete Juan D. from this role?" });
-  await expect(confirm).toContainText("Nothing is sent to Juan");
+  await expect(confirm).toContainText("This removes Juan from this role for good. Juan is not notified.");
   await confirm.getByRole("button", { name: "Delete", exact: true }).click();
   await expect(toast(page, "Deleted Juan D. from Brand Designer")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Undrop" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Restore", exact: true })).toHaveCount(0);
 }
 
 test.describe("inviting to interview", () => {
@@ -53,7 +53,7 @@ test.describe("inviting to interview", () => {
     const invite = page.getByRole("button", { name: "Invite to interview" });
     await expect(invite).toBeDisabled();
     await invite.locator("..").hover();
-    await expect(page.getByText("Juan hasn't applied yet — you can invite them to interview once they do")).toBeVisible();
+    await expect(page.getByText("Juan hasn't applied yet. You can invite them to interview once they do.")).toBeVisible();
 
     await page.goto(`/team/hire/roles/${ROLE.slug}/candidates/c1`);
     await expect(page.getByRole("button", { name: "Invite to interview" })).toBeDisabled();
@@ -83,8 +83,8 @@ test.describe("a candidate's name on the board", () => {
     const sheet = page.getByRole("dialog", { name: "Independent profile" });
     await expect(sheet).toBeVisible();
     await expect(page).toHaveURL(new RegExp(`/team/hire/roles/${ROLE.slug}$`));
-    // Messaging opens at the interview, so an applicant's sheet only offers Save.
-    await expect(sheet.getByRole("link", { name: "Message" })).toHaveCount(0);
+    // The thread opens with the application, so an applicant's sheet offers Message beside Save.
+    await expect(sheet.getByRole("link", { name: "Message" })).toBeVisible();
     await expect(sheet.getByRole("button", { name: "Save" })).toBeVisible();
     await sheet.getByRole("link", { name: "View profile" }).click();
     await expect(page).toHaveURL(new RegExp(`/team/hire/roles/${ROLE.slug}/candidates/c1`));
@@ -114,7 +114,7 @@ test.describe("deleting the live pair's dropped application", () => {
     await pipeline(page, null);
     await deleteDropped(page);
     await page.reload();
-    await expect(page.getByRole("button", { name: "Undrop" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Restore", exact: true })).toHaveCount(0);
     // His side still has the application: nothing was sent or wiped.
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("hireable.demo.deal") ?? "null")?.deal?.roleSlug)).toBe("brand-designer");
   });
@@ -125,9 +125,9 @@ test.describe("inviting to apply", () => {
 
   test("the card waits on their application, saying so", async ({ page }) => {
     await pipeline(page, null);
-    await page.goto("/team/discover/juan-dela-cruz");
+    await page.goto("/team/discover");
     await page.getByRole("button", { name: "Invite to apply" }).click();
-    await page.getByRole("dialog", { name: "Invite Juan Dela Cruz to apply" }).getByRole("button", { name: "Send invite" }).click();
+    await page.getByRole("dialog", { name: "Invite Juan D. to apply" }).getByRole("button", { name: "Send invite" }).click();
     await page.goto(`/team/hire/roles/${ROLE.slug}`);
     await expect(page.getByText("Awaiting application")).toBeVisible();
     await expect(page.getByRole("button", { name: "Invite to interview" })).toBeDisabled();
@@ -147,9 +147,9 @@ test.describe("dropped, deleted, invited again", () => {
     }, ROLE);
     await deleteDropped(page);
 
-    await page.goto("/team/discover/juan-dela-cruz");
+    await page.goto("/team/discover");
     await page.getByRole("button", { name: "Invite to apply" }).click();
-    await page.getByRole("dialog", { name: "Invite Juan Dela Cruz to apply" }).getByRole("button", { name: "Send invite" }).click();
+    await page.getByRole("dialog", { name: "Invite Juan D. to apply" }).getByRole("button", { name: "Send invite" }).click();
     await page.goto(`/team/hire/roles/${ROLE.slug}`);
     await expect(page.getByText("Awaiting application")).toBeVisible();
 
@@ -169,21 +169,21 @@ test.describe("dropped, deleted, invited again", () => {
 
 
 test.describe("dropping at the proposal stage", () => {
-  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600 /month", letter: "Hi" } } } });
+  test.use({ seedOptions: { deal: { stage: "proposal_sent", contract: null, offer: null, proposal: { version: 1, sent: "24 Sep 2026", rate: "$1,600", letter: "Hi" } } } });
 
   test("Juan's side says it isn't moving forward — not notified, but not left reading 'in review' — and undropping restores it", async ({ page, secondPage }) => {
     await pipeline(page, null);
     await page.goto(`/team/hire/roles/${ROLE.slug}`);
     // A decision, confirmed first: nothing happens on the click alone.
-    await page.getByRole("button", { name: "Drop", exact: true }).click();
-    const drop = page.getByRole("dialog", { name: "Drop Juan from Brand Designer?" });
-    await expect(drop).toContainText("They aren't notified, but their application shows you're not moving forward");
+    await page.getByRole("button", { name: "Decline", exact: true }).click();
+    const drop = page.getByRole("dialog", { name: "Decline Juan for Brand Designer?" });
+    await expect(drop).toContainText("Juan will see this application as closed. You can restore them later.");
     await drop.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("button", { name: "Undrop" })).toHaveCount(0);
-    await page.getByRole("button", { name: "Drop", exact: true }).click();
-    await drop.getByRole("button", { name: "Drop candidate" }).click();
-    await expect(toast(page, "Dropped Juan D. from Brand Designer")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Undrop" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Restore", exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Decline", exact: true }).click();
+    await drop.getByRole("button", { name: "Decline candidate" }).click();
+    await expect(toast(page, "Declined Juan D. for Brand Designer")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Restore", exact: true })).toBeVisible();
 
     const juan = await secondPage();
     await juan.goto("/independent/jobs/applications");
@@ -196,8 +196,8 @@ test.describe("dropping at the proposal stage", () => {
     expect((await notes(juan, "independent")).filter((n) => /drop|not moving|declin/i.test(`${n.title} ${n.body}`))).toEqual([]);
 
     await page.bringToFront();
-    await page.getByRole("button", { name: "Undrop" }).click();
-    await page.getByRole("dialog", { name: "Undrop Juan?" }).getByRole("button", { name: "Undrop candidate" }).click();
+    await page.getByRole("button", { name: "Restore", exact: true }).click();
+    await page.getByRole("dialog", { name: "Restore Juan?" }).getByRole("button", { name: "Restore candidate" }).click();
     await juan.goto("/independent/jobs/applications");
     await expect(juan.getByText("Proposal submitted")).toBeVisible();
   });

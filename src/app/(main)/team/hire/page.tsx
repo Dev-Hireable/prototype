@@ -15,7 +15,7 @@ const CARDS = [
   {
     kind: "trial",
     title: "Test Independents",
-    body: "Run a paid, short-term trial on real work to evaluate performance and fit before committing to a full-time hire.",
+    body: "Paid trial. Work together for 30, 60 or 90 working days before you hire full-time or part-time.",
     art: "/team/test-independents.svg",
     hover: "/team/test-independents-hover.svg",
     w: 284,
@@ -39,14 +39,14 @@ const CARDS = [
 ] as const;
 
 /**
- * The two kinds of job post, as 320px cards that zoom to 336 on hover. Keyboard focus gets the
+ * The two kinds of role post, as 320px cards that zoom to 336 on hover. Keyboard focus gets the
  * same look. Below a laptop they're a carousel to swipe through: the one in front full size with its
- * hover look and Post a Job (there's no hover to bring them up), the other smaller behind it — a tap
+ * hover look and Post a role (there's no hover to bring them up), the other smaller behind it — a tap
  * brings that one forward rather than opening it — and arrows to step between them.
  *
  * A transform zoom draws the card once and stretches that image while it animates, then redraws it
  * sharp when the animation stops — and that redraw is what made the copy jump just after every zoom
- * in and zoom out (the fades inside the card force it; "Post a Job" hid it only because it was
+ * in and zoom out (the fades inside the card force it; "Post a role" hid it only because it was
  * fading at those moments). So the copy and the button sit on layers of their own for good
  * (will-change): nothing redraws them, and they only ever scale. Zooming by layout instead — the
  * sizes themselves growing — re-snapped the text to the pixel grid on every frame, and it shook.
@@ -67,7 +67,6 @@ export default function CreateRole() {
           <h2 className="font-display text-[32px] font-semibold text-black max-md:text-[24px]" style={{ fontVariationSettings: '"opsz" 14' }}>
             What type of role are you creating?
           </h2>
-          <p className="text-[16px] tracking-[0.2px] text-ink-2">Choose how you want to start working together.</p>
         </div>
         <div
           ref={row}
@@ -93,7 +92,7 @@ export default function CreateRole() {
                 </span>
                 {/* react-doctor-disable-next-line react-doctor/no-permanent-will-change -- a layer for good is the fix: see the note above CreateRole */}
                 <span className="relative flex h-10 w-[108px] items-center justify-center rounded-lg border border-border bg-white text-[14px] font-medium text-ink opacity-0 transition-opacity duration-300 ease-out will-change-transform group-hover:opacity-100 group-focus-visible:opacity-100 max-lg:group-data-[current=true]:opacity-100">
-                  Post a Job
+                  Post a role
                 </span>
               </span>
             </Link>

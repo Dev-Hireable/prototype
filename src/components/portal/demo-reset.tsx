@@ -51,7 +51,7 @@ export function ResetDemoDialog({ open, onClose }: { open: boolean; onClose: () 
       onClose={onClose}
       tone="danger"
       title="Reset the demo?"
-      description="This clears everything the demo has saved in this browser — new accounts, roles, applications, messages and notifications — and puts every portal back to its starting data."
+      description="This clears everything the demo has saved in this browser (new accounts, roles, applications, messages and notifications) and puts every portal back to its starting data."
       footer={
         <>
           <Button size="lg" onClick={onClose}>

@@ -1,14 +1,14 @@
-import { notFound, useRouter, useSearchParams } from "next/navigation";
+import { notFound, useRouter } from "next/navigation";
 import { useState } from "react";
 import { isoDay } from "@/lib/portal/dates";
 import { useDeal } from "@/lib/demo/deal";
 import type { DealProposal } from "@/lib/demo/deal";
 import { rateAmount } from "@/lib/demo/disputes";
 import { postedStart } from "@/lib/contract/job-types";
-import type { TaskSuggestion } from "@/lib/demo/suggestions";
 import { useIndependentAccount } from "@/lib/independent/account";
 import { useApplications } from "@/lib/independent/applications";
 import { useJobView } from "@/lib/independent/job-view";
+import { shortName } from "@/lib/portal/names";
 import { useToast } from "@/lib/portal/toast";
 import type { Terms } from "./proposal";
 
@@ -58,40 +58,34 @@ function useProposalForm(roleSlug: string | undefined, revising: DealProposal | 
   return { fromDraft: !!initial, rate, setRate, hours, setHours, start, setStart, letter, setLetter, portfolio, setPortfolio, save, discard };
 }
 
-/**
- * What the wizard answers: the application and its job, the version a revision starts from, and
- * whether the page only shows the role's details (?review=1).
- */
+/** What the wizard answers: the application and its job, and the version a revision starts from. */
 function useProposalRequest(id: string) {
   const { applications, submitProposal } = useApplications();
   const app = applications.find((a) => a.id === id);
   const deal = useDeal();
-  const search = useSearchParams();
   const job = useJobView(app ?? { id, roleSlug: "", title: "", company: "", match: 0, submitted: "", stage: "applied" });
   const live = app && deal?.roleSlug === app.roleSlug ? deal : null;
   /** A revision starts from what was actually sent, with the Team Builder's note above it. */
   const previous = live?.proposal;
   const revisionNote = live?.revision;
-  const revise = search.get("revise") === "1" && !!revisionNote;
-  const reviewOnly = search.get("review") === "1";
-  return { app, job, live, previous, revising: revise ? previous : undefined, revise, reviewOnly, submitProposal };
+  // Whenever a change is asked for, whichever address opened it: the plain one (a bookmark, the
+  // browser's history) used to start a blank first proposal, and only Revise proposal's ?revise=1 revised.
+  const revise = !!revisionNote && !!previous;
+  return { app, job, live, previous, revising: revise ? previous : undefined, revise, submitProposal };
 }
 
 /**
- * The wizard's state, kept in the page (Next keeps it mounted across `?review=1`, so a look at the
- * role loses nothing): the request it answers, the fields, the step, the suggested task changes,
- * and saving a draft or sending it. Not found when the application isn't the talent's.
+ * The wizard's state, kept in the page: the request it answers, the fields, the step, and saving a
+ * draft or sending it. Not found when the application isn't the talent's.
  */
 export function useProposalWizard(id: string) {
   const { profile } = useIndependentAccount();
-  const { app, job, live, previous, revising, revise, reviewOnly, submitProposal } = useProposalRequest(id);
+  const { app, job, live, previous, revising, revise, submitProposal } = useProposalRequest(id);
   const router = useRouter();
   // A trial can start today; an ongoing role from the start it was posted with.
   const form = useProposalForm(app?.roleSlug, revising, { hours: job.hours, start: isoDay(job.type === "trial" ? new Date() : postedStart(job.duration)) }, profile.links.portfolio);
   const [step, setStep] = useState(0);
   const [sent, setSent] = useState(false);
-  /** IN-073 — changes to the trial's tasks suggested with this revision; the company decides on each. */
-  const [suggestions, setSuggestions] = useState<TaskSuggestion[]>([]);
   const [toast, setToast] = useToast();
   if (!app) notFound();
   const back = `/independent/jobs/applications/${app.id}`;
@@ -105,19 +99,20 @@ export function useProposalWizard(id: string) {
   /** Saves where the talent got to; the draft comes back the next time the wizard opens. */
   const saveDraft = () => {
     form.save();
-    setToast("Draft saved — it's here when you come back");
+    setToast("Draft saved. It's here when you come back.");
   };
   /**
    * Saved the moment it is submitted, not when the confirmation closes — leaving any other way
    * used to drop it, and the Team Builder reviewed a sample proposal instead of this one.
    */
   const submit = (terms: Terms) => {
-    if (!submitProposal(app.id, terms)) return setToast("This proposal can't be sent — no proposal is requested right now", "danger");
+    if (!submitProposal(app.id, terms)) return setToast("This proposal can't be sent: no proposal is requested right now.", "danger");
     form.discard();
     setSent(true);
   };
-  const author = { name: profile.name, avatar: profile.photo, role: profile.headline, match: app.match };
-  return { app, job, live, previous, revise, reviewOnly, form, step, setStep, sent, suggestions, setSuggestions, toast, setToast, back, close: () => router.push(back), open, author, saveDraft, submit };
+  /** As the Team Builder reads it: "Juan D." until they're hired, the surname an initial. */
+  const author = { name: shortName(profile.name), avatar: profile.photo, role: profile.headline, match: app.match };
+  return { app, job, live, previous, revise, form, step, setStep, sent, toast, setToast, back, close: () => router.push(back), open, author, saveDraft, submit };
 }
 
 export type Wizard = ReturnType<typeof useProposalWizard>;

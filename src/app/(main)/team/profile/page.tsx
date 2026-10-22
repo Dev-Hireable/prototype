@@ -34,7 +34,7 @@ export default function PersonalProfile() {
       <div className="mx-auto flex w-full max-w-[760px] flex-col gap-4">
         <ProfileHeader
           image={<Avatar src={photo.preview ?? profile.photo} size={80} />}
-          imageLabel={`Change photo — JPG or PNG, up to ${IMAGE_MAX_MB}MB`}
+          imageLabel={`Change photo (JPG or PNG, up to ${IMAGE_MAX_MB}MB)`}
           name={profile.name}
           pending={!!photo.preview}
           onPick={photo.pick}
@@ -67,9 +67,9 @@ function ProfileFields({ onToast }: { onToast: SetToast }) {
   const done = ROWS.filter(([, k]) => String(profile[k] ?? "").trim()).length;
   return (
     <>
-      {done < ROWS.length && <Completeness done={done} total={ROWS.length}>Fill in the rest so independents know who they&apos;re talking to.</Completeness>}
+      {done < ROWS.length && <Completeness done={done} total={ROWS.length}>Fill in the rest so Independents know who they&apos;re talking to.</Completeness>}
 
-      <ProfileSection title="About you" description="How you appear to independents in messages, interviews and offers.">
+      <ProfileSection title="About you" description="How you appear to Independents in messages, interviews and offers.">
         <div className="-mx-2 flex flex-col px-2">
           {ROWS.map(([label, key, kind]) => (
             <EditableRow

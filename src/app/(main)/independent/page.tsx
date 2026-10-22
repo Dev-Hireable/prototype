@@ -10,12 +10,13 @@ import { dayLabel, daysLeftLabel, sinceOrFrom } from "@/lib/portal/dates";
 import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
-import { KYC_NOTE, MARKETING_BANNER, ME, setupSteps } from "@/lib/independent/data";
+import { KYC_NOTE, MARKETING_BANNER, ME, SETUP_STEP, setupSteps } from "@/lib/independent/data";
 import type { Application, Contract, Interview } from "@/lib/independent/data";
 import { traitTagsFor } from "@/lib/demo/work-style";
 import { useApplications } from "@/lib/independent/applications";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import { useIndependentAccount, useIndependentBanner } from "@/lib/independent/account";
+import { useInterviewTime } from "@/lib/independent/interview-time";
 
 const Work = ICONS.work;
 const Search = ICONS.search;
@@ -93,15 +94,25 @@ export default function Dashboard() {
   );
 }
 
+/** Whether the checklist step with this label is still to do. */
+const isOpen = (steps: readonly DashboardChecklistItem[], label: string) => steps.some((s) => s.label === label && !s.done);
+
+/** The card's heading while setup is open, naming what's left: the profile until it's set up, then the first application. */
+function setupHeading(steps: readonly DashboardChecklistItem[]) {
+  return !isOpen(steps, SETUP_STEP.profile) && isOpen(steps, SETUP_STEP.apply)
+    ? { title: "Apply to your first role", description: "Your profile is ready. Apply to a role to finish setting up." }
+    : { title: "Finish setting up your profile", description: "Complete your profile to boost role matches." };
+}
+
 /** The greeting with its two quick actions, beside the card that walks through setting up the profile. */
 function Hero({ photo, workStyle, steps, tasks }: { photo: string; workStyle: readonly number[]; steps: readonly DashboardChecklistItem[]; tasks?: { href: string; about: string } }) {
-  const setUp = steps.every((s) => s.done);
+  const heading = setupHeading(steps);
   return (
     <DashboardHero>
       <DashboardGreeting name={ME.first}>
         <DashboardQuickAction tour="find-role" title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
-        {/* Profile help only while setup is open; once it's done, the trial's work, if there is one. */}
-        {!setUp ? (
+        {/* Profile help only while the profile step is open; once it's done, the trial's work, if there is one. */}
+        {isOpen(steps, SETUP_STEP.profile) ? (
           <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile" icon={<Account size={20} aria-hidden />} />
         ) : (
           tasks && <DashboardQuickAction title="Go to my tasks" body={`Your open work on ${tasks.about}.`} href={tasks.href} icon={<Work size={20} aria-hidden />} />
@@ -110,14 +121,14 @@ function Hero({ photo, workStyle, steps, tasks }: { photo: string; workStyle: re
 
       <DashboardSetupCard
         avatarSrc={photo}
-        title="Finish setting up your profile"
-        description="Complete your profile to boost role matches."
+        title={heading.title}
+        description={heading.description}
         completionHref="/independent/profile?edit=profile"
         items={steps}
         note={KYC_NOTE}
         profileHref="/independent/profile"
         traits={traitTagsFor(workStyle, "independent")}
-        completeDescription="Your profile is live. These are the work-style traits companies match you on."
+        completeDescription="Your profile is live. These are the work style tags companies match you on."
       />
     </DashboardHero>
   );
@@ -142,6 +153,8 @@ function ApplicationsCard({ applications }: { applications: Application[] }) {
 
 /** The Interviews card: the next three, each opening its application — or a note that none are scheduled. */
 function InterviewsCard({ upcoming }: { upcoming: Interview[] }) {
+  /** Each time in the talent's clock, with the Team Builder's beside it. */
+  const clock = useInterviewTime();
   return (
     <DashboardSummaryCard title="Interviews" href="/independent/jobs/interviews">
       {upcoming.length === 0 ? (
@@ -152,7 +165,7 @@ function InterviewsCard({ upcoming }: { upcoming: Interview[] }) {
             <li key={iv.id} className="flex items-center gap-4 rounded-lg bg-white p-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1 tracking-[0.2px]">
                 <p className="truncate text-[14px] font-semibold text-ink">{iv.role}</p>
-                <p className="truncate text-[12px] text-ink-2">{iv.when}</p>
+                <p className="text-[12px] leading-[1.4] text-ink-2">{clock.both(iv)}</p>
               </div>
               <Link href={iv.roleHref} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
                 {iv.status === "starts" ? "Respond" : "Open"}
@@ -182,7 +195,7 @@ function ContractsCard({ active }: { active: Contract[] }) {
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.2] tracking-[0.2px]">
                     <span className="truncate text-[14px] font-semibold text-ink">{c.company}</span>
                     <span className="truncate text-[12px] text-ink-2">
-                      {c.title} · {left === null ? `${sinceOrFrom(c.started)} ${c.started}` : daysLeftLabel(left)}
+                      {c.title} · {left === null ? `${sinceOrFrom(c.started)} ${c.started}` : daysLeftLabel(left, c.over)}
                     </span>
                   </span>
                   <JobBadge type={c.type} />

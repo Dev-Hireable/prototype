@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { lifecycleOf, nextPay, NOTICE_DAYS, noticeLastDay, payPeriods, statusOf, trialClosed, type ContractFacts } from "../../src/lib/contract/lifecycle";
-import { trialClock } from "../../src/lib/portal/dates";
+import { lifecycleOf, needsAttention, nextPay, NOTICE_DAYS, noticeLastDay, payPeriods, statusOf, trialClosed, type ContractFacts } from "../../src/lib/contract/lifecycle";
+import { daysLeftLabel, reviewQuarter, trialClock } from "../../src/lib/portal/dates";
 
 /** Friday 25 Sep 2026, 9 AM — the tests' today. */
 const NOW = new Date(2026, 8, 25, 9);
@@ -10,10 +10,33 @@ const offer = (status: "sent" | "accepted" | "declined" | "withdrawn" | "expired
 
 test.describe("the trial clock", () => {
   test("counts its first and last days, and runs through the last one", () => {
-    // Mon 21 Sep – Fri 30 Oct is six weeks: thirty working days.
-    expect(trialClock("2026-09-21", "2026-10-30", NOW)).toEqual({ label: "Day 5 of 30", left: 26, over: false, total: 30 });
-    expect(trialClock("2026-09-21", "2026-09-25", NOW)).toEqual({ label: "Day 5 of 5", left: 1, over: false, total: 5 });
+    // Mon 21 Sep – Fri 30 Oct is six weeks: thirty working days. What's left is the days after today,
+    // so the day and what's left add up to the length: Day 5 of 30, 25 left.
+    expect(trialClock("2026-09-21", "2026-10-30", NOW)).toEqual({ label: "Day 5 of 30", left: 25, over: false, total: 30 });
+    // Its last day still runs, with nothing after it.
+    expect(trialClock("2026-09-21", "2026-09-25", NOW)).toEqual({ label: "Day 5 of 5", left: 0, over: false, total: 5 });
     expect(trialClock("2026-09-21", "2026-09-24", NOW)).toMatchObject({ label: "Day 4 of 4", left: 0, over: true });
+    // On a weekend, Friday's day stands and the count still adds up.
+    expect(trialClock("2026-09-21", "2026-10-30", new Date(2026, 8, 26, 9))).toMatchObject({ label: "Day 5 of 30", left: 25 });
+  });
+
+  test("what's left reads the same on every screen: working days, the last day, then closed", () => {
+    expect(daysLeftLabel(25)).toBe("25 working days left");
+    expect(daysLeftLabel(1)).toBe("1 working day left");
+    expect(daysLeftLabel(0)).toBe("Last day");
+    expect(daysLeftLabel(0, true)).toBe("Trial closed");
+  });
+});
+
+test.describe("a role's review period", () => {
+  test("is the first full quarter from its first day, then the quarter it's in", () => {
+    // Started 21 Sep: Q3's last ten days aren't a quarter to review, so its first is Q4.
+    expect(reviewQuarter("21 Sep 2026", NOW)).toBe("Q4 2026 (Oct to Dec)");
+    expect(reviewQuarter("2026-10-01", NOW)).toBe("Q4 2026 (Oct to Dec)");
+    expect(reviewQuarter("01 Jul 2026", NOW)).toBe("Q3 2026 (Jul to Sep)");
+    // A long-running role is reviewed for the quarter it's in now.
+    expect(reviewQuarter("15 Mar 2025", NOW)).toBe("Q3 2026 (Jul to Sep)");
+    expect(reviewQuarter("21 Sep 2026", new Date(2027, 1, 3))).toBe("Q1 2027 (Jan to Mar)");
   });
 });
 
@@ -29,6 +52,19 @@ test.describe("the lifecycle", () => {
     expect(statusOf(l, "independent")).toEqual({ label: "Awaiting evaluation", tone: "neutral" });
   });
 
+  test("a running trial needs attention once anything is overdue or sent back for changes", () => {
+    const l = lifecycleOf(trial(), NOW);
+    const item = { status: "todo" as const, due: "2026-10-02" };
+    expect(statusOf(l, "independent", needsAttention([item], NOW))).toEqual({ label: "On track", tone: "ok" });
+    expect(needsAttention([{ ...item, due: "2026-09-23" }], NOW)).toBe(true);
+    expect(needsAttention([{ ...item, status: "doing" as const, changes: { note: "Tighten it", at: "23 Sep 2026", by: "Alex Rivera" } }], NOW)).toBe(true);
+    // Done, or put away, it no longer counts.
+    expect(needsAttention([{ ...item, due: "2026-09-23", status: "done" as const }, { ...item, due: "2026-09-23", archivedAt: 1 }], NOW)).toBe(false);
+    expect(statusOf(l, "team", true)).toEqual({ label: "Needs attention", tone: "warn" });
+    // Only a running trial says so: after it, the status is about the evaluation.
+    expect(statusOf(lifecycleOf(trial({ ends: "2026-09-24" }), NOW), "team", true).label).toBe("Evaluation due");
+  });
+
   test("closes early once every trial task is approved", () => {
     const l = lifecycleOf(trial({ trialDone: true }), NOW);
     expect(l.phase).toBe("evaluation");
@@ -40,7 +76,9 @@ test.describe("the lifecycle", () => {
     expect(l.trial?.evaluationOverdue).toBe(true);
     expect(statusOf(l, "team")).toEqual({ label: "Evaluation overdue", tone: "danger" });
   });
+});
 
+test.describe("the lifecycle · decided, hired and ended", () => {
   test("evaluated, it's decided: an offer goes out, and a declined or withdrawn one comes back", () => {
     const closed = { ends: "2026-09-24", evaluated: true };
     expect(lifecycleOf(trial(closed), NOW).phase).toBe("decision");

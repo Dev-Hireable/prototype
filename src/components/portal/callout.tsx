@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { InfoBanner } from "@/components/portal/ui";
 
 /** A banner with its one action beside its message: "Juan sent 2 items for review · Review". */
-export function Callout({ tone = "info", children, action }: { tone?: "info" | "warn"; children: ReactNode; action?: ReactNode }) {
+export function Callout({ tone = "info", children, action }: { tone?: "info" | "warn" | "success"; children: ReactNode; action?: ReactNode }) {
   return (
     <InfoBanner tone={tone}>
       <span className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

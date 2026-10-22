@@ -4,11 +4,20 @@ import { notFound } from 'next/navigation';
 import { OnboardingWizard } from '../_components/onboarding-wizard';
 import { localQuizQuestions } from '../_lib/local-quiz';
 import { asPublicSignupRole } from '@/web-app/lib/auth/auth-routes';
-import { PUBLIC_SIGNUP_ROLES } from '@/web-app/lib/auth/auth-role-mapping';
+import {
+  PUBLIC_SIGNUP_ROLES,
+  type PublicSignupRole,
+} from '@/web-app/lib/auth/auth-role-mapping';
 import { quizTagMetadata } from '@/web-app/lib/workstyle/tag-metadata';
 
 type PageProps = {
   params: Promise<{ role: string }>;
+};
+
+/** The browser tab's title, named for the user type each onboarding is for. */
+const TAB_TITLE: Record<PublicSignupRole, string> = {
+  client: 'Team Builder onboarding',
+  talent: 'Independent onboarding',
 };
 
 /**
@@ -28,11 +37,7 @@ export async function generateMetadata({
   const parsedRole = asPublicSignupRole(role);
 
   return {
-    title: `${
-      parsedRole
-        ? parsedRole.charAt(0).toUpperCase() + parsedRole.slice(1)
-        : 'Account'
-    } Onboarding`,
+    title: parsedRole ? TAB_TITLE[parsedRole] : 'Onboarding',
     description:
       'Complete your quiz to finish your Hireable onboarding and continue to your dashboard.',
   };

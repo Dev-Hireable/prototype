@@ -1,6 +1,6 @@
 import { addWorkingDays, isoDay, MONTHS, parseDay } from "@/lib/portal/dates";
 import { todayDay } from "@/lib/work/dates";
-import { countsOf, isArchived, isCompleted, PRIORITIES as WORK_PRIORITIES, PRIORITY_META, scoredItems, STATUS_META, STATUSES } from "@/lib/work/model";
+import { countsOf, isCompleted, PRIORITIES as WORK_PRIORITIES, PRIORITY_META, scoredItems, STATUS_META, STATUSES } from "@/lib/work/model";
 import type { WorkComment, WorkItem, WorkPriority, WorkStatus } from "@/lib/work/model";
 import { ORDER_STEP } from "@/lib/work/order";
 
@@ -79,12 +79,6 @@ export function dueLabel(due: string, now = new Date()) {
 /** How many tasks sit where, for the stats bar, the contract cards and the progress bar. Archived ones don't count. */
 export const taskCounts = (tasks: Task[], now = new Date()) => countsOf(tasks, todayDay(now));
 
-/** Share of the live list that is completed, as a whole percentage. */
-export function donePercent(tasks: Task[]) {
-  const live = tasks.filter((t) => !isArchived(t));
-  return live.length ? Math.round((live.filter((t) => isCompleted(t.status)).length / live.length) * 100) : 0;
-}
-
 /** The tasks a trial is scored and closed on: the Independent's own trial work, not archived. */
 export const trialTasks = (tasks: Task[]) => scoredItems(tasks);
 
@@ -112,6 +106,33 @@ export const toDrafts = (tasks: PlannedTask[]): DraftTask[] => tasks.map((t) => 
 /** What the plan keeps: rows with a real title (two characters or more), trimmed. */
 export const fromDrafts = (rows: DraftTask[]): PlannedTask[] =>
   rows.filter((r) => r.title.trim().length > 1).map((r) => ({ title: r.title.trim(), description: r.description?.trim() || undefined, priority: r.priority, week: r.week }));
+
+/**
+ * TB-025 — a trial's plan takes one High task per due week, so High still says what comes first:
+ * the number of the row already High in `week` ("#2" is the second row), other than row `key`
+ * itself, or null when the week has room.
+ */
+export function highInWeek(rows: DraftTask[], week: number | undefined, key: string): number | null {
+  const at = rows.findIndex((r) => r.key !== key && r.priority === "high" && r.week === week);
+  return at === -1 ? null : at + 1;
+}
+
+/** Why a second High in a week was refused: "#2 is already High in Week 2". */
+export const highTaken = (row: number, week: number | undefined) => `#${row} is already High ${week ? `in ${weekLabel(week)}` : "with no due week"}`;
+
+/**
+ * The plan once its trial is shortened to `weeks`: a due week past the end moves onto the last
+ * week, and a High that lands beside another High there drops to Medium (one High a week).
+ */
+export function fitPlan(rows: DraftTask[], weeks: number): DraftTask[] {
+  const highs = new Set(rows.filter((r) => r.priority === "high" && !(r.week && r.week > weeks)).map((r) => r.week));
+  return rows.map((r) => {
+    if (!r.week || r.week <= weeks) return r;
+    const clash = r.priority === "high" && highs.has(weeks);
+    if (r.priority === "high") highs.add(weeks);
+    return { ...r, week: weeks, ...(clash ? { priority: "medium" as const } : {}) };
+  });
+}
 
 /**
  * An agreed task as the contract starts it: from the offer the Team Builder wrote it into, with its

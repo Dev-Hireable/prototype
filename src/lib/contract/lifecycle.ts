@@ -1,4 +1,6 @@
 import { dayLabel, parseDay, trialClock } from "../portal/dates";
+import { todayDay } from "../work/dates";
+import { isOverdue, type WorkItem } from "../work/model";
 import type { JobType, OngoingType } from "./job-types";
 
 /**
@@ -200,13 +202,22 @@ export type StatusTone = "ok" | "warn" | "danger" | "info" | "neutral";
 
 const TYPE: Record<OngoingType, string> = { "full-time": "Full-time", "part-time": "Part-time" };
 
-/** The status each side reads in the header, the lists and the cards. */
-export function statusOf(l: Lifecycle, side: "team" | "independent"): { label: string; tone: StatusTone } {
+/**
+ * Work that's late, or sent back with changes still to make: a running trial with any of it reads
+ * "Needs attention" rather than "On track" beside the very counts that say otherwise.
+ */
+export function needsAttention(items: readonly Pick<WorkItem, "due" | "status" | "archivedAt" | "changes">[], now = new Date()): boolean {
+  const today = todayDay(now);
+  return items.some((t) => isOverdue(t, today) || (!t.archivedAt && !!t.changes && (t.status === "todo" || t.status === "doing")));
+}
+
+/** The status each side reads in the header, the lists and the cards. `attention`: the work needs it (needsAttention). */
+export function statusOf(l: Lifecycle, side: "team" | "independent", attention = false): { label: string; tone: StatusTone } {
   switch (l.phase) {
     case "starts":
       return { label: `Starts ${dayLabel(l.since)}`, tone: "info" };
     case "trial":
-      return { label: "On track", tone: "ok" };
+      return attention ? { label: "Needs attention", tone: "warn" } : { label: "On track", tone: "ok" };
     case "evaluation":
       if (side === "independent") return { label: "Awaiting evaluation", tone: "neutral" };
       return l.trial?.evaluationOverdue ? { label: "Evaluation overdue", tone: "danger" } : { label: "Evaluation due", tone: "warn" };

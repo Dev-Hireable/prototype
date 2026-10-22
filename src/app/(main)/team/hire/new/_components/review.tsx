@@ -7,7 +7,7 @@ import { fromDrafts } from "@/lib/demo/tasks";
 import { GENERAL_SKILLS } from "@/lib/portal/skills";
 import { LEVELS } from "@/lib/team/role-templates";
 import type { ReviewEdits, RoleForm } from "../_lib/form";
-import { BENEFITS_DISCLAIMER, CHIP_TONES, moneyLine, rangeError, type PathCopy } from "../_lib/wizard";
+import { BENEFITS_DISCLAIMER, CHIP_TONES, chipLong, chipText, moneyText, rangeError, TRIAL_TASKS, type PathCopy } from "../_lib/wizard";
 import { BenefitsEditor, Block, Counter, DateChip, DurationChips, HoursChips, MoneyRange, SkillChips, TrialNotes } from "./fields";
 import { ReviewItem } from "./frame";
 
@@ -19,28 +19,29 @@ type Item = ReviewEdits["item"];
  */
 export function ReviewStep({ f, t, type, weeks, edits, canPublish, onDraft, onPublish }: { f: RoleForm; t: PathCopy; type: JobType; weeks: number; edits: ReviewEdits; canPublish: boolean; onDraft: () => void; onPublish: () => void }) {
   const busy = edits.editing ? "Save or cancel your edit first" : undefined;
-  const publishTip = busy ?? (!canPublish ? "Finish your company profile first" : undefined);
   return (
     <div className="flex w-full max-w-[720px] flex-col gap-6">
-      <InfoBanner>{t.reviewNote}</InfoBanner>
+      {type === "trial" && <InfoBanner>{TRIAL_TASKS.shared}</InfoBanner>}
       <MainFacts f={f} t={t} type={type} item={edits.item} />
-      {/* The paths carry different extras: a trial has expectations + attachments, a
-          full-time post its exclusive benefits breakdown (TB-024), a part-time post neither. */}
-      {type === "trial" && <TrialExtras f={f} t={t} weeks={weeks} item={edits.item} />}
+      {/* The paths carry different extras: a trial has its tasks, notes and link, a full-time post
+          its benefits breakdown (TB-024), a part-time post neither. */}
+      {type === "trial" && <TrialExtras f={f} weeks={weeks} item={edits.item} />}
       {type === "full-time" && <BenefitExtras f={f} item={edits.item} />}
-      {/* TB-001 — publishing waits on a complete company profile; drafts are always allowed. A card
-          is asked for when it's first needed, at an offer's deposit, not before a role goes live. */}
+      {/* TB-001 — a role goes live once the company profile is complete; drafts are always allowed. A
+          card is asked for when it's first needed, at an offer's deposit, not before a role goes
+          live. Publish stays clickable: until then it keeps the role as a draft and opens the
+          profile, which names the fields still missing. */}
       {!canPublish && (
         <InfoBanner tone="warn">
-          To publish, finish your <Link href="/team/profile/company" className="font-semibold underline">company profile</Link>. You can save this role as a draft now and publish it after.
+          Finish your <Link href="/team/profile/company" className="font-semibold underline">company profile</Link> to publish.
         </InfoBanner>
       )}
       <div className="flex justify-end gap-3">
         <Button size="lg" className="!px-5" onClick={onDraft} disabled={edits.editing} title={busy}>
           Save as draft
         </Button>
-        <Button size="lg" variant="primary" className="!px-5" onClick={onPublish} disabled={edits.editing || !canPublish} title={publishTip}>
-          Publish Role
+        <Button size="lg" variant="primary" className="!px-5" onClick={onPublish} disabled={edits.editing} title={busy}>
+          Publish role
         </Button>
       </div>
     </div>
@@ -64,12 +65,12 @@ function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobTy
         }
         editor={<Input value={f.title} onChange={(e) => f.setTitle(e.target.value)} placeholder="Add e.g. Marketing Manager, Virtual Assistant" autoFocus />}
       />
-      <ReviewItem label={t.money} value={moneyLine(f)} {...item("budget")} editor={<MoneyRange min={f.min} max={f.max} onMin={f.setMin} onMax={f.setMax} />} error={rangeError(f)} />
+      <ReviewItem label={t.money} value={moneyText(f, type)} {...item("budget")} editor={<MoneyRange min={f.min} max={f.max} onMin={f.setMin} onMax={f.setMax} unit={type === "trial" ? undefined : "/month"} />} error={rangeError(f)} />
       <ReviewItem
         label="Role Description"
         {...item("description")}
         editor={
-          <Block label="" helper={["Up to 500 characters", `${f.desc.length} / 500`]}>
+          <Block label="" helper={["", `${f.desc.length} / 500`]}>
             <Textarea value={f.desc} maxLength={500} onChange={(e) => f.setDesc(e.target.value)} placeholder={t.descPlaceholder} className="!h-[131px] resize-none" autoFocus />
           </Block>
         }
@@ -80,7 +81,7 @@ function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobTy
         label="Skills"
         {...item("skills")}
         editor={
-          <Block label="" helper={["Select up to 5 skills", `${f.skills.length} / 5`]}>
+          <Block label="" helper={["", `${f.skills.length} / 5`]}>
             <SkillPicker options={GENERAL_SKILLS} value={f.skills} onChange={f.setSkills} max={5} />
             <SkillChips skills={f.skills} onRemove={(s) => f.setSkills((all) => all.filter((x) => x !== s))} />
           </Block>
@@ -92,11 +93,11 @@ function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobTy
         label={t.when}
         value={
           <DateChip tone={CHIP_TONES[f.chip]} selected>
-            {t.chips[f.chip]}
+            {chipLong(type, t.chips[f.chip])}
           </DateChip>
         }
         {...item("duration")}
-        editor={<DurationChips chips={t.chips} value={f.chip} onChange={f.setChip} />}
+        editor={<DurationChips chips={t.chips} label={(c) => chipText(type, c)} value={f.chip} onChange={f.setChip} />}
       />
       <ReviewItem label="Experience Level:" value={f.level === LEVELS[0] ? "Any level" : f.level} {...item("experience")} editor={<Select options={[...LEVELS]} value={f.level} onChange={(e) => f.setLevel(e.target.value)} />} />
       {type === "part-time" && <ReviewItem label="Hours a week:" value={hoursLabel(f.hours)} {...item("weekly")} editor={<HoursChips value={f.hours} onChange={f.setHours} />} />}
@@ -105,21 +106,22 @@ function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobTy
   );
 }
 
-/** A trial's tasks, its notes and its link, under one pencil. */
-function TrialExtras({ f, t, weeks, item }: { f: RoleForm; t: PathCopy; weeks: number; item: Item }) {
+/** A trial's tasks, its notes and its link, under one pencil: none of it is on the public post. */
+function TrialExtras({ f, weeks, item }: { f: RoleForm; weeks: number; item: Item }) {
   return (
     <Card className="flex flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
       <ReviewItem
-        label={t.field2}
+        label={TRIAL_TASKS.title}
+        value={<span className="text-[13px] font-normal text-ink-2">{TRIAL_TASKS.notPublic}</span>}
         {...item("expectations")}
         editor={
           <div className="flex flex-col gap-6">
             <TaskPlanEditor rows={f.taskRows} onChange={f.setTaskRows} weeks={weeks} placeholder="Name a task for the trial" />
-            <TrialNotes expectation={f.expectation} onExpectation={f.setExpectation} attachment={f.attachment} onAttachment={f.setAttachment} placeholder={t.ph2} hint={t.hint2} />
+            <TrialNotes expectation={f.expectation} onExpectation={f.setExpectation} attachment={f.attachment} onAttachment={f.setAttachment} copy={TRIAL_TASKS} />
           </div>
         }
       >
-        <TaskPlanList tasks={fromDrafts(f.taskRows)} empty="No tasks yet — the trial needs at least one." />
+        <TaskPlanList tasks={fromDrafts(f.taskRows)} empty="No tasks yet. The trial needs at least one." />
         {f.expectation.trim() && (
           <div className="flex flex-col gap-2">
             <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Notes</span>
@@ -127,7 +129,7 @@ function TrialExtras({ f, t, weeks, item }: { f: RoleForm; t: PathCopy; weeks: n
           </div>
         )}
         <div className="flex flex-col gap-2">
-          <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachments</span>
+          <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachment link</span>
           {f.attachment ? (
             <Link href={f.attachment} target="_blank" className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-primary">
               {f.attachment}
@@ -141,12 +143,12 @@ function TrialExtras({ f, t, weeks, item }: { f: RoleForm; t: PathCopy; weeks: n
   );
 }
 
-/** TB-024 — a full-time post's exclusive benefits, and what each is worth a month. */
+/** TB-024 — a full-time post's benefits, and what each is worth a month. */
 function BenefitExtras({ f, item }: { f: RoleForm; item: Item }) {
   const benefits = Object.entries(f.benefits);
   return (
     <Card className="flex flex-col gap-6 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
-      <ReviewItem label="Exclusive Benefits" {...item("benefits")} editor={<BenefitsEditor value={f.benefits} onChange={f.setBenefits} />}>
+      <ReviewItem label="Benefits" {...item("benefits")} editor={<BenefitsEditor value={f.benefits} onChange={f.setBenefits} />}>
         {benefits.length === 0 ? (
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">None added.</p>
         ) : (
@@ -160,7 +162,7 @@ function BenefitExtras({ f, item }: { f: RoleForm; item: Item }) {
           </ul>
         )}
       </ReviewItem>
-      <InfoBanner tone="warn">{BENEFITS_DISCLAIMER}</InfoBanner>
+      <InfoBanner>{BENEFITS_DISCLAIMER}</InfoBanner>
     </Card>
   );
 }

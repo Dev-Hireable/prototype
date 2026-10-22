@@ -71,7 +71,7 @@ test.describe("effort and workload · the workload view", () => {
     await expect(page.getByTestId("workload").getByLabel(/^Juan, Fri 16 Oct 2026: 8\. 1 item$/)).toBeVisible();
     await page.getByRole("button", { name: "This week" }).click();
     await expect(page.getByText("20 Sep – 3 Oct")).toBeVisible();
-    await page.getByText(/How this is worked out/).click();
+    await page.getByText(/Numbers show the effort planned for each day/).click();
     await expect(page.getByText(/Effort is relative, not hours, so there's no capacity line/)).toBeVisible();
   });
 });

@@ -29,7 +29,7 @@ const role = (slug: string, title: string, over: Record<string, unknown> = {}) =
   hired: null,
   updated: "24 Sep 2026",
   description: "Own the outbound pipeline for our EU segment.",
-  budget: "$1,600.00 – $2,000.00 /month",
+  budget: "$1,600.00 – $2,000.00",
   duration: "30 Days",
   experience: "Advanced (5–8 years)",
   skills: ["Cold calling", "Lead generation"],
@@ -54,8 +54,8 @@ const FINISHED_COMPANY = {
   logo: null,
 };
 
-/** The UI/UX Designer template's trial tasks: it's a 60-day trial at the senior rate, $3,700 – $5,700 a month. */
-const UX_TASKS = ["Map the current onboarding journey", "Run 5 user interviews", "Deliver wireframes and a high-fidelity Figma prototype", "Hand off specs the developers can build from"];
+/** The UI/UX Designer template's one example task; its published senior band is $3,700 – $5,700 a month. */
+const UX_TASK = "Map the current onboarding journey";
 
 /* -------------------------------------------------------------- locators */
 
@@ -104,18 +104,18 @@ async function fillDetails(page: Page) {
 async function toBudgetStep(page: Page) {
   await page.goto("/team/hire/new?type=trial");
   await fillDetails(page);
-  await page.getByRole("button", { name: "Next: Trial Tasks" }).click();
+  await page.getByRole("button", { name: "Next: Trial tasks" }).click();
   await page.getByRole("textbox", { name: "Task 1" }).fill(NEW_ROLE.task);
-  await page.getByRole("button", { name: "Add budget & duration" }).click();
+  await page.getByRole("button", { name: "Next: Pay" }).click();
 }
 
-/** A new trial filled in through its three steps to Review: NEW_ROLE, $1,500 – $2,500 a month, for `days`. */
-async function fillTrial(page: Page, days = "30 Days") {
+/** A new trial filled in through its three steps to Review: NEW_ROLE, $1,500 – $2,500 for the whole trial, for `days` (a chip's label). */
+async function fillTrial(page: Page, days = "30 working days") {
   await toBudgetStep(page);
   await page.getByRole("textbox", { name: "Minimum" }).fill("1500");
   await page.getByRole("textbox", { name: "Maximum" }).fill("2500");
   await page.getByRole("button", { name: days, exact: true }).click();
-  await page.getByRole("button", { name: "Review job post" }).click();
+  await page.getByRole("button", { name: "Review role" }).click();
   await expect(reviewHeading(page)).toBeVisible();
 }
 
@@ -177,14 +177,14 @@ async function rowsExpand(library: Locator) {
   await expect(library.getByRole("button", { name: "Use this template" })).toHaveCount(0);
 }
 
-/** Step one as the UI/UX Designer template fills it in, with the template button now for changing it. */
+/** Step one as the UI/UX Designer template fills it in (name, description, skills, but not the level), with the template button now for changing it. */
 async function expectUxDetails(page: Page) {
   await expect(page.getByRole("button", { name: "Change template" })).toBeVisible();
   await expect(roleField(page)).toHaveValue("UI/UX Designer");
   await expect(descriptionField(page)).toHaveValue(/^Designs how your app or website looks/);
   await expect(field(page, "Skills")).toContainText("5 / 5");
   await expect(field(page, "Skills").getByText("UX Research", { exact: true })).toBeVisible();
-  await expect(levelPicker(page)).toHaveText("Advanced (5–8 years)");
+  await expect(levelPicker(page)).toHaveText("Select experience level");
 }
 
 /** Step one as a new post starts: nothing filled in, and no template in use. */
@@ -194,25 +194,25 @@ async function expectBlankDetails(page: Page) {
   await expect(descriptionField(page)).toHaveValue("");
   await expect(field(page, "Skills")).toContainText("0 / 5");
   await expect(levelPicker(page)).toHaveText("Select experience level");
-  await expect(page.getByRole("button", { name: "Next: Trial Tasks" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Next: Trial tasks" })).toBeDisabled();
 }
 
 /** Past step one after Start from scratch: no template tasks, no budget, and the length back at 30 days. */
 async function expectNothingLeftFurtherOn(page: Page) {
   await fillDetails(page);
-  await page.getByRole("button", { name: "Next: Trial Tasks" }).click();
+  await page.getByRole("button", { name: "Next: Trial tasks" }).click();
   await expect(page.getByRole("textbox", { name: "Task 1" })).toHaveValue("");
   await expect(page.getByRole("textbox", { name: "Task 2" })).toHaveCount(0);
   await page.getByRole("textbox", { name: "Task 1" }).fill(NEW_ROLE.task);
-  await page.getByRole("button", { name: "Add budget & duration" }).click();
+  await page.getByRole("button", { name: "Next: Pay" }).click();
   await expect(page.getByRole("textbox", { name: "Minimum" })).toHaveValue("");
   await expect(page.getByRole("textbox", { name: "Maximum" })).toHaveValue("");
-  await expect(page.getByRole("button", { name: "30 Days", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "30 working days", exact: true })).toHaveAttribute("aria-pressed", "true");
 }
 
 /** Step one: Next waits until every required field is in, and again when any one is taken away. */
 async function detailsWaitOnEveryField(page: Page) {
-  const next = page.getByRole("button", { name: "Next: Trial Tasks" });
+  const next = page.getByRole("button", { name: "Next: Trial tasks" });
   await expect(next).toBeDisabled();
   await fillDetails(page);
   await expect(next).toBeEnabled();
@@ -234,7 +234,7 @@ async function detailsWaitOnEveryField(page: Page) {
 
 /** Step two: the budget waits on a named task. */
 async function tasksWaitOnATask(page: Page) {
-  const next = page.getByRole("button", { name: "Add budget & duration" });
+  const next = page.getByRole("button", { name: "Next: Pay" });
   await expect(next).toBeDisabled();
   await page.getByRole("textbox", { name: "Task 1" }).fill(NEW_ROLE.task);
   await expect(next).toBeEnabled();
@@ -243,7 +243,7 @@ async function tasksWaitOnATask(page: Page) {
 
 /** Step three: Review waits on both ends of the range, and refuses a minimum over the maximum. */
 async function budgetWaitsOnARange(page: Page) {
-  const next = page.getByRole("button", { name: "Review job post" });
+  const next = page.getByRole("button", { name: "Review role" });
   const upsideDown = page.getByText("Minimum can't be more than the maximum.");
   await expect(next).toBeDisabled();
   await page.getByRole("textbox", { name: "Minimum" }).fill("2000");
@@ -264,7 +264,7 @@ async function editTitleThenCancel(page: Page) {
   await expect(page.getByRole("button", { name: "Save", exact: true })).toBeDisabled();
   await roleField(page).fill("Head of Sales");
   // One part at a time: the other pencils and Save as draft wait for this edit.
-  await expect(page.getByRole("button", { name: "Edit Budget" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Edit Pay" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Save as draft" })).toBeDisabled();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Sales Lead" })).toBeVisible();
@@ -273,10 +273,10 @@ async function editTitleThenCancel(page: Page) {
 
 /** On Review, raises the minimum and saves it: the post shows the new range. */
 async function editMinimumThenSave(page: Page) {
-  await page.getByRole("button", { name: "Edit Budget" }).click();
+  await page.getByRole("button", { name: "Edit Pay" }).click();
   await page.getByRole("textbox", { name: "Minimum" }).fill("1800");
   await page.getByRole("button", { name: "Save", exact: true }).click();
-  await expect(page.getByText("$1,800.00 – $2,000.00 /month")).toBeVisible();
+  await expect(page.getByText("$1,800.00 – $2,000.00 for the trial")).toBeVisible();
 }
 
 /* ----------------------------------------------------------------- specs */
@@ -303,13 +303,17 @@ test.describe("role wizard · templates", () => {
     const library = await openLibrary(page);
     await useTemplate(library, "UI/UX Designer");
     await expect(library).toBeHidden();
+    // The name, description and skills go in, and one example task; the level, the length and the pay stay the Team Builder's.
     await expectUxDetails(page);
-    await page.getByRole("button", { name: "Next: Trial Tasks" }).click();
-    for (const [i, task] of UX_TASKS.entries()) await expect(page.getByRole("textbox", { name: `Task ${i + 1}` })).toHaveValue(task);
-    await page.getByRole("button", { name: "Add budget & duration" }).click();
-    await expect(page.getByRole("textbox", { name: "Minimum" })).toHaveValue("3,700.00");
-    await expect(page.getByRole("textbox", { name: "Maximum" })).toHaveValue("5,700.00");
-    await expect(page.getByRole("button", { name: "60 Days", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await pickLevel(page, "Advanced (5–8 years)");
+    await page.getByRole("button", { name: "Next: Trial tasks" }).click();
+    await expect(page.getByRole("textbox", { name: "Task 1" })).toHaveValue(UX_TASK);
+    await expect(page.getByRole("textbox", { name: "Task 2" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Next: Pay" }).click();
+    await expect(page.getByRole("textbox", { name: "Minimum" })).toHaveValue("");
+    await expect(page.getByRole("textbox", { name: "Maximum" })).toHaveValue("");
+    await expect(page.getByRole("button", { name: "30 working days", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Suggested pay for UI/UX Designer (Advanced): $3,700 to $5,700 for a 30-working-day trial, based on published market rates.")).toBeVisible();
   });
 
   test("reopened, the library names the template in use, and Start from scratch clears all it filled in", async ({ page }) => {
@@ -338,7 +342,7 @@ test.describe("role wizard · steps", () => {
     // Review shows the post as the steps wrote it.
     await expect(reviewHeading(page)).toBeVisible();
     await expect(page.getByRole("heading", { name: NEW_ROLE.title })).toBeVisible();
-    await expect(page.getByText("$2,000.00 – $3,000.00 /month")).toBeVisible();
+    await expect(page.getByText("$2,000.00 – $3,000.00 for the trial")).toBeVisible();
     await expect(page.getByText(NEW_ROLE.task)).toBeVisible();
   });
 
@@ -347,8 +351,8 @@ test.describe("role wizard · steps", () => {
     await toBudgetStep(page);
     await page.getByRole("textbox", { name: "Minimum" }).fill("0");
     await page.getByRole("textbox", { name: "Maximum" }).fill("0");
-    await expect(page.getByText("The budget can't be $0.")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Review job post" })).toBeDisabled();
+    await expect(page.getByText("The pay can't be $0.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Review role" })).toBeDisabled();
   });
 });
 
@@ -362,19 +366,19 @@ test.describe("role wizard · Review", () => {
     await editMinimumThenSave(page);
     await page.getByRole("button", { name: "Save as draft" }).click();
     await expect(page).toHaveURL(/\/team\/hire\/roles$/);
-    expect(await savedRoles(page)).toEqual([expect.objectContaining({ slug: "sales-lead", title: "Sales Lead", budget: "$1,800.00 – $2,000.00 /month", status: "Draft" })]);
+    expect(await savedRoles(page)).toEqual([expect.objectContaining({ slug: "sales-lead", title: "Sales Lead", budget: "$1,800.00 – $2,000.00", status: "Draft" })]);
   });
 
   test("Publish waits on a finished company profile, and says why in its tip and a banner", async ({ page }) => {
     await page.goto("/team/hire/new?type=trial&edit=sales-lead");
-    const publish = page.getByRole("button", { name: "Publish Role" });
-    await expect(publish).toBeDisabled();
-    // A disabled button takes no pointer, so its tip hangs on the wrapper around it.
-    await publish.locator("..").hover();
-    await expect(page.locator('[data-slot="tooltip-content"]')).toHaveText("Finish your company profile first");
-    await expect(page.getByText("To publish, finish your company profile. You can save this role as a draft now and publish it after.")).toBeVisible();
+    await expect(page.getByText("Finish your company profile to publish.")).toBeVisible();
     await expect(page.getByRole("link", { name: "company profile", exact: true })).toHaveAttribute("href", "/team/profile/company");
     await expect(page.getByRole("button", { name: "Save as draft" })).toBeEnabled();
+    // Publish isn't locked: it keeps the role as a draft and opens the company profile, which names what's missing.
+    await page.getByRole("button", { name: "Publish role" }).click();
+    await expect(page).toHaveURL(/\/team\/profile\/company$/);
+    expect(await savedRoles(page)).toEqual([expect.objectContaining({ slug: "sales-lead", status: "Draft" })]);
+    expect(await savedPostings(page)).toEqual([]);
   });
 });
 
@@ -385,13 +389,13 @@ test.describe("role wizard · drafts", () => {
     await expect(page).toHaveURL(/\/team\/hire\/roles$/);
     await expect(page.getByText("0 active · 1 draft · 0 closed")).toBeVisible();
     expect(await savedRoles(page)).toEqual([
-      expect.objectContaining({ slug: "growth-marketer", title: NEW_ROLE.title, type: "trial", status: "Draft", skills: [NEW_ROLE.skill], budget: "$1,500.00 – $2,500.00 /month", duration: "30 Days", tasks: [{ title: NEW_ROLE.task }] }),
+      expect.objectContaining({ slug: "growth-marketer", title: NEW_ROLE.title, type: "trial", status: "Draft", skills: [NEW_ROLE.skill], budget: "$1,500.00 – $2,500.00", duration: "30 Days", tasks: [{ title: NEW_ROLE.task }] }),
     ]);
     await roleMenu(page, "Continue editing");
     await expect(page).toHaveURL(/\/team\/hire\/new\?type=trial&edit=growth-marketer$/);
     await expect(reviewHeading(page)).toBeVisible();
     await expect(page.getByRole("heading", { name: NEW_ROLE.title })).toBeVisible();
-    await expect(page.getByText("$1,500.00 – $2,500.00 /month")).toBeVisible();
+    await expect(page.getByText("$1,500.00 – $2,500.00 for the trial")).toBeVisible();
     await expect(page.getByText(NEW_ROLE.task)).toBeVisible();
   });
 
@@ -404,19 +408,19 @@ test.describe("role wizard · drafts", () => {
     await roleMenu(page, "Continue editing");
     await expect(page).toHaveURL(/\/team\/hire\/new\?type=full-time&edit=operations-lead$/);
     await expect(roleField(page)).toHaveValue("Operations Lead");
-    await expect(page.getByRole("heading", { name: "Build Team" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Role Details" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add budget", exact: true })).toBeDisabled();
+    await expect(page.getByRole("heading", { name: "Build Team: full-time role" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Role details" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Next: Pay and start", exact: true })).toBeDisabled();
   });
 
   // Saving from there keeps it: the length used to reset to 30 Days and be written over the draft's.
   test("a draft opens back with the trial length it was saved with", async ({ page }) => {
-    await fillTrial(page, "60 Days");
+    await fillTrial(page, "60 working days");
     await page.getByRole("button", { name: "Save as draft" }).click();
     await expect.poll(async () => (await savedRoles(page))[0]?.duration).toBe("60 Days");
     await roleMenu(page, "Continue editing");
     await expect(reviewHeading(page)).toBeVisible();
-    await expect(page.getByRole("button", { name: "60 Days", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "60 working days (about 12 weeks)", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Save as draft" }).click();
     await expect(page).toHaveURL(/\/team\/hire\/roles$/);
     expect((await savedRoles(page))[0]).toMatchObject({ duration: "60 Days" });
@@ -428,13 +432,14 @@ test.describe("role wizard · publishing", () => {
 
   test("Publish puts the role on the job board and shows the success screen", async ({ page }) => {
     await fillTrial(page);
-    await page.getByRole("button", { name: "Publish Role" }).click();
-    await expect(page.getByRole("heading", { name: "Job post published" })).toBeVisible();
-    await expect(page.getByText("Your job is now live. Next, review applicants and invite the best matches to a work trial.")).toBeVisible();
-    await expect(page.getByRole("link", { name: "Track applicants" })).toHaveAttribute("href", "/team/hire/roles/growth-marketer");
+    await page.getByRole("button", { name: "Publish role" }).click();
+    await expect(page.getByRole("heading", { name: "Role published" })).toBeVisible();
+    await expect(page.getByText("Your role is live. Invite your best matches below.")).toBeVisible();
+    await expect(page.getByRole("region", { name: "Best matches" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "View candidates" })).toHaveAttribute("href", "/team/hire/roles/growth-marketer");
     await expect(page.getByRole("link", { name: "Back to dashboard" })).toHaveAttribute("href", "/team");
     expect(await savedRoles(page)).toEqual([expect.objectContaining({ slug: "growth-marketer", status: "Active" })]);
-    expect(await savedPostings(page)).toEqual([expect.objectContaining({ slug: "growth-marketer", title: NEW_ROLE.title, company: "Nairobi Solutions Inc.", rate: "$1,500.00 – $2,500.00 /month", tasks: [{ title: NEW_ROLE.task }] })]);
+    expect(await savedPostings(page)).toEqual([expect.objectContaining({ slug: "growth-marketer", title: NEW_ROLE.title, company: "Nairobi Solutions Inc.", rate: "$1,500.00 – $2,500.00", tasks: [{ title: NEW_ROLE.task }] })]);
   });
 });
 
@@ -444,9 +449,9 @@ test.describe("role wizard · publishing a draft", () => {
   test("the published draft keeps its slug, and no copy of it is left behind", async ({ page }) => {
     await page.goto("/team/hire/new?type=trial&edit=sales-lead");
     await expect(page.getByRole("heading", { name: "Sales Lead" })).toBeVisible();
-    await page.getByRole("button", { name: "Publish Role" }).click();
-    await expect(page.getByRole("heading", { name: "Job post published" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Track applicants" })).toHaveAttribute("href", "/team/hire/roles/sales-lead");
+    await page.getByRole("button", { name: "Publish role" }).click();
+    await expect(page.getByRole("heading", { name: "Role published" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "View candidates" })).toHaveAttribute("href", "/team/hire/roles/sales-lead");
     expect(await savedRoles(page)).toEqual([expect.objectContaining({ slug: "sales-lead", title: "Sales Lead", status: "Active" })]);
     expect((await savedPostings(page)).map((p) => p.slug)).toEqual(["sales-lead"]);
   });

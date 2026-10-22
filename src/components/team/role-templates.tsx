@@ -5,14 +5,18 @@ import { MdCheckCircle, MdClose, MdExpandMore } from "react-icons/md";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { Button, Chip, Modal, Pills, SearchBox } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
-import { levelName, rangeText, ROLE_TEMPLATES, searchTemplates, TEMPLATE_CATEGORIES, templateRange } from "@/lib/team/role-templates";
+import { hoursLabel } from "@/lib/contract/job-types";
+import { trialLength, trialMonths } from "@/lib/portal/dates";
+import { useHired } from "@/lib/team/hired";
+import { levelName, ROLE_TEMPLATES, searchTemplates, TEMPLATE_CATEGORIES } from "@/lib/team/role-templates";
 import type { RateSuggestion, RoleTemplate, TemplateCategory } from "@/lib/team/role-templates";
 import { SOURCES } from "@/lib/team/role-catalogue";
+import { FULL_WEEK, rangeText } from "@/lib/team/rates";
 
 /**
- * Create Role templates: the role catalogue, ready to post. Picking one fills step one, the
- * trial's tasks and a suggested budget; the wizard decides whether that needs a confirm.
- * They live in a dialog behind "Use a template", so the form itself stays uncluttered.
+ * Create Role templates: the role catalogue, ready to post. Picking one fills in the role's name,
+ * description and skills, plus one example task on a trial; the wizard decides whether that needs
+ * a confirm. They live in a dialog behind "Use a template", so the form itself stays uncluttered.
  */
 
 /** Popular roles always lead a list — a category, All or a search — each group keeping its own order. */
@@ -23,7 +27,7 @@ const inCategory = (c: TemplateCategory | "All") => (c === "All" ? ROLE_TEMPLATE
 
 /**
  * The library: search it, narrow it by category, open a template to see what it fills in, or go
- * back to blank. `trial` says whether a template's tasks and trial length go in too.
+ * back to blank. `trial` says whether a template's example task goes in too.
  */
 export function TemplateBrowser({ open, onClose, onPick, onClear, applied, trial }: { open: boolean; onClose: () => void; onPick: (t: RoleTemplate) => void; onClear: () => void; applied: RoleTemplate | null; trial: boolean }) {
   const [q, setQ] = useState("");
@@ -108,7 +112,7 @@ function TemplateResults({ list, query, applied, trial, onPick }: { list: RoleTe
   );
 }
 
-/** One template: a row naming the role, its category, level and range, that opens onto what it fills in. */
+/** One template: a row naming the role, that opens onto what it fills in. */
 function TemplateRow({ template: t, expanded, onToggle, inUse, trial, onPick }: { template: RoleTemplate; expanded: boolean; onToggle: () => void; inUse: boolean; trial: boolean; onPick: (t: RoleTemplate) => void }) {
   const panel = `template-${t.id}`;
   return (
@@ -136,13 +140,15 @@ function TemplateRow({ template: t, expanded, onToggle, inUse, trial, onPick }: 
   );
 }
 
-/** An open template: its category, level and range, description, the skills it fills in, the trial plan when it has one, its sources, and the button that uses it. */
+/**
+ * An open template: its category, description, the skills it fills in, on a trial its example task,
+ * its sources, and the button that uses it. What it fills in is all it shows: no trial length and
+ * no pay, which the Team Builder sets on their own.
+ */
 function TemplateDetails({ id, template: t, inUse, trial, onPick }: { id: string; template: RoleTemplate; inUse: boolean; trial: boolean; onPick: (t: RoleTemplate) => void }) {
   return (
     <div id={id} className="flex flex-col gap-3 px-4 pb-4 text-[13px] leading-[1.4]">
-      <p className="text-[12px] text-ink-2">
-        {t.category} · {levelName(t.level)} · {templateRange(t)}
-      </p>
+      <p className="text-[12px] text-ink-2">{t.category}</p>
       <p className="text-ink-2">{t.description}</p>
       <div className="flex flex-col gap-1.5">
         <span className="font-semibold text-ink">Skills it fills in</span>
@@ -155,18 +161,10 @@ function TemplateDetails({ id, template: t, inUse, trial, onPick }: { id: string
         </span>
         {t.moreSkills.length > 0 && <span className="text-[12px] text-ink-2">Also useful: {t.moreSkills.join(", ")}</span>}
       </div>
-      {trial && t.tasks.length > 0 && (
+      {trial && t.task && (
         <div className="flex flex-col gap-1.5">
-          <span className="font-semibold text-ink">
-            {t.days}-day trial · {t.tasks.length} tasks
-          </span>
-          <ul className="list-disc pl-5 text-ink-2">
-            {t.tasks.map((task) => (
-              <li key={task.title}>
-                {task.title} <span className="text-[12px]">· week {task.week}</span>
-              </li>
-            ))}
-          </ul>
+          <span className="font-semibold text-ink">Example task</span>
+          <span className="text-ink-2">{t.task.title}</span>
         </div>
       )}
       <TemplateSources template={t} />
@@ -203,7 +201,7 @@ function TemplateSources({ template: t }: { template: RoleTemplate }) {
       )}
       {t.rateSources.length > 0 && (
         <span>
-          Rates:{" "}
+          Market rates:{" "}
           {t.rateSources.map((r, i) => (
             <span key={r.source}>
               {i > 0 && "; "}
@@ -228,13 +226,12 @@ function Source({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /**
- * The budget step's "See source": where the suggested range comes from — the rate-guide entry,
- * the level it was scaled to, and the independents on Hireable doing this work at what rate — with
- * the range one click away. It used to link to the Team Builder's own roles list, which explained
- * nothing.
+ * The budget step's "See source": where the suggested range comes from (the published market rates
+ * it reads, the level it was scaled to, a part-time share, and the Independents on Hireable doing
+ * this work at what rate) with the range one click away. It used to link to the Team Builder's own
+ * roles list, which explained nothing.
  */
-export function RateSourceModal({ open, onClose, suggestion: s, role, noun, inUse, onUse }: { open: boolean; onClose: () => void; suggestion: RateSuggestion | null; role: string; noun: "rate" | "salary"; inUse: boolean; onUse: () => void }) {
-  const range = s ? rangeText(s) : "";
+export function RateSourceModal({ open, onClose, suggestion: s, role, inUse, onUse }: { open: boolean; onClose: () => void; suggestion: RateSuggestion | null; role: string; inUse: boolean; onUse: () => void }) {
   return (
     <Modal
       open={open && !!s}
@@ -242,51 +239,65 @@ export function RateSourceModal({ open, onClose, suggestion: s, role, noun, inUs
       closeButton
       width={560}
       title="Where this range comes from"
-      description={s ? `The suggested ${noun} for ${role || s.guide.title} is ${range}. Here's what it's based on.` : undefined}
+      description={s ? `The suggested pay for ${role || s.guide.title} is ${rangeText(s, s.hours, s.trialDays)}. Here's what it's based on.` : undefined}
       footer={
         <>
+          {/* A note, not a greyed-out button: a disabled "Range in use" read like a status. */}
+          {inUse && <span className="self-center text-[13px] leading-[1.4] text-ink-2 max-md:text-center">You are using this range</span>}
           <Button size="lg" onClick={onClose}>
             Close
           </Button>
-          <Button
-            size="lg"
-            variant="primary"
-            disabled={inUse}
-            onClick={() => {
-              onUse();
-              onClose();
-            }}
-          >
-            {inUse ? "Range in use" : "Use this range"}
-          </Button>
+          {!inUse && (
+            <Button
+              size="lg"
+              variant="primary"
+              onClick={() => {
+                onUse();
+                onClose();
+              }}
+            >
+              Use this range
+            </Button>
+          )}
         </>
       }
     >
       {s && (
         <div className="flex flex-col gap-3">
-          <GuideSource suggestion={s} role={role} range={range} />
+          <GuideSource suggestion={s} role={role} />
           <PeersSource suggestion={s} />
-          <p className="text-[12px] leading-[1.4] text-ink-2">A guide, not a rule — you can set any {noun}.</p>
+          <p className="text-[12px] leading-[1.4] text-ink-2">This is a guide. You can set any amount.</p>
         </div>
       )}
     </Modal>
   );
 }
 
-/** The rate-guide entry the range starts from, what it was matched on, and the level it was scaled to. */
-function GuideSource({ suggestion: s, role, range }: { suggestion: RateSuggestion; role: string; range: string }) {
+/** The published figure the range starts from and what it covers, what it was matched on, the level it was scaled to, and a part-time share. */
+function GuideSource({ suggestion: s, role }: { suggestion: RateSuggestion; role: string }) {
   const how = { template: "You started from this template.", title: `Matched on the role title “${role}”.`, skills: "Matched on the skills you picked." }[s.matched];
   return (
-    <Source title="Hireable rate guide">
+    <Source title="Published market rates">
       <p className="text-ink">
-        {s.guide.title} · {s.guide.category} · {levelName(s.guide.level)}: <strong className="font-semibold">{templateRange(s.guide)}</strong>
+        {s.guide.title} · {s.guide.category} · {s.basis.level ? levelName(s.basis.level) : "all levels"}: <strong className="font-semibold">{rangeText(s.basis.range)}</strong>
       </p>
-      <p className="text-ink-2">Published monthly rates for remote {s.guide.title.toLowerCase()} roles in the Philippines. {how}</p>
-      {s.adjustedFor && (
+      <p className="text-ink-2">Monthly pay published for remote {s.guide.title.toLowerCase()} roles in the Philippines. {how}</p>
+      {s.scaledTo && (
         <p className="text-ink-2">
-          {s.scaled ? "Scaled to" : "At"} {levelName(s.adjustedFor)} experience, the level on this role: <strong className="font-semibold text-ink">{range}</strong>.
+          Scaled to {levelName(s.scaledTo)} experience, the level on this role: <strong className="font-semibold text-ink">{rangeText(s.fullTime)}</strong>.
         </p>
       )}
+      {s.hours ? (
+        <p className="text-ink-2">
+          For {hoursLabel(s.hours)} of a {FULL_WEEK}-hour week: <strong className="font-semibold text-ink">{rangeText(s)}</strong>.
+        </p>
+      ) : null}
+      {/* A trial pays one total: the monthly range for each month of the trial. */}
+      {s.trialDays ? (
+        <p className="text-ink-2">
+          For a trial of {trialLength(s.trialDays)}, {trialMonths(s.trialDays) === 1 ? "one month" : `${trialMonths(s.trialDays)} months`} of that pay: <strong className="font-semibold text-ink">{rangeText(s, undefined, s.trialDays)}</strong>.
+        </p>
+      ) : null}
       {s.guide.rateSources.length > 0 && (
         <ul className="flex flex-col gap-1.5 text-[12px] text-ink-2">
           {s.guide.rateSources.map((r) => {
@@ -310,26 +321,32 @@ function peerMedian(s: RateSuggestion) {
   return s.peers.length ? [...s.peers].sort((a, b) => a.rate - b.rate)[Math.floor((s.peers.length - 1) / 2)].rate : null;
 }
 
-/** How the median sentence ends: where the median falls against the suggested range. */
+/**
+ * How the median sentence ends: where the median falls against the suggested range. Their rates are
+ * for a full working week, so a part-time role's median is set against the full-time range.
+ */
 function medianPlace(median: number, s: RateSuggestion) {
-  return median >= s.min && median <= s.max ? ", inside the suggested range." : median < s.min ? ", below the suggested range." : ", above the suggested range.";
+  const { min, max } = s.fullTime;
+  const range = s.hours ? "the full-time range" : "the suggested range";
+  return median >= min && median <= max ? `, inside ${range}.` : median < min ? `, below ${range}.` : `, above ${range}.`;
 }
 
-/** The independents on Hireable doing this work, at their rates, and where their median falls. */
+/** The Independents on Hireable doing this work, at their rates, and where their median falls. Named as everywhere before a hire: "Juan D.". */
 function PeersSource({ suggestion: s }: { suggestion: RateSuggestion }) {
   const median = peerMedian(s);
+  const { nameOf } = useHired();
   return (
     <Source title="Independents on Hireable doing this work">
       {s.peers.length === 0 ? (
-        <p className="text-ink-2">No independents with these skills yet, so the range comes from the rate guide alone.</p>
+        <p className="text-ink-2">No Independents with these skills yet, so the range comes from published market rates alone.</p>
       ) : (
         <>
           <ul className="flex flex-col gap-2">
             {s.peers.map((p) => (
-              <li key={p.name} className="flex items-start justify-between gap-4">
+              <li key={p.slug} className="flex items-start justify-between gap-4">
                 <span className="flex flex-col">
                   <span className="font-medium text-ink">
-                    {p.name} · {p.role}
+                    {nameOf(p)} · {p.role}
                   </span>
                   <span className="text-[12px] text-ink-2">
                     {levelName(p.level)}
@@ -342,7 +359,7 @@ function PeersSource({ suggestion: s }: { suggestion: RateSuggestion }) {
           </ul>
           {median !== null && (
             <p className="text-ink-2">
-              {s.peers.length === 1 ? "Their rate" : `Median of ${s.peers.length} independents`}: {money(median)} /month{medianPlace(median, s)}
+              {s.peers.length === 1 ? "Their rate" : `Median of ${s.peers.length} Independents`}: {money(median)} /month{medianPlace(median, s)}
             </p>
           )}
         </>

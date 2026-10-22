@@ -26,26 +26,15 @@ const openWork = (id?: string) => writeParams({ tab: null, task: id ?? null });
 
 type Viewer = "team" | "independent";
 
-/**
- * A contract's Overview tab, the same on both sides: the terms at a glance, how far the work has
- * got, what needs you now, what's due over the next two weeks and the latest changes — each item
- * opening in the Work tab, where it can be acted on — beside the page's own cards (the score, the
- * activity streak, the evaluation, the money). All of it is read from the contract's work items;
- * none of it is a summary kept anywhere else.
- */
-export function ContractOverview({
-  viewer,
-  tasks,
-  names,
-  people,
-  trial,
-  facts,
-  callouts,
-  aside,
-  work = { open: true, reviewOpen: true },
-}: {
+type OverviewProps = {
   viewer: Viewer;
   tasks: readonly WorkItem[];
+  /**
+   * TB-143 — what Progress counts: the work as the Work tab opens on it (workTabItems), so the two say
+   * the same; a converted trial's finished chapter isn't in it. Left out (a contract the demo only
+   * lists, which has no Work tab), every live item.
+   */
+  counted?: readonly WorkItem[];
   /** First names, for "Alex asked for changes". */
   names: Record<Viewer, string>;
   people: TaskPeople;
@@ -61,7 +50,16 @@ export function ContractOverview({
    * none of it is put in front of anyone as needing them.
    */
   work?: { open: boolean; reviewOpen: boolean };
-}) {
+};
+
+/**
+ * A contract's Overview tab, the same on both sides: the terms at a glance, how far the work has
+ * got, what needs you now, what's due over the next two weeks and the latest changes — each item
+ * opening in the Work tab, where it can be acted on — beside the page's own cards (the score, the
+ * activity streak, the evaluation, the money). All of it is read from the contract's work items;
+ * none of it is a summary kept anywhere else.
+ */
+export function ContractOverview({ viewer, tasks, counted, names, people, trial, facts, callouts, aside, work = { open: true, reviewOpen: true } }: OverviewProps) {
   const today = todayDay();
   const live = tasks.filter((t) => !isArchived(t));
   return (
@@ -72,7 +70,7 @@ export function ContractOverview({
         {/* Each card is a region, so a screen reader can jump between them. */}
         <div className="flex w-full min-w-0 flex-1 flex-col gap-4 [&>section]:flex [&>section]:flex-col">
           <section aria-label="Progress">
-            <Progress items={live} today={today} trial={trial} />
+            <Progress items={counted ? counted.filter((t) => !isArchived(t)) : live} today={today} trial={trial} />
           </section>
           <section aria-label="Needs attention">
             <Attention items={live} today={today} viewer={viewer} names={names} work={work} />
@@ -119,7 +117,7 @@ function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; tria
             <WorkMeter counts={counts} />
             <WorkLegend counts={counts} />
           </div>
-          {scored.length > 0 && <p className="text-[12.5px] leading-[1.4] text-ink-2">Trial tasks are the ones the Trial Fit Score&apos;s Performance counts.</p>}
+          {scored.length > 0 && <p className="text-[12.5px] leading-[1.4] text-ink-2">Only trial tasks count toward the Performance score.</p>}
         </>
       )}
     </PanelCard>

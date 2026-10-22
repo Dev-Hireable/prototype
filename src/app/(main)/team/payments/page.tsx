@@ -9,7 +9,9 @@ import { useLedger } from "@/lib/team/contracts";
 const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[130px]", "w-[110px]", "w-[132px]", "w-[80px]"];
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
-const TYPES = ["All types", "Payment Deposited", "Payment Released", "Payment Refunded"] as const;
+/** One name for each kind of transaction, the same in the filter, the table and the drawer. */
+const TYPE_LABEL: Record<Transaction["type"], string> = { "Payment Deposited": "Escrow deposit", "Payment Released": "Released", "Payment Refunded": "Refunded" };
+const TYPES = ["All types", ...Object.values(TYPE_LABEL)];
 const RANGES = { "All time": Infinity, "Last 30 days": 30, "Last 90 days": 90 } as const;
 /** A screenful of ledger rows. Not tuned to force a second page out of six transactions — the
  * pager hides itself when everything fits, which is the behaviour worth showing. */
@@ -59,7 +61,7 @@ function useFilters(transactions: Transaction[]) {
   // Never earlier than the newest row, so a seeded row dated ahead of the clock still counts.
   const TODAY = Math.max(todayStamp(), ...transactions.map((t) => t.at));
   const [q, setQ] = useState("");
-  const [type, setType] = useState<(typeof TYPES)[number]>("All types");
+  const [type, setType] = useState("All types");
   const [contract, setContract] = useState("All contracts");
   const [range, setRange] = useState<keyof typeof RANGES>("All time");
   const [page, setPage] = useState(1);
@@ -69,7 +71,7 @@ function useFilters(transactions: Transaction[]) {
   const all = [...transactions].sort((a, b) => b.at - a.at);
   const rows = all.filter(
     (t) =>
-      (type === "All types" || t.type === type) &&
+      (type === "All types" || TYPE_LABEL[t.type] === type) &&
       (contract === "All contracts" || t.contract === contract) &&
       daysBetween(TODAY, t.at) <= RANGES[range] &&
       // TB-086 searches the two names a Team Builder would actually recall.
@@ -113,10 +115,10 @@ function LedgerToolbar({ filters, onExport }: { filters: Filters; onExport: () =
         className="w-[300px]"
       />
       <Select
-        options={[...TYPES]}
+        options={TYPES}
         value={type}
         onChange={(e) => {
-          setType(e.target.value as (typeof TYPES)[number]);
+          setType(e.target.value);
           setPage(1);
         }}
         className="!w-[190px]"
@@ -153,19 +155,20 @@ function Totals({ all }: { all: Transaction[] }) {
   return (
     // Side by side; a tablet or a phone wraps them two to a row, the odd one out across the full width.
     <div className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
+      {/* The figure and what it is; only Total spent adds a line, the contracts it covers (a trial and the role it became are one). */}
       {(
         [
-          [usd(spent), "Total spent", `${all.filter((t) => t.type === "Payment Released").length} released across ${plural(new Set(all.map((t) => t.contract)).size, "contract")}`],
-          [usd(held), "Held in escrow", held > 0 ? "not yet released or refunded" : "nothing held right now"],
-          [usd(refunded), "Refunded", `${all.filter((t) => t.type === "Payment Refunded").length} returned to your card`],
-        ] as const
+          [usd(spent), "Total spent", plural(new Set(all.map((t) => t.contractHref ?? t.contract)).size, "contract")],
+          [usd(held), "Held in escrow"],
+          [usd(refunded), "Refunded"],
+        ] as [string, string, string?][]
       ).map(([v, l, s]) => (
         <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4 max-lg:basis-[150px]">
           <p className="font-display text-[22px] leading-[1.5] font-semibold text-ink" style={DM}>
             {v}
           </p>
           <p className="text-[13px] leading-[1.4] font-medium text-ink-2">{l}</p>
-          <p className="text-[12px] leading-[1.4] text-ink-2">{s}</p>
+          {s && <p className="text-[12px] leading-[1.4] text-ink-2">{s}</p>}
         </Card>
       ))}
     </div>
@@ -214,7 +217,7 @@ function TransactionTable({ filters, onView }: { filters: Filters; onView: (t: T
             </button>
             <span className={COLS[2]}>{t.independent}</span>
             <span className={COLS[3]}>
-              <Chip>{t.type.replace("Payment ", "")}</Chip>
+              <Chip>{TYPE_LABEL[t.type]}</Chip>
             </span>
             <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
             <span className={COLS[5]}>
@@ -268,7 +271,7 @@ function TransactionDrawer({ open, viewing, onClose, onToast }: { open: boolean;
             <StatusDot tone={viewing.status.tone}>{viewing.detail.drawerStatus}</StatusDot>
           </div>
           <div className="flex items-center gap-2">
-            <Chip>{viewing.type}</Chip>
+            <Chip>{TYPE_LABEL[viewing.type]}</Chip>
             <span className="text-[13px] leading-[1.4] text-ink-2">{viewing.detail.time}</span>
           </div>
           <dl className="flex flex-col gap-2 rounded-lg bg-[#fafafa] p-4 text-[13px] leading-[1.4]">
@@ -283,7 +286,8 @@ function TransactionDrawer({ open, viewing, onClose, onToast }: { open: boolean;
               <span>{viewing.detail.total}</span>
             </div>
           </dl>
-          <Timeline steps={viewing.detail.timeline} />
+          {/* One step only repeats the date above it, so the timeline waits for a second. */}
+          {viewing.detail.timeline.length > 1 && <Timeline steps={viewing.detail.timeline} />}
           <div className="flex gap-3 pt-2">
             <Button size="lg" className="flex-1" onClick={() => onToast("Receipt downloaded")}>
               Download receipt

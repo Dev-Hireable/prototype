@@ -34,7 +34,7 @@ export function ProfileSection({ title, description, action, children }: { title
  * the talent's profile, and both portals' settings — so it reads the same on each side. `accept`
  * and the checks are the caller's (JPG or PNG under 5MB, TB-120 / TB-123 / IN-061).
  */
-export function ImagePicker({ image, label, onPick }: { image: ReactNode; /** "Change photo — JPG or PNG, up to 5MB". */ label: string; onPick: (f: File | undefined) => void }) {
+export function ImagePicker({ image, label, onPick }: { image: ReactNode; /** "Change photo (JPG or PNG, up to 5MB)". */ label: string; onPick: (f: File | undefined) => void }) {
   const file = useRef<HTMLInputElement>(null);
   return (
     <div className="relative shrink-0">
@@ -91,7 +91,7 @@ export function ProfileHeader({
       </div>
       {pending && (
         <div className="flex shrink-0 items-center gap-2">
-          <span className="text-[12.5px] text-ink-2">New image — not saved yet</span>
+          <span className="text-[12.5px] text-ink-2">New image, not saved yet</span>
           <Button size="sm" onClick={onDiscard}>
             Discard
           </Button>

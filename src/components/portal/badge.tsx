@@ -20,6 +20,8 @@ const TINT: Record<BadgeTone, string> = {
   info: "bg-[#ebf8fe] text-brand-blue",
   neutral: "bg-surface-2 text-ink-2",
   accent: "bg-accent-bg text-accent",
+  // In review is a status, not a warning: amber, apart from the orange of a warning.
+  review: "bg-[#fff6d9] text-[#7a5a00]",
   trial: "bg-[#fff5ec] text-brand-orange",
   "full-time": "bg-[#ebf8fe] text-brand-blue",
   "part-time": "bg-[#ffe5f6] text-brand-magenta",
@@ -34,6 +36,7 @@ const SOLID: Record<BadgeTone, string> = {
   info: "bg-brand-blue",
   neutral: "bg-ink-2",
   accent: "bg-accent",
+  review: "bg-review",
   trial: "bg-brand-orange",
   "full-time": "bg-brand-blue",
   "part-time": "bg-brand-magenta",

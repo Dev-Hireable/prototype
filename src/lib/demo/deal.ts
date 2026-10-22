@@ -1,11 +1,10 @@
 "use client";
 
-import type { SuggestionDecision, TaskSuggestion } from "@/lib/demo/suggestions";
 import { useSyncExternalStore } from "react";
 import type { Stage } from "@/lib/portal/stages";
 import { TFP_WEIGHTS } from "@/lib/contract/fit-score";
-import { dayLabel, isoDay, isWeekday, parseDay, today, trialClock } from "@/lib/portal/dates";
-import type { JobType, OngoingType } from "@/lib/contract/job-types";
+import { canJoin, dayLabel, durationDays, isoDay, isUpcoming, isWeekday, parseDay, slotInstant, slotOffset, today, trialClock } from "@/lib/portal/dates";
+import { trialTotal, type JobType, type OngoingType } from "@/lib/contract/job-types";
 import { lifecycleOf, type ContractFacts, type Lifecycle, type Notice } from "@/lib/contract/lifecycle";
 import { dayLevel, trialTasks } from "@/lib/demo/tasks";
 import type { OfferTask, PlannedTask, Task, TaskComment } from "@/lib/demo/tasks";
@@ -42,15 +41,14 @@ import { isCompleted } from "@/lib/work/model";
  * wrote them. What the proposal settles is what the offer carries (TB-105).
  * `version` counts resubmissions after a revision request.
  */
-/** `suggestions`: changes to the trial's tasks the talent suggested in a revision (./suggestions). */
 /**
  * A proposal as sent. `start` is the day the talent proposes to start (yyyy-mm-dd) — the offer takes
  * it as agreed (TB-105); proposals from before it was asked for have none (proposedStart).
  */
-export type DealProposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; hours?: number; start?: string; tasks?: PlannedTask[]; suggestions?: TaskSuggestion[] };
+export type DealProposal = { version: number; sent: string; rate: string; letter: string; portfolio?: string; hours?: number; start?: string; tasks?: PlannedTask[] };
 
 /**
- * TB-106 — one entry in a proposal's history, oldest first (the Review proposal Activity pane):
+ * TB-106 — one entry in a proposal's history, oldest first (Review proposal reads its versions off it):
  * every version as it was submitted, each revision request with its note, a decline, and the notes
  * the Team Builder left on it. `at` is a momentLabel ("23 Sep 2026, 3:04 PM").
  */
@@ -104,6 +102,8 @@ export type DealOffer = {
   sent: string;
   deposit?: { escrow: number; fee: number };
   declineReason?: string;
+  /** IN-074 — how it was signed: the name the talent typed (their account's) and the day they accepted. */
+  signed?: { name: string; on: string };
 };
 
 /**
@@ -145,14 +145,31 @@ export type Deal = {
    * Team Builder cancelled it, or the talent asked to move it (`reschedule`, with the slot they
    * asked for in `requested`). `past` takes it off both upcoming lists. A new invitation replaces
    * the whole record, so a declined, cancelled or moved slot can be offered again.
+   * `offset` and `by` are the clock the slot was picked in (minutes off UTC) and whose it was, so each
+   * side reads it in its own time; records from before them fall back through `slotOffset`. `auto`:
+   * marked held on its own once the slot had passed (sweepInterview), so the Team Builder can say it
+   * didn't happen; `missed` is that answer, kept as a cancelled slot so both sides offer a new one.
+   * `reason` is the Team Builder's, when they cancelled it.
    */
-  interview?: { when: string; format: string; link?: string; note?: string; accepted?: boolean; past?: boolean; outcome?: InterviewOutcome; requested?: { when: string; note?: string } };
+  interview?: {
+    when: string;
+    format: string;
+    link?: string;
+    note?: string;
+    accepted?: boolean;
+    past?: boolean;
+    outcome?: InterviewOutcome;
+    requested?: { when: string; note?: string; offset?: number };
+    offset?: number;
+    by?: "team" | "independent";
+    auto?: boolean;
+    missed?: boolean;
+    reason?: string;
+  };
   /** TB-103 — the request, and the note the Team Builder sent with it. */
   proposalRequest?: { note?: string; date: string };
   /** IN-072 — what the talent proposed; absent until they submit. */
   proposal?: DealProposal;
-  /** TB-106 — the Team Builder's answer to each task suggestion, by its id: accepted ones go into the offer. */
-  suggestionDecisions?: Record<string, SuggestionDecision>;
   /** TB-106 — the Team Builder's requested changes; cleared when the talent resubmits. */
   revision?: { note: string; date: string };
   /** TB-106 — every version, revision request and note, oldest first (read it through `proposalHistory`). */
@@ -270,7 +287,6 @@ export type Posting = {
    */
   closed?: boolean;
   posted: string;
-  closes: string;
 };
 
 /**
@@ -282,17 +298,17 @@ const MATCH_THRESHOLD = 80;
 /** The stage to show for a deal — a strong enough application reads as a match. */
 export const stageOf = (deal: Deal): Stage => (deal.stage === "applied" && deal.match >= MATCH_THRESHOLD ? "matched" : deal.stage);
 
-/** The stages from which there is a thread: an interview is on the table. */
-const CHATTABLE: Stage[] = ["invited", "invite_accepted", "interviewed", "proposal_requested", "proposal_sent", "offer_received", "offer_accepted", "hired"];
+/** The stages with a thread: all of them, from the application (or the invite to apply) on. */
+const CHATTABLE: Stage[] = ["applied", "matched", "invited", "invite_accepted", "interviewed", "proposal_requested", "proposal_sent", "offer_received", "offer_accepted", "hired"];
 
 /**
- * IN-006 — the talent can only message a company once it has invited them to interview. Before
- * that there is no thread to open, on either side.
+ * TB-006 / IN-006 — one thread per person, from the first contact: an application, or the Team
+ * Builder's invite to apply (which has no deal yet: the inbox reads the invite itself, useInvites).
  */
 export const canMessage = (deal: Deal | null) => !!deal && stageCanMessage(stageOf(deal));
 
-/** The same rule for any tracker card: no thread while they're only a candidate or a match. */
-export const stageCanMessage = (stage: Stage) => CHATTABLE.includes(stage);
+/** The same rule for any pipeline card: an applicant or an invited match can be messaged too. */
+const stageCanMessage = (stage: Stage) => CHATTABLE.includes(stage);
 
 /** The contract started as a trial (escrow, trial clock, Trial Fit Score) rather than a direct hire. */
 export const startedAsTrial = (deal: Deal | null) => (deal?.offer?.type ?? "trial") === "trial";
@@ -396,6 +412,31 @@ function normalizeDeal(raw: LegacyDeal | null | undefined): Deal | null {
   return deal;
 }
 
+/**
+ * A trial's pay is one total for the whole trial (2026-10-22). One saved while it was a monthly rate
+ * ("$1,600 /month") reads as the total it stood for, the rate for each month of the trial
+ * (trialTotal): its proposal and every version of it, its offer and its contract. The trial's length
+ * is its posting's, else the working days its dates span. A deposit already funded stays as it is.
+ */
+function withTrialTotals(deal: Deal | null, postings: Posting[]): Deal | null {
+  const posting = deal && postings.find((p) => p.slug === deal.roleSlug);
+  if (!deal || (posting?.type ?? deal.offer?.type) !== "trial") return deal;
+  const span = deal.contract?.ends ? trialClock(deal.contract.started, deal.contract.ends).total : deal.offer?.end ? trialClock(deal.offer.start, deal.offer.end).total : 30;
+  const days = posting?.duration ? durationDays(posting.duration) : span;
+  const total = <T extends { rate: string }>(x: T): T => ({ ...x, rate: trialTotal(x.rate, days) });
+  const asTrial = (deal.offer?.type ?? "trial") === "trial";
+  return {
+    ...deal,
+    proposal: deal.proposal && total(deal.proposal),
+    proposalHistory: deal.proposalHistory?.map((e) => (e.kind === "proposal" ? { ...e, proposal: total(e.proposal) } : e)),
+    offer: deal.offer && asTrial ? total(deal.offer) : deal.offer,
+    contract: deal.contract && asTrial ? total(deal.contract) : deal.contract,
+  };
+}
+
+/** A trial posting saved with a monthly pay, as the total for the trial (trialTotal). */
+const postingTotals = (p: Posting): Posting => (p.type === "trial" ? { ...p, rate: trialTotal(p.rate, durationDays(p.duration)), rateRange: trialTotal(p.rateRange, durationDays(p.duration)) } : p);
+
 /* ------------------------------------------------------------------ store */
 
 /** What's saved, read — or null when it can't be (not JSON, or not a record at all). */
@@ -406,7 +447,8 @@ function parseState(raw: string | null): State | null {
     if (!saved || typeof saved !== "object" || Array.isArray(saved)) return null;
     const s = saved as { deal?: LegacyDeal | null; postings?: unknown; invites?: unknown };
     const invites = s.invites && typeof s.invites === "object" && !Array.isArray(s.invites) ? Object.fromEntries(Object.entries(s.invites as Record<string, unknown>).filter(([, v]) => typeof v === "number")) : undefined;
-    return { deal: normalizeDeal(s.deal), postings: Array.isArray(s.postings) ? (s.postings as Posting[]) : [], ...(invites ? { invites: invites as Record<string, number> } : {}) };
+    const postings = Array.isArray(s.postings) ? (s.postings as Posting[]).map(postingTotals) : [];
+    return { deal: withTrialTotals(normalizeDeal(s.deal), postings), postings, ...(invites ? { invites: invites as Record<string, number> } : {}) };
   } catch {
     return null;
   }
@@ -606,10 +648,15 @@ export function resetUnreadableDeal() {
 /** A posting still taking applications. */
 export const isPostingOpen = (p: Posting) => !p.filled && !p.closed;
 
-/** TB-026 — publishing (or reopening) puts the role in front of the talent. */
+/**
+ * TB-026 — publishing (or reopening) puts the role in front of the talent. #91 — it keeps the day it
+ * first went up; posts from before that was dated said "Posted today" for good, so they take this one.
+ */
 export function publishPosting(posting: Posting) {
   const s = fresh();
-  if (s) write({ ...s, postings: [posting, ...s.postings.filter((p) => p.slug !== posting.slug)] });
+  const first = s?.postings.find((p) => p.slug === posting.slug)?.posted;
+  const posted = first && first !== "Posted today" ? first : posting.posted;
+  if (s) write({ ...s, postings: [{ ...posting, posted }, ...s.postings.filter((p) => p.slug !== posting.slug)] });
 }
 
 /**
@@ -653,6 +700,19 @@ export function updateDeal(patch: (deal: Deal) => Deal) {
   const next = patch(s.deal);
   if (process.env.NODE_ENV !== "production" && s.deal.contract && next.contract && next.contract.tasks !== s.deal.contract.tasks) console.warn("updateDeal changed the work list; change work items through the work repository (@/lib/work).");
   write({ ...s, deal: next });
+}
+
+/**
+ * IN-018 / TB-037 — a confirmed interview whose slot has passed (its hour is over) was held: it moves
+ * to Interview completed on its own, so nobody has to remember to mark it. It's `auto`, so the Team
+ * Builder can still say it didn't happen. A slot that doesn't read as a date and time is left alone.
+ */
+export function sweepInterview(now = Date.now()) {
+  const iv = readDeal()?.interview;
+  if (!iv) return;
+  const offset = slotOffset(iv.when, iv.offset);
+  if (slotInstant(iv.when, offset) === undefined || isUpcoming(iv.when, offset, now) || canJoin(iv.when, offset, now)) return;
+  updateDeal((d) => (d.stage === "invite_accepted" && !d.dropped && d.interview && !d.interview.past && !d.interview.outcome ? { ...d, stage: "interviewed", interview: { ...d.interview, past: true, outcome: "done", auto: true } } : d));
 }
 
 /** Money leaving the trial's escrow — released to the talent or refunded to the Team Builder. */

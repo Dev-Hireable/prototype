@@ -17,9 +17,12 @@ type Filters = typeof DEFAULT;
 
 const rate = (r: string) => Number(r.replace(/[^0-9]/g, ""));
 
-/** Whether a profile matches the search and every applied filter. */
+/**
+ * Whether a profile matches the search and every applied filter. The search reads the title and
+ * skills, not the name: a match shows as "Juan D." until a hire, so a surname must find nothing.
+ */
 function matches(p: Independent, q: string, applied: Filters) {
-  const text = `${p.name} ${p.role} ${p.skills.join(" ")}`.toLowerCase();
+  const text = `${p.role} ${p.skills.join(" ")}`.toLowerCase();
   if (q && !text.includes(q.toLowerCase())) return false;
   if (!applied.levels.has(p.level)) return false;
   if (applied.skill !== NO_SKILL && !p.skills.includes(applied.skill)) return false;

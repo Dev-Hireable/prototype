@@ -39,8 +39,8 @@ export function DashboardTasks({
   about: string;
   /** The other side's first name. */
   counterpart: string;
-  /** What needs this person before any task: the trial's evaluation, the hiring decision, an offer to answer. */
-  lead?: { href: string; title: string; meta: string };
+  /** What needs this person before any task: the trial's evaluation, the hiring decision, an offer to answer. `overdue` draws its meta in red. */
+  lead?: Lead;
   /** Said in place of the tasks while they can't move — a trial that's over and being decided. */
   frozen?: string;
 }) {
@@ -58,7 +58,7 @@ export function DashboardTasks({
       ) : rows.length === 0 ? (
         <p className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">
           <ICONS.taskDone size={18} aria-hidden className="shrink-0 text-ok" />
-          {side === "independent" ? "You're all caught up — nothing is waiting on you." : "Nothing is waiting on you — no work to review, and none of your own open."}
+          {side === "independent" ? "You're all caught up. Nothing is waiting on you." : "Nothing is waiting on you: no work to review, and none of your own open."}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -92,13 +92,15 @@ function summaryOf(rows: AgendaRow[], side: Side) {
     .join(" · ");
 }
 
-/** What needs this person before any task, above the list and outlined in the star's yellow. */
-function LeadRow({ lead }: { lead: { href: string; title: string; meta: string } }) {
+type Lead = { href: string; title: string; meta: string; overdue?: boolean };
+
+/** What needs this person before any task, above the list and outlined in the star's yellow; an overdue one says so in red. */
+function LeadRow({ lead }: { lead: Lead }) {
   return (
     <Link href={lead.href} className="mb-2 flex min-h-12 items-center gap-3 rounded-lg bg-white px-3 py-2 outline -outline-offset-1 outline-[#f2c94c] hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary">
       <ICONS.star size={16} aria-hidden className="shrink-0 text-[#d99a00]" />
       <span className="min-w-0 flex-1 truncate text-[14px] leading-[1.3] font-medium tracking-[0.2px] text-ink">{lead.title}</span>
-      <span className="shrink-0 text-[12px] leading-[1.2] font-medium text-[#8e6f12]">{lead.meta}</span>
+      <span className={`shrink-0 text-[12px] leading-[1.2] font-medium ${lead.overdue ? "text-danger" : "text-[#8e6f12]"}`}>{lead.meta}</span>
       <ICONS.chevronRight size={16} aria-hidden className="shrink-0 text-ink-2" />
     </Link>
   );

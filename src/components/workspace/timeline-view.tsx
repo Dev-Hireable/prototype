@@ -5,7 +5,7 @@ import { PHONE, useMedia } from "@/lib/portal/media";
 import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { ICONS } from "@/components/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
-import { Tip } from "@/components/portal/tip";
+import { InfoTip, Tip } from "@/components/portal/tip";
 import { dayOf, isWeekend, MONTH_SHORT, partsOf, rangeLabel, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";
 import { dateKind, datesOf, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
 import { changeFor } from "@/lib/work/permissions";
@@ -86,15 +86,16 @@ function linkPath(x1: number, ya: number, x2: number, yb: number): string {
 }
 
 /**
- * How this person can move bars, said beside the scale — from what the rules let them change on the
- * work showing (planRights): whole bars and either end, only when work starts (the Independent's own,
- * or a task whose due date the signed offer agreed), or nothing — for a viewer, or once work is closed.
+ * How this person can move bars, said beside the scale in one short line, with the keyboard's way
+ * behind an info button — from what the rules let them change on the work showing (planRights):
+ * whole bars and either end, only when work starts (the Independent's own, or a task whose due date
+ * the signed offer agreed), or nothing — for a viewer, or once work is closed.
  */
-function dragHint(items: readonly WorkItem[], env: Pick<WorkspaceEnv, "actor" | "access" | "names">) {
+function dragHint(items: readonly WorkItem[], env: Pick<WorkspaceEnv, "actor" | "access" | "names">): { text: string; keys: string } | null {
   const rights = items.map((t) => planRights(t, env));
-  if (rights.some((r) => r.can)) return "Drag a bar, or focus one and use the arrow keys (Shift for the due date, Alt+Shift for the start).";
+  if (rights.some((r) => r.can)) return { text: "Drag a bar to change its dates.", keys: "Or focus a bar and use the arrow keys to move it. Shift changes the due date, Alt+Shift the start." };
   if (!rights.some((r) => r.canStart)) return null;
-  return env.actor.role === "contributor" ? "Drag the left edge of your own bar to change when it starts, or focus it and use Alt+Shift with the arrow keys." : "Drag the left edge of a bar to change when it starts, or focus it and use Alt+Shift with the arrow keys.";
+  return { text: "Drag the left edge of a bar to change its start date.", keys: "Or focus a bar and use Alt+Shift with the arrow keys." };
 }
 
 export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[]; byId: ReadonlyMap<string, WorkItem>; query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void }) {
@@ -201,7 +202,7 @@ function useTimelineRows(groups: Group[], byId: ReadonlyMap<string, WorkItem>) {
 }
 
 /** Above the chart: the scale, a jump back to today, what the filters leave out, and how to move a bar. */
-function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; setQuery: (p: Partial<WorkQuery>) => void; onToday: () => void; hidden: number; hint: string | null }) {
+function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; setQuery: (p: Partial<WorkQuery>) => void; onToday: () => void; hidden: number; hint: ReturnType<typeof dragHint> }) {
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <span role="radiogroup" aria-label="Timeline scale" className="inline-flex rounded-lg bg-surface-2 p-[3px]">
@@ -215,7 +216,12 @@ function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; se
         Today
       </button>
       {hidden > 0 && <span className="text-[12.5px] text-ink-2">{hidden} {hidden === 1 ? "dependency is" : "dependencies are"} on items hidden by the filters.</span>}
-      {hint && <span className="ml-auto hidden text-[12px] text-ink-2 lg:inline">{hint}</span>}
+      {hint && (
+        <span className="ml-auto hidden items-center gap-1 text-[12px] text-ink-2 lg:inline-flex">
+          {hint.text}
+          <InfoTip label={hint.keys} about="moving bars with the keyboard" />
+        </span>
+      )}
     </div>
   );
 }

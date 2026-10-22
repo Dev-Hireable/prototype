@@ -21,7 +21,7 @@ function onFile(id: string, over: Record<string, unknown>) {
     links: { team: "juan-dela-cruz", independent: "brand-designer" },
     title: "Brand Designer",
     type: "trial",
-    rate: "$1,600 /month",
+    rate: "$1,600",
     team: { name: "Alex Rivera", company: "Nairobi Solutions Inc.", slug: "nairobi-solutions" },
     independent: { name: "Juan Dela Cruz", slug: "juan-dela-cruz", avatar: "/team/juan.jpg" },
     filedBy: "team",
@@ -54,7 +54,7 @@ test.describe("filing and responding", () => {
   test("the other side has five days to respond, and both read the same case with each other's screenshots", async ({ page, secondPage }) => {
     // Filing is on the contract's dispute card, under Contract & Payment.
     await page.goto(`${PATH.team}?tab=contract`);
-    await page.getByRole("button", { name: "File a Dispute" }).click();
+    await page.getByRole("button", { name: "File a dispute" }).click();
     const form = page.getByRole("dialog", { name: /File a dispute about Juan Dela Cruz/ });
     await form.getByRole("button", { name: "Reason" }).click();
     await page.getByRole("option", { name: "Missed Deadline" }).click();
@@ -68,7 +68,7 @@ test.describe("filing and responding", () => {
     // Straight to the case, on Juan's turn, with five days on the clock.
     await expect(page).toHaveURL(/\/team\/payments\/disputes\/dsp-/);
     const id = page.url().split("/").pop() as string;
-    await expect(page.getByText(/Waiting on Juan Dela Cruz to respond — they have until .*5 days left/)).toBeVisible();
+    await expect(page.getByText(/Waiting on Juan Dela Cruz until .* your time \(5 days left\)\./)).toBeVisible();
     expect(await savedDispute(page, id)).toMatchObject({ status: "Pending", amount: 800, turn: { who: "independent", due: T + 5 * DAY, why: "respond" } });
 
     // Juan is told: the notification opens the case itself, with Alex's screenshot on it; the step is logged in his thread too.
@@ -79,13 +79,13 @@ test.describe("filing and responding", () => {
     const juan = await secondPage();
     await juan.goto(told.href);
     await expect(juan).toHaveURL(new RegExp(`/independent/wallet/disputes/${id}`));
-    await expect(juan.getByText("It's your turn to respond")).toBeVisible();
+    await expect(juan.getByText(/^Your turn to respond by .* your time \(5 days left\)\.$/)).toBeVisible();
     await expect(juan.getByRole("button", { name: /Open late-drafts\.png/ })).toBeVisible();
 
     await juan.getByRole("textbox", { name: "Your response" }).fill("The brief changed on the 22nd, so the drafts moved with it.");
     await juan.getByLabel("Attach screenshots or PDFs").setInputFiles(shot("brief-change.png"));
     await juan.getByRole("button", { name: "Send response" }).click();
-    await expect(toast(juan, "Response sent — Hireable support is reviewing the case")).toBeVisible();
+    await expect(toast(juan, "Response sent. Hireable support is reviewing the case.")).toBeVisible();
     await expect.poll(async () => (await savedDispute(juan, id))?.turn).toEqual({ who: "support", since: T });
 
     // Alex's page moves on its own: the answer and Juan's screenshot are on the case, and it's with support.
@@ -100,10 +100,10 @@ test.describe("a turn that runs out", () => {
 
   test("closes the case for the other side, and the company's refund comes out of escrow", async ({ page }) => {
     await page.goto("/team/payments/disputes/dsp-lapsed");
-    await expect(page.getByText(/Closed for Nairobi Solutions Inc\. — Juan Dela Cruz didn't respond in time · \$800\.00 refunded/)).toBeVisible();
+    await expect(page.getByText("Closed in your favor. $800.00 refunded to you.")).toBeVisible();
     expect(await savedDispute(page, "dsp-lapsed")).toMatchObject({ status: "Resolved", resolution: { kind: "default", favor: "team", payment: "refunded", moved: 800 } });
     expect(await savedEscrow(page)).toEqual({ released: 0, refunded: 800 });
-    expect((await notes(page, "independent"))[0].title).toBe("The dispute closed — no response");
+    expect((await notes(page, "independent"))[0].title).toBe("The dispute closed: no response");
     expect((await notes(page, "team"))[0].title).toBe("The dispute closed in your favor");
   });
 });
@@ -116,9 +116,9 @@ test.describe("settling between themselves", () => {
     await page.getByRole("button", { name: "Propose a settlement" }).click();
     await page.getByRole("button", { name: "Half each" }).click();
     await expect(page.getByRole("textbox", { name: "Back to Nairobi Solutions Inc." })).toHaveValue("400.00");
-    await expect(page.getByRole("textbox", { name: "To Juan Dela Cruz" })).toHaveValue("400.00");
+    await expect(page.getByRole("textbox", { name: "To you" })).toHaveValue("400.00");
     await page.getByRole("button", { name: "Send proposal" }).click();
-    await expect(toast(page, "Proposal sent — Nairobi Solutions Inc. can accept or decline")).toBeVisible();
+    await expect(toast(page, "Proposal sent. Nairobi Solutions Inc. can accept or decline.")).toBeVisible();
     await expect(page.getByText("Waiting on Nairobi Solutions Inc. to accept or decline.")).toBeVisible();
 
     const alex = await secondPage();
@@ -127,12 +127,12 @@ test.describe("settling between themselves", () => {
     await expect(offer).toContainText("Juan Dela Cruz proposed a settlement");
     await offer.getByRole("button", { name: "Accept" }).click();
     await alex.getByRole("dialog", { name: "Accept this settlement?" }).getByRole("button", { name: "Accept settlement" }).click();
-    await expect(alex.getByText("Settled by agreement · $400.00 back to Nairobi Solutions Inc. · $400.00 to Juan Dela Cruz")).toBeVisible();
+    await expect(alex.getByText("Settled. $400.00 came back to you and $400.00 went to Juan Dela Cruz.")).toBeVisible();
 
     expect(await savedDispute(alex, "dsp-open")).toMatchObject({ status: "Resolved", resolution: { kind: "agreement", split: { refund: 400, release: 400 } } });
     expect(await savedEscrow(alex)).toEqual({ released: 400, refunded: 400 });
     // Juan's page closed too, and both halves are in the payments on the case.
-    await expect(page.getByText(/Settled by agreement/)).toBeVisible();
+    await expect(page.getByText("Settled. You received $400.00 and $400.00 went back to Nairobi Solutions Inc.")).toBeVisible();
     await expect(page.getByRole("complementary").getByText("Released · Dispute · Missed Deadline")).toBeVisible();
   });
 });
@@ -172,7 +172,7 @@ test.describe("support's moves", () => {
     await resolve.getByRole("button", { name: "Resolve dispute" }).click();
     await expect(page.getByText(/Resolved in favor of Nairobi Solutions Inc\. · \$800\.00 refunded/)).toBeVisible();
     expect(await savedEscrow(page)).toEqual({ released: 0, refunded: 800 });
-    await expect(juan.getByText(/Resolved in favor of Nairobi Solutions Inc\./)).toBeVisible();
+    await expect(juan.getByText("Resolved in Nairobi Solutions Inc.'s favor. $800.00 refunded to Nairobi Solutions Inc.")).toBeVisible();
   });
 });
 
@@ -194,13 +194,13 @@ const HIRED = (start: string, contract: Record<string, unknown> = {}) => ({
 test.describe("while the trial runs", () => {
   test("neither side can file yet, and both are told the day it opens", async ({ page, secondPage }) => {
     await page.goto(`${PATH.team}?tab=contract`);
-    await allDisabled(page.getByRole("button", { name: "File a Dispute" }));
-    await expect(page.getByText("No disputes. Available once the trial ends on 30 Oct 2026; until then, raise anything with Juan in Messages.")).toBeVisible();
+    await allDisabled(page.getByRole("button", { name: "File a dispute" }));
+    await expect(page.getByText("No disputes. Available after the trial ends on 30 Oct 2026; until then, raise anything with Juan in Messages.")).toBeVisible();
 
     const juan = await secondPage();
     await juan.goto(`${PATH.independent}?tab=contract`);
     await allDisabled(juan.getByRole("button", { name: "File a dispute" }));
-    await expect(juan.getByText("Available once the trial ends on 30 Oct 2026. Until then, raise anything unexpected with Alex in Messages.")).toBeVisible();
+    await expect(juan.getByText("Available after the trial ends on 30 Oct 2026. Until then, raise anything unexpected with Alex in Messages.")).toBeVisible();
   });
 });
 
@@ -209,7 +209,7 @@ test.describe("hired, but the role hasn't started", () => {
 
   test("filing waits for its first day — there's no pay yet to dispute", async ({ page, secondPage }) => {
     await page.goto(`${PATH.team}?tab=contract`);
-    await allDisabled(page.getByRole("button", { name: "File a Dispute" }));
+    await allDisabled(page.getByRole("button", { name: "File a dispute" }));
     await expect(page.getByText("No disputes. Filing opens on 28 Sep 2026, the contract's first day; until then, raise anything with Juan in Messages.")).toBeVisible();
 
     const juan = await secondPage();
@@ -223,7 +223,7 @@ test.describe("a role that's running", () => {
 
   test("either side can file about the pay, and it's saved — the trial's paid-out escrow doesn't refuse it", async ({ page }) => {
     await page.goto(`${PATH.team}?tab=contract`);
-    await page.getByRole("button", { name: "File a Dispute" }).first().click();
+    await page.getByRole("button", { name: "File a dispute" }).first().click();
     const form = page.getByRole("dialog", { name: /File a dispute about Juan Dela Cruz/ });
     await form.getByRole("button", { name: "Reason" }).click();
     await page.getByRole("option", { name: "Missed Deadline" }).click();
@@ -242,7 +242,7 @@ test.describe("a role that has ended", () => {
 
   test("it can't be disputed any more, on either side", async ({ page, secondPage }) => {
     await page.goto(`${PATH.team}?tab=contract`);
-    await allDisabled(page.getByRole("button", { name: "File a Dispute" }));
+    await allDisabled(page.getByRole("button", { name: "File a dispute" }));
     await expect(page.getByText("No disputes. This contract has ended, so it can't be disputed any more.")).toBeVisible();
 
     const juan = await secondPage();
@@ -275,7 +275,7 @@ test.describe("a trial dispute still open when the trial converts", () => {
     await page.goto("/team/payments/disputes/dsp-open");
     await page.getByRole("region", { name: "Settlement proposal" }).getByRole("button", { name: "Accept" }).click();
     await page.getByRole("dialog", { name: "Accept this settlement?" }).getByRole("button", { name: "Accept settlement" }).click();
-    await expect(page.getByText(/Settled by agreement/)).toBeVisible();
+    await expect(page.getByText("Settled. $400.00 came back to you and $400.00 went to Juan Dela Cruz.")).toBeVisible();
 
     // The last $800 left escrow: $400 each way.
     expect(await savedEscrow(page)).toEqual({ released: 1200, refunded: 400 });

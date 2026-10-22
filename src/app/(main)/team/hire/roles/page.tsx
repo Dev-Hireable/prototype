@@ -8,7 +8,7 @@ import { Button, EmptyState, JobBadge, LinkButton, Modal, Page, Row, SearchBox, 
 import { KebabMenu, MenuAction, MenuLink } from "@/components/portal/controls";
 import { Tip } from "@/components/portal/tip";
 import { PHONE_FAB } from "@/components/portal/styles";
-import { columnOf, ROLE_STATUS } from "@/lib/team/data";
+import { columnOf, ROLE_STATUS, TRACKER_COLUMNS } from "@/lib/team/data";
 import type { Candidate, Role, RoleStatus } from "@/lib/team/data";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { shortDayLabel } from "@/lib/portal/dates";
@@ -16,29 +16,30 @@ import { useToast, type SetToast } from "@/lib/portal/toast";
 import { draftReady, useRoles } from "@/lib/team/roles";
 import { usePipeline } from "@/lib/team/pipeline";
 
+/** The pipeline's Declined column, by the key the board files a declined card under. */
+const DECLINED = columnOf({ stage: "applied", dropped: true }) ?? "dropped";
+
 /**
- * One count per tracker column, in the tracker's own order, so the table and the role's pipeline
- * always show the same numbers. `key` is the TRACKER_COLUMNS key the cell counts and opens.
- * Pale fill, dark text — each pair clears 4.5:1. Solid fills with white text were tried and read
- * as a strip of traffic lights across the row.
+ * TB-026 — a role's funnel in the five counts the PRD names. Each counts everyone who reached that
+ * stage, so they add up: a hired Independent is in Candidates, Matched and Offers too, and
+ * Candidates is everyone in the pipeline. Declined counts the ones turned down, at whatever stage.
+ * `key` is the TRACKER_COLUMNS column a cell opens the role's pipeline at, where the board shows
+ * who is there now. Pale fill, dark text — each pair clears 4.5:1. Solid fills with white text were
+ * tried and read as a strip of traffic lights across the row.
  */
 const STATS = [
   { key: "candidates", label: "Candidates", tone: "bg-[#eeeeee] text-ink" },
   { key: "matched", label: "Matched", tone: "bg-[#e6f4ff] text-[#005b99]" },
-  { key: "interview", label: "Interviews", tone: "bg-[#fff2e5] text-[#8a4200]" },
-  { key: "proposal", label: "Proposals", tone: "bg-[#fff3fb] text-[#6e0e52]" },
   { key: "offer", label: "Offers", tone: "bg-[#f6ecff] text-[#6b21a8]" },
   { key: "hired", label: "Hired", tone: "bg-[#e7f7ed] text-[#1b6b3a]" },
-  { key: "trial_ended", label: "Trial ended", tone: "bg-[#eef2f6] text-[#34465a]" },
-  { key: "dropped", label: "Dropped", tone: "bg-[#fdecec] text-[#a62121]" },
+  { key: DECLINED, label: "Declined", tone: "bg-[#fdecec] text-[#a62121]" },
 ];
 
 /* The pipeline columns share the spare width equally (flex-1 over a floor) so they spread across
    the row instead of bunching up against Updated. Role, Type and Status read left-aligned as the
-   row's label; the numbers and everything after them are centred, header and cell alike. */
-// A count needs little room; its label wraps to two lines ("Trial / ended") rather than widening the
-// table past a 14" laptop.
-const STAT = "min-w-[64px] flex-1 text-center whitespace-normal leading-tight";
+   row's label; the numbers and everything after them are centred, header and cell alike. Each
+   floor fits its one-word heading ("Candidates"), so a heading never ends in "…". */
+const STAT = "min-w-[96px] flex-1 text-center whitespace-normal leading-tight";
 const COL = { role: "w-[160px] shrink-0", type: "w-[96px] shrink-0", status: "w-[88px] shrink-0", updated: "w-[88px] shrink-0 text-center", actions: "w-[80px] shrink-0 text-center" };
 const COLS = [COL.role, COL.type, COL.status, ...STATS.map(() => STAT), COL.updated, COL.actions];
 const HEAD = ["Role", "Type", "Status", ...STATS.map((s) => s.label), "Updated", "Actions"];
@@ -57,13 +58,13 @@ type Confirm = { role: Role; action: "close" | "reopen" | "archive" | "delete" }
 const CONFIRMS: Record<Confirm["action"], { title: (role: string) => string; description: string; button: string; done: string }> = {
   close: {
     title: (role) => `Close ${role}?`,
-    description: "New applications stop and the role leaves the job board. Candidates already in the tracker keep their stage; you can reopen it any time.",
+    description: "No new applications will come in and the role is hidden from Independents. You can reopen it any time and we keep a record of the candidates already considered.",
     button: "Close role",
     done: "Role closed",
   },
   reopen: {
     title: (role) => `Reopen ${role}?`,
-    description: "The role goes back on the job board and matched independents are notified again.",
+    description: "The role is visible to Independents again and takes new applications. The candidates already in its pipeline keep their stage.",
     button: "Reopen role",
     done: "Role reopened",
   },
@@ -84,16 +85,18 @@ const CONFIRMS: Record<Confirm["action"], { title: (role: string) => string; des
 /** Live, from the tracker itself: a draft has no pipeline, so its row stays em-dashed. */
 const live = (r: Role, candidates: Candidate[]) => (r.status === "Draft" ? null : candidates.filter((c) => c.role === r.slug));
 
+/** How far down the pipeline a card got: its stage's column, whether it was declined there or its trial has ended since. */
+const reachedColumn = (c: Candidate) => Math.max(0, TRACKER_COLUMNS.findIndex((col) => col.stages.includes(c.stage)));
+
 /**
- * Exactly what that column holds on the role's tracker — same rule as the board (`columnOf`): a
- * dropped candidate counts only under Dropped, a closed trial only under Trial ended, everyone
- * else under their current stage's column. Trial ended is a dash on a role that has no trial,
- * as the board leaves that column out.
+ * Everyone on the role who reached `key`'s stage, so each count holds the next; Declined, everyone
+ * turned down. A draft has no pipeline, so its row stays em-dashed.
  */
-function inColumn(r: Role, rows: Candidate[] | null, key: string) {
+function reached(rows: Candidate[] | null, key: string) {
   if (!rows) return null;
-  const n = rows.filter((c) => columnOf(c) === key).length;
-  return key === "trial_ended" && r.type !== "trial" && n === 0 ? null : n;
+  if (key === DECLINED) return rows.filter((c) => c.dropped).length;
+  const at = TRACKER_COLUMNS.findIndex((col) => col.key === key);
+  return rows.filter((c) => reachedColumn(c) >= at).length;
 }
 
 /**
@@ -106,7 +109,7 @@ function Stat({ value, tone, href, label }: { value: number | null; tone: string
   return (
     <Link
       href={href}
-      aria-label={`${value} ${label} — open in the pipeline`}
+      aria-label={`${value} ${label}, open in the pipeline`}
       className={`flex w-full items-center justify-center text-[13px] leading-[1.2] font-medium hover:brightness-95 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${tone}`}
     >
       {value}
@@ -150,13 +153,15 @@ export default function AllRoles() {
   return (
     <Page title="All roles">
       <div className="flex min-h-full w-full flex-col gap-6">
-        <RolesToolbar roles={roles} filters={filters} />
+        {/* The counts, search and filters wait for a first role: with none, the empty card says so
+            and holds the one Create role. */}
+        {roles.length > 0 && <RolesToolbar roles={roles} filters={filters} />}
 
         {/* TB-026: nothing posted yet is a different situation from a filter that matched nothing. */}
         {roles.length === 0 ? (
           <EmptyState
             title="No roles posted yet"
-            body="Create your first role to start collecting applications and matching independents."
+            body="Create your first role to start collecting applications and matching Independents."
             action={
               <LinkButton href="/team/hire" variant="primary" size="lg">
                 Create role
@@ -220,7 +225,7 @@ function useRoleActions(setToast: SetToast) {
       return;
     }
     if (!draftReady(r)) {
-      setToast("Some required fields are still empty — opening the draft so you can finish it", "danger");
+      setToast("Some required fields are still empty. Opening the draft so you can finish it.", "danger");
       router.push(`/team/hire/new?edit=${r.slug}`);
       return;
     }
@@ -304,7 +309,7 @@ function RoleRow({ r, candidates, actions }: { r: Role; candidates: Candidate[];
         // A white hairline between the fills keeps the band reading column by column.
         <span key={s.key} className={`${STAT} flex !items-stretch border-l border-white !p-0`}>
           <Stat
-            value={inColumn(r, rows, s.key)}
+            value={reached(rows, s.key)}
             tone={r.status === "Active" ? s.tone : "bg-[#eeeeee] text-ink-2"}
             href={`/team/hire/roles/${r.slug}?stage=${s.key}`}
             label={s.label}

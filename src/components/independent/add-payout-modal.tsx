@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Checkbox, Field, InfoBanner, Input, Modal, Select } from "@/components/portal/ui";
+import { ICONS } from "@/components/icons";
+import { Button, Checkbox, Field, Input, Modal, Select } from "@/components/portal/ui";
+import { useIndependentAccount } from "@/lib/independent/account";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { useWallet } from "@/lib/independent/wallet";
 
@@ -27,14 +29,15 @@ function payoutFrom({ type, bank, name, number, isDefault }: { type: string; ban
 /** Shared by Wallet and Settings. */
 export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: (m: PayoutMethod) => void }) {
   const { addPayout } = useWallet();
+  /** The account has to be in the talent's own name: the full name on the profile, which only support changes. */
+  const name = useIndependentAccount().profile.name;
   const [type, setType] = useState(TYPES[0]);
   const [bank, setBank] = useState("BPI");
-  const [name, setName] = useState("Juan Dela Cruz");
   const [number, setNumber] = useState("");
   const [isDefault, setIsDefault] = useState(true);
   const isBank = type === TYPES[0];
   /** What Add still waits for, shown as its tip; nothing once the form is complete. */
-  const missing = name.trim().length <= 1 ? "Enter the account name." : number.replace(/\s/g, "").length < 4 ? `Enter the ${isBank ? "account" : "mobile"} number.` : undefined;
+  const missing = number.replace(/\s/g, "").length < 4 ? `Enter the ${isBank ? "account" : "mobile"} number.` : undefined;
 
   const submit = () => {
     // What was saved, not what was ticked: a method pending verification doesn't become the default.
@@ -48,7 +51,7 @@ export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onCl
       open={open}
       onClose={onClose}
       title="Add a payout method"
-      description="Where Hireable sends your trial payouts and salary."
+      description="Where you withdraw your pay to."
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
@@ -58,7 +61,6 @@ export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onCl
         </>
       }
     >
-      <InfoBanner tone="warn">Payout fields are not in the spec yet. Confirm: bank transfer via InstaPay / PESONet, GCash, or Maya, and which details each needs.</InfoBanner>
       <Field label="Payout type">
         <Select options={TYPES} value={type} onChange={(e) => setType(e.target.value)} />
       </Field>
@@ -67,14 +69,15 @@ export function AddPayoutModal({ open, onClose, onAdded }: { open: boolean; onCl
           <Select options={["BPI", "BDO", "UnionBank", "Metrobank"]} value={bank} onChange={(e) => setBank(e.target.value)} />
         </Field>
       )}
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Account name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <Field label={isBank ? "Account number" : "Mobile number"}>
-          <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder={isBank ? "0000 0000 0000" : "0917 000 0000"} inputMode="numeric" />
-        </Field>
-      </div>
+      <Field label="Account name" hint="The account must be under your own name. ID check (KYC) is required before your first payout.">
+        <span className="relative block">
+          <Input readOnly value={name} className="cursor-default !bg-surface-alt pr-11 !text-ink-2" />
+          <ICONS.lock size={18} aria-hidden className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-ink-2" />
+        </span>
+      </Field>
+      <Field label={isBank ? "Account number" : "Mobile number"} required>
+        <Input value={number} onChange={(e) => setNumber(e.target.value)} placeholder={isBank ? "0000 0000 0000" : "0917 000 0000"} inputMode="numeric" required />
+      </Field>
       <Checkbox checked={isDefault} onChange={setIsDefault}>
         Set as default payout method
       </Checkbox>

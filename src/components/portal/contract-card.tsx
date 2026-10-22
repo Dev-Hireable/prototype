@@ -31,8 +31,10 @@ export type ContractSummary = {
   type: JobType;
   tasks: Task[];
   tfs: number | null;
-  /** Working days left in a trial; null on a full-time or part-time contract. */
+  /** Working days left in a trial after today; null on a full-time or part-time contract. */
   left: number | null;
+  /** A trial that is over: its countdown reads "Trial closed", where none left on its last day reads "Last day". */
+  over?: boolean;
   inactive: boolean;
   /** When it ended, shown once it has. */
   ended: string;
@@ -100,7 +102,7 @@ type Counts = ReturnType<typeof taskCounts>;
  * and any call to action sit above that. The Team Builder's All independents and the independent's
  * All contracts both draw it.
  */
-function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, inactive, ended, started, status, action }: ContractSummary) {
+function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, status, action }: ContractSummary) {
   return (
     <article
       className={`relative flex flex-col rounded-lg bg-white outline -outline-offset-1 outline-border transition-[box-shadow,outline-color] duration-200 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.3)] hover:outline-[#a6a6a6] ${inactive ? "opacity-60" : ""}`}
@@ -118,7 +120,7 @@ function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, 
         {action && <div className="relative z-10 flex flex-col">{action}</div>}
       </div>
       <div className="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-2 border-t border-line px-5 py-2.5 text-[12.5px] leading-[1.3] text-ink-2">
-        <TimeLeft type={type} left={left} inactive={inactive} ended={ended} started={started} />
+        <TimeLeft type={type} left={left} over={over} inactive={inactive} ended={ended} started={started} />
         {type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}
         <span className="relative z-10 ml-auto flex items-center gap-2">
           {status}
@@ -166,7 +168,7 @@ function Figure({ children, danger = false }: { children: ReactNode; danger?: bo
  * opens the contract — the name's link stretches over it — while the message button and any call
  * to action sit above that and stay their own.
  */
-function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, inactive, ended, started, status, action, withFit, withStatus, withAction }: ContractSummary & { withFit: boolean; withStatus: boolean; withAction: boolean }) {
+function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, status, action, withFit, withStatus, withAction }: ContractSummary & { withFit: boolean; withStatus: boolean; withAction: boolean }) {
   const counts = taskCounts(tasks);
   return (
     <Row className={`relative cursor-pointer ${inactive ? "opacity-60" : ""}`}>
@@ -186,7 +188,7 @@ function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, l
       </span>
       {withFit && <span className={`${COLS.fit} flex`}>{type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}</span>}
       <span className={`${COLS.time} flex text-[12.5px] text-ink-2`}>
-        <TimeLeft type={type} left={left} inactive={inactive} ended={ended} started={started} />
+        <TimeLeft type={type} left={left} over={over} inactive={inactive} ended={ended} started={started} />
       </span>
       {withStatus && <span className={`${COLS.status} relative z-10 flex`}>{status}</span>}
       <span className={`${withAction ? COLS.actionWide : COLS.action} relative z-10 flex gap-2`}>
@@ -229,24 +231,24 @@ function MiniRing({ value }: { value: number }) {
   );
 }
 
-/** A trial's Trial Fit Score so far (TB-057's TFS pill). */
+/** A trial's Trial fit score so far, as TB-057's pill: "Trial fit 50%". */
 function TfsBadge({ tfs }: { tfs: number }) {
   return (
     <Badge tone="accent" icon={<MiniRing value={tfs} />}>
-      TFS {tfs}%
+      Trial fit {tfs}%
     </Badge>
   );
 }
 
 /** How long is left on a trial, when the contract began, or when it ended — orange once a trial is down to its last 7 days (TB-057). */
-function TimeLeft({ type, left, inactive, ended, started }: Pick<ContractSummary, "type" | "left" | "inactive" | "ended" | "started">) {
+function TimeLeft({ type, left, over = false, inactive, ended, started }: Pick<ContractSummary, "type" | "left" | "over" | "inactive" | "ended" | "started">) {
   const trial = type === "trial" && !inactive;
-  const soon = trial && left !== null && left <= 7;
+  const soon = trial && !over && left !== null && left <= 7;
   const Icon = trial ? ICONS.hourglass : ICONS.calendar;
   return (
     <span className={`flex items-center gap-1.5 whitespace-nowrap ${soon ? "font-semibold text-brand-orange" : ""}`}>
       <Icon size={15} aria-hidden className="shrink-0" />
-      {inactive ? `Ended ${ended}` : trial ? daysLeftLabel(left ?? 0) : `Started ${started}`}
+      {inactive ? `Ended ${ended}` : trial ? daysLeftLabel(left ?? 0, over) : `Started ${started}`}
     </span>
   );
 }

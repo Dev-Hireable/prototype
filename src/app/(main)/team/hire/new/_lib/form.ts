@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { JobType, OngoingType } from "@/lib/contract/job-types";
-import { blankDraft, toDrafts, type DraftTask } from "@/lib/demo/tasks";
+import { blankDraft, fitPlan, toDrafts, type DraftTask } from "@/lib/demo/tasks";
 import type { Role } from "@/lib/team/data";
 import { LEVELS, type RoleTemplate } from "@/lib/team/role-templates";
-import { budgetRange, chipOf, formShape, onlyTitle, resumeStep, sectionsOk, templateChanges, templateShape, type ReviewSection, type Snapshot } from "./wizard";
+import { budgetRange, chipOf, formShape, onlyTitle, resumeStep, sectionsOk, templateChanges, templateShape, weeksFor, type ReviewSection, type Snapshot } from "./wizard";
 
 /** The kind of role being written: a trial, or Build Team's full-time or part-time. */
 export function useRoleType(editing: Role | undefined, param: string | null) {
@@ -89,7 +89,12 @@ export function useRoleForm(editing: Role | undefined, { sequence, chips }: { se
     pay.setHours(v.hours);
     pay.setBenefits(v.benefits);
   };
-  return { step, setStep, ...details, ...tasks, ...pay, snapshot, load };
+  /** A shorter trial pulls any due week past its end onto its last week, one High task a week still (fitPlan). */
+  const setChip = (chip: number) => {
+    pay.setChip(chip);
+    if (sequence.includes("expectations")) tasks.setTaskRows((rows) => fitPlan(rows, weeksFor(chips, chip)));
+  };
+  return { step, setStep, ...details, ...tasks, ...pay, setChip, snapshot, load };
 }
 
 export type RoleForm = ReturnType<typeof useRoleForm>;
@@ -98,16 +103,16 @@ export type RoleForm = ReturnType<typeof useRoleForm>;
  * Role templates: the one filling the form, one waiting on "replace what you typed?" (or "blank"
  * for Start from scratch), and whether the full library is open.
  */
-export function useTemplates(f: RoleForm, type: JobType, chips: readonly string[]) {
+export function useTemplates(f: RoleForm, type: JobType) {
   const [template, setTemplate] = useState<RoleTemplate | null>(null);
   const [pending, setPending] = useState<RoleTemplate | "blank" | null>(null);
   const [browsing, setBrowsing] = useState(false);
   /** Everything a template would replace, other than the title, is still empty. */
   const titleOnly = onlyTitle(f);
   /** Nothing changed since the template went in, so switching or clearing can't lose anyone's typing. */
-  const untouched = !!template && templateShape(template, type, chips, f) === formShape(f);
+  const untouched = !!template && templateShape(template, type, f) === formShape(f);
   const apply = (tpl: RoleTemplate | "blank") => {
-    f.load({ ...f.snapshot(), ...templateChanges(tpl, type, chips) });
+    f.load({ ...f.snapshot(), ...templateChanges(tpl, type) });
     setTemplate(tpl === "blank" ? null : tpl);
     setPending(null);
     setBrowsing(false);

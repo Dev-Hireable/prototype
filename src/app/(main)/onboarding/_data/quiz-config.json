@@ -187,7 +187,7 @@
   "talent": {
     "persona": {
       "assistantName": "Hira",
-      "greeting": "Hi, I'm Hira. We recommend Independent profiles to Team Builders based on work style match, so answer honestly. Are you ready to start?",
+      "greeting": "Hi, I'm Hira. We recommend you to Team Builders based on work style match, so answer honestly. Are you ready to start?",
       "explanation": "I'll walk you through six everyday scenarios about working remotely. Pick the answer closest to what you'd really do, or type your own. There are no right answers: you rank highest with the Team Builders whose answers sit closest to yours.",
       "completionMessage": "Amazing, you're done with the quiz. I'm getting your results ready now.",
       "shortAcknowledgments": [

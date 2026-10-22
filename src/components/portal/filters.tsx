@@ -21,14 +21,18 @@ type FilterProps = {
   /** How many filters are currently applied — shown next to the heading (TB-012). */
   activeCount?: number;
   roleTypeSlot?: ReactNode;
-  onApply: () => void;
+  /** Puts the edited filters in force. Without it the list filters as each one changes, and there is no Apply button. */
+  onApply?: () => void;
   onReset: () => void;
 };
+
+/** The button under the fields: Apply, or on a phone with live filters the one that closes the sheet on the results. */
+type FilterAction = { label: string; onClick: () => void };
 
 /**
  * The marketplace's filters beside the results on a laptop. Below one there's no room beside them:
  * a floating Filter button in the thumb's corner opens the same fields in a sheet from the bottom
- * edge, and Apply closes it (PhoneFilters).
+ * edge, and its button closes it (PhoneFilters).
  */
 export function MarketplaceFilterPanel(props: FilterProps) {
   const { activeCount = 0, onApply } = props;
@@ -36,15 +40,15 @@ export function MarketplaceFilterPanel(props: FilterProps) {
     <>
       <aside className="flex w-[280px] shrink-0 flex-col gap-5 max-lg:hidden">
         <FilterHeading activeCount={activeCount} />
-        <FilterFields {...props} apply={onApply} />
+        <FilterFields {...props} action={onApply && { label: "Apply filters", onClick: onApply }} />
       </aside>
-      <PhoneFilters activeCount={activeCount} onApply={onApply} fields={(apply) => <FilterFields {...props} apply={apply} />} />
+      <PhoneFilters activeCount={activeCount} live={!onApply} onApply={onApply} fields={(action) => <FilterFields {...props} action={action} />} />
     </>
   );
 }
 
-/** The fields themselves, then Apply (`apply`, which on a phone also closes the sheet) and Reset. */
-function FilterFields({ levels, selectedLevels, onToggleLevel, min, max, onMinChange, onMaxChange, skillOptions, skill, onSkillChange, roleTypeSlot, onReset, apply }: FilterProps & { apply: () => void }) {
+/** The fields themselves, then the panel's button (`action`, if it has one) and Reset as a quiet link. */
+function FilterFields({ levels, selectedLevels, onToggleLevel, min, max, onMinChange, onMaxChange, skillOptions, skill, onSkillChange, roleTypeSlot, onReset, action }: FilterProps & { action?: FilterAction }) {
   return (
     <>
       {roleTypeSlot}
@@ -61,18 +65,20 @@ function FilterFields({ levels, selectedLevels, onToggleLevel, min, max, onMinCh
         <Select options={skillOptions} value={skill} onChange={(event) => onSkillChange?.(event.target.value)} />
       </label>
       <RateRange min={min} max={max} onMinChange={onMinChange} onMaxChange={onMaxChange} />
-      <Button variant="primary" size="lg" onClick={apply}>
-        Apply filters
-      </Button>
-      <Button size="lg" onClick={onReset}>
+      {action && (
+        <Button variant="primary" size="lg" onClick={action.onClick}>
+          {action.label}
+        </Button>
+      )}
+      <button type="button" onClick={onReset} className="self-start text-[14px] leading-[1.4] font-medium text-accent-ink hover:underline">
         Reset filters
-      </Button>
+      </button>
     </>
   );
 }
 
 /** Below a laptop: the floating Filter button, with the count of filters on, and the sheet it opens. */
-function PhoneFilters({ activeCount, onApply, fields }: { activeCount: number; onApply: () => void; fields: (apply: () => void) => ReactNode }) {
+function PhoneFilters({ activeCount, live, onApply, fields }: { activeCount: number; live: boolean; onApply?: () => void; fields: (action: FilterAction) => ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -85,9 +91,12 @@ function PhoneFilters({ activeCount, onApply, fields }: { activeCount: number; o
       <Sheet side="bottom" open={open} onOpenChange={setOpen}>
         <SheetContent className="mx-auto max-h-[85dvh] max-w-[560px] gap-5 overflow-y-auto px-4 pt-5 pb-[calc(1rem+env(safe-area-inset-bottom))] md:px-6">
           <SheetTitle render={<FilterHeading activeCount={activeCount} />} />
-          {fields(() => {
-            onApply();
-            setOpen(false);
+          {fields({
+            label: live ? "Show results" : "Apply filters",
+            onClick: () => {
+              onApply?.();
+              setOpen(false);
+            },
           })}
         </SheetContent>
       </Sheet>

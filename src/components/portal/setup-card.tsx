@@ -40,7 +40,7 @@ export function DashboardSetupCard({
   completionHref,
   items,
   traits = [],
-  completeDescription = "Setup complete — here is the work style you are matched on.",
+  completeDescription = "These are the work style tags you're matched on.",
   profileHref,
   note,
 }: {
@@ -108,12 +108,12 @@ function SetupHeading({ avatarSrc, avatarClassName, title, description, percent 
   );
 }
 
-/** In place of the checklist once every step is done: the work-style traits earned along the way. */
+/** In place of the checklist once every step is done: the work style tags earned along the way. */
 function WorkStylePanel({ traits, profileHref }: { traits: readonly WorkStyleTag[]; profileHref?: string }) {
   return (
-    // A section of its own: what it is, the traits, and where to see them in full.
+    // A section of its own: what it is, the tags, and where to see them in full.
     <div className="relative mt-4 flex flex-1 flex-col gap-3 rounded-[20px] bg-white px-4 py-4 shadow-[0_1px_2px_rgba(0,0,0,.04)] sm:px-5">
-      <p className="text-[13px] leading-[1.3] font-semibold tracking-[0.2px] text-ink-2">Your work style</p>
+      <p className="text-[13px] leading-[1.3] font-semibold tracking-[0.2px] text-ink-2">Your work style tags</p>
       {traits.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
           {traits.map((t) => (
@@ -121,7 +121,7 @@ function WorkStylePanel({ traits, profileHref }: { traits: readonly WorkStyleTag
           ))}
         </div>
       ) : (
-        <p className="text-[14px] leading-[1.35] text-ink-2">Take the work-style quiz to earn your trait badges.</p>
+        <p className="text-[14px] leading-[1.35] text-ink-2">Take the work style quiz to get your tags.</p>
       )}
       {profileHref && (
         <Link href={profileHref} className="mt-auto inline-flex items-center gap-1 self-start pt-1 text-[13px] leading-[1.2] font-semibold text-primary hover:underline">

@@ -3,6 +3,7 @@ import { changeFor, transitionFor, type TransitionKind, type WorkField } from "@
 import type { GroupValue } from "@/lib/work/query";
 import type { WorkPatch } from "@/lib/work/repository";
 import { movedTo, NO_PROJECT, projectKeyOf } from "@/lib/work/projects";
+import { unfinishedNow } from "@/lib/work/store";
 import type { WorkspaceEnv } from "./context";
 
 /**
@@ -72,12 +73,24 @@ export function refusal(t: WorkItem, target: GroupValue, env: Pick<WorkspaceEnv,
 }
 
 /**
+ * Sends the Independent's item for review from a card's circle, a row's or a status menu — or, while
+ * it still waits on other work or has subtasks open, opens it on the question its sheet asks first
+ * (SubmitStep), so nothing unfinished goes for review without being asked.
+ */
+export function sendForReview(env: Pick<WorkspaceEnv, "actions" | "names" | "openTask">, t: WorkItem, msgs: { success?: string; announce?: string } = { success: `Sent ${refOf(t)} to ${env.names.team} for review` }) {
+  if (unfinishedNow(t)) return env.openTask(t.id, "submit");
+  void env.actions.transition(t, "review", undefined, msgs);
+}
+
+/**
  * Carry out a plan: one save for the new value and the place in the order. A move that needs a
- * note (asking for changes) opens the item on the note instead.
+ * note (asking for changes) opens the item on the note instead, and a send for review of work that's
+ * unfinished opens it on the question first.
  */
 export function runPlan(env: WorkspaceEnv, t: WorkItem, plan: DropPlan, place: { after?: string; before?: string } | null) {
   const order = place ?? {};
   if (plan.kind === "status" && plan.needsNote) return env.openTask(t.id, "changes");
+  if (plan.kind === "status" && plan.transition === "submit" && unfinishedNow(t)) return env.openTask(t.id, "submit");
   if (plan.kind === "reorder") {
     if (!place) return;
     return void env.actions.move(t, order, { announce: `Moved ${refOf(t)}` });
@@ -87,9 +100,9 @@ export function runPlan(env: WorkspaceEnv, t: WorkItem, plan: DropPlan, place: {
       plan.transition === "submit"
         ? { success: `Sent ${refOf(t)} to ${env.names.team} for review` }
         : plan.transition === "approve"
-          ? { success: `Approved ${refOf(t)} — ${env.names.independent} has been told` }
+          ? { success: `Approved ${refOf(t)}. ${env.names.independent} has been told.` }
           : plan.transition === "takeBack"
-            ? { success: `Took ${refOf(t)} back — it's no longer in review` }
+            ? { success: `Took ${refOf(t)} back. It's no longer in review.` }
             : { announce: `${refOf(t)} moved to ${STATUS_META[plan.to].label}` };
     return void env.actions.move(t, { status: plan.to, ...order }, msgs);
   }

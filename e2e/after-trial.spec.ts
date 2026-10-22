@@ -35,9 +35,9 @@ test.describe("notice on a full-time role", () => {
     await page.goto(`${PATH.independent}?tab=contract`);
     await page.getByRole("button", { name: "Give notice" }).click();
     const confirm = page.getByRole("dialog", { name: "Give notice on Brand Designer?" });
-    await expect(confirm).toContainText("The role ends after 25 Oct 2026, 30 days from today.");
+    await expect(confirm).toContainText("Last day: 25 Oct 2026 (30 days from today)");
     await confirm.getByRole("button", { name: "Give notice" }).click();
-    await expect(toast(page, "Notice given — the role ends after 25 Oct 2026")).toBeVisible();
+    await expect(toast(page, "Notice given. The role ends after 25 Oct 2026")).toBeVisible();
     expect((await savedDeal(page)).contract.notice).toMatchObject({ by: "independent", lastDay: "2026-10-25" });
     await expect(page.getByRole("button", { name: "Take back notice" })).toBeVisible();
 
@@ -51,7 +51,7 @@ test.describe("notice on a full-time role", () => {
     await alex.getByRole("button", { name: "End today" }).click();
     await alex.getByRole("dialog").getByRole("button", { name: "End today" }).click();
     // All of September, then 25 of October's 31 days, at $4,000 a month.
-    await expect(toast(alex, "Contract ended — $7,225.81 paid to Juan, through the notice period")).toBeVisible();
+    await expect(toast(alex, "Contract ended. $7,225.81 was paid to Juan, through the notice period.")).toBeVisible();
     expect((await savedDeal(alex)).contract).toMatchObject({ ended: true, paidThrough: "2026-10-25" });
   });
 });
@@ -61,7 +61,7 @@ test.describe("a full-time role that hasn't started", () => {
 
   test("either side can cancel it before its first day, and nothing is owed", async ({ page }) => {
     await page.goto(`${PATH.independent}?tab=contract`);
-    await expect(page.getByText(/Your full-time role hasn't started — its first day is 01 Oct 2026\./)).toBeVisible();
+    await expect(page.getByText(/Your full-time role hasn't started yet: its first day is 01 Oct 2026\./)).toBeVisible();
     await page.getByRole("button", { name: "Cancel contract" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Cancel contract" }).click();
     await expect(toast(page, "Contract cancelled")).toBeVisible();

@@ -35,21 +35,21 @@ export function DashboardHero({ children }: { children: ReactNode }) {
 const cardKey = (card: ReactNode) => (isValidElement(card) ? String(card.key) : String(card));
 
 /**
- * The cards under the hero, in rows that line up: two equal columns, `main` (My tasks, then the
- * stats card) beside `side` (Interviews, then Active contracts). Each row takes its taller card's
+ * The cards under the hero, in rows that line up: two equal columns, `main` on the left beside
+ * `side` on the right (each dashboard says which card goes where). Each row takes its taller card's
  * height and the card beside it stretches to match, so tops and bottoms are level across. Masonry
  * columns let each side split its height its own way, and a wide main beside a narrow side read as
  * lopsided — the user asked for two balanced columns.
  *
- * Without the tasks card (no live contract) the main column is short a card, and its one card used
- * to stretch down beside two: the cards sit in one row of equal columns instead.
+ * Without the tasks card (no live contract) one column is short a card, and its one card used to
+ * stretch down beside two: the cards sit in one row of equal columns instead.
  */
 export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: ReactNode[] }) {
   // toArray drops the cards that aren't there and keeps the keys the callers name them by.
   const columns = [Children.toArray(main), Children.toArray(side)];
   const rows = Math.max(...columns.map((c) => c.length), 1);
   // A phone has room for one column: the cards stack, main's first.
-  if (columns[0].length < columns[1].length) {
+  if (columns[0].length !== columns[1].length) {
     const cards = columns.flat();
     return (
       <div className="grid grid-cols-(--cols) gap-4 max-md:grid-cols-1" style={{ "--cols": `repeat(${cards.length}, minmax(0, 1fr))` } as CSSProperties}>
@@ -61,16 +61,16 @@ export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: 
       </div>
     );
   }
+  // Row by row, the way they read: a phone stacks them in this order, and Tab follows it.
+  const cells = columns.flatMap((cards, col) => cards.map((card, row) => ({ card, col, row, last: row === cards.length - 1 }))).sort((a, b) => a.row - b.row || a.col - b.col);
   return (
     <div className="grid grid-cols-2 grid-rows-(--rows) gap-4 max-md:grid-cols-1 max-md:grid-rows-none" style={{ "--rows": `repeat(${rows}, auto)` } as CSSProperties}>
-      {columns.flatMap((cards, col) =>
-        cards.map((card, row) => (
-          // flex-col so the card (grow, shrink-0) fills the cell's height and never shrinks below its content.
-          <div key={cardKey(card)} className="col-(--col) row-(--row) flex min-w-0 flex-col max-md:col-auto max-md:row-auto" style={{ "--col": col + 1, "--row": row === cards.length - 1 ? `${row + 1} / ${rows + 1}` : row + 1 } as CSSProperties}>
-            {card}
-          </div>
-        )),
-      )}
+      {cells.map(({ card, col, row, last }) => (
+        // flex-col so the card (grow, shrink-0) fills the cell's height and never shrinks below its content.
+        <div key={cardKey(card)} className="col-(--col) row-(--row) flex min-w-0 flex-col max-md:col-auto max-md:row-auto" style={{ "--col": col + 1, "--row": last ? `${row + 1} / ${rows + 1}` : row + 1 } as CSSProperties}>
+          {card}
+        </div>
+      ))}
     </div>
   );
 }

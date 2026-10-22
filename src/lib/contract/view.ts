@@ -1,16 +1,16 @@
 "use client";
 
 import { payScheduleOf } from "@/lib/demo/contract";
-import { dayLabel, sinceOrFrom } from "@/lib/portal/dates";
+import { dayLabel, daysLeftLabel, parseDay, sinceOrFrom } from "@/lib/portal/dates";
 import { lifecycleOfDeal, trialEvaluationOf, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
-import { dealContract, disputeCap, escrowInPlay, escrowOf, fileBlock, fileBlockHint, liveChapter, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
+import { CAP_NOTE, dealContract, disputeCap, escrowInPlay, escrowOf, fileBlock, fileBlockHint, liveChapter, rateAmount, usd, useDisputes } from "@/lib/demo/disputes";
 import type { ContractRef, Dispute } from "@/lib/demo/disputes";
-import { FT_BENEFITS, hoursLabel, JOB_TYPE_LABEL, payLabel } from "./job-types";
+import { FT_BENEFITS, hoursLabel, JOB_TYPE_LABEL, payFor } from "./job-types";
 import type { JobType } from "./job-types";
-import type { Side } from "@/lib/work/model";
+import { isCompleted, scoredItems, type Side, type WorkItem } from "@/lib/work/model";
 import { trialClosed } from "./lifecycle";
-import type { Phase } from "./lifecycle";
+import type { Phase, TrialChapter } from "./lifecycle";
 
 /**
  * A contract page's sections, on both sides; `?tab=` holds the open one, so leaving from the
@@ -65,7 +65,7 @@ export function useContractView(contract: ContractOnPage, title: string, side: S
     closedTrial: !!life && trialClosed(life),
     block,
     running,
-    fileHint: fileBlockHint(block, side, { starts: life ? dayLabel(life.since) : contract.started, trialEnds: contract.ends }),
+    fileHint: fileBlockHint(block, side, { starts: life ? dayLabel(life.since) : contract.started, trialEnds: contract.ends }, live.chapter),
     /** When the trial's evaluation is due. */
     due: life?.trial ? dayLabel(life.trial.evaluationDue) : undefined,
     /** The trial's own evaluation, apart from later reviews of the role it became. */
@@ -113,7 +113,7 @@ export const trialStartOf = (contract: { started: string }, { life }: Pick<Contr
 
 /** The Term line (a trial's Trial line) on both sides: its dates, the last day notice leaves it, or that it was called off. */
 export function termLine(contract: { started: string; ends: string; endedOn?: string }, { cancelled, notice }: Pick<ContractView, "cancelled" | "notice">, ended: boolean) {
-  if (cancelled) return `Cancelled ${contract.endedOn ?? ""} — it hadn't started`;
+  if (cancelled) return `Cancelled ${contract.endedOn ?? ""}, before it started`;
   if (notice && !ended) return `${contract.started} – ${dayLabel(notice.lastDay)} (notice)`;
   return `${contract.started} – ${contract.ends}`;
 }
@@ -121,8 +121,26 @@ export function termLine(contract: { started: string; ends: string; endedOn?: st
 /** A role's next payday, as both sides' terms show it. */
 export function nextPaymentLine({ pay, phase, life }: Pick<ContractView, "pay" | "phase" | "life">, ended: boolean) {
   if (pay?.next) return `${usd(pay.next.amount)} on ${dayLabel(pay.next.to)}${pay.held > 0 ? `, less ${usd(pay.held)} held for a dispute` : ""}`;
-  if (ended) return "None — the contract has ended";
-  return phase === "starts" && life ? `From ${dayLabel(life.since)}, paid at the end of each month` : "—";
+  if (ended) return "None. The contract has ended";
+  return phase === "starts" && life ? `From ${dayLabel(life.since)}, paid at the end of each month` : "None scheduled";
+}
+
+/** When a trial task was finished: its completion, or the day it was approved (work saved before completions were timed). */
+const finishedOn = (t: Pick<WorkItem, "completedAt" | "approved">) => (t.completedAt !== undefined ? new Date(t.completedAt) : parseDay(t.approved?.at));
+
+/**
+ * A trial's dates as its chapter shows them once it became a role: its first day to its last, or,
+ * when every trial task was done before the last day, to the day it closed, "(closed early)". The
+ * scheduled end used to stand there, so a role that began after an early close started inside them.
+ */
+export function trialDates(trial: Pick<TrialChapter, "started" | "ends">, tasks: readonly WorkItem[]) {
+  const from = dayLabel(trial.started);
+  const scored = scoredItems(tasks);
+  const days = scored.length > 0 && scored.every((t) => isCompleted(t.status)) ? scored.map(finishedOn) : [];
+  const known = days.filter((d): d is Date => !!d);
+  const closed = known.length > 0 && known.length === days.length ? new Date(Math.max(...known.map((d) => d.getTime()))) : undefined;
+  const ends = parseDay(trial.ends);
+  return closed && ends && closed < ends ? `${from} – ${dayLabel(closed)} (closed early)` : `${from} – ${dayLabel(trial.ends)}`;
 }
 
 /** The benefits the signed offer carried — a full-time role's own, not a fixed list. */
@@ -132,12 +150,12 @@ export function benefitsOf({ onDeal, conversion, deal }: Pick<ContractView, "onD
 }
 
 /**
- * The most a dispute can claim, and what that amount is: the live contract's own limit, what escrow
- * still holds, or `month` — a month's pay, as each side words it.
+ * The most a dispute can claim, and what that amount is, as the filing form says it after the sum:
+ * the live contract's own limit, what escrow still holds, or a month's pay.
  */
-export function disputeLimit(rate: string, { onDeal, deal, allDisputes, inPlay }: Pick<ContractView, "onDeal" | "deal" | "allDisputes" | "inPlay">, month: string) {
+export function disputeLimit(rate: string, { onDeal, deal, allDisputes, inPlay }: Pick<ContractView, "onDeal" | "deal" | "allDisputes" | "inPlay">) {
   if (onDeal) return disputeCap(deal, allDisputes, rate);
-  return inPlay ? { cap: inPlay.held, note: "what is still held in escrow" } : { cap: rateAmount(rate), note: month };
+  return inPlay ? { cap: inPlay.held, note: CAP_NOTE.escrow } : { cap: rateAmount(rate), note: CAP_NOTE.pay };
 }
 
 type FactsContract = { type: JobType; started: string; ends: string; over: boolean; day: string; left: number | null; endedOn?: string; rate: string; hours?: number };
@@ -153,12 +171,14 @@ export function overviewFacts(contract: FactsContract, lead: { label: string; va
     { label: isTrial ? "Trial started" : `${JOB_TYPE_LABEL[contract.type]} ${sinceOrFrom(contract.started)}`, value: contract.started },
     ...(isTrial
       ? [
-          { label: contract.over ? "Trial" : `${daysLeft} working ${contract.left === 1 ? "day" : "days"} left`, value: contract.day },
+          // "Day 5 of 30" over "25 working days left": the two add up to the length.
+          { label: contract.over ? "Trial" : daysLeftLabel(daysLeft), value: contract.day },
           // Once over, the Trial cell says how it ended; the scheduled end would only repeat it (or, closed early, contradict it).
           ...(contract.over && !contract.endedOn ? [] : [{ label: contract.endedOn ? "Ended" : "Ends", value: contract.endedOn ?? contract.ends }]),
         ]
       : [{ label: "Review period", value: contract.day }]),
-    { label: payLabel(contract.type), value: contract.rate },
+    // "Pay" on every type; the value carries its unit.
+    { label: "Pay", value: payFor(contract.type, contract.rate) },
     ...(contract.hours ? [{ label: "Hours", value: hoursLabel(contract.hours) }] : []),
   ];
 }

@@ -1,12 +1,20 @@
 "use client";
 
-import { Tip } from "@/components/portal/tip";
+import { InfoTip, Tip } from "@/components/portal/tip";
 import { StatusDot } from "@/components/portal/ui";
 import { PanelCard } from "@/components/portal/panel-card";
 
-/** Grey: nothing logged; light green: worked on tasks; green: sent a task for review. */
+/** Grey: no activity; light green: worked on tasks; green: sent a task for review. */
 const TILE = ["bg-[#eeeeee]", "bg-[#a3dfb5]", "bg-ok"];
-const TILE_LABEL = ["nothing logged", "worked on tasks", "sent a task for review"];
+const TILE_LABEL = ["no activity", "worked on tasks", "sent a task for review"];
+/** The key under the grid, greenest first, in the words a tile's own tip uses. */
+const KEY = [
+  { tile: 2, label: "Sent for review" },
+  { tile: 1, label: "Worked on tasks" },
+  { tile: 0, label: "No activity" },
+];
+/** What the grid is and what keeps the streak, behind the key's info button. */
+const GRID_RULE = "Mon–Fri, one column per week across the quarter. Any activity keeps the streak alive; only an empty weekday breaks it.";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 /** One column per week across the quarter — the grid is always this wide. */
 const WEEKS = 14;
@@ -33,6 +41,7 @@ const streakLabel = (streak: number) => (streak === 0 ? "No streak · Unresponsi
  * tracker waits rather than reading Unresponsive for days the talent wasn't due to work.
  */
 export function ActivityLog({ activity, streak, feeding, closed, starts }: { activity: number[]; streak: number; feeding?: number; closed?: string; starts?: string }) {
+  const note = trackerNote(starts, closed, feeding);
   return (
     <PanelCard title="Activity" aside={<StreakStatus streak={streak} closed={closed} starts={starts} />}>
       <div className="flex flex-col gap-[3px]">
@@ -62,12 +71,27 @@ export function ActivityLog({ activity, streak, feeding, closed, starts }: { act
         </div>
       </div>
 
-      <p className="text-[11px] leading-[1.45] text-ink-2">
-        Mon–Fri, one column per week across the quarter. Green is a day a task went for review, light green a day of work on tasks, grey nothing yet. Any activity keeps the streak alive; only an empty weekday breaks it.
-        {/* TB-109 — an approved task is off the list of open work; one in review still counts. */}
-        {trackerNote(starts, closed, feeding)}
-      </p>
+      <ActivityKey />
+      {/* TB-109 — an approved task is off the list of open work; one in review still counts. */}
+      {note && <p className="text-[11px] leading-[1.45] text-ink-2">{note}</p>}
     </PanelCard>
+  );
+}
+
+/** The grid's colours, each named, and the rest of how to read it behind an info button. */
+function ActivityKey() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] leading-[1.45] text-ink-2">
+      <ul aria-label="Key" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {KEY.map(({ tile, label }) => (
+          <li key={label} className="flex items-center gap-1.5">
+            <span aria-hidden className={`size-2.5 shrink-0 rounded-[2px] ${TILE[tile]}`} />
+            {label}
+          </li>
+        ))}
+      </ul>
+      <InfoTip label={GRID_RULE} about="the activity grid" />
+    </div>
   );
 }
 
@@ -78,10 +102,10 @@ function StreakStatus({ streak, closed, starts }: { streak: number; closed?: str
   return <StatusDot tone={finished ? "ok" : streak === 0 ? "neutral" : "ok"}>{finished ? `Final streak · ${streak} ${streak === 1 ? "day" : "days"}` : streakLabel(streak)}</StatusDot>;
 }
 
-/** The legend's last sentence: when counting starts, why the tracker has closed, or how much open work still feeds it. */
+/** The line under the key: when counting starts, why it has stopped, or how much open work still feeds it. */
 function trackerNote(starts?: string, closed?: string, feeding?: number) {
-  if (starts) return ` It starts counting on ${starts}, the contract's first day.`;
-  if (closed) return ` ${closed}, so the tracker is closed on the streak above.`;
-  if (feeding === 0) return " Nothing is open right now.";
-  return feeding !== undefined ? ` ${feeding} ${feeding === 1 ? "task is" : "tasks are"} still open.` : "";
+  if (starts) return `It starts counting on ${starts}, the contract's first day.`;
+  if (closed) return `${closed}, so the streak above is final.`;
+  if (feeding === 0) return "Nothing is open right now.";
+  return feeding !== undefined ? `${feeding} ${feeding === 1 ? "task is" : "tasks are"} still open.` : "";
 }

@@ -42,7 +42,7 @@ export interface WorkPort {
 }
 
 export type WorkNotice =
-  | { kind: "task_added" | "task_submitted" | "task_approved" | "task_changes"; task: { id: string; title: string }; note?: string }
+  | { kind: "task_added" | "task_submitted" | "task_approved" | "task_changes"; task: { id: string; /** Its number, so the notice can say "#1 …". */ number: number; title: string }; note?: string }
   /** A comment, for the side that didn't write it. */
   | { kind: "task_comment"; from: Side; task: { id: string; title: string }; note: string };
 
@@ -331,7 +331,7 @@ function applyPatch(r: Repo, t: WorkItem, changes: WorkPatch, base: PatchBase | 
     setField(merged, f, value);
     // Only the fields the feed knows get a line; anything else a caller sends goes unlogged.
     if (Object.hasOwn(FIELD_LINE, f)) lines.push(`${FIELD_LINE[f](merged, r, t, projects)} by ${r.actor.name}`);
-    if (f === "assignee" && merged.assignee === "independent") notices.push({ kind: "task_added", task: { id: t.id, title: merged.title } });
+    if (f === "assignee" && merged.assignee === "independent") notices.push({ kind: "task_added", task: { id: t.id, number: t.number, title: merged.title } });
   }
   if (!lines.length) return { merged: t, lines, notices };
   checkPatched(merged, t, fields, access, today);
@@ -356,7 +356,7 @@ function startedDates(t: WorkItem, today: Day): { item: WorkItem; line?: string 
 function finishedDates(t: WorkItem, today: Day, agreed: boolean): { item: WorkItem; line?: string } {
   const { start, due } = datesOf(t);
   if (t.type === "milestone" || (due === today && (start === null || start <= today))) return { item: t };
-  if (agreed) return { item: start !== null && start > today ? { ...t, start: isoOf(today) } : t, line: t.due && due !== today ? `Finished on ${stampLabel(today)} — the agreed due date was ${dateText(t.due)}` : undefined };
+  if (agreed) return { item: start !== null && start > today ? { ...t, start: isoOf(today) } : t, line: t.due && due !== today ? `Finished on ${stampLabel(today)}. The agreed due date was ${dateText(t.due)}` : undefined };
   return {
     item: { ...t, due: isoOf(today), ...(start !== null && start > today ? { start: isoOf(today) } : {}) },
     line: `Finished on ${stampLabel(today)}${t.due && due !== today ? ` (was due ${dateText(t.due)})` : ""}`,
@@ -371,7 +371,7 @@ function applyTransition(r: Repo, t: WorkItem, to: WorkStatus, kind: TransitionK
 }
 
 function statusChange(r: Repo, t: WorkItem, to: WorkStatus, kind: TransitionKind, note: string | undefined, now: Now): { item: WorkItem; line: string; notice?: WorkNotice; token?: string } {
-  const task = { id: t.id, title: t.title };
+  const task = { id: t.id, number: t.number, title: t.title };
   const text = note?.trim() || undefined;
   const label = STATUS_META[to].label;
   const by = r.actor.name;
@@ -382,7 +382,7 @@ function statusChange(r: Repo, t: WorkItem, to: WorkStatus, kind: TransitionKind
     case "submit":
       return {
         item: { ...t, status: "review", submitted: { at: now.moment, ...(text ? { note: text } : {}) }, changes: undefined },
-        line: `Sent for review by ${by}${text ? ` — “${text}”` : ""}`,
+        line: `Sent for review by ${by}${text ? `: “${text}”` : ""}`,
         notice: { kind: "task_submitted", task, note: text },
         token: `done:${t.id}`,
       };
@@ -393,7 +393,7 @@ function statusChange(r: Repo, t: WorkItem, to: WorkStatus, kind: TransitionKind
     case "requestChanges":
       return {
         item: { ...t, status: "doing", submitted: undefined, changes: { note: text ?? "", at: now.moment, by } },
-        line: `Changes requested by ${by} — “${text ?? ""}”`,
+        line: `Changes requested by ${by}: “${text ?? ""}”`,
         notice: { kind: "task_changes", task, note: text },
       };
     case "complete":
@@ -488,7 +488,7 @@ function deleteProject(r: Repo, id: string) {
     const p = findProject(state, id);
     const inIt = state.items.filter((t) => t.project === id);
     if (p.status !== "done" && inIt.some((t) => !isArchived(t))) throw new WorkError("validation", `“${p.name}” still has work in it. Finish it, or move its work out, before deleting it.`, { field: "project" });
-    const line = { ts: now.ms, at: now.moment, text: `Moved out of “${p.name}” — the project was deleted by ${r.actor.name}` };
+    const line = { ts: now.ms, at: now.moment, text: `Moved out of “${p.name}”: ${r.actor.name} deleted the project` };
     const items = state.items.map((t) => {
       if (t.project !== id) return t;
       const { project: _gone, ...rest } = t;
@@ -580,7 +580,7 @@ function create(r: Repo, input: CreateInput) {
     items = [...items, item];
     return {
       next: { ...state, items, nextNumber: state.nextNumber + 1 },
-      result: { item, notices: item.assignee === "independent" ? [{ kind: "task_added", task: { id: item.id, title: item.title } }] : [] },
+      result: { item, notices: item.assignee === "independent" ? [{ kind: "task_added", task: { id: item.id, number: item.number, title: item.title } }] : [] },
     };
   });
 }
@@ -678,7 +678,7 @@ function addDependency(r: Repo, id: string, onId: string) {
     if (t.dependsOn.includes(onId)) return { result: { item: t } };
     invalid(checkDependency(id, onId, indexById(state.items)));
     const on = state.items.find((x) => x.id === onId) as WorkItem;
-    const { next, item } = save(r, state, { ...t, dependsOn: [...t.dependsOn, onId] }, now, [`Now waits on ${refOf(on)} “${on.title}” — set by ${r.actor.name}`]);
+    const { next, item } = save(r, state, { ...t, dependsOn: [...t.dependsOn, onId] }, now, [`Now waits on ${refOf(on)} “${on.title}”, set by ${r.actor.name}`]);
     return { next, result: { item } };
   });
 }
@@ -688,7 +688,7 @@ function removeDependency(r: Repo, id: string, onId: string) {
     need(r, capsFor(t, r.actor, access).depend, () => dependDenied(r, t, access));
     if (!t.dependsOn.includes(onId)) return { result: { item: t } };
     const on = state.items.find((x) => x.id === onId);
-    const { next, item } = save(r, state, { ...t, dependsOn: t.dependsOn.filter((x) => x !== onId) }, now, [`No longer waits on ${on ? refOf(on) : "an item"} — removed by ${r.actor.name}`]);
+    const { next, item } = save(r, state, { ...t, dependsOn: t.dependsOn.filter((x) => x !== onId) }, now, [`No longer waits on ${on ? refOf(on) : "an item"}, removed by ${r.actor.name}`]);
     return { next, result: { item } };
   });
 }
