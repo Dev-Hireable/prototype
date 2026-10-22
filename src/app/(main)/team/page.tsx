@@ -79,6 +79,7 @@ export default function Dashboard() {
   const deal = useDeal();
   const { working, talent, who, lead, frozen } = contractFocus(deal, active);
   const steps = useSetupSteps();
+  const { profile } = useTeamAccount();
 
   return (
     <Page title="Dashboard" padded={false}>
@@ -98,9 +99,9 @@ export default function Dashboard() {
             </DashboardSummaryCard>,
           ]}
           side={[
-            // TB-147 — straight to what needs you: work sent for your review first, then your own tasks, each a click from its sheet.
+            // TB-147 — straight to what needs you: work sent for your review and your own tasks, in the order you put them, each a click from its sheet.
             working && (
-              <DashboardTasks key="tasks" side="team" base={`/team/independents/${working.slug}`} allHref={`/team/independents/${working.slug}`} about={`${talent} · ${working.role}`} counterpart={who} lead={lead} frozen={frozen} />
+              <DashboardTasks key="tasks" side="team" me={profile.name} base={`/team/independents/${working.slug}`} allHref={`/team/independents/${working.slug}`} about={`${talent} · ${working.role}`} counterpart={who} lead={lead} frozen={frozen} />
             ),
 
             // Active contracts: every ongoing Trial and Full-Time engagement, + Hire at the bottom.

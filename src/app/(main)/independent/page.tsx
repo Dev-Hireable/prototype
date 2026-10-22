@@ -66,10 +66,11 @@ export default function Dashboard() {
 
         <DashboardSummaryGrid
           main={[
-            // IN-090 — straight to the work: their open tasks, most pressing first, each a click from its sheet.
+            // IN-090 — straight to the work: their open tasks, in the order they put them, each a click from its sheet.
             working && (
               <DashboardTasks key="tasks"
                 side="independent"
+                me={profile.name}
                 base={`/independent/contracts/${working.slug}`}
                 allHref={`/independent/contracts/${working.slug}?assignee=independent`}
                 about={`${working.title} at ${working.company}`}

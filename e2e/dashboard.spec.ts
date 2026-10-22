@@ -1,19 +1,22 @@
-import { expect, panel, test } from "./fixtures";
+import type { Locator } from "@playwright/test";
+import { drag, expect, panel, savedItem, test } from "./fixtures";
 
-// IN-090 — the talent's dashboard lists their own open tasks, most pressing first, each one click
-// from its sheet in the contract's Work tab.
+/** The task numbers My tasks lists, top to bottom. */
+const numbersIn = async (card: Locator) => (await card.getByRole("list").getByRole("link").allTextContents()).map((t) => t.match(/#\d+/)?.[0]);
+
+// IN-090 — the talent's dashboard lists their own open tasks in the order they put them in (the
+// Work tab's manual order), each one click from its sheet in the contract's Work tab.
 test.describe("the talent's dashboard", () => {
-  test("My tasks: their open work, most pressing first, one click from each sheet", async ({ page }) => {
+  test("My tasks: their open work in their own order, one click from each sheet", async ({ page }) => {
     await page.goto("/independent");
     const card = page.getByRole("region", { name: "My tasks" });
     await expect(card).toContainText("Brand Designer at Nairobi Solutions Inc. · 3 to do · 2 in progress · 1 in review");
-    // Sent back with changes, then under way, then To do by due date with the undated one last.
-    // What's with Alex for review comes after those, so it's the one behind "1 more".
+    // The manual order, not most pressing first: #10, sent back with changes, sits last, so it's
+    // the one behind "1 more" until it's moved up.
     const rows = card.getByRole("list").getByRole("link");
     await expect(rows).toHaveCount(5);
-    expect((await rows.allTextContents()).map((t) => t.match(/#\d+/)?.[0])).toEqual(["#10", "#3", "#4", "#5", "#9"]);
-    await expect(rows.first()).toContainText("Changes requested");
-    await expect(rows.first()).toContainText("Overdue");
+    expect(await numbersIn(card)).toEqual(["#2", "#3", "#4", "#5", "#9"]);
+    await expect(rows.first()).toContainText("With Alex for review");
     await expect(card.getByRole("link", { name: "1 more in the Work tab" })).toHaveAttribute("href", "/independent/contracts/brand-designer?assignee=independent");
     await expect(card.getByRole("link", { name: "See all my tasks" })).toHaveAttribute("href", "/independent/contracts/brand-designer?assignee=independent");
 
@@ -25,24 +28,51 @@ test.describe("the talent's dashboard", () => {
   });
 });
 
-// TB-147 — the client's dashboard: the work waiting on their review first, then their own.
+// TB-147 — the client's dashboard: the work waiting on their review and their own, in their order.
 test.describe("the Team Builder's dashboard", () => {
-  test("My tasks: work to review first, then their own and unassigned, one click from each sheet", async ({ page }) => {
+  test("My tasks: work to review, their own and unassigned, in the manual order, one click from each sheet", async ({ page }) => {
     await page.goto("/team");
     const card = page.getByRole("region", { name: "My tasks" });
     await expect(card).toContainText("Juan Dela Cruz · Brand Designer · 1 to review · 3 to do");
-    // Juan's submission, then Alex's own by due date, then the unassigned one with no date.
+    // Juan's submission, Alex's own and the unassigned one, as they're placed in the manual order.
     // Juan's other work is his to move, so it isn't here.
     const rows = card.getByRole("list").getByRole("link");
-    expect((await rows.allTextContents()).map((t) => t.match(/#\d+/)?.[0])).toEqual(["#2", "#6", "#8", "#7"]);
+    expect(await numbersIn(card)).toEqual(["#2", "#6", "#7", "#8"]);
     await expect(rows.first()).toContainText("Review");
-    await expect(rows.last()).toContainText("Unassigned");
+    await expect(rows.nth(2)).toContainText("Unassigned");
     await expect(card.getByRole("link", { name: "Open the Work tab" })).toHaveAttribute("href", "/team/independents/juan-dela-cruz");
 
     // The submission opens on its review.
     await rows.first().click();
     await expect(page).toHaveURL(/\/team\/independents\/juan-dela-cruz\?task=t-logos$/);
     await expect(panel(page).getByRole("button", { name: "Approve" })).toBeVisible();
+  });
+});
+
+// IN-090 / TB-147 with TB-142 — My tasks is put in order where it's read: a row dragged, or moved a
+// step with Alt+Shift+Up and Down, takes its new place in the one manual order the Work tab shares.
+test.describe("the dashboards' My tasks · putting it in order", () => {
+  test("a row dragged onto another takes its place, here and in the Work tab's order", async ({ page }) => {
+    await page.goto("/independent");
+    const card = page.getByRole("region", { name: "My tasks" });
+    const row = (n: string) => card.getByRole("list").getByRole("link", { name: new RegExp(`${n}\\b`) });
+    await expect(row("#9")).toBeVisible();
+    await drag(page, row("#9"), row("#2"), { targetY: 8 });
+    await expect.poll(() => numbersIn(card)).toEqual(["#9", "#2", "#3", "#4", "#5"]);
+    expect((await savedItem(page, "t-social")).order as number).toBeLessThan((await savedItem(page, "t-logos")).order as number);
+    await expect(page.getByTestId("announcer")).toHaveText("Moved #9");
+  });
+
+  test("Alt+Shift+Up and Down move the focused row a step, keep the focus on it and say so", async ({ page }) => {
+    await page.goto("/team");
+    const card = page.getByRole("region", { name: "My tasks" });
+    const midpoint = card.getByRole("link", { name: /#8\b/ });
+    await midpoint.focus();
+    await page.keyboard.press("Alt+Shift+ArrowUp");
+    await expect.poll(() => numbersIn(card)).toEqual(["#2", "#6", "#8", "#7"]);
+    await expect(midpoint).toBeFocused();
+    await expect(page.getByTestId("announcer")).toHaveText("Moved #8 up");
+    expect((await savedItem(page, "t-midpoint")).order as number).toBeLessThan((await savedItem(page, "t-share")).order as number);
   });
 });
 
