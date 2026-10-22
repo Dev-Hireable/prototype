@@ -576,3 +576,13 @@ summary {
   text-box: trim-both cap alphabetic;
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * The same trim for a label in capitals beside an icon (the work style tags), so flex centring sets
+ * the icon level with the letters. In the full line box the caps sat up to 1.3px above its middle,
+ * and the icon looked low beside them. Material Symbols draws its icons at cap height, so on one of
+ * its glyphs the trim leaves the icon's own box, however the zoom rounds the line box.
+ */
+.trim-to-caps {
+  text-box: trim-both cap alphabetic;
+}

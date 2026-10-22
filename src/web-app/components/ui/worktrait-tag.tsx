@@ -61,7 +61,7 @@ function WorktraitTag({
           {icon}
         </span>
       )}
-      <span className="font-nunito text-foreground leading-none font-semibold tracking-wide uppercase">
+      <span className="font-nunito trim-to-caps text-foreground leading-none font-semibold tracking-wide uppercase">
         {label}
       </span>
     </div>
@@ -94,7 +94,11 @@ function WorkstyleTraitTag({
       )}
       size={size}
       label={label}
-      icon={<Icon icon={getTraitIcon(label)} size={16} />}
+      // Trimmed like the label: Material Symbols draws at cap height, so the
+      // glyph's box becomes the icon itself and both centre on one line.
+      icon={
+        <Icon icon={getTraitIcon(label)} size={16} className="trim-to-caps" />
+      }
     />
   );
 }
