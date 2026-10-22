@@ -1,12 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { ICONS } from "@/components/icons";
 import { Button } from "@/components/portal/ui";
 import { findTarget, placeCard, spotlightBox, type Box } from "@/lib/portal/tour-placement";
-import { GUIDES, type Tour } from "@/lib/portal/tours";
+import type { Tour } from "@/lib/portal/tours";
+import { GuideCard, WithGuideName } from "./guide";
+import { GUIDE_LOOK, namesGuide } from "./guide-look";
 
 const Forward = ICONS.arrowForward;
 /** The dim over the rest of the screen: dark enough that the highlighted part is plainly the one to look at. */
@@ -152,9 +153,12 @@ function useCardKeys(controls: TourControls, first: boolean) {
   };
 }
 
-/** The step's card: who's talking and how far along it is, what this is and when to use it, and the controls. */
+/**
+ * The step's card (GuideCard, as the help menu's), read top to bottom: what this is and when to use
+ * it, then how far along the tour is, then the controls. The guide stands on its top, and their name
+ * shows once: as their name tag in a line that says it ("Hey! I'm Hira"), else beside their head.
+ */
 function TourCard({ tour, step, ...controls }: { tour: Tour; step: number } & TourControls) {
-  const guide = GUIDES[tour.side];
   const current = tour.steps[step];
   const first = step === 0;
   const last = step === tour.steps.length - 1;
@@ -166,21 +170,22 @@ function TourCard({ tour, step, ...controls }: { tour: Tour; step: number } & To
   }, [step]);
 
   return (
-    <div
+    <GuideCard
+      side={tour.side}
+      nameTag={!namesGuide(tour.side, current.title, current.body)}
       role="dialog"
       aria-modal="true"
       aria-labelledby={`${id}-title`}
       aria-describedby={`${id}-body`}
       onKeyDown={useCardKeys(controls, first)}
-      className="ui-zoom flex w-[min(360px,calc((100vw-24px)/var(--ui-scale)))] flex-col gap-4 rounded-xl bg-white p-5 text-ink shadow-[0_12px_32px_rgba(0,0,0,.24)]"
+      className="ui-zoom w-[min(360px,calc((100vw-24px)/var(--ui-scale)))]"
     >
-      <TourCardHeader name={guide.name} avatar={guide.avatar} step={step} total={tour.steps.length} />
       <div aria-live="polite" className="flex flex-col gap-1.5">
-        <h2 id={`${id}-title`} className="text-[16px] leading-[1.4] font-semibold tracking-[0.2px]">
-          {current.title}
+        <h2 id={`${id}-title`} className="text-[18px] leading-[1.35] font-bold tracking-[0.2px]">
+          <WithGuideName side={tour.side} text={current.title} />
         </h2>
-        <p id={`${id}-body`} className="text-[14px] leading-[1.45] tracking-[0.2px] text-ink-2">
-          {current.body}
+        <p id={`${id}-body`} className="text-[14px] leading-[1.5] tracking-[0.2px] text-ink-2">
+          <WithGuideName side={tour.side} text={current.body} />
         </p>
       </div>
       {last && current.action && (
@@ -188,34 +193,41 @@ function TourCard({ tour, step, ...controls }: { tour: Tour; step: number } & To
           {current.action.label} <Forward size={18} aria-hidden />
         </button>
       )}
-      <div className="flex items-center justify-between gap-3">
-        {last ? <span /> : (
-          <button type="button" onClick={controls.onSkip} className="text-[14px] font-medium text-ink-2 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            Skip tour
-          </button>
-        )}
-        <div ref={footerRef} className="flex items-center gap-2">
-          {!first && <Button onClick={controls.onBack}>Back</Button>}
-          <Button variant="primary" onClick={controls.onNext}>
-            {last ? "Finish" : "Next"}
-          </Button>
+      <div className="flex flex-col gap-3 border-t border-border pt-4">
+        <StepProgress step={step} total={tour.steps.length} bar={GUIDE_LOOK[tour.side].bar} />
+        <div className="flex items-center justify-between gap-3">
+          {last ? <span /> : (
+            <button type="button" onClick={controls.onSkip} className="text-[14px] font-medium text-ink-2 hover:text-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+              Skip tour
+            </button>
+          )}
+          <div ref={footerRef} className="flex items-center gap-2">
+            {!first && <Button onClick={controls.onBack}>Back</Button>}
+            <Button variant="primary" onClick={controls.onNext}>
+              {last ? "Finish" : <>Next <Forward size={18} aria-hidden /></>}
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </GuideCard>
   );
 }
 
-/** The guide's face and name, and where the tour has got to. */
-function TourCardHeader({ name, avatar, step, total }: { name: string; avatar: string; step: number; total: number }) {
+/**
+ * How far along the tour is: "Step 2 of 7" in the card's own ink, beside a bar of one segment per
+ * step, filled in the guide's colour up to this one. Pale dots and small grey words were hard to read.
+ */
+function StepProgress({ step, total, bar }: { step: number; total: number; bar: string }) {
   return (
     <div className="flex items-center gap-3">
-      <Image src={avatar} alt="" width={40} height={40} unoptimized className="size-10 shrink-0 rounded-full" />
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px]">{name}</span>
-        <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
-          Step {step + 1} of {total}
-        </span>
-      </div>
+      <span className="shrink-0 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">
+        Step {step + 1} of {total}
+      </span>
+      <span aria-hidden className="flex flex-1 items-center gap-1">
+        {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
+          <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= step + 1 ? bar : "bg-[#e5e5e5]"}`} />
+        ))}
+      </span>
     </div>
   );
 }

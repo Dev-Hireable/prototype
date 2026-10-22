@@ -138,7 +138,8 @@ function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: Re
           <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
             {job.title}
           </h2>
-          <span className="mt-1.5 shrink-0">
+          {/* data-tour: the application's tour points at where it stands and at the next step (@/lib/portal/tours). */}
+          <span data-tour="application-stage" className="mt-1.5 shrink-0">
             <StatusDot tone={stage.tone}>{stage.label}</StatusDot>
           </span>
         </div>
@@ -192,7 +193,9 @@ function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...action
     // The next step stays in view while the application scrolls — 24px down, below the scroller's
     // top fade (ScrollFade's RAMP), so the fade never thins it.
     <div className="sticky top-6 flex w-[385px] shrink-0 flex-col gap-4 max-lg:static max-lg:order-first max-lg:w-full">
-      <NextStep app={app} job={job} live={live} onReviewOffer={onReviewOffer} {...actions} />
+      <div data-tour="application-step" className="flex flex-col gap-4">
+        <NextStep app={app} job={job} live={live} onReviewOffer={onReviewOffer} {...actions} />
+      </div>
 
       {/* TB-106 — the proposal they sent, as the Team Builder reads it, opened over the page. At
           every stage from the first submission on. */}

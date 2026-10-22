@@ -77,14 +77,15 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         person={full}
         hired={cand.stage === "hired"}
         onPlayIntro={() => setToast("Intro video plays here", "info")}
+        // data-tour: the candidate tour points at the next step and at where they stand (@/lib/portal/tours).
         actions={
-          <>
+          <div data-tour="candidate-step" className="flex flex-wrap items-center gap-2">
             <NextAction cand={cand} role={role} person={p} live={live} onOpen={setDialog} />
             <SaveButton person={p} />
-          </>
+          </div>
         }
         note={
-          <div className="flex flex-col items-start gap-2">
+          <div data-tour="candidate-stage" className="flex flex-col items-start gap-2">
             <StageBadge cand={cand} />
             <StageNote cand={cand} first={first} />
           </div>

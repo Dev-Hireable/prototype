@@ -94,6 +94,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
         <Tabs
           value={tab}
           onChange={setTab}
+          aria-label="Role sections"
           options={[
             { value: "candidates", label: "Candidates" },
             { value: "details", label: "Role details" },
@@ -313,7 +314,8 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
        columns up with the back link; scrolled, cards fade out at the edge rather than stopping
        short. overflow-y-hidden stops a nested vertical scrollbar. */
     <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
-      <div ref={boardRef} className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
+      {/* data-tour: the role's tour points at the board and at a candidate's card (@/lib/portal/tours). */}
+      <div ref={boardRef} data-tour="role-board" className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
         {columns.map((col) => {
           /** A declined candidate sits in Declined (TB-037) and a closed trial in Trial Ended, not their stage's column. */
           const cards = list.filter((c) => columnOf(c) === col.key);
@@ -373,7 +375,7 @@ function CandidateCard({ c, type, column, unread, actions }: { c: Candidate; typ
   const proposed = c.id === DEAL_ID ? deal?.proposal?.rate : undefined;
   const pay = proposed ? payFor(type, proposed) : type === "trial" ? undefined : p.rate;
   return (
-    <li className={`flex flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${c.dropped ? "opacity-60" : ""}`}>
+    <li data-tour="candidate" className={`flex flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${c.dropped ? "opacity-60" : ""}`}>
       <div className="flex items-start gap-2.5">
         <Avatar src={p.avatar} size={36} />
         <CardName c={c} name={name} headline={p.role} onOpen={actions.open} />

@@ -73,10 +73,13 @@ export default function Wallet() {
         />
 
         <FilterBar filters={filters} total={all.length}>
-          {/* Off, with why as its tip, until something is available, the ID is verified and a verified method can take it. */}
-          <Button variant="primary" size="lg" className="ml-auto" disabled={!!withdrawOff} title={withdrawOff} onClick={() => setWithdrawing(true)}>
-            Withdraw
-          </Button>
+          {/* Off, with why as its tip, until something is available, the ID is verified and a verified method can take it.
+              The span is the Earnings tour's anchor (@/lib/portal/tours): Button takes no extra props. */}
+          <span data-tour="withdraw" className="ml-auto">
+            <Button variant="primary" size="lg" disabled={!!withdrawOff} title={withdrawOff} onClick={() => setWithdrawing(true)}>
+              Withdraw
+            </Button>
+          </span>
         </FilterBar>
 
         <TransactionList all={all} filters={filters} contractName={contractName} onView={setDetail} />
@@ -260,7 +263,7 @@ function Balances({ all, available }: { all: Transaction[]; available: number })
   const payingContracts = new Set(releases.map((t) => t.contract)).size;
   return (
     // Side by side; a tablet or a phone wraps them two to a row, the odd one out across the full width.
-    <div className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
+    <div data-tour="earnings-totals" className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
       {[
         [money(received), "Received, all time", `${releases.length} ${releases.length === 1 ? "payment" : "payments"} received from ${payingContracts} ${payingContracts === 1 ? "contract" : "contracts"}`],
         [money(available), "Available to withdraw", available ? "released and not yet withdrawn" : received ? "withdrawn already" : "nothing released yet"],
@@ -279,49 +282,51 @@ function Balances({ all, available }: { all: Transaction[]; available: number })
   );
 }
 
-/** The payout cards, each with its ⋮ menu, under the one Add payout method. */
+/** The payout cards, each with its ⋮ menu, under the one Add payout method; wrapped as the Earnings tour's anchor (Card takes no extra props). */
 function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { payouts: PayoutMethod[]; onAdd: () => void; onSetDefault: (m: PayoutMethod) => void; onHistory: () => void; onRemove: (m: PayoutMethod) => void }) {
   const [menu, setMenu] = useState<string | null>(null);
   return (
-    <Card className="flex flex-col gap-4 p-6">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-          Payout methods
-        </h2>
-        <Button variant="primary" size="lg" onClick={onAdd}>
-          Add payout method
-        </Button>
-      </div>
-      <p className="text-[13px] leading-[1.4] text-ink-2">Released pay waits in your balance until you withdraw it to a verified payout method.</p>
-      {payouts.length === 0 ? (
-        <EmptyState title="No payout method yet" body="You'll be asked for one before your first proposal." />
-      ) : (
-        <div className="grid grid-cols-3 gap-4 pt-3.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
-          {payouts.map((m) => (
-            <PayoutCard
-              key={m.id}
-              method={m}
-              open={menu === m.id}
-              onOpenChange={(open) => setMenu(open ? m.id : null)}
-              removeOff={removeBlocker(m, payouts.length)}
-              onSetDefault={() => {
-                onSetDefault(m);
-                setMenu(null);
-              }}
-              onHistory={() => {
-                setMenu(null);
-                onHistory();
-              }}
-              onRemove={() => {
-                onRemove(m);
-                setMenu(null);
-              }}
-            />
-          ))}
+    <div data-tour="payout-methods">
+      <Card className="flex flex-col gap-4 p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+            Payout methods
+          </h2>
+          <Button variant="primary" size="lg" onClick={onAdd}>
+            Add payout method
+          </Button>
         </div>
-      )}
-      <InfoBanner>Payouts usually arrive within one working day.</InfoBanner>
-    </Card>
+        <p className="text-[13px] leading-[1.4] text-ink-2">Released pay waits in your balance until you withdraw it to a verified payout method.</p>
+        {payouts.length === 0 ? (
+          <EmptyState title="No payout method yet" body="You'll be asked for one before your first proposal." />
+        ) : (
+          <div className="grid grid-cols-3 gap-4 pt-3.5 max-lg:grid-cols-2 max-sm:grid-cols-1">
+            {payouts.map((m) => (
+              <PayoutCard
+                key={m.id}
+                method={m}
+                open={menu === m.id}
+                onOpenChange={(open) => setMenu(open ? m.id : null)}
+                removeOff={removeBlocker(m, payouts.length)}
+                onSetDefault={() => {
+                  onSetDefault(m);
+                  setMenu(null);
+                }}
+                onHistory={() => {
+                  setMenu(null);
+                  onHistory();
+                }}
+                onRemove={() => {
+                  onRemove(m);
+                  setMenu(null);
+                }}
+              />
+            ))}
+          </div>
+        )}
+        <InfoBanner>Payouts usually arrive within one working day.</InfoBanner>
+      </Card>
+    </div>
   );
 }
 
