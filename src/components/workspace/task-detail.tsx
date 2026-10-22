@@ -251,11 +251,17 @@ function neededNow(t: WorkItem) {
   };
 }
 
+/**
+ * The sheet's notes run its full width, level with the rows under them. A page banner ends with its
+ * text; in the sheet, a short one beside full-width rows looked cut off.
+ */
+const SHEET_NOTE = "w-full rounded-lg";
+
 /** A deleted item says so, and by whom; restoring it is this banner's one action. */
 function DeletedBanner({ item: t, restorable }: { item: WorkItem; restorable: boolean }) {
   const { actions } = useWorkspace();
   return (
-    <InfoBanner>
+    <InfoBanner className={SHEET_NOTE}>
       Deleted{t.archivedBy ? ` by ${t.archivedBy}` : ""}. It&apos;s out of every view and count until it&apos;s restored.
       {restorable && (
         <span className="mt-2 block">
@@ -272,7 +278,7 @@ function DeletedBanner({ item: t, restorable }: { item: WorkItem; restorable: bo
 function ChangesBanner({ changes }: { changes: NonNullable<WorkItem["changes"]> }) {
   const { names } = useWorkspace();
   return (
-    <InfoBanner tone="warn">
+    <InfoBanner tone="warn" className={SHEET_NOTE}>
       <span className="font-semibold">{changes.by || names.team} asked for changes</span> · {changes.at}
       {changes.note && <span className="mt-1 block">“{changes.note}”</span>}
     </InfoBanner>
@@ -284,7 +290,7 @@ function ReviewBanner({ review }: { review: NonNullable<WorkItem["submitted"]> }
   const { actor, names } = useWorkspace();
   const talent = actor.role === "contributor";
   return (
-    <InfoBanner>
+    <InfoBanner className={SHEET_NOTE}>
       <span className="font-semibold">{talent ? `With ${names.team} for review` : `${names.independent} sent this for review`}</span> · {review.at}
       {review.note && <span className="mt-1 block">“{review.note}”</span>}
     </InfoBanner>

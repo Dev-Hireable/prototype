@@ -36,11 +36,14 @@ export function LockedValue({ field, onLocked = explainAgreed, children }: { fie
   );
 }
 
-/** The sheet's notice for an agreed value someone tried to change: why it can't be, until they close it with its ×. */
+/**
+ * The sheet's notice for an agreed value someone tried to change: why it can't be, until they close it
+ * with its ×. It runs the sheet's full width, as the sheet's other notes do.
+ */
 export function AgreedNotice({ field, onClose }: { field: AgreedField; onClose: () => void }) {
   return (
     <div role="alert">
-      <InfoBanner tone="warn" onClose={onClose}>
+      <InfoBanner tone="warn" onClose={onClose} className="w-full rounded-lg">
         {agreedReason(field)}
       </InfoBanner>
     </div>
