@@ -11,6 +11,7 @@ import type { Notification as IndNote } from "@/lib/independent/data";
 import { notifications as teamSeed } from "@/lib/team/data";
 import type { Notification as TeamNote } from "@/lib/team/data";
 import { filesNote, type Side } from "@/lib/work/model";
+import { readableRefs } from "@/lib/work/refs";
 import type { Attachment } from "@/lib/disputes/case";
 import type { NoteCategory } from "@/lib/portal/notification-categories";
 
@@ -770,7 +771,8 @@ export function sendChat(from: Side, text: string, source?: ChatSource, files: A
   const id = uid();
   const chat = [...snapshot.chat, { id, from, ...(body ? { text: body } : {}), ...(files.length ? { files } : {}), time: clock(), at: Date.now(), source }];
   write({ ...snapshot, chat, seen: { ...snapshot.seen, [from]: chat.length } });
-  noteMessage(from, body || filesNote(files));
+  // A task's link pasted in reads there as the task's number and name, not its address.
+  noteMessage(from, body ? readableRefs(body, readDeal()?.contract?.tasks ?? []) : filesNote(files));
   return id;
 }
 

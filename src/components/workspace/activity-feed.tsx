@@ -9,8 +9,9 @@ import { keyed } from "@/lib/portal/keys";
 import { stampLabel, type Day } from "@/lib/work/dates";
 import { refOf, type WorkComment, type WorkItem } from "@/lib/work/model";
 import { sideOf } from "@/lib/work/permissions";
-import { taskRefParts } from "@/lib/work/refs";
+import { taskOf, taskRefParts, tasksNamed, type TextPart } from "@/lib/work/refs";
 import { useWorkspace } from "./context";
+import { TaskPreviews } from "./task-preview";
 
 /** Something that happened to the item, from its log. */
 export type FeedEvent = { kind: "event"; ts: number; at: string; text: string };
@@ -70,9 +71,10 @@ const runsOn = (f: FeedRow, prev: FeedRow | undefined, newDay: boolean) => !newD
  * day starts. What people said are chat turns — photo, name and time over the words, which sit on
  * the panel, not in boxes; what happened runs between them as quiet one-line notes, with to-and-fro
  * moves folded into one. A long stream opens on its latest rows, the earlier ones behind "Show earlier".
- * A "#4" in what someone said opens that item (`byNumber`, the contract's items by number).
+ * An item someone names, by its pasted link or a typed "#4", opens from what they said and shows as a
+ * card under it (`items`, the contract's).
  */
-export function ActivityStream({ feed, byNumber, empty }: { feed: readonly (FeedEvent | FeedComment)[]; byNumber: ReadonlyMap<number, WorkItem>; empty: string }) {
+export function ActivityStream({ feed, items, empty }: { feed: readonly (FeedEvent | FeedComment)[]; items: readonly WorkItem[]; empty: string }) {
   const { today } = useWorkspace();
   const [all, setAll] = useState(false);
   const rows = foldMoves(feed);
@@ -95,7 +97,7 @@ export function ActivityStream({ feed, byNumber, empty }: { feed: readonly (Feed
           return (
             <li key={key} className={f.kind === "comment" ? (on ? "pt-1" : "pt-3") : "pt-2"}>
               {newDay && <DayDivider label={dayHeading(days[i], today)} />}
-              {f.kind === "comment" ? <Turn comment={f} runsOn={on} byNumber={byNumber} /> : f.kind === "moves" ? <MovesNote run={f} /> : <EventNote event={f} />}
+              {f.kind === "comment" ? <Turn comment={f} runsOn={on} items={items} /> : f.kind === "moves" ? <MovesNote run={f} /> : <EventNote event={f} />}
             </li>
           );
         })}
@@ -182,19 +184,20 @@ function MovesNote({ run }: { run: FeedMoves }) {
 }
 
 /**
- * What someone wrote, with each "#4" of an item on this contract a link that opens it in its sheet,
- * the item's name in the tip. Any other "#n" stays as written.
+ * What someone wrote, with each item on this contract it names a link that opens it in its sheet, the
+ * item's name in the tip: a typed "#4" as typed, a pasted link as the item's name rather than its
+ * address. Any other "#n" or link stays as written.
  */
-function TaskRefText({ text, byNumber }: { text: string; byNumber: ReadonlyMap<number, WorkItem> }) {
+function TaskRefText({ parts, items }: { parts: readonly TextPart[]; items: readonly WorkItem[] }) {
   const { openTask } = useWorkspace();
-  return keyed(taskRefParts(text), (p) => p.text).map(({ item: p, key }) => {
-    const t = p.number === undefined ? undefined : byNumber.get(p.number);
+  return keyed(parts, (p) => p.text).map(({ item: p, key }) => {
+    const t = taskOf(p, items);
     if (!t) return <Fragment key={key}>{p.text}</Fragment>;
     const name = `${refOf(t)} ${t.title}`;
     return (
       <Tip key={key} label={name}>
         <button type="button" aria-label={name} onClick={() => openTask(t.id)} className="rounded font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary">
-          {p.text}
+          {p.taskId ? t.title : p.text}
         </button>
       </Tip>
     );
@@ -206,12 +209,15 @@ function TaskRefText({ text, byNumber }: { text: string; byNumber: ReadonlyMap<n
  * same person's last one drops the header, its time showing in the photo's column on hover. Each
  * comment is its own article, so it's still found and read one by one.
  */
-function Turn({ comment: c, runsOn, byNumber }: { comment: FeedComment; runsOn: boolean; byNumber: ReadonlyMap<number, WorkItem> }) {
-  const { actor, people } = useWorkspace();
+function Turn({ comment: c, runsOn, items }: { comment: FeedComment; runsOn: boolean; items: readonly WorkItem[] }) {
+  const { actor, people, names, today, openTask } = useWorkspace();
   /** Which side the reader is on: their own turns say so. */
   const me = sideOf(actor);
   const name = c.name || people[c.side].name;
   const time = split(c.at).time || c.at;
+  /** What they said, around the items it names: those are links in the words and cards under them. */
+  const parts = c.text ? taskRefParts(c.text) : [];
+  const named = tasksNamed(parts, items);
   return (
     <article aria-label={`Comment from ${name}`} className="group/msg flex gap-3">
       {runsOn ? (
@@ -229,8 +235,13 @@ function Turn({ comment: c, runsOn, byNumber }: { comment: FeedComment; runsOn: 
         )}
         {c.text && (
           <p className={`text-[14px] leading-[1.5] whitespace-pre-line text-ink [overflow-wrap:anywhere] ${runsOn ? "" : "mt-0.5"}`}>
-            <TaskRefText text={c.text} byNumber={byNumber} />
+            <TaskRefText parts={parts} items={items} />
           </p>
+        )}
+        {named.length > 0 && (
+          <div className="mt-2">
+            <TaskPreviews tasks={named} today={today} names={names} open={(t) => ({ onOpen: () => openTask(t.id) })} />
+          </div>
         )}
         {/* What was sent with it: an image or a PDF opens in the viewer, a document downloads. */}
         {c.files?.length ? (

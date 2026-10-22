@@ -13,6 +13,7 @@ import { KEEP_FAILED, keepFiles } from "@/lib/demo/files";
 import { hearsComments, isArchived, isCompleted, isOverdue, openBlockers, refOf, type WorkFile, type WorkItem } from "@/lib/work/model";
 import { capsFor, changeFor, type AgreedField } from "@/lib/work/permissions";
 import { checkComment, checkTitle } from "@/lib/work/validate";
+import { taskLinkAt, taskLinkHtml } from "@/lib/work/refs";
 import { notice } from "@/lib/work/store";
 import { useWorkspace, type DetailFocus, type WorkspaceEnv } from "./context";
 import { DateField, StatusField } from "./fields";
@@ -118,19 +119,18 @@ function TopBar({ ref, item: t, byId, step, box, onBox }: { ref: Ref<HTMLDivElem
 }
 
 /**
- * The top bar's end: copying the item's ID ("#4"), for anyone — pasted in a comment or a message, it
- * opens the item (TaskRefText, ChatText) — then deleting, from the ⋯ menu. Restoring a deleted item
- * is the deleted banner's one action, not a second copy here.
+ * The top bar's end: Copy link, for anyone — the item's link, which opens it, and which shows as a card
+ * with its name when pasted in a comment or a message (TaskPreviews) — then deleting, from the ⋯ menu.
+ * Restoring a deleted item is the deleted banner's one action, not a second copy here.
  */
 function PanelActions({ item }: { item: WorkItem }) {
   const { actor, access, actions } = useWorkspace();
-  const ref = refOf(item);
   return (
     <>
       {item.number ? (
-        <Tip label="Copy task ID">
-          <button type="button" aria-label={`Copy task ID ${ref}`} onClick={() => void copyRef(ref)} className={`${ICON_BUTTON} size-8`}>
-            <ICONS.copy size={18} aria-hidden />
+        <Tip label="Copy link">
+          <button type="button" aria-label={`Copy link to ${refOf(item)}`} onClick={() => void copyLink(item)} className={`${ICON_BUTTON} size-8`}>
+            <ICONS.link size={18} aria-hidden />
           </button>
         </Tip>
       ) : null}
@@ -145,14 +145,25 @@ function PanelActions({ item }: { item: WorkItem }) {
   );
 }
 
-/** Copies a task's reference and says so — or that this browser wouldn't let it. */
-async function copyRef(ref: string) {
+/**
+ * Copies the task's link as Copy link does anywhere: its address as text, and a link named after the
+ * task ("#4 Pick a typography pairing") for wherever formatting pastes, like Slack, Docs or an email.
+ * The toast names the task, or says this browser wouldn't allow it.
+ */
+async function copyLink(item: WorkItem) {
+  const url = taskLinkAt(window.location, item.id);
   try {
-    await navigator.clipboard.writeText(ref);
-    notice(`Copied ${ref}. Pasted in a comment or a message, it opens this task.`);
+    await writeLink(url, taskLinkHtml(url, `${refOf(item)} ${item.title}`));
+    notice(`Copied the link to “${item.title}”`);
   } catch {
-    notice(`Couldn't copy ${ref}: this browser didn't allow it.`, "danger");
+    notice(`Couldn't copy the link to “${item.title}”: this browser didn't allow it.`, "danger");
   }
+}
+
+/** Both forms on the clipboard where the browser takes formatted copies, the address alone where it takes only text. */
+function writeLink(url: string, html: string) {
+  if (typeof ClipboardItem === "undefined") return navigator.clipboard.writeText(url);
+  return navigator.clipboard.write([new ClipboardItem({ "text/plain": new Blob([url], { type: "text/plain" }), "text/html": new Blob([html], { type: "text/html" }) })]);
 }
 
 /**
@@ -345,11 +356,11 @@ function historyOf(t: WorkItem, people: WorkspaceEnv["people"], { changes, revie
  * chat — set off from the properties by a band across the sheet, as the reference sets off its
  * comments. "Comments only" hides what happened, when there's both to tell apart. `ref` is how a
  * comment's notification, and a comment just sent from the foot, scroll here — clear of the name
- * that sticks at the top. A "#4" in a comment opens that item (`items`, by number).
+ * that sticks at the top. An item a comment names, by a typed "#4" or its pasted link, opens from it
+ * and shows as a card under it (`items`).
  */
 function ActivitySection({ ref, item: t, items, changes, review, canComment }: { ref: Ref<HTMLElement>; item: WorkItem; items: readonly WorkItem[]; canComment: boolean } & ReturnType<typeof neededNow>) {
   const { actor, people, names } = useWorkspace();
-  const byNumber = new Map(items.map((x) => [x.number, x]));
   /** Whether only the talk shows; back to everything when another item opens. */
   const [only, setOnly] = useState<{ id: string; on: boolean }>({ id: t.id, on: false });
   const onlyComments = only.id === t.id && only.on;
@@ -365,7 +376,7 @@ function ActivitySection({ ref, item: t, items, changes, review, canComment }: {
           </button>
         )}
       </h3>
-      <ActivityStream key={t.id} feed={onlyComments ? feed.filter((f) => f.kind === "comment") : feed} byNumber={byNumber} empty={conversationEmpty(t, actor.role === "contributor", names, canComment)} />
+      <ActivityStream key={t.id} feed={onlyComments ? feed.filter((f) => f.kind === "comment") : feed} items={items} empty={conversationEmpty(t, actor.role === "contributor", names, canComment)} />
     </section>
   );
 }

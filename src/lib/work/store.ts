@@ -13,6 +13,7 @@ import { indexById, isArchived, isTagColor, newId, refOf, TAG_COLORS, unfinished
 import { orderLast, placeBetween } from "./order";
 import { applyOps, type PendingOp } from "./overlay";
 import { sideOf, type Actor, type Names, type WorkAccess } from "./permissions";
+import { readableRefs } from "./refs";
 import { createWorkRepository, type Clock, type CreateInput, type Hook, type PatchField, type WorkNotice, type WorkPatch, type WorkPort, type WorkRepository, type WorkState } from "./repository";
 import { normalizeTag } from "./validate";
 
@@ -54,13 +55,17 @@ const clock: Clock = () => {
   return { ms: d.getTime(), today: todayDay(d), moment: momentLabel(d), stamp: dayLabel(d) };
 };
 
-/** A saved change the other side should hear about, as the notification the demo already sends. */
+/**
+ * A saved change the other side should hear about, as the notification the demo already sends. A task
+ * link pasted in what was written reads there as the task's number and name, not its address.
+ */
 function tell(n: WorkNotice) {
   const deal = getDeal();
   if (!deal) return;
   const role = { slug: deal.roleSlug, title: deal.title };
-  if (n.kind === "task_comment") noteComment(n.from, role, n.task, n.note);
-  else notifyMove(n.kind, role, { task: n.task, note: n.note });
+  const readable = (text: string) => readableRefs(text, deal.contract?.tasks ?? []);
+  if (n.kind === "task_comment") noteComment(n.from, role, n.task, readable(n.note));
+  else notifyMove(n.kind, role, { task: n.task, note: n.note === undefined ? undefined : readable(n.note) });
 }
 
 /* ---------------------------------------------------------- test seam */

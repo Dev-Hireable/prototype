@@ -229,29 +229,53 @@ test.describe("task sheet · files on comments", () => {
   });
 });
 
-test.describe("task sheet · task IDs", () => {
+test.describe("task sheet · task links", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
-  test("the top bar's copy button copies the task's ID; a #4 in a comment opens that task, and any other #number stays as written", async ({ page }) => {
+  test("the top bar's Copy link copies the task's link, named after the task where formatting pastes, and the toast names it", async ({ page }) => {
     await open(page, "team", "?task=t-kickoff");
     const p = panel(page);
     // Beside the ⋯, on the top bar's line; the number over the name is text.
-    const copy = p.getByRole("button", { name: "Copy task ID #6" });
+    const copy = p.getByRole("button", { name: "Copy link to #6" });
     const top = async (l: Locator) => Math.round(((await l.boundingBox())?.y ?? 0) + ((await l.boundingBox())?.height ?? 0) / 2);
     expect(Math.abs((await top(copy)) - (await top(p.getByRole("button", { name: "Item actions" }))))).toBeLessThanOrEqual(2);
     expect(await p.getByText("#6", { exact: true }).evaluate((e) => e.tagName)).toBe("SPAN");
+    await copy.hover();
+    await expect(page.locator('[data-slot="tooltip-content"]').filter({ hasText: "Copy link" })).toBeVisible();
     await copy.click();
-    await expect(toast(page, "Copied #6. Pasted in a comment or a message, it opens this task.")).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("#6");
+    await expect(toast(page, "Copied the link to “Kickoff call with marketing”")).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(new URL("/team/independents/juan-dela-cruz?task=t-kickoff", page.url()).href);
+    const html = await page.evaluate(async () => (await (await navigator.clipboard.read())[0].getType("text/html")).text());
+    expect(html).toContain(">#6 Kickoff call with marketing</a>");
+  });
 
-    await p.getByRole("textbox", { name: "Add a comment" }).fill("Could you check #4 before Friday? Not #99.");
+  test("a task's link pasted in a comment reads as its name with its card, which opens it; a typed #4 links as typed, and any other #number stays as written", async ({ page }) => {
+    await open(page, "team", "?task=t-kickoff");
+    await panel(page).getByRole("button", { name: "Copy link to #6" }).click();
+    await expect(toast(page, "Copied the link to “Kickoff call with marketing”")).toBeVisible();
+    // Pasted in a comment on Juan's #4, so he's told of it.
+    await open(page, "team", "?task=t-type");
+    const p = panel(page);
+    const box = p.getByRole("textbox", { name: "Add a comment" });
+    await box.fill("Could you check ");
+    await box.press("End");
+    await box.press("ControlOrMeta+V");
+    await box.pressSequentially(" before Friday? Not #99, then #4.");
     await p.getByRole("button", { name: "Send", exact: true }).click();
     const comment = p.getByRole("article", { name: "Comment from Alex Rivera" });
-    await expect(comment).toContainText("Could you check #4 before Friday? Not #99.");
-    // Only the #4 of a task on this contract is a link.
-    await expect(comment.getByRole("button")).toHaveCount(1);
-    await comment.getByRole("button", { name: "#4 Pick a typography pairing" }).click();
-    await expect(page).toHaveURL(/[?&]task=t-type/);
-    await expect(p.getByRole("button", { name: "Copy task ID #4" })).toBeVisible();
+    await expect(comment).toContainText("Could you check Kickoff call with marketing before Friday? Not #99, then #4.");
+    await expect(comment).not.toContainText("http");
+    await expect(comment.getByRole("button", { name: "#4 Pick a typography pairing", exact: true })).toHaveText("#4");
+    // Under it, a card per task it names, in order: number and name, status and who has it.
+    const cards = comment.getByRole("list", { name: "Linked tasks" }).getByRole("button");
+    await expect(cards).toHaveCount(2);
+    await expect(cards.first()).toContainText("#6Kickoff call with marketing");
+    await expect(cards.first()).toContainText("To do");
+    await expect(cards.first()).toContainText("Alex");
+    // Juan hears it, once it's saved, with the task's number and name, not its address.
+    await expect.poll(async () => (await notes(page, "independent")).find((n) => n.title === "Alex Rivera commented on a task")?.body).toContain("“Could you check #6 Kickoff call with marketing before Friday? Not #99, then #4.”");
+    await cards.first().click();
+    await expect(page).toHaveURL(/[?&]task=t-kickoff/);
+    await expect(p.getByRole("button", { name: "Copy link to #6" })).toBeVisible();
   });
 });

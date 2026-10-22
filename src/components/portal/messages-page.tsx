@@ -20,7 +20,9 @@ import { AttachButton, FileTiles, PendingFiles } from "@/components/portal/attac
 import { SendButton } from "@/components/portal/comment-box";
 import { Tip } from "@/components/portal/tip";
 import { keyed } from "@/lib/portal/keys";
-import { taskRefParts } from "@/lib/work/refs";
+import { readableRefs, taskOf, taskRefParts, tasksNamed } from "@/lib/work/refs";
+import { todayDay } from "@/lib/work/dates";
+import { TaskPreviews } from "@/components/workspace/task-preview";
 import { bothClocks } from "@/lib/portal/timezones";
 import { filesNote, refOf, type Side } from "@/lib/work/model";
 
@@ -207,9 +209,11 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
   onOpen: (id: string) => void;
 }) {
   const { live } = chat;
-  const latest = latestOf(chat);
+  /** The contract's tasks, so a pasted task link reads as the task in a row and is found by its name. */
+  const tasks = useDeal()?.contract?.tasks ?? [];
+  const latest = latestOf(chat, tasks);
   // TB-009 / IN-009: match the conversation's name AND the message content.
-  const hay = (c: C) => [c.name, c.sub, ...live.chat.filter((m) => seenBy(m, chat.side)).map(previewOf)].join(" ").toLowerCase();
+  const hay = (c: C) => [c.name, c.sub, ...live.chat.filter((m) => seenBy(m, chat.side)).map((m) => previewOf(m, tasks))].join(" ").toLowerCase();
   const needle = q.trim().toLowerCase();
   // react-doctor-disable-next-line react-doctor/js-set-map-lookups -- `hay(c)` is a string: a substring search, not a list lookup
   const list = conversations.filter((c) => c.kind === tab && hay(c).includes(needle));
@@ -243,16 +247,19 @@ type Latest = { time?: string; text: string; receipt?: Receipt; unread: number }
 /** Whether `side` sees a message: everything, but a step logged for the other side only. */
 const seenBy = (m: ChatMsg, side: Side) => !m.event?.only || m.event.only === side;
 
-/** What a message says in one line: its text, its file, or its logged step. */
-const previewOf = (m: ChatMsg) => m.text ?? (m.files?.length ? filesNote(m.files) : undefined) ?? m.file?.name ?? m.event?.text ?? "";
+/** A thread's tasks, as far as a message's line names them. */
+type Tasks = Parameters<typeof readableRefs>[1];
+
+/** What a message says in one line: its text (a pasted task link read as the task), its file, or its logged step. */
+const previewOf = (m: ChatMsg, tasks: Tasks) => (m.text === undefined ? undefined : readableRefs(m.text, tasks)) ?? (m.files?.length ? filesNote(m.files) : undefined) ?? m.file?.name ?? m.event?.text ?? "";
 
 /** The latest message, read once for every row (the demo has the one shared thread). Its time is the thread's last. */
-function latestOf({ live, side, other }: Chat): Latest {
+function latestOf({ live, side, other }: Chat, tasks: Tasks): Latest {
   const index = live.chat.findLastIndex((m) => seenBy(m, side));
   const last = live.chat[index];
   return {
     time: last?.time,
-    text: last ? previewOf(last) : "",
+    text: last ? previewOf(last, tasks) : "",
     receipt: last && !last.event && last.from === side ? (readBy(live, other, index) ? "seen" : "sent") : undefined,
     unread: unreadChat(live, side),
   };
@@ -366,31 +373,40 @@ export function ChatLog<C extends { id: string; name: string }>({ conv, face, ch
 }
 
 /**
- * A message's words, with each "#4" of a task on the contract a link that opens it on this side's
- * contract page, the task's name in its tip (a pasted task ID). Any other "#n" stays as written, and
- * what's searched for is marked throughout.
+ * A message's words, with each task on the contract it names a link that opens it on this side's
+ * contract page, the task's name in its tip: a typed "#4" as typed, a pasted link (the sheet's Copy
+ * link) as the task's name rather than its address. Those tasks show as cards under the words. Any
+ * other "#n" or link stays as written, and what's searched for is marked throughout.
  */
 function ChatText({ text, query, side, mine }: { text: string; query: string; side: Side; mine: boolean }) {
   const deal = useDeal();
   const tasks = deal?.contract?.tasks ?? [];
-  // One inline run: the bubble stacks its children, so the words and their links share one span.
+  const parts = taskRefParts(text);
+  const named = deal ? tasksNamed(parts, tasks) : [];
   return (
-    <span>
-      {keyed(taskRefParts(text), (p) => p.text).map(({ item: p, key }) => {
-        const t = p.number === undefined || !deal ? undefined : tasks.find((x) => x.number === p.number);
-        if (!t || !deal) return <Highlight key={key} text={p.text} query={query} />;
-        const name = `${refOf(t)} ${t.title}`;
-        return (
-          <Tip key={key} label={name}>
-            <Link href={taskHref(side, deal.roleSlug, t.id)} aria-label={name} className={`rounded font-semibold underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 ${mine ? "text-white underline focus-visible:outline-white" : "text-accent-ink focus-visible:outline-primary"}`}>
-              <Highlight text={p.text} query={query} />
-            </Link>
-          </Tip>
-        );
-      })}
-    </span>
+    <>
+      {/* One inline run: the bubble stacks its children, so the words and their links share one span. */}
+      <span>
+        {keyed(parts, (p) => p.text).map(({ item: p, key }) => {
+          const t = deal ? taskOf(p, tasks) : undefined;
+          if (!t || !deal) return <Highlight key={key} text={p.text} query={query} />;
+          const name = `${refOf(t)} ${t.title}`;
+          return (
+            <Tip key={key} label={name}>
+              <Link href={taskHref(side, deal.roleSlug, t.id)} aria-label={name} className={`rounded font-semibold underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-1 ${mine ? "text-white underline focus-visible:outline-white" : "text-accent-ink focus-visible:outline-primary"}`}>
+                <Highlight text={p.taskId ? t.title : p.text} query={query} />
+              </Link>
+            </Tip>
+          );
+        })}
+      </span>
+      {deal && named.length > 0 && <TaskPreviews tasks={named} today={todayDay()} names={PAIR_NAMES} open={(t) => ({ href: taskHref(side, deal.roleSlug, t.id) })} />}
+    </>
   );
 }
+
+/** Who has a task, as its card in a message says: the two people on the thread. */
+const PAIR_NAMES = { team: PAIR.team.name, independent: PAIR.independent.name };
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();

@@ -1,4 +1,4 @@
-import { expect, filePicker, open, panel, stored, test, upload } from "./fixtures";
+import { expect, filePicker, notes, open, panel, stored, test, upload } from "./fixtures";
 
 // Messages and the quick chat: the thread's header opens the other side's profile in a sheet, and a
 // work screen's "Message …" opens the same thread in a small window over the page.
@@ -91,18 +91,38 @@ test.describe("messages · files", () => {
   });
 });
 
-test.describe("messages · task IDs", () => {
-  test("a #4 in a message links to that task, on each side's own contract page", async ({ page }) => {
+test.describe("messages · task links", () => {
+  /** The link the task sheet's Copy link gives for #4, from the Team Builder's side. */
+  const LINK = "http://localhost:3100/team/independents/juan-dela-cruz?task=t-type";
+  const card = (page: import("@playwright/test").Page) => page.getByRole("list", { name: "Linked tasks" }).getByRole("link");
+
+  test("a task's link pasted in a message reads as the task's name with its card, on each side's own contract page; the thread's row and the notification read it too", async ({ page }) => {
+    await page.goto("/team/messages");
+    const message = page.getByRole("textbox", { name: "Message" });
+    await message.fill(`Can you look at ${LINK} before Friday?`);
+    await message.press("Enter");
+    await expect(page.getByRole("link", { name: "#4 Pick a typography pairing", exact: true })).toHaveText("Pick a typography pairing");
+    await expect(card(page)).toHaveAttribute("href", "/team/independents/juan-dela-cruz?task=t-type");
+    await expect(card(page)).toContainText("#4Pick a typography pairing");
+    // The thread's row in the inbox: the hired Independent is under "conversations".
+    await page.getByRole("button", { name: "conversations" }).click();
+    await expect(page.getByRole("complementary").getByRole("listitem").filter({ hasText: "Juan Dela Cruz" })).toContainText("Can you look at #4 Pick a typography pairing before Friday?");
+    expect((await notes(page, "independent")).find((n) => n.title.startsWith("New message"))?.body).toBe("Can you look at #4 Pick a typography pairing before Friday?");
+
+    await page.goto("/independent/messages");
+    await expect(card(page)).toHaveAttribute("href", "/independent/contracts/brand-designer?task=t-type");
+    await card(page).click();
+    await expect(panel(page).getByRole("button", { name: "Copy link to #4" })).toBeVisible();
+  });
+
+  test("a typed #4 links to the task as typed, with the same card", async ({ page }) => {
     await page.goto("/team/messages");
     const message = page.getByRole("textbox", { name: "Message" });
     await message.fill("Can you look at #4 before Friday?");
     await message.press("Enter");
-    await expect(page.getByRole("link", { name: "#4 Pick a typography pairing" })).toHaveAttribute("href", "/team/independents/juan-dela-cruz?task=t-type");
-
-    await page.goto("/independent/messages");
-    const link = page.getByRole("link", { name: "#4 Pick a typography pairing" });
-    await expect(link).toHaveAttribute("href", "/independent/contracts/brand-designer?task=t-type");
-    await link.click();
-    await expect(panel(page).getByRole("button", { name: "Copy task ID #4" })).toBeVisible();
+    const link = page.getByRole("link", { name: "#4 Pick a typography pairing", exact: true });
+    await expect(link).toHaveText("#4");
+    await expect(link).toHaveAttribute("href", "/team/independents/juan-dela-cruz?task=t-type");
+    await expect(card(page)).toContainText("Pick a typography pairing");
   });
 });
