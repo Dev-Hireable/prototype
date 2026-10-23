@@ -29,6 +29,7 @@ import { PAIR } from "@/lib/demo/live";
 import { CONTRACT_NAMES, liveIndependents, MARKETING_BANNER, setupSteps } from "@/lib/team/data";
 import type { Candidate, Contract, Interview } from "@/lib/team/data";
 import { traitTagsFor } from "@/lib/demo/work-style";
+import { isEndedStatus } from "@/lib/contract/lifecycle";
 
 const Work = ICONS.workOutline;
 const Add = ICONS.add;
@@ -72,7 +73,7 @@ export default function Dashboard() {
   const { interviews, candidates } = usePipeline();
   const { contracts } = useTeamContracts();
   /** Active = every trial and full-time engagement that hasn't ended. */
-  const active = contracts.filter((c) => c.status.label !== "Ended");
+  const active = contracts.filter((c) => !isEndedStatus(c.status));
   const banner = useTeamBanner();
   /** Next few interviews that haven't happened yet. */
   const upcoming = interviews.filter((iv) => !iv.past).slice(0, 3);

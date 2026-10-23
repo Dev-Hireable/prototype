@@ -10,8 +10,9 @@ import { PAIR } from "@/lib/demo/live";
 import { useIndependentContracts } from "@/lib/independent/contracts";
 import type { Contract } from "@/lib/independent/data";
 import { CONTRACT_LAYOUTS } from "@/lib/contract/view";
+import { isEndedStatus } from "@/lib/contract/lifecycle";
 
-const isInactive = (c: Contract) => c.status.label === "Ended";
+const isInactive = (c: Contract) => isEndedStatus(c.status);
 
 /**
  * All contracts, laid out as the Team Builder's All independents is: the same toolbar, active-only by

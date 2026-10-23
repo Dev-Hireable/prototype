@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { needsAttention, statusOf } from "@/lib/contract/lifecycle";
-import { acceptConversion, endContract as endLiveContract, withdrawNotice } from "@/lib/demo/contract";
+import { acceptConversion, endContract as endLiveContract, withdrawNotice, type CancelReason } from "@/lib/demo/contract";
 import { dayLabel, parseDay, reviewQuarter, sinceOrFrom } from "@/lib/portal/dates";
 import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, startedAsTrial, trialStateOf, updateDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
@@ -87,7 +87,7 @@ function declineConversion(reason?: string): { ok: true } | { ok: false; error: 
 }
 
 /** IN-091 — end the live contract: cancel before its first day, or give notice on a running role. */
-const endContract = (how: "cancel" | "notice") => endLiveContract("independent", how);
+const endContract = (how: "cancel" | "notice", why?: CancelReason) => endLiveContract("independent", how, why);
 /** IN-091 — take back notice the talent gave, before its last day. */
 const withdrawIndependentNotice = () => withdrawNotice("independent");
 

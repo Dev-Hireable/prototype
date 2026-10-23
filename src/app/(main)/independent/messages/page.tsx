@@ -12,6 +12,7 @@ import { useDeal, useInvites, usePostings } from "@/lib/demo/deal";
 import { PAIR } from "@/lib/demo/live";
 import { storedWorkStyle, traitTagsFor } from "@/lib/demo/work-style";
 import { threadStage } from "@/lib/portal/stages";
+import { isEndedStatus } from "@/lib/contract/lifecycle";
 
 /** The company's initials at each size the inbox draws a face. */
 const FACE = { 38: "size-[38px] text-[12px]", 36: "size-9 text-[12px]", 30: "size-[30px] text-[10px]" } as const;
@@ -25,7 +26,7 @@ export default function Messages() {
   const invitedTitle = usePostings().find((p) => p.slug === invited)?.title;
   // IN-006 — the thread opens with the first contact: their application, or the invite to apply.
   const conversations = conversationsFor({ hired: contracts.length > 0, inPipeline: canChat || !!invited, role: applications[0]?.title ?? invitedTitle });
-  const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
+  const trial = contracts.find((c) => c.type === "trial" && !isEndedStatus(c.status));
   const deal = useDeal();
   const contract = contracts[0];
   return (
@@ -39,7 +40,7 @@ export default function Messages() {
       emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "applications" ? "No applications in progress." : "No conversations yet.")}
       emptyThread="A thread opens when you apply or a Team Builder invites you."
       face={(c, size) => <Initials text={c.initials} className={`${FACE[size]} rounded-full`} />}
-      stage={deal ? threadStage(deal.stage, contract ? (contract.status.label === "Ended" ? "Ended" : JOB_TYPE_LABEL[contract.type]) : undefined) : invited ? "Invited" : undefined}
+      stage={deal ? threadStage(deal.stage, contract ? (isEndedStatus(contract.status) ? contract.status.label : JOB_TYPE_LABEL[contract.type]) : undefined) : invited ? "Invited" : undefined}
       badge={trial && (
         <Badge variant="solid" tone="trial">
           TRIAL · {trial.day}

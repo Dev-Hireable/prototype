@@ -12,13 +12,14 @@ import { useRoles } from "@/lib/team/roles";
 import { useDeal } from "@/lib/demo/deal";
 import { PAIR } from "@/lib/demo/live";
 import { threadStage } from "@/lib/portal/stages";
+import { isEndedStatus } from "@/lib/contract/lifecycle";
 
 /** The Team Builder's inbox; the Independent's is the same page (MessagesPage). */
 export default function Messages() {
   const { roles } = useRoles();
   const { canChat, candidates } = usePipeline();
   const { contracts } = useTeamContracts();
-  const trial = contracts.find((c) => c.type === "trial" && c.status.label !== "Ended");
+  const trial = contracts.find((c) => c.type === "trial" && !isEndedStatus(c.status));
   const contract = contracts[0];
   const deal = useDeal();
   /** Their card in a role's pipeline: invited to apply, an application, or further on. */
@@ -29,7 +30,7 @@ export default function Messages() {
     hired: contracts.length > 0,
     inPipeline: canChat || !!card,
     role: contract?.role ?? pipelineRole,
-    contract: contract ? (contract.status.label === "Ended" ? "Ended" : JOB_TYPE_LABEL[contract.type]) : undefined,
+    contract: contract ? (isEndedStatus(contract.status) ? contract.status.label : JOB_TYPE_LABEL[contract.type]) : undefined,
   });
   return (
     <MessagesPage
@@ -42,7 +43,7 @@ export default function Messages() {
       emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "candidates" ? "No candidates in progress." : "No conversations yet.")}
       emptyThread="A thread opens when an Independent applies or you invite them to apply."
       face={(c, size) => <Avatar src={c.avatar} size={size} />}
-      stage={deal ? threadStage(deal.stage, contract ? (contract.status.label === "Ended" ? "Ended" : JOB_TYPE_LABEL[contract.type]) : undefined) : card ? "Invited" : undefined}
+      stage={deal ? threadStage(deal.stage, contract ? (isEndedStatus(contract.status) ? contract.status.label : JOB_TYPE_LABEL[contract.type]) : undefined) : card ? "Invited" : undefined}
       badge={trial && (
         <Badge variant="solid" tone="trial">
           TRIAL · {trial.day}

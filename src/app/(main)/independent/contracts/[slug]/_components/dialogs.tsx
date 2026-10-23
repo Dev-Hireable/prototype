@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { DisputeForm } from "@/components/portal/disputes";
 import { disputeLimit } from "@/lib/contract/view";
-import type { EndResult } from "@/lib/demo/contract";
+import type { CancelReason, EndResult } from "@/lib/demo/contract";
 import { caseHref, fileDispute } from "@/lib/demo/disputes";
 import type { SetToast } from "@/lib/portal/toast";
 import { disputePoints, endToast } from "../_lib/copy";
@@ -14,7 +14,7 @@ import { EndDialog } from "./ending";
  * opened from the tabs; what filing or ending does is told in the toast. (The post-trial offer has
  * its own, ConversionOfferDialog, which the page opens.)
  */
-export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tracker; dialogs: Dialogs; endContract: (how: "cancel" | "notice") => EndResult; onToast: SetToast }) {
+export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tracker; dialogs: Dialogs; endContract: (how: "cancel" | "notice", why?: CancelReason) => EndResult; onToast: SetToast }) {
   const { contract, view } = t;
   const router = useRouter();
   const limit = disputeLimit(contract.rate, view);
@@ -59,8 +59,13 @@ export function TrackerDialogs({ t, dialogs: d, endContract, onToast }: { t: Tra
         cancellable={!!t.cancelOpt}
         lastDay={t.noticeOpt?.lastDay}
         onClose={() => d.setEnding(false)}
-        onConfirm={() => {
-          const r = endContract(t.cancelOpt ? "cancel" : "notice");
+        onNotice={() => {
+          const r = endContract("notice");
+          d.setEnding(false);
+          onToast(endToast(r), r.ok ? "success" : "danger");
+        }}
+        onCancel={(why) => {
+          const r = endContract("cancel", why);
           d.setEnding(false);
           onToast(endToast(r), r.ok ? "success" : "danger");
         }}

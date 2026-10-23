@@ -1,4 +1,4 @@
-import { EVALUATED, expect, NOW, notes, open, PATH, savedDeal, test, toast } from "./fixtures";
+import { EVALUATED, expect, NOW, notes, open, PATH, savedDeal, stored, test, toast } from "./fixtures";
 
 // After the trial (user rules 2026-09-26, @/lib/contract/lifecycle and @/lib/demo/contract): a
 // post-trial offer expires on its start date; either side ends a role with notice, and the company
@@ -63,10 +63,59 @@ test.describe("a full-time role that hasn't started", () => {
     await page.goto(`${PATH.independent}?tab=contract`);
     await expect(page.getByText(/Your full-time role hasn't started yet: its first day is 01 Oct 2026\./)).toBeVisible();
     await page.getByRole("button", { name: "Cancel contract" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Cancel contract" }).click();
+    // It can't be undone: a reason, and the role's name typed out, before it goes.
+    const dialog = page.getByRole("dialog", { name: "Cancel the Brand Designer contract?" });
+    const confirm = dialog.getByRole("button", { name: "Cancel contract" });
+    await expect(confirm).toBeDisabled();
+    await dialog.getByRole("textbox", { name: "Type Brand Designer to confirm" }).fill("brand designer");
+    await expect(confirm).toBeDisabled();
+    await dialog.getByRole("textbox", { name: "Type Brand Designer to confirm" }).fill("Brand Designer");
+    await confirm.click();
+    await expect(dialog.getByText("Choose a reason.")).toBeVisible();
+    await dialog.getByRole("button", { name: "Reason" }).click();
+    await page.getByRole("option", { name: "Other", exact: true }).click();
+    await confirm.click();
+    await expect(dialog.getByText("Tell Nairobi Solutions Inc. why, in a line.")).toBeVisible();
+    expect((await savedDeal(page)).contract.ended).toBeFalsy();
+    await dialog.getByRole("textbox", { name: /^Why\?/ }).fill("I'm moving abroad next month");
+    await confirm.click();
     await expect(toast(page, "Contract cancelled")).toBeVisible();
+    expect((await savedDeal(page)).contract.cancelReason).toEqual({ by: "independent", reason: "Other", note: "I'm moving abroad next month" });
     expect((await savedDeal(page)).contract).toMatchObject({ ended: true, cancelled: true });
     expect((await notes(page, "team")).map((n) => n.title)).toContain("Contract cancelled");
+    // It reads Cancelled, not Ended, and it's a step in the thread both sides share.
+    await expect(page.getByText("Cancelled", { exact: true }).first()).toBeVisible();
+    expect(JSON.stringify((await stored(page, "live"))?.chat ?? [])).toContain("cancelled the Brand Designer full-time role before its first day");
+
+    // The Team Builder reads it in Messages, and its notification opens the contract.
+    await page.goto("/team/messages");
+    const entry = page.locator('[id^="msg-"]').filter({ hasText: /cancelled the Brand Designer full-time role before its first day/ });
+    await expect(entry.getByRole("link", { name: "View details" })).toHaveAttribute("href", /\/team\/independents\/juan-dela-cruz\?tab=contract/);
+    await page.goto("/team/notifications");
+    await expect(page.getByText("Contract cancelled", { exact: true })).toBeVisible();
+    await expect(page.getByText(/cancelled the Brand Designer full-time role before its first day, 01 Oct 2026\. Their reason: “I'm moving abroad next month”\. Nothing was owed\./)).toBeVisible();
+  });
+});
+
+test.describe("a trial that hasn't started", () => {
+  test.use({ seedOptions: { contract: { started: "2026-10-05", ends: "2026-11-13" } } });
+
+  test("the Team Builder cancels it with a reason, the escrow comes back, and Juan reads why", async ({ page }) => {
+    await page.goto(`${PATH.team}?tab=evaluation`);
+    await page.getByRole("button", { name: "Cancel contract" }).click();
+    const dialog = page.getByRole("dialog", { name: "Cancel the contract with Juan Dela Cruz?" });
+    await expect(dialog.getByText(/The \$1,600\.00 in escrow comes back to you/)).toBeVisible();
+    await dialog.getByRole("button", { name: "Reason" }).click();
+    await page.getByRole("option", { name: "The role is on hold" }).click();
+    await dialog.getByRole("textbox", { name: /Anything else Juan should know/ }).fill("We'll reopen it in the new year.");
+    await expect(dialog.getByRole("button", { name: "Cancel contract" })).toBeDisabled();
+    await dialog.getByRole("textbox", { name: "Type Brand Designer to confirm" }).fill("Brand Designer");
+    await dialog.getByRole("button", { name: "Cancel contract" }).click();
+    await expect(toast(page, "Contract cancelled. $1,600.00 came back to you.")).toBeVisible();
+    expect((await savedDeal(page)).contract).toMatchObject({ ended: true, cancelled: true, cancelReason: { by: "team", reason: "The role is on hold" }, escrow: { refunded: 1600 } });
+    const told = (await notes(page, "independent")).find((n) => n.title === "Contract cancelled");
+    expect(told?.body).toContain("Their reason: “The role is on hold: We'll reopen it in the new year.”");
+    expect(told?.body).toContain("The $1,600.00 in escrow went back to Nairobi Solutions Inc.");
   });
 });
 

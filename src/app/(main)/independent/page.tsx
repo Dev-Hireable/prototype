@@ -5,7 +5,7 @@ import { ICONS } from "@/components/icons";
 import { Initials, JobBadge, Page } from "@/components/portal/ui";
 import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardStat, DashboardSummaryCard, DashboardSummaryGrid, type DashboardChecklistItem } from "@/components/portal/dashboard";
 import { DashboardTasks } from "@/components/portal/dashboard-tasks";
-import { trialClosed } from "@/lib/contract/lifecycle";
+import { isEndedStatus, trialClosed } from "@/lib/contract/lifecycle";
 import { dayLabel, daysLeftLabel, sinceOrFrom } from "@/lib/portal/dates";
 import { lifecycleOfDeal, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
@@ -48,7 +48,7 @@ export default function Dashboard() {
   const { applications, interviews } = useApplications();
   const banner = useIndependentBanner();
   /** IN-004 — every ongoing engagement, not a hardcoded card. */
-  const active = contracts.filter((c) => c.status.label !== "Ended" && c.status.label !== "Contract complete");
+  const active = contracts.filter((c) => !isEndedStatus(c.status) && c.status.label !== "Contract complete");
   /** The interviews actually booked on the engagement — this read an empty seed, so it never showed one. */
   const upcoming = interviews.filter((iv) => !iv.past && (iv.status === "starts" || iv.status === "accepted"));
   /** The contract with a work list (the live engagement), while it runs — its tasks get their own card. */

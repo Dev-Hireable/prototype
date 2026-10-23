@@ -9,7 +9,7 @@ import type { ContractRef, Dispute } from "@/lib/demo/disputes";
 import { FT_BENEFITS, hoursLabel, JOB_TYPE_LABEL, payFor } from "./job-types";
 import type { JobType } from "./job-types";
 import { isCompleted, scoredItems, type Side, type WorkItem } from "@/lib/work/model";
-import { trialClosed } from "./lifecycle";
+import { isEndedStatus, trialClosed } from "./lifecycle";
 import type { Phase, TrialChapter } from "./lifecycle";
 
 /**
@@ -86,7 +86,7 @@ function listedRef(contract: ContractOnPage, title: string, side: Side): Contrac
 
 /** The phase a listed contract's status stands in for: ended, not started yet, a running trial, or ongoing. */
 function listedPhase(contract: ContractOnPage): Phase {
-  return contract.status.label === "Ended" ? "ended" : contract.status.label.startsWith("Starts") ? "starts" : contract.type === "trial" && !contract.over ? "trial" : "ongoing";
+  return isEndedStatus(contract.status) ? "ended" : contract.status.label.startsWith("Starts") ? "starts" : contract.type === "trial" && !contract.over ? "trial" : "ongoing";
 }
 
 /**

@@ -19,7 +19,8 @@ import type { JobType, OngoingType } from "./job-types";
  *   ongoing     full-time or part-time: converted from the trial, or hired directly. Either side
  *               can give notice (NOTICE_DAYS); it keeps running to the notice's last day
  *   ended       ended — by the Team Builder at once, by a notice running out, or cancelled before
- *               its first day. Final: nothing reopens it
+ *               its first day (`cancelled`: it reads "Cancelled", not "Ended"). Final: nothing
+ *               reopens it
  *
  * A direct hire goes starts → ongoing → ended, with no trial chapter anywhere. A post-trial offer
  * that isn't answered by its start date expires, and the contract is back at its decision — so pay
@@ -48,6 +49,8 @@ export type ContractFacts = {
   ends?: string;
   ended?: boolean;
   endedOn?: string;
+  /** Called off before its first day: nothing was worked, so nothing is owed. */
+  cancelled?: boolean;
   /** The trial's evaluation has been sent. */
   evaluated: boolean;
   /** Every trial task was approved: the trial closes early. */
@@ -91,6 +94,8 @@ export type Lifecycle = {
   /** Notice given on a running role: it ends after `lastDay`. */
   notice?: Notice;
   endedOn?: string;
+  /** Ended by being called off before its first day. */
+  cancelled?: boolean;
 };
 
 const startOfDay = (d: Date) => {
@@ -124,6 +129,9 @@ const offerLive = (c: ContractFacts["conversion"], now = new Date()) => c?.statu
 function trialChapter(f: ContractFacts, now: Date): TrialChapter {
   const ends = f.ends ?? f.started;
   const clock = trialClock(f.started, ends, now);
+  // A trial called off before its first day never ran: no evaluation is ever due on it. (Once it
+  // converted, a cancel calls off the role, and the trial stands as it closed.)
+  const cancelled = !!f.cancelled && f.conversion?.status !== "accepted";
   const over = clock.over || f.trialDone || !!f.ended;
   const last = parseDay(ends) ?? startOfDay(now);
   const evaluationDue = new Date(last);
@@ -134,10 +142,10 @@ function trialChapter(f: ContractFacts, now: Date): TrialChapter {
     ends,
     over,
     closedEarly,
-    day: clock.over ? `Ended ${dayLabel(ends)}` : closedEarly ? "Closed early" : f.ended ? "Ended early" : clock.label,
+    day: cancelled ? "Cancelled" : clock.over ? `Ended ${dayLabel(ends)}` : closedEarly ? "Closed early" : f.ended ? "Ended early" : clock.label,
     left: over ? 0 : clock.left,
     evaluationDue,
-    evaluationOverdue: over && !f.evaluated && startOfDay(now) > evaluationDue,
+    evaluationOverdue: over && !cancelled && !f.evaluated && startOfDay(now) > evaluationDue,
   };
 }
 
@@ -147,7 +155,7 @@ export function lifecycleOf(f: ContractFacts, now = new Date()): Lifecycle {
   const type: JobType = converted && f.conversion ? f.conversion.type : f.startedAs;
   const since = converted && f.conversion ? f.conversion.start : f.started;
   const base = { type, startedAsTrial, converted, since, trial: startedAsTrial ? trialChapter(f, now) : undefined };
-  if (f.ended) return { ...base, phase: "ended", endedOn: f.endedOn };
+  if (f.ended) return { ...base, phase: "ended", endedOn: f.endedOn, ...(f.cancelled ? { cancelled: true } : {}) };
   // A notice that has run out has ended the role, even before the clock has recorded it.
   if (f.notice && past(f.notice.lastDay, now)) return { ...base, phase: "ended", endedOn: dayLabel(f.notice.lastDay), notice: f.notice };
   if (later(since, now)) return { ...base, phase: "starts" };
@@ -229,6 +237,9 @@ export function statusOf(l: Lifecycle, side: "team" | "independent", attention =
     case "ongoing":
       return l.notice ? { label: `Ends ${dayLabel(l.notice.lastDay)}`, tone: "warn" } : { label: "Active", tone: "ok" };
     case "ended":
-      return { label: "Ended", tone: "neutral" };
+      return { label: l.cancelled ? "Cancelled" : "Ended", tone: "neutral" };
   }
 }
+
+/** A status that means the contract is over, however it ended: the lists move it to inactive. */
+export const isEndedStatus = (s: { label: string }) => s.label === "Ended" || s.label === "Cancelled";

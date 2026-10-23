@@ -1,7 +1,9 @@
+import { CancelContractDialog } from "@/components/portal/cancel-contract-dialog";
 import { Button, Modal } from "@/components/portal/ui";
 import { PanelCard } from "@/components/portal/panel-card";
 import { NOTICE_DAYS } from "@/lib/contract/lifecycle";
 import type { ContractView } from "@/lib/contract/view";
+import type { CancelReason } from "@/lib/demo/contract";
 import { dayLabel } from "@/lib/portal/dates";
 import type { OngoingType } from "@/lib/contract/job-types";
 import type { Contract } from "@/lib/independent/data";
@@ -35,37 +37,41 @@ export function EndingPanel({ contract, view, ended, cancellable, canGiveNotice,
   );
 }
 
-/** IN-091 — cancelling before the first day, or giving notice on a running role: the last day first, then what it means. */
-export function EndDialog({ open, contract, view, cancellable, lastDay, onClose, onConfirm }: { open: boolean; contract: Contract; view: ContractView; cancellable: boolean; lastDay: Date | undefined; onClose: () => void; onConfirm: () => void }) {
+/**
+ * IN-091 — cancelling before the first day (the shared dialog that asks for a reason and the role's
+ * name), or giving notice on a running role: the last day first, then what it means.
+ */
+export function EndDialog({ open, contract, view, cancellable, lastDay, onClose, onNotice, onCancel }: { open: boolean; contract: Contract; view: ContractView; cancellable: boolean; lastDay: Date | undefined; onClose: () => void; onNotice: () => void; onCancel: (why: CancelReason) => void }) {
   const { life } = view;
+  if (cancellable) {
+    const description = life ? `It hasn't started yet (its first day is ${dayLabel(life.since)}), so nothing is owed. We'll notify ${contract.company}, and the contract can't be reopened.` : undefined;
+    return <CancelContractDialog open={open} side="independent" roleName={contract.title} other={contract.company} title={`Cancel the ${contract.title} contract?`} description={description} onClose={onClose} onConfirm={onCancel} />;
+  }
   return (
     <Modal
       open={open}
       onClose={onClose}
       tone="danger"
-      title={cancellable ? `Cancel the ${contract.title} contract?` : `Give notice on ${contract.title}?`}
-      description={cancellable && life ? `It hasn't started yet (its first day is ${dayLabel(life.since)}), so nothing is owed. We'll notify ${contract.company}, and the contract can't be reopened.` : undefined}
+      title={`Give notice on ${contract.title}?`}
       footer={
         <>
           <Button size="lg" onClick={onClose}>
             Keep it
           </Button>
-          <Button size="lg" variant="danger" onClick={onConfirm}>
-            {cancellable ? "Cancel contract" : "Give notice"}
+          <Button size="lg" variant="danger" onClick={onNotice}>
+            Give notice
           </Button>
         </>
       }
     >
-      {!cancellable && (
-        <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-[1.4] text-ink-2 marker:text-ink-2">
-          <li>
-            <span className="font-semibold text-ink">Last day: {dayLabel(lastDay)}</span> ({NOTICE_DAYS[contract.type as OngoingType]} days from today)
-          </li>
-          <li>You keep working and getting paid until then</li>
-          <li>You can take back your notice before that date</li>
-          <li>We&apos;ll notify {contract.company}</li>
-        </ul>
-      )}
+      <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-[1.4] text-ink-2 marker:text-ink-2">
+        <li>
+          <span className="font-semibold text-ink">Last day: {dayLabel(lastDay)}</span> ({NOTICE_DAYS[contract.type as OngoingType]} days from today)
+        </li>
+        <li>You keep working and getting paid until then</li>
+        <li>You can take back your notice before that date</li>
+        <li>We&apos;ll notify {contract.company}</li>
+      </ul>
     </Modal>
   );
 }
