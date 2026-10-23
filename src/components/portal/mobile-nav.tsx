@@ -14,7 +14,8 @@ import { revealInRow } from "@/lib/portal/reveal";
  * A phone's navigation, below 768px where the rail and section panel don't fit beside a page.
  * Everything you reach for sits in the thumb's half of the screen:
  *   tab bar     the first four sections and Menu along the bottom edge, 64px tall (+ the home
- *               indicator's inset), each tab a full fifth of the width
+ *               indicator's inset), each tab a full fifth of the width, the Hireable mark's
+ *               section (Hire, Job Board) in the middle on both sides
  *   Menu sheet  rises from the bottom: My profile, the open section's pages (Dashboard · Messages,
  *               Create Role · All Roles), the sections the bar has no room for, Help's tours,
  *               Reset demo and Log out — every row 52px
@@ -44,9 +45,10 @@ export function MobileTabBar({ hidden = false, sections, section, activeMenuHref
   const [menuOpen, setMenuOpen] = useState(false);
   const rail = sections.filter((s) => !s.hidden);
   // Five fit: then every section is a tab and Menu holds the rest of the chrome only.
-  const tabs = rail.length <= TABS + 1 ? rail : rail.slice(0, TABS);
+  const shown = rail.length <= TABS + 1 ? rail : rail.slice(0, TABS);
   // The tabs are the rail's first few, so Menu's are the rest of it.
-  const more = rail.slice(tabs.length);
+  const more = rail.slice(shown.length);
+  const tabs = markInMiddle(shown);
   const menuBadge = more.reduce((n, s) => n + (railBadges[s.href] ?? 0), 0);
   const menuActive = !tabs.includes(section);
 
@@ -119,6 +121,20 @@ export function SectionStrip({ section, pathname, badges }: { section: Section; 
 
 const STRIP_LINK =
   "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] leading-none font-medium text-ink-2 active:bg-black/8 aria-[current=page]:bg-accent-bg aria-[current=page]:font-semibold aria-[current=page]:text-accent-ink [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-primary";
+
+/**
+ * The section drawn with the Hireable mark (Hire, Job Board) takes the bar's middle slot, the same on
+ * both sides: the Team Builder's Hire is third in the rail and falls there anyway, the Independent's
+ * Job Board is second and moves over one. The rail keeps its own order.
+ */
+function markInMiddle(tabs: Section[]) {
+  const mark = tabs.find((s) => s.icon === "logo");
+  if (!mark) return tabs;
+  const rest = tabs.filter((s) => s !== mark);
+  // Menu is the bar's last slot, so the middle counts it.
+  const middle = Math.floor((tabs.length + 1) / 2);
+  return [...rest.slice(0, middle), mark, ...rest.slice(middle)];
+}
 
 const TAB =
   "group relative flex h-16 w-full items-center justify-center px-0.5 text-[10.5px] leading-[1.2] tracking-[-0.1px] text-ink-2 outline-none select-none [-webkit-tap-highlight-color:transparent] focus-visible:text-ink";
