@@ -50,6 +50,11 @@ export function TrackerDialogs({ t, on, onToast }: { t: Tracker; on: TrackerActi
           on.setEnding(false);
           onToast(endToast(r, first), r.ok ? "success" : "danger");
         }}
+        onCancel={(why) => {
+          const r = endContract(contract.slug, "cancel", why);
+          on.setEnding(false);
+          onToast(endToast(r, first), r.ok ? "success" : "danger");
+        }}
       />
     </>
   );

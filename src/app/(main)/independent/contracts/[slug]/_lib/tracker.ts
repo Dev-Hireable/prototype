@@ -5,6 +5,7 @@ import { PAIR } from "@/lib/demo/live";
 import { storedWorkStyle, traitTagsFor } from "@/lib/demo/work-style";
 import type { Profile } from "@/lib/independent/account";
 import type { Contract } from "@/lib/independent/data";
+import { isEndedStatus } from "@/lib/contract/lifecycle";
 
 /**
  * The talent's contract page, worked out once a render from the contract and the shared view of it
@@ -18,7 +19,7 @@ export function trackerOf(contract: Contract, view: ContractView, me: Pick<Profi
     view,
     thread,
     isTrial,
-    ended: contract.status.label === "Ended",
+    ended: isEndedStatus(contract.status),
     /** The trial's score is final once the trial has been evaluated, or once it became a role. */
     scoreFinal: !isTrial || !!view.trialEval,
     people: { team: { name: contract.manager, avatar: PAIR.team.avatar }, independent: { name: me.name, avatar: me.photo } },

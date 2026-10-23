@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { needsAttention, statusOf } from "@/lib/contract/lifecycle";
-import { endContract as endLiveContract, sendEvaluation, withdrawNotice, type EndResult, type EvaluationResult } from "@/lib/demo/contract";
+import { endContract as endLiveContract, sendEvaluation, withdrawNotice, type CancelReason, type EndResult, type EvaluationResult } from "@/lib/demo/contract";
 import { dayLabel, dayStamp, parseDay, reviewQuarter, today } from "@/lib/portal/dates";
 import { activityOf, contractTypeOf, converted, evaluationsOf, fitScoreOf, lifecycleOfDeal, readDeal, startedAsTrial, trialStateOf, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
@@ -82,10 +82,11 @@ const isLive = (slug: string) => !!readDeal()?.contract && slug === PAIR.indepen
  * `how` comes from endOptions (@/lib/demo/contract): cancel before the first day, close after the
  * trial, notice, or now.
  */
-function endContract(slug: string, how: "cancel" | "close" | "notice" | "now" = "close"): EndResult {
-  if (isLive(slug)) return endLiveContract("team", how);
-  contractsStore.set((cs) => cs.map((c) => (c.slug === slug ? { ...c, status: { label: "Ended", tone: "neutral" as const } } : c)));
-  return { ok: true, released: 0, paid: 0 };
+function endContract(slug: string, how: "cancel" | "close" | "notice" | "now" = "close", why?: CancelReason): EndResult {
+  if (isLive(slug)) return endLiveContract("team", how, why);
+  const cancelled = how === "cancel";
+  contractsStore.set((cs) => cs.map((c) => (c.slug === slug ? { ...c, status: { label: cancelled ? "Cancelled" : "Ended", tone: "neutral" as const } } : c)));
+  return { ok: true, released: 0, paid: 0, ...(cancelled ? { cancelled } : {}) };
 }
 
 /**

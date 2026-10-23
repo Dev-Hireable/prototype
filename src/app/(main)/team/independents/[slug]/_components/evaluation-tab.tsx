@@ -157,7 +157,7 @@ function TrialPending({ t, ready, missing, onEnd, onSend }: ActionProps) {
       )}
       {ends.cancel ? (
         <Button size="lg" variant="danger" onClick={onEnd}>
-          Cancel trial
+          Cancel contract
         </Button>
       ) : (
         <Button size="lg" disabled title="Send your evaluation first">

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { lifecycleOf, needsAttention, nextPay, NOTICE_DAYS, noticeLastDay, payPeriods, statusOf, trialClosed, type ContractFacts } from "../../src/lib/contract/lifecycle";
+import { isEndedStatus, lifecycleOf, needsAttention, nextPay, NOTICE_DAYS, noticeLastDay, payPeriods, statusOf, trialClosed, type ContractFacts } from "../../src/lib/contract/lifecycle";
 import { daysLeftLabel, reviewQuarter, trialClock } from "../../src/lib/portal/dates";
 
 /** Friday 25 Sep 2026, 9 AM — the tests' today. */
@@ -109,6 +109,20 @@ test.describe("the lifecycle · decided, hired and ended", () => {
   test("ended is final, whatever else is true", () => {
     expect(lifecycleOf(trial({ ended: true, endedOn: "24 Sep 2026", conversion: offer("accepted") }), NOW)).toMatchObject({ phase: "ended", endedOn: "24 Sep 2026" });
     expect(lifecycleOf(direct({ ended: true }), NOW).phase).toBe("ended");
+  });
+
+  test("cancelled before its first day reads Cancelled, not Ended, and no evaluation is ever due", () => {
+    // A trial that was due to start 1 Sep, called off before then: long past its evaluation window.
+    const called = lifecycleOf(trial({ started: "2026-09-01", ends: "2026-09-10", ended: true, endedOn: "28 Aug 2026", cancelled: true }), NOW);
+    expect(called).toMatchObject({ phase: "ended", cancelled: true });
+    expect(called.trial).toMatchObject({ day: "Cancelled", evaluationOverdue: false });
+    expect(statusOf(called, "team")).toEqual({ label: "Cancelled", tone: "neutral" });
+    expect(statusOf(lifecycleOf(direct({ ended: true, cancelled: true }), NOW), "independent").label).toBe("Cancelled");
+    // The role a trial converted into, called off before it began: the trial stands as it closed.
+    const role = lifecycleOf(trial({ ends: "2026-09-18", evaluated: true, conversion: offer("accepted", "2026-10-01"), ended: true, cancelled: true }), NOW);
+    expect(role.trial?.day).toBe("Ended 18 Sep 2026");
+    expect(isEndedStatus(statusOf(role, "team"))).toBe(true);
+    expect(isEndedStatus(statusOf(lifecycleOf(direct(), NOW), "team"))).toBe(false);
   });
 });
 

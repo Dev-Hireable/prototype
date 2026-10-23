@@ -226,6 +226,8 @@ export type Deal = {
     endedOn?: string;
     /** Called off before its first day: nothing was worked, so nothing is owed. */
     cancelled?: boolean;
+    /** Who called it off, and why (@/lib/demo/contract CANCEL_REASONS); "Other" carries a note. */
+    cancelReason?: { by: "team" | "independent"; reason: string; note?: string };
     /** Notice given to end the role (NOTICE_DAYS): it runs, and is paid, through `lastDay`. */
     notice?: Notice;
     /** Role disputes' holds on pay, by dispute id (RoleHold). */
@@ -829,6 +831,7 @@ function factsOf(deal: Deal): ContractFacts | null {
     ends: c.ends,
     ended: !!c.ended,
     endedOn: c.endedOn,
+    cancelled: !!c.cancelled,
     evaluated: evaluationsOf(c).length > 0,
     trialDone: trial.length > 0 && trial.every((t) => isCompleted(t.status)),
     conversion: deal.conversion ? { type: deal.conversion.type, status: deal.conversion.status, start: deal.conversion.start } : undefined,
@@ -853,7 +856,7 @@ export function trialStateOf(contract: NonNullable<Deal["contract"]>, now = new 
   const scored = trialTasks(contract.tasks);
   const allDone = scored.length > 0 && scored.every((t) => isCompleted(t.status));
   const over = clock.over || allDone || !!contract.ended;
-  const day = clock.over ? clock.label : contract.ended ? "Ended early" : allDone ? "Closed early" : clock.label;
+  const day = contract.cancelled ? "Cancelled" : clock.over ? clock.label : contract.ended ? "Ended early" : allDone ? "Closed early" : clock.label;
   return { over, left: over ? 0 : clock.left, day, total: clock.total };
 }
 

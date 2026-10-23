@@ -128,6 +128,31 @@ export function acceptConversion(): AcceptResult {
 export type EndSide = "team" | "independent";
 export type EndResult = { ok: true; released: number; paid: number; refunded?: number; withdrew?: OngoingType; notice?: Notice; cancelled?: boolean } | { ok: false; error: string };
 
+/**
+ * Why a side calls the contract off before its first day: one of its reasons, with a note — which
+ * "Other" needs. The other side reads both in the thread and the notification.
+ */
+export type CancelReason = { reason: string; note?: string };
+
+export const CANCEL_REASONS: Record<EndSide, readonly string[]> = {
+  team: ["Plans changed", "Budget changed", "The role was filled another way", "The role is on hold", "Other"],
+  independent: ["Plans changed", "I took another role", "The terms no longer work for me", "Personal reasons", "Other"],
+};
+
+/** What's wrong with a cancel reason, or undefined when it can go. */
+export function cancelReasonError(by: EndSide, r: CancelReason | undefined): string | undefined {
+  if (!r?.reason || !CANCEL_REASONS[by].includes(r.reason)) return "Choose a reason.";
+  if (r.reason === "Other" && !r.note?.trim()) return "Say why, in a line.";
+  return undefined;
+}
+
+/** "Plans changed: we moved the launch", or the note alone for "Other". */
+function reasonLine(r: CancelReason) {
+  const note = r.note?.trim();
+  if (!note) return r.reason;
+  return r.reason === "Other" ? note : `${r.reason}: ${note}`;
+}
+
 /** What ending the live contract would do right now, for `by` — the buttons and their confirmations read this. */
 export type EndOption = { how: "cancel" | "close" | "notice" | "now"; lastDay?: Date; blocked?: string } | null;
 
@@ -172,7 +197,7 @@ function roleHoldReason(d: Deal): string | undefined {
  *   notice  a running role keeps going to the notice's last day, then ends on its own (the clock)
  *   now     the Team Builder ends a running role today, paying through the notice's last day
  */
-export function endContract(by: EndSide, how: "cancel" | "close" | "notice" | "now"): EndResult {
+export function endContract(by: EndSide, how: "cancel" | "close" | "notice" | "now", why?: CancelReason): EndResult {
   const d = readDeal();
   const l = lifecycleOfDeal(d);
   const c = d?.contract;
@@ -183,14 +208,10 @@ export function endContract(by: EndSide, how: "cancel" | "close" | "notice" | "n
   if (option.blocked) return fail(option.blocked);
   const on = today();
   const other: EndSide = by === "team" ? "independent" : "team";
-  const who = by === "team" ? d.company : PAIR.independent.name;
 
   if (how === "cancel") {
-    const refunded = l.type === "trial" ? refundEscrow(d) : 0;
-    updateDeal((x) => (x.contract ? { ...x, contract: { ...x.contract, ended: true, endedOn: on, cancelled: true } } : x));
-    const what = l.type === "trial" ? "trial" : `${JOB_TYPE_LABEL[l.type].toLowerCase()} role`;
-    tell(d, other, `Contract cancelled`, `${who} cancelled the ${d.title} ${what} before its first day, ${dayLabel(l.since)}.${refunded > 0 ? ` The ${usd(refunded)} in escrow went back to ${d.company}.` : " Nothing was owed."}`);
-    return { ok: true, released: 0, paid: 0, refunded, cancelled: true };
+    const wrong = cancelReasonError(by, why);
+    return wrong || !why ? fail(wrong ?? "Choose a reason.") : cancelContract(d, l, by, why);
   }
 
   if (how === "close") {
@@ -217,7 +238,27 @@ export function endContract(by: EndSide, how: "cancel" | "close" | "notice" | "n
   return { ok: true, released: 0, paid };
 }
 
+/**
+ * TB-071 / IN-091 — called off before its first day, by either side. Nothing was worked, so nothing
+ * is owed: a trial's escrow goes back to the company; a role (hired directly, or the one a trial
+ * converted into, whose trial stands as it closed) owes nothing. It's logged in the thread both
+ * sides share, like every other step, and the other side is told — with the reason given.
+ */
+function cancelContract(d: Deal, l: Lifecycle, by: EndSide, why: CancelReason): EndResult {
+  const refunded = l.type === "trial" ? refundEscrow(d) : 0;
+  const cancelReason = { by, reason: why.reason, ...(why.note?.trim() ? { note: why.note.trim() } : {}) };
+  updateDeal((x) => (x.contract ? { ...x, contract: { ...x.contract, ended: true, endedOn: today(), cancelled: true, cancelReason, notice: undefined } } : x));
+  const what = l.type === "trial" ? "trial" : `${JOB_TYPE_LABEL[l.type].toLowerCase()} role`;
+  const who = by === "team" ? d.company : PAIR.independent.name;
+  const reason = reasonLine(why);
+  logStep(`${who} cancelled the ${d.title} ${what} before its first day, ${dayLabel(l.since)}: ${reason}`, { team: teamHref("contract"), independent: talentHref(d, "contract") });
+  const money = refunded > 0 ? ` The ${usd(refunded)} in escrow went back to ${d.company}.` : " Nothing was owed.";
+  tell(d, by === "team" ? "independent" : "team", "Contract cancelled", `${who} cancelled the ${d.title} ${what} before its first day, ${dayLabel(l.since)}. Their reason: “${reason}”.${money}`, "contract");
+  return { ok: true, released: 0, paid: 0, refunded, cancelled: true };
+}
+
 function refusal(phase: string, by: EndSide, how: string) {
+  if (phase === "starts") return "It hasn't started yet, so it can only be cancelled: nothing is owed.";
   if (phase === "trial") return "The trial is still running. It can be ended once it's over and evaluated.";
   if (phase === "evaluation") return "Send the trial's evaluation first: it makes the trial fit score final and settles the escrow.";
   if ((phase === "decision" || phase === "offer") && by === "independent") return "The trial is over. The company decides what's next: a role, or closing the contract.";

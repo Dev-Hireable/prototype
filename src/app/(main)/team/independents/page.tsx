@@ -10,11 +10,12 @@ import { useTeamContracts } from "@/lib/team/contracts";
 import { useWithReturn } from "@/components/portal/return";
 import type { Contract } from "@/lib/team/data";
 import { CONTRACT_LAYOUTS } from "@/lib/contract/view";
+import { isEndedStatus } from "@/lib/contract/lifecycle";
 
 /** Working days left in a trial; full-time contracts have no countdown. */
 const daysLeft = (c: Contract) => c.left;
 
-const isInactive = (c: Contract) => c.status.label === "Ended";
+const isInactive = (c: Contract) => isEndedStatus(c.status);
 /** TB-108 — the trial is over once its end date comes. */
 const trialEnded = (c: Contract) => c.type === "trial" && c.over;
 

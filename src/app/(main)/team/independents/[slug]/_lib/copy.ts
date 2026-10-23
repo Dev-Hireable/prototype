@@ -157,10 +157,10 @@ export function evaluationsNote(t: Tracker) {
  * dialog's list instead (endChoices), led by the notice when one is in.
  */
 export function endNote({ view, first, isTrial, fromTrial, typeLabel, offerType, ends }: Tracker) {
-  const { life, escrow, notice, releasable, conversion } = view;
+  const { life, notice, releasable, conversion } = view;
   if (ends.cancel && life) {
     return isTrial
-      ? `The trial hasn't started (its first day is ${dayLabel(life.since)}). ${escrow && escrow.held > 0 ? `The ${usd(escrow.held)} in escrow comes back to you, ` : ""}${first} is told, and the contract can't be reopened.`
+      ? `The trial hasn't started (its first day is ${dayLabel(life.since)}), so nothing is owed. ${releasable > 0 ? `The ${usd(releasable)} in escrow comes back to you, ` : ""}${first} is told, and the contract can't be reopened.`
       : `${first}'s ${typeLabel.toLowerCase()} role hasn't started (its first day is ${dayLabel(life.since)}), so nothing is owed. ${first} is told, and the contract can't be reopened.`;
   }
   if ((ends.notice || ends.now) && life && !isTrial) return notice ? `Notice is in: the role ends after ${dayLabel(notice.lastDay)}.` : undefined;

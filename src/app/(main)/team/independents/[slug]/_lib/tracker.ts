@@ -4,6 +4,7 @@ import { escrowLine, holds } from "@/lib/demo/disputes";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Contract, Evaluation } from "@/lib/team/data";
 import { isArchived } from "@/lib/work/model";
+import { isEndedStatus } from "@/lib/contract/lifecycle";
 
 /**
  * The Team Builder's tracker for one contract, worked out once a render from the contract, the
@@ -41,7 +42,7 @@ export function trackerOf(contract: Contract, view: ContractView, name: string, 
     fromTrial,
     typeLabel: JOB_TYPE_LABEL[contract.type],
     trialOver,
-    ended: contract.status.label === "Ended",
+    ended: isEndedStatus(contract.status),
     /** TB-067 — an evaluation on file is what unlocks End Contract and Hire. */
     history,
     submitted: history.length > 0,
