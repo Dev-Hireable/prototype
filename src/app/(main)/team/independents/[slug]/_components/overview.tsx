@@ -4,6 +4,8 @@ import { ContractActivity, ContractScore, SummaryRows } from "@/components/porta
 import { PanelCard } from "@/components/portal/panel-card";
 import { Tip } from "@/components/portal/tip";
 import { dayLabel } from "@/lib/portal/dates";
+import { cancelledLine } from "@/lib/contract/view";
+import { PAIR } from "@/lib/demo/live";
 import { refOf } from "@/lib/work/model";
 import { decisionNote, evaluationDueNote, evaluationsNote, offerSentNote, summaryRows } from "../_lib/copy";
 import type { Tracker } from "../_lib/tracker";
@@ -51,6 +53,8 @@ export function OverviewCallouts({ t, ...on }: { t: Tracker } & CalloutActions) 
       )}
       {/* TB-071 / IN-091 — notice is in: the role runs, paid, to its last day, then ends on its own. */}
       {phase === "ongoing" && <NoticeGiven t={t} onWithdraw={on.onWithdrawNotice} />}
+      {/* Called off before its first day: by whom, and why. */}
+      {view.cancelled && <Callout>{cancelledLine(view, "team", { team: PAIR.team.company, independent: t.name })}</Callout>}
     </>
   );
 }

@@ -87,6 +87,14 @@ test.describe("a full-time role that hasn't started", () => {
     await expect(page.getByText("Cancelled", { exact: true }).first()).toBeVisible();
     expect(JSON.stringify((await stored(page, "live"))?.chat ?? [])).toContain("cancelled the Brand Designer full-time role before its first day");
 
+    // Each contract page says who called it off and why, and so does Admin's view of it.
+    await page.goto(`${PATH.independent}?tab=overview`);
+    await expect(page.getByText("You cancelled this contract on 25 Sep 2026, before it started. Your reason: “I'm moving abroad next month”.")).toBeVisible();
+    await page.goto(`${PATH.team}?tab=overview`);
+    await expect(page.getByText("Juan Dela Cruz cancelled this contract on 25 Sep 2026, before it started. Their reason: “I'm moving abroad next month”.")).toBeVisible();
+    await page.goto(PATH.admin);
+    await expect(page.getByText("Juan Dela Cruz cancelled this contract on 25 Sep 2026, before it started. Their reason: “I'm moving abroad next month”.")).toBeVisible();
+
     // The Team Builder reads it in Messages, and its notification opens the contract.
     await page.goto("/team/messages");
     const entry = page.locator('[id^="msg-"]').filter({ hasText: /cancelled the Brand Designer full-time role before its first day/ });
@@ -116,6 +124,10 @@ test.describe("a trial that hasn't started", () => {
     const told = (await notes(page, "independent")).find((n) => n.title === "Contract cancelled");
     expect(told?.body).toContain("Their reason: “The role is on hold: We'll reopen it in the new year.”");
     expect(told?.body).toContain("The $1,600.00 in escrow went back to Nairobi Solutions Inc.");
+    await page.goto(`${PATH.team}?tab=overview`);
+    await expect(page.getByText("You cancelled this contract on 25 Sep 2026, before it started. Your reason: “The role is on hold: We'll reopen it in the new year.”.")).toBeVisible();
+    await page.goto(`${PATH.independent}?tab=overview`);
+    await expect(page.getByText("Nairobi Solutions Inc. cancelled this contract on 25 Sep 2026, before it started. Their reason: “The role is on hold: We'll reopen it in the new year.”.")).toBeVisible();
   });
 });
 

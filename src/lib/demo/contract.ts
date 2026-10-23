@@ -147,7 +147,7 @@ export function cancelReasonError(by: EndSide, r: CancelReason | undefined): str
 }
 
 /** "Plans changed: we moved the launch", or the note alone for "Other". */
-function reasonLine(r: CancelReason) {
+export function reasonLine(r: CancelReason) {
   const note = r.note?.trim();
   if (!note) return r.reason;
   return r.reason === "Other" ? note : `${r.reason}: ${note}`;

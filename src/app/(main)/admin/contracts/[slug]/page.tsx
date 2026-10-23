@@ -9,6 +9,7 @@ import { CorruptWork, MissingContract } from "@/components/workspace/states";
 import { dayLabel } from "@/lib/portal/dates";
 import { contractTypeOf, useDeal, useDealStatus } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
+import { cancelledLine } from "@/lib/contract/view";
 import { PAIR } from "@/lib/demo/live";
 
 const ADMIN = { role: "viewer" as const, name: "Admin Lead" };
@@ -38,7 +39,9 @@ export default function AdminContractPage({ params }: { params: Promise<{ slug: 
           context={
             <span>
               {JOB_TYPE_LABEL[contractTypeOf(live)]} with {PAIR.independent.name} · started {dayLabel(live.contract.started)}
-              {live.contract.ended ? " · ended" : ""}
+              {live.contract.ended && !live.contract.cancelled ? ` · ended${live.contract.endedOn ? ` ${live.contract.endedOn}` : ""}` : ""}
+              {/* Called off before its first day: by whom and why, as support needs it for a complaint. */}
+              {live.contract.cancelled && <span className="mt-1 block">{cancelledLine(live.contract, "admin", { team: PAIR.team.company, independent: PAIR.independent.name })}</span>}
             </span>
           }
         />
