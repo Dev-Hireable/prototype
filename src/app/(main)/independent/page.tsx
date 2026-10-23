@@ -105,33 +105,37 @@ function setupHeading(steps: readonly DashboardChecklistItem[]) {
     : { title: "Finish setting up your profile", description: "Complete your profile to boost role matches." };
 }
 
-/** The greeting with its two quick actions, beside the card that walks through setting up the profile. */
+/** The greeting with its two quick actions, beside the card that walks through setting up the profile (on a phone, between them). */
 function Hero({ photo, workStyle, steps, tasks }: { photo: string; workStyle: readonly number[]; steps: readonly DashboardChecklistItem[]; tasks?: { href: string; about: string } }) {
   const heading = setupHeading(steps);
   return (
-    <DashboardHero>
-      <DashboardGreeting name={ME.first}>
-        <DashboardQuickAction tour="find-role" title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
-        {/* Profile help only while the profile step is open; once it's done, the trial's work, if there is one. */}
-        {isOpen(steps, SETUP_STEP.profile) ? (
-          <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile" icon={<Account size={20} aria-hidden />} />
-        ) : (
-          tasks && <DashboardQuickAction title="Go to my tasks" body={`Your open work on ${tasks.about}.`} href={tasks.href} icon={<Work size={20} aria-hidden />} />
-        )}
-      </DashboardGreeting>
-
-      <DashboardSetupCard
-        side="independent"
-        avatarSrc={photo}
-        title={heading.title}
-        description={heading.description}
-        items={steps}
-        note={KYC_NOTE}
-        traits={traitTagsFor(workStyle, "independent")}
-        matching="Companies match you on these tags."
-        profileHref="/independent/profile"
-      />
-    </DashboardHero>
+    <DashboardHero
+      greeting={<DashboardGreeting name={ME.first} />}
+      card={
+        <DashboardSetupCard
+          side="independent"
+          avatarSrc={photo}
+          title={heading.title}
+          description={heading.description}
+          items={steps}
+          note={KYC_NOTE}
+          traits={traitTagsFor(workStyle, "independent")}
+          matching="Companies match you on these tags."
+          profileHref="/independent/profile"
+        />
+      }
+      actions={
+        <>
+          <DashboardQuickAction tour="find-role" title="Find your next role" body="Browse roles matched to your work style." href="/independent/jobs" icon={<Search size={20} aria-hidden />} />
+          {/* Profile help only while the profile step is open; once it's done, the trial's work, if there is one. */}
+          {isOpen(steps, SETUP_STEP.profile) ? (
+            <DashboardQuickAction title="Complete your profile" body="A fuller profile lifts your match score." href="/independent/profile" icon={<Account size={20} aria-hidden />} />
+          ) : (
+            tasks && <DashboardQuickAction title="Go to my tasks" body={`Your open work on ${tasks.about}.`} href={tasks.href} icon={<Work size={20} aria-hidden />} />
+          )}
+        </>
+      }
+    />
   );
 }
 
