@@ -80,8 +80,8 @@ export default function CreateRole() {
               >
                 <span aria-hidden className="absolute inset-0 opacity-0 transition duration-300 ease-out group-hover:opacity-100 group-focus-visible:opacity-100 max-lg:group-data-[current=true]:opacity-100" style={{ backgroundImage: c.glow }} />
                 <span className="relative h-24 w-[284px]">
-                  <Image src={c.art} alt="" width={c.w} height={c.h} className="absolute left-0 max-w-none transition duration-300 ease-out group-hover:opacity-0 group-focus-visible:opacity-0 max-lg:group-data-[current=true]:opacity-0" style={{ top: c.top, width: c.w, height: c.h }} />
-                  <Image src={c.hover} alt="" width={c.w} height={c.h} className="absolute left-0 max-w-none opacity-0 transition duration-300 ease-out group-hover:opacity-100 group-focus-visible:opacity-100 max-lg:group-data-[current=true]:opacity-100" style={{ top: c.top, width: c.w, height: c.h }} />
+                  <Image src={c.art} alt="" width={c.w} height={c.h} className="absolute left-0 max-w-none transition duration-300 ease-out group-hover:opacity-0 group-focus-visible:opacity-0 max-lg:group-data-[current=true]:opacity-0" style={{ top: c.top, width: c.w, height: c.h }} loading="eager" />
+                  <Image src={c.hover} alt="" width={c.w} height={c.h} className="absolute left-0 max-w-none opacity-0 transition duration-300 ease-out group-hover:opacity-100 group-focus-visible:opacity-100 max-lg:group-data-[current=true]:opacity-100" style={{ top: c.top, width: c.w, height: c.h }} loading="eager" />
                 </span>
                 {/* Own layer for good: scaled, never redrawn, so it can't jump. Sized in whole pixels
                     (17px lines, an 80px block) so centring puts it on one — see useWholePixels. */}

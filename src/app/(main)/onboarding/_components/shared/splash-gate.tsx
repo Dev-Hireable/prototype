@@ -27,20 +27,34 @@ type OnboardingSplashGateProps = {
 };
 
 /**
- * How long the splash stays once the page has hydrated, in ms: a brief transition into the intro.
- * Nothing loads behind it by then (the wizard is already rendered and the stored traits are read in
- * the same commit's effects), so it used to hold a full screen with nothing to do for 4.2 s, between
- * sign-up's Continue and the intro.
+ * How long the finished Hireable logo stays on screen before the splash fades, in ms. The splash
+ * lifts once the logo has drawn in full, never part-way through: a fixed second cut the draw
+ * (about 1.8 s) short, so the quiz came in over half a logo.
  */
-const SPLASH_MS = 1000;
+const DRAWN_HOLD_MS = 300;
+
+/**
+ * The longest the splash stays, in ms, if the logo never reports a finished draw (GSAP's chunk
+ * stalls, say). Well past a normal draw, about 2.5 s even with the SVGs' 2 s wait, so it never cuts
+ * one short.
+ */
+const SPLASH_CEILING_MS = 8000;
 
 export function OnboardingSplashGate({ children }: OnboardingSplashGateProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
+  const [isLogoDrawn, setIsLogoDrawn] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), SPLASH_MS);
+    const timer = setTimeout(
+      () => setIsLoading(false),
+      isLogoDrawn ? DRAWN_HOLD_MS : SPLASH_CEILING_MS,
+    );
     return () => clearTimeout(timer);
+  }, [isLogoDrawn]);
+
+  const handleLogoDrawn = useCallback(() => {
+    setIsLogoDrawn(true);
   }, []);
 
   const handleExitComplete = useCallback(() => {
@@ -53,6 +67,7 @@ export function OnboardingSplashGate({ children }: OnboardingSplashGateProps) {
         key="onboarding-splash-loader"
         fullscreen
         isLoading={isLoading}
+        onLoaderDrawn={handleLogoDrawn}
         onExitComplete={handleExitComplete}
       />
       {/*

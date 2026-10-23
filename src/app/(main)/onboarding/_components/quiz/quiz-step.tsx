@@ -11,6 +11,7 @@ import { useOnboardingQuizController } from './use-quiz-controller';
 import { useFinalCurtainTransition } from './use-curtain-transition';
 import { useQuizSectionAnimations } from './use-section-animations';
 import { OnboardingQuizContent } from './quiz-sections';
+import { ONBOARDING_MASCOT_SRC } from '../../_data/onboarding-assets';
 import type { PublicSignupRole } from '@/web-app/lib/auth/auth-role-mapping';
 import type { QuizCopy } from '../../_data/onboarding-copy';
 import type {
@@ -22,11 +23,6 @@ import type {
   WizardFlowState,
   WizardFlowAction,
 } from '../../_lib/onboarding-wizard-flow';
-
-const ASSISTANT_AVATAR_BY_VARIANT = {
-  client: '/images/employer-success.svg',
-  talent: '/images/talent-success.svg',
-} as const;
 
 const EMPTY_OPTIONS: readonly string[] = [];
 
@@ -99,7 +95,7 @@ function useQuizQuestionView({
   return {
     quizCopy,
     persona,
-    assistantAvatarSrc: ASSISTANT_AVATAR_BY_VARIANT[role],
+    assistantAvatarSrc: ONBOARDING_MASCOT_SRC[role],
     questionHeadingId,
     readinessPrompt: readinessTurn?.prompt ?? null,
     currentQuestionIndex,

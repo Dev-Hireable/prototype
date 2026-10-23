@@ -427,7 +427,7 @@ export function Initials({ text, className = "size-11 text-[14px]" }: { text: st
 /* --------------------------------------------------------------- people --- */
 
 export function Avatar({ src, size = 40, className = "" }: { src: string; size?: number; className?: string }) {
-  return <Image src={src} alt="" width={size * 2} height={size * 2} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover object-top ${className}`} style={{ width: size, height: size }} />;
+  return <Image src={src} alt="" width={size * 2} height={size * 2} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover object-top ${className}`} style={{ width: size, height: size }} loading="eager" />;
 }
 
 /** Table cell "Independent": 40px avatar + name (14 medium primary) + role (13 #616161). */

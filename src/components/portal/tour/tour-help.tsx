@@ -113,7 +113,7 @@ export function TourMenu({ onPick, collapsible = false }: { onPick: () => void; 
 function GuideTile({ side }: { side: TourSide }) {
   return (
     <span aria-hidden className={`flex size-14 shrink-0 items-end justify-center overflow-hidden rounded-xl bg-gradient-to-b to-white outline -outline-offset-1 outline-border ${GUIDE_LOOK[side].wash}`}>
-      <Image src={GUIDES[side].figure} alt="" width={45} height={52} unoptimized draggable={false} className="h-[52px] w-auto" />
+      <Image src={GUIDES[side].figure} alt="" width={45} height={52} unoptimized draggable={false} className="h-[52px] w-auto" loading="eager" />
     </span>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { preload } from 'react-dom';
 import { useGSAP } from '@gsap/react';
 import { cn } from '@/web-app/lib/utils';
 import { loadGsap, reportGsapLoadError } from '@/web-app/lib/load-gsap';
@@ -67,13 +68,47 @@ const LOADER_PARTS: readonly LoaderPart[] = [
   },
 ];
 type LoaderPartKey = (typeof LOADER_PARTS)[number]['key'];
+const loaderSrc = (key: LoaderPartKey) => `/loader/${key}.svg`;
+
+/** How long the draw waits for its SVGs, in ms; a stalled request plays it over whatever has arrived. */
+const DECODE_WAIT_MS = 2000;
+
+/**
+ * Resolves once every part's SVG is decoded, so the draw never plays over empty boxes, or after
+ * DECODE_WAIT_MS: a request that never answers leaves decode() pending for good.
+ */
+function decodeLoaderParts(): Promise<unknown> {
+  const decoded = Promise.all(
+    LOADER_PARTS.map(({ key }) => {
+      const image = new Image();
+      image.src = loaderSrc(key);
+      return image.decode().catch(() => undefined);
+    }),
+  );
+  return Promise.race([
+    decoded,
+    new Promise((resolve) => setTimeout(resolve, DECODE_WAIT_MS)),
+  ]);
+}
+
 export function HireableLoader({
   className,
   size = 80,
+  onDrawn,
 }: {
   className?: string;
   size?: number;
+  /** Called once, when the logo has drawn in full for the first time (at once with reduced motion). */
+  onDrawn?: () => void;
 }) {
+  // CSS background images only load once the parts are laid out; ask for them with the HTML instead.
+  for (const { key } of LOADER_PARTS) {
+    preload(loaderSrc(key), { as: 'image', fetchPriority: 'high' });
+  }
+  const onDrawnRef = React.useRef(onDrawn);
+  React.useEffect(() => {
+    onDrawnRef.current = onDrawn;
+  }, [onDrawn]);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const partRefs = React.useRef<Record<LoaderPartKey, HTMLDivElement | null>>({
     rose: null,
@@ -86,8 +121,14 @@ export function HireableLoader({
     () => {
       let cancelled = false;
       let killTimeline: (() => void) | null = null;
-      void loadGsap()
-        .then(({ default: gsap }) => {
+      let drawn = false;
+      const reportDrawn = () => {
+        if (cancelled || drawn) return;
+        drawn = true;
+        onDrawnRef.current?.();
+      };
+      void Promise.all([loadGsap(), decodeLoaderParts()])
+        .then(([{ default: gsap }]) => {
           if (cancelled || !containerRef.current) {
             return;
           }
@@ -100,6 +141,7 @@ export function HireableLoader({
           if (prefersReducedMotion()) {
             gsap.set(rose, { clipPath: 'inset(0% 0 0 0)' });
             gsap.set(remainingParts, { clipPath: 'inset(0 0 0% 0)' });
+            reportDrawn();
             return;
           }
           const timeline = gsap.timeline({
@@ -116,8 +158,12 @@ export function HireableLoader({
           remainingParts.forEach((part) => {
             timeline.to(part, { clipPath: 'inset(0 0 0% 0)' }, '-=0.2');
           });
+          timeline.call(reportDrawn);
         })
-        .catch(reportGsapLoadError);
+        .catch((error: unknown) => {
+          reportGsapLoadError(error);
+          reportDrawn();
+        });
       return () => {
         cancelled = true;
         killTimeline?.();

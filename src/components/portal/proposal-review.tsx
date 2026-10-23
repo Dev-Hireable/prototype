@@ -389,7 +389,7 @@ function VersionEntry({ version: v, author, open, onOpen }: { version: DealPropo
     >
       <span className="flex h-14 w-20 shrink-0 justify-center overflow-hidden pt-4">
         {/* The proposal tile: the 52px document glyph from 16px down, cropped by the 56px tile. */}
-        <Image src="/icons/proposal/document.svg" alt="" width={52} height={52} className="size-[52px] max-w-none shrink-0" />
+        <Image src="/icons/proposal/document.svg" alt="" width={52} height={52} className="size-[52px] max-w-none shrink-0" loading="eager" />
       </span>
       <span className="flex-1 text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">
         {shortName(author.name)} Proposal v{v.version} · {v.sent}

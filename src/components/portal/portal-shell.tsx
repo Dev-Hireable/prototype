@@ -355,7 +355,7 @@ function RailGlyph({ icon, active }: { icon: Section["icon"]; active: boolean })
   if (icon === "logo") {
     // The mark carries its own brand colours; desaturate it when inactive so it reads like the
     // other rail glyphs, which are mono #616161 until their section is open.
-    return <Image src="/hireable-mark.svg" alt="" width={24} height={24} className={`size-6 shrink-0 ${active ? "" : "grayscale"}`} />;
+    return <Image src="/hireable-mark.svg" alt="" width={24} height={24} className={`size-6 shrink-0 ${active ? "" : "grayscale"}`} loading="eager" />;
   }
   const Glyph = ICONS[icon];
   return <Glyph size={24} aria-hidden className="shrink-0" />;

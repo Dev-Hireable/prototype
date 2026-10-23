@@ -125,7 +125,7 @@ export function OfferFrom({ name, company }: { name: string; company: string }) 
     <div className="flex flex-col gap-4 p-6">
       <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Offer from</h3>
       <div className="flex items-center gap-3">
-        <Image src={PAIR.team.avatar} alt="" width={88} height={88} className="size-11 rounded-full object-cover" />
+        <Image src={PAIR.team.avatar} alt="" width={88} height={88} className="size-11 rounded-full object-cover" loading="eager" />
         <div>
           <p className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{name}</p>
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{company}</p>

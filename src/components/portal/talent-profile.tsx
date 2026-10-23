@@ -66,8 +66,8 @@ const QUIET = "text-[14px] leading-[1.4] text-ink-2";
 const DM = { fontVariationSettings: '"opsz" 14' };
 
 /** The link icons, drawn at their own size. */
-const WEBSITE = <Image src="/independent/website.svg" alt="" width={20} height={20} />;
-const LINKEDIN = <Image src="/independent/linkedin.svg" alt="" width={14} height={14} />;
+const WEBSITE = <Image src="/independent/website.svg" alt="" width={20} height={20} loading="eager" />;
+const LINKEDIN = <Image src="/independent/linkedin.svg" alt="" width={14} height={14} loading="eager" />;
 
 /** Links are saved as typed, with or without a scheme ("linkedin.com/in/…" or "https://…"). */
 const hrefOf = (v: string) => (/^https?:\/\//i.test(v) ? v : `https://${v}`);
@@ -248,7 +248,7 @@ function Hero({
       <div className="flex flex-col gap-3">
         {/* The link sits level with the photo's bottom edge rather than halfway up it. */}
         <div className="flex items-end gap-4">
-          <Image src={p.photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />
+          <Image src={p.photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" loading="eager" />
           {photoAction}
         </div>
         <div className="flex flex-col gap-1">

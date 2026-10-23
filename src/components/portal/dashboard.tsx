@@ -203,7 +203,7 @@ export function DashboardBanner({ banner, dismissed, onDismiss }: { banner: Dash
         <p className="text-[16px] font-semibold">{banner.title}</p>
         <p className="max-w-[560px] text-[13px] text-white/75">{banner.body}</p>
       </div>
-      {banner.image && <Image src={banner.image} alt="" width={160} height={96} className="hidden h-16 w-auto shrink-0 object-contain sm:block" />}
+      {banner.image && <Image src={banner.image} alt="" width={160} height={96} className="hidden h-16 w-auto shrink-0 object-contain sm:block" loading="eager" />}
       {banner.cta && (
         <Link href={banner.cta.href} className="shrink-0 rounded-full bg-white px-4 py-2 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">
           {banner.cta.label}
