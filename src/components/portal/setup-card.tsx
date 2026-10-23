@@ -130,8 +130,8 @@ function SetupProgress({ done, total }: { done: number; total: number }) {
   );
 }
 
-/** The head's actions are links in its own type, so they read as part of it rather than as a form's buttons. */
-const ACTION = "inline-flex items-center gap-1 text-[13px] leading-[1.2] font-semibold text-primary hover:underline";
+/** The head's actions are links in its own type, so they read as part of it rather than as a form's buttons; a finger gets a 32px tap on them. */
+const ACTION = "hit-area inline-flex items-center gap-1 [--hit:32px] text-[13px] leading-[1.2] font-semibold text-primary hover:underline";
 
 /**
  * Under the line on matching once setup is done: the way to the profile, where the tags are shown in
@@ -193,7 +193,7 @@ function Checklist({ items }: { items: readonly DashboardChecklistItem[] }) {
             ) : locked || !item.href ? (
               <span className="shrink-0 text-[13px] leading-[1.2] font-medium text-ink-2 opacity-70">Locked</span>
             ) : (
-              <Link href={item.href} className="shrink-0 rounded-lg bg-primary px-3.5 py-2 text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
+              <Link href={item.href} className="hit-area shrink-0 rounded-lg bg-primary px-3.5 py-2 text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110">
                 {item.action ?? (item.label.toLowerCase().startsWith("verify") ? "Verify" : "Complete")}
               </Link>
             )}

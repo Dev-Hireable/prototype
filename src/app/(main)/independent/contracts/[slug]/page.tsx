@@ -84,7 +84,7 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
         </>
       }
       tabs={<ContractTabs value={tab} onChange={setTab} />}
-      nav={<ReturnNav fallback={<Crumbs contract={contract} tab={tab} />} />}
+      nav={<ReturnNav fallback={<Crumbs contract={contract} />} />}
       navActions={<HeaderActions contract={contract} thread={thread} />}
     >
       {tab === "tasks" && <ContractWork live={view.onDeal} contract={contract} life={view.life} notice={view.notice} cancelled={view.cancelled} ended={t.ended} scoreFinal={t.scoreFinal} actor={t.actor} people={t.people} closedNote={closedNote(contract, view, t.ended)} />}

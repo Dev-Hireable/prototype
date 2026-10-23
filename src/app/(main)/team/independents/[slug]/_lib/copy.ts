@@ -96,7 +96,7 @@ function payoutLine({ view, isTrial, first, ended }: Tracker) {
 
 /**
  * The Evaluation tab's line under its heading: when a role's reviews open, or what sending one does.
- * While a trial runs, when it opens is said beside its buttons (evaluationOpens), not here as well.
+ * While a trial runs, when it opens is the banner under it (evaluationOpens), not said here as well.
  */
 export function evaluationIntro({ view, first, isTrial, ended }: Tracker) {
   const { phase, life } = view;

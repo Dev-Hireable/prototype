@@ -58,7 +58,8 @@ test.describe("two tabs on one contract · typing", () => {
     await expect(dots).toHaveText("Juan Dela Cruz is typing");
     await box.press("Enter");
     await expect(dots).toHaveCount(0);
-    await expect(page.getByText("On it, the logos are coming tonight")).toBeVisible();
+    // In the thread itself: Messages opens on the tab with Juan's thread, whose row previews it too.
+    await expect(page.locator("section").getByText("On it, the logos are coming tonight")).toBeVisible();
   });
 
   test("emptying the box stops the dots, and nobody sees their own", async ({ page, secondPage }) => {

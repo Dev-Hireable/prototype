@@ -23,7 +23,7 @@ export default function PaymentMethods() {
 
   return (
     <Page title="Settings">
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
         <div className="flex items-center justify-between">
           <CardHeading>Payment methods</CardHeading>
           <Button size="lg" variant="primary" onClick={() => setAdding(true)}>
@@ -58,8 +58,13 @@ export default function PaymentMethods() {
   );
 }
 
-/** One card: its brand, last four digits and expiry, marked when it's the default, with Set as default and Remove. */
+/**
+ * One card: its brand, last four digits and expiry, marked when it's the default, with Set as default
+ * and Remove. The default can't go while another card could take its place; that's said on Remove's
+ * tip, and under the row on a phone. The only card's reason is the banner under the list.
+ */
 function CardRow({ card: c, only, onDefault, onRemove }: { card: PaymentMethod; only: boolean; onDefault: () => void; onRemove: () => void }) {
+  const keep = c.isDefault && !only ? "Set another card as default to remove this one." : undefined;
   return (
     <PaymentMethodRow
       brand={<Image src={c.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={c.brand} width={26} height={17} className="h-[17px] w-[26px]" />}
@@ -70,6 +75,7 @@ function CardRow({ card: c, only, onDefault, onRemove }: { card: PaymentMethod; 
         </>
       }
       subtitle={`Expires ${c.expires}`}
+      note={keep}
       actions={
         <>
           {!c.isDefault && (
@@ -78,7 +84,7 @@ function CardRow({ card: c, only, onDefault, onRemove }: { card: PaymentMethod; 
             </Button>
           )}
           {/* Quiet here; the solid red is the confirm's. A card that can't go yet says why. */}
-          <Tip label={c.isDefault && !only ? "Set another card as default to remove this one." : undefined} wrap>
+          <Tip label={keep} wrap>
             <Button size="sm" disabled={only || c.isDefault} onClick={onRemove}>
               Remove
             </Button>

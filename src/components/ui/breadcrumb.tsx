@@ -54,7 +54,9 @@ function BreadcrumbLink({
     props: mergeProps<"a">(
       {
         // Hireable: truncates with its item, so a long trail on a phone ends in "…" instead of running over the separator.
-        className: cn("min-w-0 truncate transition-colors hover:text-foreground", className),
+        // On a touch screen it's a finger's height to tap (padding the margin takes back, so nothing
+        // moves): a 20px line of text was hard to hit, and it clips anything drawn past its edge.
+        className: cn("min-w-0 truncate transition-colors hover:text-foreground pointer-coarse:-my-3 pointer-coarse:py-3", className),
       },
       props
     ),

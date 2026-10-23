@@ -6,6 +6,7 @@ import { ICONS } from "@/components/icons";
 import { Button, Card, CardTitle, Field, JobBadge, LinkButton, MessageButton, Modal, Page, Select, StatusDot, Tabs, Textarea, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { Tip } from "@/components/portal/tip";
+import { ProfileActions } from "@/components/portal/talent-profile";
 import { SaveButton, TeamProfile } from "@/components/team/ui";
 import { DropDialog } from "@/components/team/drop-dialog";
 import { InterviewDialog } from "@/components/team/interview-dialog";
@@ -79,10 +80,10 @@ export default function CandidateTracker({ params }: { params: Promise<{ slug: s
         onPlayIntro={() => setToast("Intro video plays here", "info")}
         // data-tour: the candidate tour points at the next step and at where they stand (@/lib/portal/tours).
         actions={
-          <div data-tour="candidate-step" className="flex flex-wrap items-center gap-2">
+          <ProfileActions tour="candidate-step">
             <NextAction cand={cand} role={role} person={p} live={live} onOpen={setDialog} />
             <SaveButton person={p} />
-          </div>
+          </ProfileActions>
         }
         note={
           <div data-tour="candidate-stage" className="flex flex-col items-start gap-2">
@@ -139,13 +140,14 @@ function ProfileAside({ view, onOpen, onToast }: { view: CandidateView; onOpen: 
       )}
       {offer && <OfferCard offer={offer} name={person.name} onWithdraw={withdrawOffer} onToast={onToast} />}
       <NotesCard live={live} first={first} />
+      {/* Text buttons, each a finger's height to tap on a touch screen (hit-area). */}
       <div className="flex items-center gap-4 text-[14px] leading-[1.2] font-medium tracking-[0.2px]">
-        <button type="button" onClick={() => onOpen("flag")} className="flex items-center gap-2 text-accent-ink hover:underline">
+        <button type="button" onClick={() => onOpen("flag")} className="hit-area flex items-center gap-2 text-accent-ink hover:underline">
           <Flag size={20} aria-hidden /> Flag candidate
         </button>
         {/* Hired candidates can't be declined (TB-037). */}
         {!cand.dropped && cand.stage !== "hired" && (
-          <button type="button" onClick={() => onOpen("drop")} className="text-danger hover:underline">
+          <button type="button" onClick={() => onOpen("drop")} className="hit-area text-danger hover:underline">
             Decline
           </button>
         )}

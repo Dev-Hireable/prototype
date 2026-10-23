@@ -17,34 +17,65 @@ const bare = (url: string) => url.replace(/^https?:\/\//i, "").replace(/\/$/, ""
 /** The company's site as a link — https:// added when it was given without a scheme — or null when there's none. */
 const siteLink = (site: string | undefined) => (site ? (/^https?:\/\//.test(site) ? site : `https://${site}`) : null);
 
+/** What the role's two buttons need: where the talent stands with it, and what applying and saving do. */
+type Actions = { standing: Standing; isSaved: boolean; onApply: () => void; onToggleSaved: () => void };
+
 /**
  * The company card, with the actions: who's hiring, then applying — or the application already on
- * file — and saving the role, with a note on why it can't be applied to when it can't.
+ * file — and saving the role, with a note on why it can't be applied to when it can't. While the
+ * buttons lead somewhere (`pinned`), a phone has them in the bar along the bottom instead (ApplyBar).
  */
-export function CompanyCard({ role, site, standing, isSaved, onApply, onToggleSaved }: { role: Role; site: string | undefined; standing: Standing; isSaved: boolean; onApply: () => void; onToggleSaved: () => void }) {
-  const { application, blocked, cta } = standing;
+export function CompanyCard({ role, site, pinned, ...actions }: Actions & { role: Role; site: string | undefined; pinned: boolean }) {
   return (
     <Card className="flex flex-col gap-5 p-5">
       <AboutCompany role={role} site={site} />
       {/* data-tour: the role's tour points at Apply, or View application once one is on file (@/lib/portal/tours). */}
-      <div data-tour="role-apply" className="flex flex-col gap-2">
-        {/* An application already on file opens from here, rather than a greyed-out "Applied". */}
-        {application ? (
-          <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${application.id}`}>
-            View application
-          </LinkButton>
-        ) : (
-          <Button size="lg" variant="primary" disabled={blocked} onClick={onApply}>
-            {cta}
-          </Button>
-        )}
-        <Button size="lg" onClick={onToggleSaved}>
-          {isSaved ? <Saved size={18} aria-hidden className="text-primary" /> : <Save size={18} aria-hidden />}
-          {isSaved ? "Saved" : "Save role"}
-        </Button>
+      <div data-tour="role-apply" className={`flex flex-col gap-2 ${pinned ? "max-md:hidden" : ""}`}>
+        <ApplyButton {...actions} />
+        <SaveButton {...actions} />
       </div>
-      <WhyClosed role={role} standing={standing} />
+      <WhyClosed role={role} standing={actions.standing} />
     </Card>
+  );
+}
+
+/**
+ * A phone's bar of the same two buttons along the bottom of the screen, pinned while the role scrolls
+ * under it, as the role wizard pins Next: the card that holds them comes last on a phone, under the
+ * whole role. Saving on the left and the main action on the right, a thumb's reach each. It's only for
+ * buttons that lead somewhere (Apply, or the application on file): a role that can't be applied to
+ * keeps them in its card, beside the notes that say why. -mb-12 takes back the page's bottom padding,
+ * so at the end of the page the bar stays down on the tab bar instead of rising off it.
+ */
+export function ApplyBar(actions: Actions) {
+  return (
+    <div data-tour="role-apply" className="sticky bottom-0 z-10 -mx-(--page-gutter) -mb-12 flex gap-3 self-stretch border-t border-border bg-white px-(--page-gutter) py-3 md:hidden *:flex-1">
+      <SaveButton {...actions} />
+      <ApplyButton {...actions} />
+    </div>
+  );
+}
+
+/** Apply — or, once an application is on file, the way to it rather than a greyed-out "Applied". */
+function ApplyButton({ standing: { application, blocked, cta }, onApply }: Actions) {
+  return application ? (
+    <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${application.id}`}>
+      View application
+    </LinkButton>
+  ) : (
+    <Button size="lg" variant="primary" disabled={blocked} onClick={onApply}>
+      {cta}
+    </Button>
+  );
+}
+
+/** Saving the role, or unsaving it. */
+function SaveButton({ isSaved, onToggleSaved }: Actions) {
+  return (
+    <Button size="lg" onClick={onToggleSaved}>
+      {isSaved ? <Saved size={18} aria-hidden className="text-primary" /> : <Save size={18} aria-hidden />}
+      {isSaved ? "Saved" : "Save role"}
+    </Button>
   );
 }
 

@@ -39,8 +39,19 @@ const STATS = [
    the row instead of bunching up against Updated. Role, Type and Status read left-aligned as the
    row's label; the numbers and everything after them are centred, header and cell alike. Each
    floor fits its one-word heading ("Candidates"), so a heading never ends in "…". */
-const STAT = "min-w-[96px] flex-1 text-center whitespace-normal leading-tight";
-const COL = { role: "w-[160px] shrink-0", type: "w-[96px] shrink-0", status: "w-[88px] shrink-0", updated: "w-[88px] shrink-0 text-center", actions: "w-[80px] shrink-0 text-center" };
+const STAT = "min-w-[96px] flex-1 text-center whitespace-normal leading-tight max-md:min-w-0";
+/*
+ * A phone's card (RoleRow): the title, its type, status and menu on the first line — the title takes
+ * what the other three leave and wraps rather than cutting off — then the counts as a strip of five,
+ * and when it was posted under them.
+ */
+const COL = {
+  role: "w-[160px] shrink-0 max-md:basis-0! max-md:grow!",
+  type: "w-[96px] shrink-0",
+  status: "w-[88px] shrink-0",
+  updated: "w-[88px] shrink-0 text-center max-md:order-3 max-md:basis-full! max-md:text-left max-md:text-[12px]",
+  actions: "w-[80px] shrink-0 text-center max-md:order-1",
+};
 const COLS = [COL.role, COL.type, COL.status, ...STATS.map(() => STAT), COL.updated, COL.actions];
 const HEAD = ["Role", "Type", "Status", ...STATS.map((s) => s.label), "Updated", "Actions"];
 const Edit = ICONS.edit;
@@ -99,20 +110,31 @@ function reached(rows: Candidate[] | null, key: string) {
   return rows.filter((c) => reachedColumn(c) >= at).length;
 }
 
+/** A count's tile on a phone: the number over its name, a finger's height. */
+const PHONE_TILE = "max-md:min-h-11 max-md:flex-col max-md:gap-0.5 max-md:px-0.5 max-md:py-1.5";
+
 /**
  * A filled cell rather than a pill: the tone covers the whole column cell, top to bottom, so a
  * row reads as a band of pipeline colour. The cell links to the role's tracker with that column
- * in focus. A draft has no pipeline, so it gets a plain dash and no link.
+ * in focus. A draft has no pipeline, so it gets a plain dash and no link. A phone has no heading
+ * row, so each tile names its count under the number.
  */
 function Stat({ value, tone, href, label }: { value: number | null; tone: string; href: string; label: string }) {
-  if (value === null) return <span className="flex w-full items-center justify-center text-[14px] text-ink-2">—</span>;
+  const name = <span className="text-[11px] leading-[1.2] font-normal md:hidden">{label}</span>;
+  if (value === null)
+    return (
+      <span className={`flex w-full items-center justify-center text-[14px] text-ink-2 ${PHONE_TILE}`}>
+        —{name}
+      </span>
+    );
   return (
     <Link
       href={href}
       aria-label={`${value} ${label}, open in the pipeline`}
-      className={`flex w-full items-center justify-center text-[13px] leading-[1.2] font-medium hover:brightness-95 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${tone}`}
+      className={`flex w-full items-center justify-center text-[13px] leading-[1.2] font-medium hover:brightness-95 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${PHONE_TILE} ${tone}`}
     >
       {value}
+      {name}
     </Link>
   );
 }
@@ -133,9 +155,12 @@ function RoleTitle({ role }: { role: Role }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [role.title]);
+  // A phone's card gives it two lines rather than an ellipsis no finger can hover for the rest. On a
+  // touch screen it's a finger's height to tap: padding the margins take back, since what clips the
+  // text would clip a hit-area too.
   return (
     <Tip label={role.title} off={!clipped}>
-      <Link ref={ref} href={`/team/hire/roles/${role.slug}`} className="min-w-0 truncate text-[14px] font-medium text-primary hover:underline">
+      <Link ref={ref} href={`/team/hire/roles/${role.slug}`} className="min-w-0 truncate text-[14px] font-medium text-primary hover:underline max-md:line-clamp-2 max-md:font-semibold max-md:whitespace-normal pointer-coarse:-my-3 pointer-coarse:py-3">
         {role.title}
       </Link>
     </Tip>
@@ -303,21 +328,28 @@ function RoleRow({ r, candidates, actions }: { r: Role; candidates: Candidate[];
         <StatusDot tone={ROLE_STATUS[r.status]}>{r.status}</StatusDot>
       </span>
       {/* TB-026: stats read as coloured cells while the role is live and grey once it
-          isn't, so a closed role doesn't look like it's still collecting people. */}
-      {STATS.map((s) => (
-        /* !p-0 + items-stretch: the fill covers the grid cell edge to edge. */
-        // A white hairline between the fills keeps the band reading column by column.
-        <span key={s.key} className={`${STAT} flex !items-stretch border-l border-white !p-0`}>
-          <Stat
-            value={reached(rows, s.key)}
-            tone={r.status === "Active" ? s.tone : "bg-[#eeeeee] text-ink-2"}
-            href={`/team/hire/roles/${r.slug}?stage=${s.key}`}
-            label={s.label}
-          />
-        </span>
-      ))}
+          isn't, so a closed role doesn't look like it's still collecting people. No box of its
+          own on a wider screen (`contents`), so each count is a cell of the row; a phone sets
+          the five as a strip of tiles across the card. */}
+      <div className="contents max-md:order-2 max-md:grid max-md:basis-full! max-md:grid-cols-5 max-md:overflow-hidden max-md:rounded-lg">
+        {STATS.map((s) => (
+          /* !p-0 + items-stretch: the fill covers the grid cell edge to edge. */
+          // A white hairline between the fills keeps the band reading column by column.
+          <span key={s.key} className={`${STAT} flex !items-stretch border-l border-white !p-0`}>
+            <Stat
+              value={reached(rows, s.key)}
+              tone={r.status === "Active" ? s.tone : "bg-[#eeeeee] text-ink-2"}
+              href={`/team/hire/roles/${r.slug}?stage=${s.key}`}
+              label={s.label}
+            />
+          </span>
+        ))}
+      </div>
       {/* TB-026: a draft has no posted date. */}
-      <span className={`${COL.updated} text-ink-2`}>{r.status === "Draft" ? "—" : shortDayLabel(r.updated)}</span>
+      <span className={`${COL.updated} text-ink-2`}>
+        <span className="md:hidden">{r.status === "Draft" ? "Not posted yet" : "Updated "}</span>
+        <span className={r.status === "Draft" ? "max-md:hidden" : ""}>{r.status === "Draft" ? "—" : shortDayLabel(r.updated)}</span>
+      </span>
       <span className={`${COL.actions} flex justify-center`}>
         <KebabMenu
           label="Role actions"
@@ -325,7 +357,7 @@ function RoleRow({ r, candidates, actions }: { r: Role; candidates: Candidate[];
           onOpenChange={(open) => actions.setMenu(open ? r.slug : null)}
           iconSize={20}
           menuWidth={220}
-          buttonClassName="!size-7"
+          buttonClassName="!size-7 max-md:size-8!"
         >
           {r.status === "Draft" ? <DraftItems r={r} actions={actions} /> : <PostedItems r={r} actions={actions} />}
         </KebabMenu>

@@ -25,7 +25,8 @@ export default function PayoutSettings() {
   return (
     <Page title="Settings">
       <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
-        <div className="flex items-center justify-between">
+        {/* Where the two don't fit on a line (a phone), the button goes under the heading rather than squeezing it onto two. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
             Payout methods
           </h2>
@@ -38,7 +39,7 @@ export default function PayoutSettings() {
         <IdStatus onToast={setToast} />
         {payouts.length === 0 && <EmptyState title="No payout method yet" body="You'll be asked for one before your first proposal." />}
         {payouts.map((m) => (
-          <MethodRow key={m.id} method={m} removeOff={removeBlocker(m, payouts.length)} onSetDefault={() => makeDefault(m)} onRemove={() => setRemoving(m)} />
+          <MethodRow key={m.id} method={m} only={only} removeOff={removeBlocker(m, payouts.length)} onSetDefault={() => makeDefault(m)} onRemove={() => setRemoving(m)} />
         ))}
         {only && (
           <div className="w-full max-w-[530px]">
@@ -70,11 +71,18 @@ export default function PayoutSettings() {
   );
 }
 
+/** Why an unverified method's Set as default is off. */
+const UNVERIFIED = "It can be your default once it's verified.";
+
 /**
  * One payout method: its brand, the account, what kind it is, and its buttons — Set as default once
- * it's verified, and Remove unless it's the default or the only one (`removeOff` says which).
+ * it's verified, and Remove unless it's the default or the only one (`removeOff` says which). Why a
+ * button is off is its tip, and on a phone the row's note too (`note`), as a finger can't hover; the
+ * only method's reason is the note under the list already.
  */
-function MethodRow({ method: m, removeOff, onSetDefault, onRemove }: { method: PayoutMethod; removeOff: string | undefined; onSetDefault: () => void; onRemove: () => void }) {
+function MethodRow({ method: m, only, removeOff, onSetDefault, onRemove }: { method: PayoutMethod; only: boolean; removeOff: string | undefined; onSetDefault: () => void; onRemove: () => void }) {
+  const verified = m.verified.startsWith("Verified");
+  const why = [!m.isDefault && !verified && UNVERIFIED, !only && removeOff].filter(Boolean).join(" ");
   return (
     <PaymentMethodRow
       brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
@@ -85,10 +93,11 @@ function MethodRow({ method: m, removeOff, onSetDefault, onRemove }: { method: P
         </>
       }
       subtitle={m.brand === "Bank" ? "InstaPay / PESONet" : "E-wallet"}
+      note={why || undefined}
       actions={
         <>
           {!m.isDefault && (
-            <Button size="sm" disabled={!m.verified.startsWith("Verified")} title={m.verified.startsWith("Verified") ? undefined : "It can be your default once it's verified."} onClick={onSetDefault}>
+            <Button size="sm" disabled={!verified} title={verified ? undefined : UNVERIFIED} onClick={onSetDefault}>
               Set as default
             </Button>
           )}

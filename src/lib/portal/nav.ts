@@ -32,6 +32,14 @@ export type Section = {
   match?: string[];
 };
 
+/**
+ * Screens a phone gives the whole height, without the tab bar: a flow with its own pinned buttons
+ * (the role wizard's Save as draft and Next), where the bar only took the room under them. Each has
+ * its own way back.
+ */
+const FOCUSED = ["/team/hire/new"];
+export const isFocused = (pathname: string) => FOCUSED.some((p) => within(pathname, p));
+
 const within = (pathname: string, prefix: string) => pathname === prefix || pathname.startsWith(prefix + "/");
 
 /** The longest of `hrefs` that `pathname` is at or under, or 0. */

@@ -15,7 +15,7 @@ import { ICONS } from "@/components/icons";
 /** A section of the editor: a card with a heading and a line on what it's for. */
 export function ProfileSection({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="flex w-full flex-col gap-4 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border">
+    <section className="flex w-full flex-col gap-4 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border max-sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-[16px] leading-[1.4] font-semibold text-ink">{title}</h2>
@@ -81,10 +81,11 @@ export function ProfileHeader({
   onDiscard: () => void;
 }) {
   return (
-    <section className="flex w-full flex-wrap items-center gap-5 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border">
+    // A phone gives the name two lines, a size down, rather than cutting it off after a few letters.
+    <section className="flex w-full flex-wrap items-center gap-5 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border max-sm:gap-4 max-sm:p-4">
       <ImagePicker image={image} label={imageLabel} onPick={onPick} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <h2 className="font-display truncate text-[24px] leading-[1.3] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+        <h2 className="font-display truncate text-[24px] leading-[1.3] font-semibold text-ink max-sm:line-clamp-2 max-sm:text-[20px] max-sm:whitespace-normal" style={{ fontVariationSettings: '"opsz" 14' }}>
           {name}
         </h2>
         {children}
@@ -157,7 +158,8 @@ export function EditableRow({
         {value || placeholder || "Not set"}
         {!value && required && <span className="ml-2 rounded-full bg-warn-bg px-2 py-0.5 text-[12px] font-semibold text-warn-ink">Required</span>}
       </span>
-      <span aria-hidden className="flex size-8 items-center justify-center rounded-md text-ink-2 opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-focus-visible:opacity-100">
+      {/* A touch screen has no hover to bring the pencil out, so there it always shows: the row is editable. */}
+      <span aria-hidden className="flex size-8 items-center justify-center rounded-md text-ink-2 opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100">
         <MdOutlineEdit size={17} />
       </span>
     </button>
@@ -170,7 +172,7 @@ function LockedRow({ label, value, reason }: { label: string; value: string; rea
     <div className="grid w-full grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-x-4 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto]">
       <span className="text-[13px] leading-[1.4] font-medium text-ink-2 max-sm:col-span-2">{label}</span>
       <span className="min-w-0 text-[14px] leading-[1.5] text-ink">{value}</span>
-      <Tip label={reason}>
+      <Tip label={reason} tap>
         <span tabIndex={0} role="img" aria-label={`Locked. ${reason}`} className="flex size-8 items-center justify-center rounded-md text-ink-2 focus-visible:outline-2 focus-visible:outline-primary">
           <ICONS.lock size={17} aria-hidden />
         </span>

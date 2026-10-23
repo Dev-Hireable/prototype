@@ -35,7 +35,8 @@ export function IndependentCard({ person, onInvite, onOpen }: { person: Independ
       <div className="flex items-center gap-3 max-sm:flex-wrap">
         <Avatar src={person.avatar} size={48} />
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <button type="button" onClick={() => onOpen(person)} className="self-start text-[14px] leading-[1.4] font-medium text-primary hover:underline">
+          {/* A line of text, so a touch screen gives it a finger's height to tap (hit-area). */}
+          <button type="button" onClick={() => onOpen(person)} className="hit-area self-start text-[14px] leading-[1.4] font-medium text-primary hover:underline">
             {nameOf(person)}
           </button>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -81,7 +82,11 @@ function IndependentCardActions({ person, onInvite }: { person: Independent; onI
   );
 }
 
-/** The card's bookmark: saves them, or takes them off the saved list at once, with Undo in the toast. */
+/**
+ * The card's bookmark: saves them, or takes them off the saved list at once, with Undo in the toast.
+ * Drawn 28px beside the card's buttons from a tablet up, so a touch screen gives it a finger-sized
+ * tap round it (hit-area); a phone draws it at the buttons' height.
+ */
 function SaveToggle({ person }: { person: Independent }) {
   const { saved, toggleSaved } = useSavedTalent();
   const { nameOf } = useHired();
@@ -94,7 +99,7 @@ function SaveToggle({ person }: { person: Independent }) {
         aria-label={isSaved ? "Unsave Independent" : "Save Independent"}
         aria-pressed={isSaved}
         onClick={() => toggleSavedWithNote(nameOf(person), isSaved, () => toggleSaved(person.slug))}
-        className="flex size-7 shrink-0 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary max-sm:size-10"
+        className="hit-area flex size-7 shrink-0 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary max-sm:size-10"
       >
         <Mark size={16} aria-hidden />
       </button>
@@ -132,7 +137,8 @@ export function ProfileDrawer({
   const [toast, setToast] = useToast();
   return (
     <>
-      <Drawer open={!!person} onClose={onClose} title="Independent profile">
+      {/* Focus starts on the close: the first control inside is the website link, whose tip popped up every time the sheet opened. */}
+      <Drawer open={!!person} onClose={onClose} title="Independent profile" initialFocus="close">
         {p && (
           <TeamProfile
             person={p}

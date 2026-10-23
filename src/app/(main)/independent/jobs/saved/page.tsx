@@ -33,12 +33,15 @@ export default function SavedRoles() {
         />
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div className="flex w-[522px] items-center gap-3">
+          {/* The search gives way to the count where 522px and the count don't both fit (a tablet),
+              rather than the count breaking onto two lines; a phone gives the search and the type the
+              row, and the count goes under them. */}
+          <div className="flex items-center justify-between gap-3 max-md:flex-wrap max-md:gap-2">
+            <div className="flex w-[522px] min-w-0 items-center gap-3 max-md:w-full max-md:gap-2">
               <SearchBox value={q} onChange={setQ} placeholder="Search saved roles" className="min-w-0 flex-1" />
               <Select options={["Type: All", "Type: Trial", "Type: Full-time", "Type: Part-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[150px]" />
             </div>
-            <span className="text-[14px] leading-[1.4] text-ink-2">{list.length === 1 ? "1 saved role" : `${list.length} saved roles`}</span>
+            <span className="shrink-0 text-[14px] leading-[1.4] text-ink-2">{list.length === 1 ? "1 saved role" : `${list.length} saved roles`}</span>
           </div>
           <div className="flex flex-col gap-3">
             {list.map((r) => (

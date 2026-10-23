@@ -56,7 +56,7 @@ export function DashboardTasks({ side, me, base, allHref, about, counterpart, le
   const summary = summaryOf(rows, side);
 
   return (
-    <DashboardSummaryCard title="My tasks" subtitle={summary ? `${about} · ${summary}` : about} href={allHref} linkLabel={side === "independent" ? "See all my tasks" : "Open the Work tab"}>
+    <DashboardSummaryCard title="My tasks" subtitle={summary ? <Subtitle about={about} summary={summary} /> : about} href={allHref} linkLabel={side === "independent" ? "See all my tasks" : "Open the Work tab"}>
       {lead && <LeadRow lead={lead} />}
       {frozen ? (
         <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12.5px] leading-[1.4] text-ink-2">{frozen}</p>
@@ -75,6 +75,19 @@ export function DashboardTasks({ side, me, base, allHref, about, counterpart, le
       )}
       <WorkMessages />
     </DashboardSummaryCard>
+  );
+}
+
+/** The card's line under its title: whose work, then the counts, which a phone gives a line of their own rather than breaking mid-count. */
+function Subtitle({ about, summary }: { about: string; summary: string }) {
+  return (
+    <>
+      {about}
+      <span className="max-sm:block">
+        <span className="max-sm:hidden"> · </span>
+        {summary}
+      </span>
+    </>
   );
 }
 
@@ -207,7 +220,7 @@ function TaskRow({ row: { item: t, reason }, ctx: { side, base, today, counterpa
       <span className="flex min-w-0 flex-1 items-center gap-3 max-sm:flex-col max-sm:items-start max-sm:gap-1">
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5 leading-[1.3] tracking-[0.2px] max-sm:w-full">
           <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
-          <span className="truncate text-[14px] font-medium text-ink">{t.title}</span>
+          <span className="truncate text-[14px] font-medium text-ink max-sm:line-clamp-2 max-sm:whitespace-normal">{t.title}</span>
         </span>
         {/* Why it's here, in the words and chips the board uses. */}
         <span className="flex shrink-0 items-center gap-3">

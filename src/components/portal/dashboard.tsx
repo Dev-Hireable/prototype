@@ -144,8 +144,9 @@ export function DashboardSummaryCard({ title, subtitle, href, linkLabel, childre
   return (
     // grow + shrink-0: in a dashboard column a card starts at its content height and takes a share
     // of what's left, so both columns end level. flex-1 let it shrink below its content (the bar
-    // chart spilled out the bottom).
-    <section aria-label={title} className="flex min-h-[259px] min-w-0 shrink-0 grow flex-col gap-4 rounded-lg bg-surface-2 p-4">
+    // chart spilled out the bottom). A phone stacks the cards, with no column to level, so there a
+    // card is as tall as what it holds: its floor left a short one a band of empty grey.
+    <section aria-label={title} className="flex min-w-0 shrink-0 grow flex-col gap-4 rounded-lg bg-surface-2 p-4 md:min-h-[259px]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-0.5">
           <h2 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{title}</h2>
@@ -153,7 +154,7 @@ export function DashboardSummaryCard({ title, subtitle, href, linkLabel, childre
         </div>
         {/* 48px: double the old 24px, which was both hard to spot and under the 44px minimum
             touch target. */}
-        <Link href={href} aria-label={linkLabel ?? `See more ${title.toLowerCase()}`} className="flex size-12 items-center justify-center rounded-full bg-white text-ink hover:bg-surface-alt">
+        <Link href={href} aria-label={linkLabel ?? `See more ${title.toLowerCase()}`} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink hover:bg-surface-alt">
           <Forward size={24} aria-hidden />
         </Link>
       </div>
@@ -200,7 +201,7 @@ export function DashboardBanner({ banner, dismissed, onDismiss }: { banner: Dash
           {banner.cta.label}
         </Link>
       )}
-      <button type="button" onClick={onDismiss} aria-label="Dismiss banner" className="absolute top-3 right-3 flex size-7 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white">
+      <button type="button" onClick={onDismiss} aria-label="Dismiss banner" className="hit-area absolute top-3 right-3 flex size-7 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white">
         <Close size={18} aria-hidden />
       </button>
     </section>

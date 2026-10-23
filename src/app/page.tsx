@@ -55,9 +55,10 @@ export default function PortalSelection() {
           Continue
         </button>
 
-        <p className="mt-6 text-sm text-ink-2">
+        <p className="mt-6 text-center text-sm text-ink-2">
           Or{" "}
-          <Link href="/login" className="font-semibold text-ink underline underline-offset-4 hover:text-black">
+          {/* A line of text, so a touch screen gives it a finger's height to tap (hit-area). */}
+          <Link href="/login" className="hit-area font-semibold text-ink underline underline-offset-4 hover:text-black">
             sign in with an account
           </Link>{" "}
           to land on the matching dashboard.

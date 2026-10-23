@@ -10,14 +10,14 @@ import { Tip } from "@/components/portal/tip";
 import { TourHelp } from "@/components/portal/tour/tour-help";
 import { TourProvider } from "@/components/portal/tour/tour-provider";
 import { QuickChat } from "@/components/portal/quick-chat";
-import { MobileTabBar } from "@/components/portal/mobile-nav";
+import { MobileTabBar, SectionStrip } from "@/components/portal/mobile-nav";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
 import { useContractClock } from "@/lib/demo/contract";
 import { unseenByAdmin, useDisputeDeadlines, useDisputes } from "@/lib/demo/disputes";
 import { unreadChat, useLive } from "@/lib/demo/live";
 import { useMedia } from "@/lib/portal/media";
-import { menuItemFor, sectionFor } from "@/lib/portal/nav";
+import { isFocused, menuItemFor, sectionFor } from "@/lib/portal/nav";
 import type { MenuItem, Section } from "@/lib/portal/nav";
 
 /*
@@ -79,10 +79,11 @@ export function PortalShell({
               than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
           {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
               Suspense boundary — this one covers every portal page, so none needs its own. */}
+          <SectionStrip section={section} pathname={pathname} badges={badges} />
           <Suspense>{hydrated ? children : null}</Suspense>
         </div>
 
-        <MobileTabBar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} badges={badges} railBadges={railBadges} onLogout={setLogout} />
+        <MobileTabBar hidden={isFocused(pathname)} sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} badges={badges} railBadges={railBadges} onLogout={setLogout} />
         <LogoutDialog to={logout} onClose={() => setLogout(null)} />
         {/* A "Message …" button on a work screen opens the thread here, over the page. */}
         <QuickChat />

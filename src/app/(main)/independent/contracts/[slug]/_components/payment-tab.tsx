@@ -100,10 +100,10 @@ export function RoleNotes({ company, text, link }: { company: string; text?: str
   );
 }
 
-/** A card's terms, two to a row. */
+/** A card's terms, two to a row, each label over its value — one to a row on a phone, where two columns squeezed the longer values (the payment schedule) into a narrow strip. */
 function Terms({ rows }: { rows: readonly (readonly [string, ReactNode])[] }) {
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] leading-[1.4]">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] leading-[1.4] max-md:grid-cols-1">
       {rows.map(([k, v]) => (
         <div key={k} className="flex flex-col gap-0.5">
           <dt className="text-ink-2">{k}</dt>
@@ -132,7 +132,11 @@ function TrialChapter({ contract, view }: { contract: Contract; view: ContractVi
   );
 }
 
-/** IN-032 — every transaction recorded against this contract; what's next is in the terms, not repeated here. */
+/**
+ * IN-032 — every transaction recorded against this contract; what's next is in the terms, not repeated
+ * here. A phone has no room for the columns (they ran past the card's edge): the headings go and each
+ * payment wraps onto two lines, the amount at the end of the first.
+ */
 function PaymentHistory({ contract, payments }: { contract: Contract; payments: Transaction[] }) {
   return (
     <PanelCard title="Payment history">
@@ -141,7 +145,7 @@ function PaymentHistory({ contract, payments }: { contract: Contract; payments: 
         <p className="text-[13px] leading-[1.4] text-ink-2">{contract.type === "trial" ? `No payments yet. You get paid when the trial ends and ${contract.managerFirst} submits the evaluation.` : "No payments yet."}</p>
       ) : (
         <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
-          <div className="flex items-center gap-4 bg-surface-2 px-4 py-2.5 text-[12.5px] leading-[1.4] font-medium text-ink-2">
+          <div className="flex items-center gap-4 bg-surface-2 px-4 py-2.5 text-[12.5px] leading-[1.4] font-medium text-ink-2 max-md:hidden">
             <span className="w-[110px] shrink-0">Date</span>
             <span className="w-[150px] shrink-0">Type</span>
             <span className="w-[110px] shrink-0">Amount</span>
@@ -149,13 +153,13 @@ function PaymentHistory({ contract, payments }: { contract: Contract; payments: 
           </div>
           {/* Two payments can share a date and description (a dispute release, then End Contract). */}
           {keyed(payments, (t) => `${t.date}-${t.desc}-${t.amount}`).map(({ item: t, key }) => (
-            <div key={key} className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[13px] leading-[1.4] text-ink">
+            <div key={key} className="flex items-center gap-4 border-t border-border px-4 py-2.5 text-[13px] leading-[1.4] text-ink max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-1.5 max-md:*:w-auto max-md:[&:nth-child(2)]:border-t-0">
               <span className="w-[110px] shrink-0">{t.date}</span>
               <span className="w-[150px] shrink-0">
                 <Chip size="sm">{t.type}</Chip>
               </span>
-              <span className="w-[110px] shrink-0 font-medium">{t.amount}</span>
-              <span className="min-w-0 flex-1">
+              <span className="w-[110px] shrink-0 font-medium max-md:ml-auto">{t.amount}</span>
+              <span className="min-w-0 flex-1 max-md:basis-full">
                 <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
               </span>
             </div>

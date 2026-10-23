@@ -7,7 +7,8 @@ import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import type { ColumnColors } from "@/components/portal/board";
 import { PersonChip } from "@/components/portal/tasks/task-bits";
-import { TYPE_ICON, type TaskPeople } from "./labels";
+import { Avatar } from "@/components/portal/ui";
+import { firstName, TYPE_ICON, type TaskPeople } from "./labels";
 import { dayOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import type { Group } from "@/lib/work/query";
 import { useOptionalWorkspace } from "./context";
@@ -114,11 +115,13 @@ export function TagChip({ tag, colors, onRemove, colorMenu }: { tag: string; col
       <span className="truncate">{tag}</span>
     </>
   );
+  // On a phone the × is the chip's height, a little further from the name, and a 32px target on touch:
+  // at 16px it sat flush against the name, which opens the colours.
   return (
-    <span className={CHIP} style={{ background: c.bg, color: c.text }}>
+    <span className={`${CHIP} ${onRemove ? "max-md:gap-1.5" : ""}`} style={{ background: c.bg, color: c.text }}>
       {colorMenu ? colorMenu(name) : name}
       {onRemove && (
-        <button type="button" onClick={onRemove} aria-label={`Remove tag ${tag}`} className="-mr-0.5 flex size-4 items-center justify-center rounded hover:bg-white/70">
+        <button type="button" onClick={onRemove} aria-label={`Remove tag ${tag}`} className="hit-area -mr-0.5 flex size-4 items-center justify-center rounded [--hit:32px] hover:bg-white/70 max-md:-mr-1.5 max-md:size-6">
           <ICONS.close size={12} aria-hidden />
         </button>
       )}
@@ -138,6 +141,27 @@ export function AssigneeChip({ assignee, people, size = 20 }: { assignee: Assign
       </span>
     );
   return <PersonChip {...people[assignee]} size={size} />;
+}
+
+/**
+ * Who does it, as their photo alone — or the unassigned mark — with the name as its tip and its
+ * accessible name: for a column too narrow for names (the Workload's, on a phone).
+ */
+export function AssigneeAvatar({ assignee, people, size = 28 }: { assignee: Assignee | null; people: TaskPeople; size?: number }) {
+  const name = assignee ? firstName(people[assignee].name) : "Unassigned";
+  return (
+    <Tip label={name} tap>
+      <span role="img" aria-label={name} className="inline-flex">
+        {assignee ? (
+          <Avatar src={people[assignee].avatar} size={size} />
+        ) : (
+          <span className="flex items-center justify-center rounded-full bg-surface-2 text-ink-2" style={{ width: size, height: size }}>
+            <ICONS.unassigned size={size - 10} aria-hidden />
+          </span>
+        )}
+      </span>
+    </Tip>
+  );
 }
 
 /** The same shape as Blocked: both say the item can't simply go on. */

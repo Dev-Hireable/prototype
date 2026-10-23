@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactElement, ReactNode } from "react";
+import { useRef, useState, type ReactElement, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -16,6 +16,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  *
  * `off` silences the tip but keeps the trigger mounted, for a control that only needs it some of the
  * time and must not be swapped for a new element when that changes (a sidebar link mid-morph).
+ *
+ * A touch screen has no hover, so a tip there opens and closes with a tap (`tap`) — on a disabled
+ * control, whose reason a finger couldn't reach otherwise, and on a trigger that does nothing else (an
+ * info button, a badge). A control that acts when tapped keeps its tip to the mouse and keyboard.
  */
 export function Tip({
   label,
@@ -24,6 +28,7 @@ export function Tip({
   wrap = false,
   wrapClassName = "",
   off = false,
+  tap = wrap,
 }: {
   label?: ReactNode;
   children: ReactElement;
@@ -31,17 +36,43 @@ export function Tip({
   wrap?: boolean;
   wrapClassName?: string;
   off?: boolean;
+  tap?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
+  /** Whether the trigger was last pressed by a finger: then the tap opens and closes the tip, not focus or the press itself. */
+  const touch = useRef(false);
   if (!label) return children;
+  const taps = tap && {
+    onPointerDown: (e: { pointerType: string }) => {
+      touch.current = e.pointerType === "touch";
+    },
+    onPointerEnter: (e: { pointerType: string }) => {
+      if (e.pointerType === "mouse") touch.current = false;
+    },
+    onClick: () => {
+      if (touch.current) setOpen((o) => !o);
+    },
+  };
   // Keyed on the trigger's shape: a control that turns disabled (or back) while the page is open
   // swaps the button for the span, and a tooltip kept across that swap never opens again unless it
   // had opened before. The control remounts at that point anyway, as it moves in or out of the span.
   return (
-    <Tooltip key={wrap ? "wrapped" : "direct"} disabled={off}>
+    <Tooltip
+      key={wrap ? "wrapped" : "direct"}
+      disabled={off}
+      open={open}
+      onOpenChange={(next, { reason }) => {
+        // After a tap the browser also focuses, presses and leaves the trigger; only the tap decides.
+        if (taps && touch.current && reason.startsWith("trigger-")) return;
+        setOpen(next);
+      }}
+    >
       {wrap ? (
-        <TooltipTrigger render={<span className={`inline-flex cursor-not-allowed [&>*]:pointer-events-none ${wrapClassName}`} />}>{children}</TooltipTrigger>
+        <TooltipTrigger {...taps} render={<span className={`inline-flex cursor-not-allowed [&>*]:pointer-events-none ${wrapClassName}`} />}>
+          {children}
+        </TooltipTrigger>
       ) : (
-        <TooltipTrigger render={children} />
+        <TooltipTrigger {...taps} render={children} />
       )}
       <TooltipContent side={side}>{label}</TooltipContent>
     </Tooltip>
@@ -55,8 +86,8 @@ export function Tip({
  */
 export function InfoTip({ label, about, side = "top" }: { label: ReactNode; about: string; side?: "top" | "bottom" | "left" | "right" }) {
   return (
-    <Tip label={label} side={side}>
-      <button type="button" aria-label={`About ${about}`} className="inline-flex size-5 shrink-0 items-center justify-center rounded-full align-middle text-ink-2 hover:bg-surface-2">
+    <Tip label={label} side={side} tap>
+      <button type="button" aria-label={`About ${about}`} className="hit-area inline-flex size-5 shrink-0 items-center justify-center rounded-full align-middle text-ink-2 hover:bg-surface-2">
         <ICONS.info size={13} aria-hidden />
       </button>
     </Tip>

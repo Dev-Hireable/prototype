@@ -159,7 +159,8 @@ function InterviewsCard({ upcoming }: { upcoming: Interview[] }) {
   return (
     <DashboardSummaryCard title="Interviews" href="/independent/jobs/interviews">
       {upcoming.length === 0 ? (
-        <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No interviews scheduled. Apply to a role and a Team Builder can invite you.</p>
+        // It fills the card where the card is levelled with the one beside it; a phone stacks them, so there it's as tall as its words.
+        <p className="flex items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2 md:flex-1">No interviews scheduled. Apply to a role and a Team Builder can invite you.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {upcoming.slice(0, 3).map((iv) => (
@@ -184,7 +185,8 @@ function ContractsCard({ active }: { active: Contract[] }) {
   return (
     <DashboardSummaryCard title="Active contracts" href="/independent/contracts">
       {active.length === 0 ? (
-        <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">No active contracts yet. Apply to a role and your engagements appear here.</p>
+        // Fills a levelled card, as Interviews' note does; as tall as its words on a phone.
+        <p className="flex items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2 md:flex-1">No active contracts yet. Apply to a role and your engagements appear here.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {active.slice(0, 3).map((c) => {

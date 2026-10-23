@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { ResetDemoDialog } from "@/components/portal/demo-reset";
 import { TourMenu } from "@/components/portal/tour/tour-help";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { MenuItem, Section } from "@/lib/portal/nav";
+import { revealInRow } from "@/lib/portal/reveal";
 
 /*
  * A phone's navigation, below 768px where the rail and section panel don't fit beside a page.
@@ -16,7 +17,8 @@ import type { MenuItem, Section } from "@/lib/portal/nav";
  *               indicator's inset), each tab a full fifth of the width
  *   Menu sheet  rises from the bottom: My profile, the open section's pages (Dashboard · Messages,
  *               Create Role · All Roles), the sections the bar has no room for, Help's tours,
- *               Reset demo and Log out — every row 52px. The page itself carries no nav strip.
+ *               Reset demo and Log out — every row 52px
+ *   page links  over a section's own pages, a row of links to the others (SectionStrip)
  * A tablet keeps the rail: it's held in both hands, and the rail is in reach of the left one.
  */
 
@@ -24,6 +26,8 @@ import type { MenuItem, Section } from "@/lib/portal/nav";
 const TABS = 4;
 
 type Props = {
+  /** Left off a screen that needs the whole height (isFocused). */
+  hidden?: boolean;
   sections: Section[];
   section: Section;
   activeMenuHref: string | undefined;
@@ -36,7 +40,7 @@ type Props = {
 };
 
 /** The bottom tab bar and its Menu sheet. */
-export function MobileTabBar({ sections, section, activeMenuHref, profileHref, avatar, badges, railBadges, onLogout }: Props) {
+export function MobileTabBar({ hidden = false, sections, section, activeMenuHref, profileHref, avatar, badges, railBadges, onLogout }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const rail = sections.filter((s) => !s.hidden);
   // Five fit: then every section is a tab and Menu holds the rest of the chrome only.
@@ -48,7 +52,7 @@ export function MobileTabBar({ sections, section, activeMenuHref, profileHref, a
 
   return (
     <>
-      <nav aria-label="Sections" className="shrink-0 border-t border-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav aria-label="Sections" hidden={hidden} className="shrink-0 border-t border-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
         <ul className="flex">
           {tabs.map((s) => (
             <li key={s.href} className="min-w-0 flex-1">
@@ -80,6 +84,41 @@ export function MobileTabBar({ sections, section, activeMenuHref, profileHref, a
     </>
   );
 }
+
+/**
+ * A phone's row of the open section's pages over the page — Discover roles · My applications · Saved
+ * roles · Interviews — the one open lit as the tab bar lights its tab. Without it a section's other
+ * pages were in the Menu sheet only, out of sight. Drawn on the section's own pages only (a detail
+ * page has its back link instead), and not on Messages, whose thread takes the whole screen.
+ */
+export function SectionStrip({ section, pathname, badges }: { section: Section; pathname: string; badges: Record<string, number> }) {
+  const row = useRef<HTMLUListElement>(null);
+  const pages = section.menu.filter((m: MenuItem) => !m.action);
+  const here = pages.find((m) => m.href === pathname);
+  // The open page's link in sight, when the row runs past the screen's edge.
+  useEffect(() => {
+    const on = row.current?.querySelector<HTMLElement>("[aria-current=page]");
+    if (row.current && on) revealInRow(row.current, on, "instant");
+  }, [pathname]);
+  if (pages.length < 2 || !here || here.bare) return null;
+  return (
+    <nav aria-label={`${section.title} pages`} className="shrink-0 border-b border-border md:hidden">
+      <ul ref={row} className="flex gap-1.5 overflow-x-auto px-(--page-gutter) py-2">
+        {pages.map((m) => (
+          <li key={m.href} className="shrink-0">
+            <Link href={m.href} prefetch={false} aria-current={m === here ? "page" : undefined} className={STRIP_LINK}>
+              {m.label}
+              {(badges[m.href] ?? 0) > 0 && <Count n={badges[m.href]} />}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+const STRIP_LINK =
+  "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] leading-none font-medium text-ink-2 active:bg-black/8 aria-[current=page]:bg-accent-bg aria-[current=page]:font-semibold aria-[current=page]:text-accent-ink [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-primary";
 
 const TAB =
   "group relative flex h-16 w-full items-center justify-center px-0.5 text-[10.5px] leading-[1.2] tracking-[-0.1px] text-ink-2 outline-none select-none [-webkit-tap-highlight-color:transparent] focus-visible:text-ink";

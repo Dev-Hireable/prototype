@@ -336,7 +336,8 @@ test.describe("wallet · the ID check", () => {
     await openWallet(page);
     await expect(withdrawButton(page)).toBeDisabled();
     await withdrawButton(page).locator("..").hover();
-    await expect(page.getByText("Verify your ID to withdraw.", { exact: true })).toBeVisible();
+    // The tip itself: a phone writes the same reason under its Withdraw, in the Available card, which is in the page but hidden here.
+    await expect(page.locator('[data-slot="tooltip-content"]')).toHaveText("Verify your ID to withdraw.");
   });
 });
 

@@ -63,12 +63,12 @@ export function AuthShell({ title, subtitle, children, footer, width = 480 }: { 
   );
 }
 
-/** The footer pattern from the live app: prompt in ink, the action in brand blue. */
+/** The footer pattern from the live app: prompt in ink, the action in brand blue — a word, so a touch screen gives it a finger-sized tap (hit-area). */
 export function AuthLink({ prompt, linkText, href }: { prompt: string; linkText: string; href: string }) {
   return (
     <>
       <span className="text-ink">{prompt}</span>
-      <Link href={href} className="rounded-lg font-medium text-primary hover:underline">
+      <Link href={href} className="hit-area rounded-lg font-medium text-primary hover:underline">
         {linkText}
       </Link>
     </>

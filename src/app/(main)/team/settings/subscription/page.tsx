@@ -13,7 +13,7 @@ export default function Subscription() {
 
   return (
     <Page title="Settings">
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
         <div className="flex items-start justify-between gap-3">
           <CardHeading>Subscription</CardHeading>
           <StatusDot tone="ok">Active</StatusDot>
@@ -76,7 +76,7 @@ function PlanTerms({ current }: { current: Plan }) {
 /** Every plan this account isn't on, with its price and headline feature: for reading. Upgrade is the one button that moves plan. */
 function OtherPlans({ current }: { current: Plan }) {
   return (
-    <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-6">
+    <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-6 max-sm:p-4">
       <CardHeading>Other plans</CardHeading>
       {PLANS.filter((p) => p.name !== current.name).map((p) => (
         <div key={p.name} className="flex items-center gap-3 border-t border-border py-3 first:border-t-0">

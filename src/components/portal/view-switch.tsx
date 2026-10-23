@@ -7,19 +7,21 @@ type ViewOption<T extends string> = { value: T; label: string; icon: IconName };
 
 /**
  * The segmented view switcher — Board / List / Calendar on a contract's work, Grid / List on the
- * contract lists. One look everywhere: an icon and a label, the label dropping to screen readers
- * on a phone. This is the list only, for a switcher whose Tabs root also holds the views.
+ * contract lists. One look everywhere: an icon and a label. On a phone only the open view keeps its
+ * label, so the row fits and still says what's showing (icons alone left Timeline and Workload to
+ * guesswork), and the switch is 40px tall there, for a thumb. This is the list only, for a switcher
+ * whose Tabs root also holds the views.
  */
 export function ViewTabsList<T extends string>({ options, label = "Views" }: { options: readonly ViewOption<T>[]; label?: string }) {
   return (
     // 36px, the height of the toolbar controls beside it. The shadcn default's own height is scoped
     // (group-data-horizontal/tabs:h-8) and outranked a plain h-9, so it has to be scoped the same way.
-    <TabsList aria-label={label} activateOnFocus={false} className="h-9 p-[3px] group-data-horizontal/tabs:h-9">
+    <TabsList aria-label={label} activateOnFocus={false} className="h-9 p-[3px] group-data-horizontal/tabs:h-9 max-md:h-10 max-md:group-data-horizontal/tabs:h-10">
       {options.map((o) => {
         const Icon = ICONS[o.icon];
         return (
-          <TabsTrigger key={o.value} value={o.value} className="h-full gap-1.5 rounded-md px-3 text-[13px] font-medium text-ink-2 hover:text-ink data-active:text-ink data-active:shadow-sm focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-primary">
-            <Icon size={16} aria-hidden /> <span className="max-sm:sr-only">{o.label}</span>
+          <TabsTrigger key={o.value} value={o.value} className="h-full gap-1.5 rounded-md px-3 text-[13px] font-medium text-ink-2 hover:text-ink data-active:text-ink data-active:shadow-sm focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-primary max-md:data-active:[&>span]:not-sr-only max-md:data-active:[&>span]:whitespace-nowrap">
+            <Icon size={16} aria-hidden /> <span className="max-md:sr-only">{o.label}</span>
           </TabsTrigger>
         );
       })}

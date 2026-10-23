@@ -455,7 +455,8 @@ export function TagsField({ item, known = [] }: { item: WorkItem; /** Every tag 
   const tag = normalizeTag(text);
   const error = text.trim() ? checkTag(tag, item.tags)?.message : undefined;
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    // A little more room on a phone, where each chip's name and × are 32px targets.
+    <div className="flex flex-wrap items-center gap-1.5 max-md:gap-2">
       {item.tags.length === 0 && !can && <span className={READ_ONLY}>No tags</span>}
       {item.tags.map((t) => (
         <TagChip
@@ -467,7 +468,7 @@ export function TagsField({ item, known = [] }: { item: WorkItem; /** Every tag 
             can
               ? (face) => (
                   <DropdownMenu>
-                    <DropdownMenuTrigger aria-label={`Tag ${t}: ${TAG_COLORS[tagColorOf(t, tagColors)].label}. Change colour`} className="flex min-w-0 cursor-pointer items-center gap-1 rounded-sm decoration-1 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+                    <DropdownMenuTrigger aria-label={`Tag ${t}: ${TAG_COLORS[tagColorOf(t, tagColors)].label}. Change colour`} className="hit-area flex min-w-0 cursor-pointer items-center gap-1 rounded-sm decoration-1 underline-offset-2 [--hit:32px] hover:underline focus-visible:outline-2 focus-visible:outline-primary">
                       {face}
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start" className="w-44">

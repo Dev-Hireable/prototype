@@ -26,7 +26,8 @@ import { TYPE_ICON } from "./labels";
  * switching views keeps it, a reload keeps it, and a link opens the same list.
  */
 
-const BUTTON = TOOLBAR_BUTTON;
+/** On a phone 40px, the height of the view tabs and the search there, for a thumb. */
+const BUTTON = `${TOOLBAR_BUTTON} max-md:h-10 max-md:min-w-10 max-md:justify-center`;
 
 type Props = {
   query: WorkQuery;
@@ -43,12 +44,24 @@ type Props = {
   sortable: boolean;
 };
 
-export function Toolbar({ query, setQuery, assigneeLabel, tags, shown, total, groupable, projects = false, sortable }: Props) {
-  // A phone fits it on one row: search, then Filter, Sort and Group as their icons (each keeps its
-  // name in its aria-label), the count left to screen readers.
+export function Toolbar(props: Props) {
+  const { query, setQuery } = props;
   return (
     <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Search, filter, sort and group">
       <Search value={query.q} onChange={(q) => setQuery({ q })} />
+      <ToolbarMenus {...props} />
+    </div>
+  );
+}
+
+/**
+ * Filter, Sort and Group, then the count. A phone shows the three as their icons (each keeps its name
+ * in its aria-label) and leaves the count to screen readers; it puts them on a row of their own under
+ * its pinned view tabs and search (the workspace's PhoneHead).
+ */
+export function ToolbarMenus({ query, setQuery, assigneeLabel, tags, shown, total, groupable, projects = false, sortable }: Props) {
+  return (
+    <>
       <FilterMenu query={query} setQuery={setQuery} assigneeLabel={assigneeLabel} tags={tags} />
       {sortable && <SortMenu query={query} setQuery={setQuery} />}
       {groupable && <GroupMenu query={query} setQuery={setQuery} projects={projects} />}
@@ -56,7 +69,7 @@ export function Toolbar({ query, setQuery, assigneeLabel, tags, shown, total, gr
         {shown === total ? `${total} ${total === 1 ? "item" : "items"}` : `${shown} of ${total} items`}
         {query.archived && " · deleted"}
       </span>
-    </div>
+    </>
   );
 }
 
@@ -204,8 +217,61 @@ function FilterSub({ label, count, children }: { label: string; count: number; c
   );
 }
 
-/** Search as you type; the URL follows a moment after the typing stops. */
-function Search({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/**
+ * The search box's shape. In the toolbar: up to 280px, a row of its own on a small phone. `compact`
+ * (beside a phone's view tabs, PhoneHead): only the glass, a 40px square like the buttons beside it,
+ * until it's tapped and takes the row; with a search in it, what room the tabs leave.
+ */
+function searchBox(compact: boolean, empty: boolean) {
+  if (!compact) return "h-9 w-full max-w-[280px] min-w-32 flex-1 gap-2 px-3 max-sm:max-w-none sm:w-auto";
+  return empty ? "ml-auto h-10 w-10 shrink-0 justify-center focus-within:w-auto focus-within:flex-1 focus-within:justify-start focus-within:gap-2 focus-within:px-3" : "h-10 min-w-0 flex-1 gap-2 px-3";
+}
+
+/**
+ * Search as you type; the URL follows a moment after the typing stops. The input fills its box's
+ * height on a phone, so a tap anywhere on the box lands in it.
+ */
+export function Search({ value, onChange, compact = false }: { value: string; onChange: (v: string) => void; compact?: boolean }) {
+  const [text, set] = useSearchText(value, onChange);
+  const folded = compact && !text;
+  return (
+    <label className={`group/search flex items-center rounded-lg border border-border bg-white text-ink-2 focus-within:border-primary ${searchBox(compact, !text)}`}>
+      <ICONS.search size={17} aria-hidden className="shrink-0" />
+      <input
+        type="search"
+        value={text}
+        onChange={(e) => set(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") set(text, true);
+          if (e.key === "Escape" && text) {
+            e.preventDefault();
+            set("", true);
+          }
+        }}
+        placeholder="Search work"
+        aria-label="Search work by name, description, tag or #number"
+        className={`min-w-0 flex-1 bg-transparent text-[13.5px] leading-[1.2] text-ink outline-none placeholder:text-ink-2 max-md:self-stretch [&::-webkit-search-cancel-button]:hidden ${folded ? "w-0 flex-none focus:w-auto focus:flex-1" : ""}`}
+      />
+      {/* Folded beside the tabs, a search keeps its clear for while it's being typed in: the chip under the
+          toolbar clears it otherwise. A press there keeps the focus in the box, so the clear stays to be
+          tapped (Safari doesn't focus a tapped button) and the typing can go on. */}
+      {text && (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onMouseDown={compact ? (e) => e.preventDefault() : undefined}
+          onClick={() => set("", true)}
+          className={`hit-area size-5 shrink-0 items-center justify-center rounded-full text-ink-2 [--hit:32px] hover:bg-surface-alt hover:text-ink ${compact ? "hidden group-focus-within/search:flex" : "flex"}`}
+        >
+          <ICONS.close size={15} aria-hidden />
+        </button>
+      )}
+    </label>
+  );
+}
+
+/** The text as typed, and setting it: the URL (`onChange`) follows a moment after the typing stops, or at once (`now`); a change from outside (Back, Clear all) shows. */
+function useSearchText(value: string, onChange: (v: string) => void) {
   const [text, setText] = useState(value);
   const [seen, setSeen] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -227,31 +293,7 @@ function Search({ value, onChange }: { value: string; onChange: (v: string) => v
         onChange(v);
       }, 250);
   };
-  return (
-    <label className="flex h-9 w-full max-w-[280px] min-w-32 flex-1 items-center gap-2 rounded-lg border border-border bg-white px-3 text-ink-2 focus-within:border-primary max-sm:max-w-none sm:w-auto">
-      <ICONS.search size={17} aria-hidden />
-      <input
-        type="search"
-        value={text}
-        onChange={(e) => set(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") set(text, true);
-          if (e.key === "Escape" && text) {
-            e.preventDefault();
-            set("", true);
-          }
-        }}
-        placeholder="Search work"
-        aria-label="Search work by name, description, tag or #number"
-        className="min-w-0 flex-1 bg-transparent text-[13.5px] leading-[1.2] text-ink outline-none placeholder:text-ink-2 [&::-webkit-search-cancel-button]:hidden"
-      />
-      {text && (
-        <button type="button" aria-label="Clear search" onClick={() => set("", true)} className="flex size-5 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-surface-alt hover:text-ink">
-          <ICONS.close size={15} aria-hidden />
-        </button>
-      )}
-    </label>
-  );
+  return [text, set] as const;
 }
 
 /** Each filter as a chip that removes it, and Clear all. */
@@ -272,7 +314,7 @@ export function FilterChips({ query, setQuery, assigneeLabel }: { query: WorkQue
       {chips.map((c) => (
         <span key={c.key} className="inline-flex h-7 items-center gap-1 rounded-full bg-accent-bg pr-1 pl-3 text-[12.5px] leading-[1.2] font-medium text-accent-ink">
           {c.label}
-          <button type="button" onClick={c.clear} aria-label={`Remove filter ${c.label}`} className="flex size-5 items-center justify-center rounded-full hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-primary">
+          <button type="button" onClick={c.clear} aria-label={`Remove filter ${c.label}`} className="hit-area flex size-5 items-center justify-center rounded-full [--hit:32px] hover:bg-white/70 focus-visible:outline-2 focus-visible:outline-primary">
             <ICONS.close size={13} aria-hidden />
           </button>
         </span>

@@ -505,6 +505,44 @@ summary {
   }
 }
 
+/*
+ * A control drawn small (an icon button, a menu's ⋮, a status circle, an info tip, a checkbox) gets a
+ * finger-sized target on touch screens: an invisible square of at least 44px round its middle, the
+ * size phones ask for. Mouse users see and hit it as drawn. It's a component class, so a utility like
+ * `absolute` on the same control still wins over its `relative`. A control right beside something
+ * else that's tappable sets a smaller `--hit` so the two don't overlap (a card's status circle).
+ */
+@layer components {
+  @media (pointer: coarse) {
+    .hit-area {
+      position: relative;
+    }
+    .hit-area::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, var(--hit, 44px));
+      height: max(100%, var(--hit, 44px));
+      translate: -50% -50%;
+    }
+  }
+}
+
+/*
+ * iPhone Safari zooms the page into a field whose text is under 16px when it takes the focus, and
+ * leaves it zoomed. On a touch screen every text field's text is 16px (none is drawn larger), so
+ * tapping into a search, a comment or a form keeps the page where it was. Unlayered, so it wins over
+ * the fields' own sizes; a mouse and keyboard keep those.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Typing dots (TypingDots), the same in every chat, the quiz's included: each dot rises 3px and
    brightens, then settles, a beat after the one before. The bubble comes in with a quick rise
    unless its chat animates it in itself. Without motion the dots stay still. */

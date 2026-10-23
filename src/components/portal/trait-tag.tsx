@@ -29,6 +29,7 @@ const TRAITS: { icon: IconType; bg: string }[] = [
 function TagMeaning({ tag, view = "self", children }: { tag: WorkStyleTag; view?: "self" | "other"; children: ReactElement }) {
   return (
     <Tip
+      tap
       label={
         <span className="flex max-w-[240px] flex-col gap-0.5 text-left">
           <span className="font-semibold">{WORK_STYLE_TRAITS[tag.trait]}</span>

@@ -70,9 +70,7 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
   const live = useLive();
   const [q, setQ] = useState("");
   const view = useThreadView(conversations[0]?.id);
-  /** The tabs filter the one thread per person by stage: the first (still in hiring) until one is picked, or the tab of a `?with=` thread. */
-  const [picked, setTab] = useState<K | null>(null);
-  const tab = picked ?? conversations.find((c) => c.id === view.wanted)?.kind ?? tabs[0];
+  const [tab, setTab] = useInboxTab(conversations, tabs, view.wanted);
   const composer = useComposer(side);
   const conv = conversations.find((c) => c.id === view.active) ?? conversations[0];
   const chat: Chat = { live, side, other };
@@ -122,6 +120,17 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
       {profile?.({ open: profileOpen, onClose: () => setProfileOpen(false) })}
     </>
   );
+}
+
+/**
+ * The tabs filter the one thread per person by stage. The list shows the tab picked, or else a
+ * `?with=` thread's, or else the first with a thread in it. Always the first (still in hiring), it
+ * opened on an empty list once the thread had moved on to Conversations — all a phone showed of Messages.
+ */
+function useInboxTab<K extends string>(conversations: Thread<K>[], tabs: readonly K[], wanted: string | null) {
+  const [picked, setTab] = useState<K | null>(null);
+  const tab = picked ?? conversations.find((c) => c.id === wanted)?.kind ?? tabs.find((t) => conversations.some((c) => c.kind === t)) ?? tabs[0];
+  return [tab, setTab] as const;
 }
 
 /**

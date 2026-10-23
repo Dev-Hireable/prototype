@@ -1,4 +1,7 @@
-import type { ComponentProps, ReactNode } from "react";
+"use client";
+
+import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
+import { revealInRow } from "@/lib/portal/reveal";
 
 /** A column's colours: the header's fill and text, and the darker chip its count sits in. */
 export type ColumnColors = { bg: string; text: string; count: string };
@@ -22,7 +25,9 @@ const FRAME: Record<ColumnFrame, string> = {
  * column's tint, the cards scrolling inside it once it's full, and room at the foot for an add
  * button. It used to stretch to the board's full height whatever it held, so a column with one card
  * ran to the bottom of the page as a long empty panel. The frame is a real 2px
- * border, transparent at rest, so it can light up without the cards shifting.
+ * border, transparent at rest, so it can light up without the cards shifting. On a phone a column is
+ * the screen's width less a sliver of the next one, which says there's more to swipe to; the board
+ * settles on a column at a time (PHONE_BOARD) and its chips jump between them (KanbanJump).
  */
 export function KanbanColumn({
   label,
@@ -65,7 +70,7 @@ export function KanbanColumn({
     <section
       aria-label={`${label}, ${count} ${count === 1 ? unit[0] : unit[1]}`}
       {...rest}
-      className={`flex max-h-full shrink-0 flex-col self-start rounded-xl border-2 transition-colors ${FRAME[frame]} ${dimmed ? "opacity-60" : ""} ${width} ${className}`}
+      className={`flex max-h-full shrink-0 flex-col self-start rounded-xl border-2 transition-colors ${FRAME[frame]} ${dimmed ? "opacity-60" : ""} ${width} max-md:w-[calc(100vw-48px)] max-md:max-w-none max-md:min-w-0 max-md:flex-none max-md:snap-start ${className}`}
     >
       <header className="flex shrink-0 items-center justify-between gap-2 rounded-t-[10px] px-3 py-2 text-[14px] leading-[1.2] font-medium tracking-[0.2px]" style={{ background: colors.bg, color: colors.text }}>
         <span className="flex min-w-0 items-center gap-2">
@@ -98,4 +103,42 @@ export function KanbanList({ className = "", children, ...rest }: ComponentProps
 /** What an empty column says, in the slot its first card would take. */
 export function KanbanEmpty({ children }: { children: ReactNode }) {
   return <li className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-[12.5px] leading-[1.4] text-ink-2">{children}</li>;
+}
+
+/**
+ * A phone's way round a board it shows a column at a time: a chip per column with its count, the one
+ * in view in its column's colours, a tap bringing that column in (useBoardJump). From a tablet up the
+ * columns sit side by side and it isn't drawn. `className` is the row's side gutter, the board's own.
+ */
+export function KanbanJump({ columns, current, onJump, label, className = "px-(--page-gutter)" }: { columns: { key: string; label: string; count: number; colors: ColumnColors }[]; current: string | null; onJump: (key: string) => void; label: string; className?: string }) {
+  const row = useRef<HTMLDivElement>(null);
+  // As the board is swiped, the lit chip is kept in sight: the row scrolls, never the page.
+  useEffect(() => {
+    const chip = row.current?.querySelector<HTMLElement>("[aria-current]");
+    if (row.current && chip) revealInRow(row.current, chip);
+  }, [current]);
+  return (
+    <nav aria-label={label} className="md:hidden">
+      <div ref={row} className={`flex gap-2 overflow-x-auto ${className}`}>
+        {columns.map((c) => {
+          const on = c.key === current;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              aria-current={on || undefined}
+              onClick={() => onJump(c.key)}
+              className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] leading-none font-medium transition-colors focus-visible:outline-2 focus-visible:outline-primary ${on ? "" : "bg-surface-2 text-ink"}`}
+              style={on ? { background: c.colors.bg, color: c.colors.text } : undefined}
+            >
+              {c.label}
+              <span className={`min-w-5 rounded px-1 py-0.5 text-center text-[12px] tabular-nums ${on ? "" : "bg-white text-ink-2"}`} style={on ? { background: c.colors.count } : undefined}>
+                {c.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
 }

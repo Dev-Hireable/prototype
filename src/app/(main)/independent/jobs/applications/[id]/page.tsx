@@ -32,6 +32,25 @@ const Business = ICONS.business;
 const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-deep";
 
 /**
+ * Below lg the two columns become one, and their cards take turns in it: the role and the stage it's
+ * at, what to do next, what the talent sent, then the role's pay, tasks, skills and work style, and
+ * last the company and the way to flag the role. Each column is `max-lg:contents` there, so its cards
+ * are the one column's own items, ordered by these.
+ */
+const ORDER = {
+  role: "max-lg:order-1",
+  next: "max-lg:order-2",
+  proposal: "max-lg:order-3",
+  note: "max-lg:order-4",
+  pay: "max-lg:order-5",
+  tasks: "max-lg:order-6",
+  skills: "max-lg:order-7",
+  style: "max-lg:order-8",
+  company: "max-lg:order-9",
+  flag: "max-lg:order-10",
+} as const;
+
+/**
  * An application: the role beside an action card that changes with the pipeline stage, from the
  * interview invite through the proposal to the offer.
  */
@@ -66,8 +85,9 @@ export default function ApplicationDetail({ params }: { params: Promise<{ id: st
     <Page title="My Applications" nav={<ReturnNav fallback={<BreadcrumbBack href="/independent/jobs/applications">Back to pipeline</BreadcrumbBack>} />}>
       <div className="flex flex-col gap-10 pb-14">
         {/* pt-4: both columns start 24px down, where the right one sticks (below the scroller's top
-            fade), so they line up at rest and the right one doesn't jump when it catches. */}
-        <div className="flex items-start justify-center gap-6 pt-4 max-lg:flex-col max-lg:items-stretch">
+            fade), so they line up at rest and the right one doesn't jump when it catches. Below lg
+            there's one column: the two columns' cards interleave in it (ORDER). */}
+        <div className="flex items-start justify-center gap-6 pt-4 max-lg:flex-col max-lg:items-stretch max-lg:gap-4">
           <RoleColumn job={job} stage={stageBadgeOf(app)} tasksShared={trialTasksShared(app.stage) && !app.closed} mine={workStyle} />
           <ActionColumn app={app} job={job} live={live} onAccept={accept} onDecline={() => setDeclining(true)} onReschedule={() => setRescheduling(true)} onToast={setToast} onReadProposal={() => setReading(true)} onReviewOffer={() => setOffering(true)} />
         </div>
@@ -131,8 +151,9 @@ function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: Re
   /** The company's quiz answers, from the Team Builder's portal — what its tags say about how it works. */
   const theirs = job.company === PAIR.team.company ? storedWorkStyle("team") : [];
   return (
-    <div className="flex w-[576px] min-w-0 flex-col gap-4 max-lg:w-full">
-      <Card className="flex min-h-[223px] flex-col gap-4 p-4">
+    <div className="flex w-[576px] min-w-0 flex-col gap-4 max-lg:contents">
+      {/* As tall as the next step beside it; alone in a column, as tall as what it says. */}
+      <Card className={`flex flex-col gap-4 p-4 lg:min-h-[223px] ${ORDER.role}`}>
         {/* Where the pipeline tracker was: the stage, as one badge beside the title. */}
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
@@ -148,14 +169,14 @@ function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: Re
         </p>
         <p className="text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink">{job.description}</p>
       </Card>
-      <Card className="flex flex-col gap-4 p-4">
+      <Card className={`flex flex-col gap-4 p-4 ${ORDER.pay}`}>
         <h3 className={H2}>Pay &amp; details</h3>
         {/* The job page's facts strip, so a role reads the same wherever it's shown. */}
         <FactStrip size="sm" cells={jobFacts({ type: job.type, pay: job.budget, duration: job.duration, hours: job.hours, level: job.experience })} />
       </Card>
       {/* TB-025 — a trial's tasks are shared once the talent's proposal is accepted (the offer); until then, how many. */}
       {job.type === "trial" && (
-        <Card className="flex flex-col gap-4 p-4">
+        <Card className={`flex flex-col gap-4 p-4 ${ORDER.tasks}`}>
           <div className="flex flex-col gap-1">
             <h3 className={H2}>Trial tasks</h3>
             {tasksShared && <p className="text-[13px] leading-[1.4] text-ink-2">{job.company} set these for the trial. They become its task list once you sign the offer.</p>}
@@ -163,7 +184,7 @@ function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: Re
           {tasksShared ? <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet.`} /> : <LockedTasks company={job.company} count={job.tasks.length} />}
         </Card>
       )}
-      <Card className="flex flex-col gap-6 p-4">
+      <Card className={`flex flex-col gap-6 p-4 ${ORDER.skills}`}>
         <h3 className={H2}>Skills</h3>
         <div className="flex flex-wrap gap-2">
           {job.skills.map((s) => (
@@ -174,7 +195,7 @@ function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: Re
         </div>
       </Card>
       {/* Where the work-style chart was: the company's Workplace Tags beside the talent's, trait by trait. */}
-      <Card className="flex flex-col gap-4 p-4">
+      <Card className={`flex flex-col gap-4 p-4 ${ORDER.style}`}>
         <h3 className={H2}>Work style</h3>
         <WorkStyleMatch company={job.company} theirs={theirs} mine={mine} />
       </Card>
@@ -192,36 +213,43 @@ function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...action
   return (
     // The next step stays in view while the application scrolls — 24px down, below the scroller's
     // top fade (ScrollFade's RAMP), so the fade never thins it.
-    <div className="sticky top-6 flex w-[385px] shrink-0 flex-col gap-4 max-lg:static max-lg:order-first max-lg:w-full">
-      <div data-tour="application-step" className="flex flex-col gap-4">
+    <div className="sticky top-6 flex w-[385px] shrink-0 flex-col gap-4 max-lg:contents">
+      <div data-tour="application-step" className={`flex flex-col gap-4 ${ORDER.next}`}>
         <NextStep app={app} job={job} live={live} onReviewOffer={onReviewOffer} {...actions} />
       </div>
 
       {/* TB-106 — the proposal they sent, as the Team Builder reads it, opened over the page. At
           every stage from the first submission on. */}
       {proposal && live && (
-        <Card className="flex flex-col gap-3 p-4">
+        <Card className={`flex flex-col gap-3 p-4 ${ORDER.proposal}`}>
           <div className="flex items-baseline justify-between gap-3">
             <h3 className={H2}>Your proposal</h3>
             <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
               v{proposal.version} · {proposal.sent}
             </span>
           </div>
-          <button type="button" onClick={onReadProposal} className="self-start text-[14px] font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+          {/* A finger gets a tap 45px tall on the link without the card moving. */}
+          <button type="button" onClick={onReadProposal} className="self-start text-[14px] font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:-my-3 pointer-coarse:py-3">
             View proposal
           </button>
         </Card>
       )}
 
       {live?.note && (
-        <Card className="flex flex-col gap-2 p-4">
+        <Card className={`flex flex-col gap-2 p-4 ${ORDER.note}`}>
           <h3 className={H2}>Your note with the application</h3>
           <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">{live.note}</p>
         </Card>
       )}
 
-      <AboutCompany job={job} />
-      <button type="button" onClick={() => actions.onToast("Thanks. Our team will review this role.")} className="flex items-center gap-2 text-[14px] font-medium text-accent-ink">
+      <AboutCompany job={job} className={ORDER.company} />
+      {/* As wide as its words in the one column too, not a full-width strip that flags on any tap
+          beside it; a finger gets a tap 45px tall without the line moving. */}
+      <button
+        type="button"
+        onClick={() => actions.onToast("Thanks. Our team will review this role.")}
+        className={`flex items-center gap-2 text-[14px] font-medium text-accent-ink max-lg:self-start pointer-coarse:-my-3 pointer-coarse:py-3 ${ORDER.flag}`}
+      >
         <Flag size={20} aria-hidden /> Flag role
       </button>
     </div>
@@ -229,10 +257,10 @@ function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...action
 }
 
 /** The company behind the role: its name, where it is and what it does. */
-function AboutCompany({ job }: { job: JobView }) {
+function AboutCompany({ job, className = "" }: { job: JobView; className?: string }) {
   const initials = job.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <Card className="flex flex-col gap-4 p-4">
+    <Card className={`flex flex-col gap-4 p-4 ${className}`}>
       <h3 className={H2}>About the Team Builder</h3>
       <div className="flex items-center gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#5b5bd6] text-[15px] leading-none font-semibold text-white">{initials}</span>

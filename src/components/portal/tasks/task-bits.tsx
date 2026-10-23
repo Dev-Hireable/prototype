@@ -62,15 +62,16 @@ export function StatusCircle({ status, onClick, label, size = 18 }: { status: Ta
   if (!onClick) return label ? <Tip label={label}>{body}</Tip> : body;
   return (
     <Tip label={label}>
-      <button type="button" aria-label={label} onClick={onClick} className="group/circle flex shrink-0 rounded-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+      {/* 34px to tap on a touch screen: any more would reach the name beside it, which opens the item. */}
+      <button type="button" aria-label={label} onClick={onClick} className="group/circle hit-area flex shrink-0 rounded-full [--hit:34px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
         {body}
       </button>
     </Tip>
   );
 }
 
-/** A compact control that looks like its value: a pill, a date, a placeholder until something is set. */
-const TRIGGER = "inline-flex h-7 max-w-full items-center gap-1 rounded-md px-1.5 text-[13px] leading-[1.2] text-ink-2 transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-surface-2";
+/** A compact control that looks like its value: a pill, a date, a placeholder until something is set; a finger gets 36px of it. */
+const TRIGGER = "hit-area inline-flex h-7 [--hit:36px] max-w-full items-center gap-1 rounded-md px-1.5 text-[13px] leading-[1.2] text-ink-2 transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-surface-2";
 
 /** Priority as a pill, and a menu to change it when this side can. */
 export function PriorityMenu({ priority, onChange, placeholder = "Set priority" }: { priority?: TaskPriority; onChange?: (p: TaskPriority | null) => void; /** What an unset priority reads as while it can be set. */ placeholder?: string }) {

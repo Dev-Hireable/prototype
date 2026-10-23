@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
-import { Suspense, use, useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { Suspense, use, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { Avatar, Button, Card, Chip, JobBadge, LinkButton, MatchPill, MessageButton, Modal, Page, StatusDot, Tabs, Toast } from "@/components/portal/ui";
-import { KanbanColumn, KanbanEmpty, KanbanList } from "@/components/portal/board";
+import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList } from "@/components/portal/board";
+import { useBoardJump } from "@/components/portal/board-jump";
+import { PHONE_BOARD } from "@/components/portal/styles";
 import { FactStrip } from "@/components/portal/page-parts";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
@@ -70,8 +72,6 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
   const role = roles.find((r) => r.slug === slug);
   const [tab, setTab] = useQueryState("tab", "candidates", ["candidates", "details"] as const);
   const [toast, setToast] = useToast();
-  // The roles hydrate from storage after mount, so wait for this one before looking for columns.
-  const { boardRef, setColumn, focused } = useColumnJump(!!role, tab === "candidates");
   if (!role) notFound();
 
   return (
@@ -106,7 +106,7 @@ function Role({ params }: { params: Promise<{ slug: string }> }) {
           the space under the nav row instead of overflowing by its height. */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
         {tab === "candidates" ? (
-          <Board role={role} list={candidates.filter((c) => c.role === role.slug)} unread={unreadChat(live, "team")} boardRef={boardRef} setColumn={setColumn} focused={focused} actions={dialogs.actions} />
+          <Board role={role} list={candidates.filter((c) => c.role === role.slug)} unread={unreadChat(live, "team")} actions={dialogs.actions} />
         ) : (
           <JobDetails role={role} />
         )}
@@ -264,65 +264,53 @@ function CandidateSheet({ role, dialogs }: { role: RoleData; dialogs: CardDialog
 }
 
 /**
- * `?stage=` comes from a count on All roles, or a notification: open the board at that column. It
- * scrolls the board so the column sits as close to the middle as the scroll range allows, and frames
- * it for a moment so it's obvious which one was opened.
+ * `?stage=` comes from a count on All roles, or a notification: open the board at that column,
+ * scrolled as near the middle as the scroll range allows and framed for a moment so it's obvious
+ * which one was opened. Without one, a phone opens at the first column with a candidate in it.
  */
-function useColumnJump(ready: boolean, onBoard: boolean) {
+function useColumnJump(start: string | null) {
   const focusKey = useSearchParams().get("stage");
+  const { board, jumpTo, current } = useBoardJump(focusKey ? null : start);
   const [focused, setFocused] = useState<string | null>(null);
-  const columnRefs = useRef<Record<string, HTMLElement | null>>({});
-  const boardRef = useRef<HTMLDivElement>(null);
   const unframe = useRef<ReturnType<typeof setTimeout>>(undefined);
-  /** By hand rather than scrollIntoView, which would also scroll the page. */
-  const jumpTo = useCallback((key: string) => {
-    const el = columnRefs.current[key];
-    const board = boardRef.current;
-    if (!el || !board) return;
-    const col = el.getBoundingClientRect();
-    const box = board.getBoundingClientRect();
-    board.scrollTo({ left: board.scrollLeft + col.left - box.left - (board.clientWidth - col.width) / 2, behavior: "smooth" });
-    setFocused(key);
-    clearTimeout(unframe.current);
-    unframe.current = setTimeout(() => setFocused(null), 2500);
-  }, []);
   useEffect(() => () => clearTimeout(unframe.current), []);
   useEffect(() => {
-    if (!ready || !focusKey || !onBoard) return;
+    if (!focusKey) return;
     // Next frame: the board has laid out its final width by then.
-    const frame = requestAnimationFrame(() => jumpTo(focusKey));
+    const frame = requestAnimationFrame(() => {
+      if (!jumpTo(focusKey)) return;
+      setFocused(focusKey);
+      clearTimeout(unframe.current);
+      unframe.current = setTimeout(() => setFocused(null), 2500);
+    });
     return () => cancelAnimationFrame(frame);
-  }, [ready, focusKey, onBoard, jumpTo]);
-  /** Where each column is, for jumpTo to scroll it into the middle. */
-  const setColumn = useCallback((key: string, el: HTMLElement | null) => {
-    columnRefs.current[key] = el;
-  }, []);
-  return { boardRef, setColumn, focused };
+  }, [focusKey, jumpTo]);
+  return { board, jumpTo, current, focused };
 }
 
 /**
- * TB-037 — the role's candidates by column, with per-column counts. `focused` is the column a
- * `?stage=` link opened, and `setColumn` tells the jump where each column is.
+ * TB-037 — the role's candidates by column, with per-column counts; on a phone, a column at a time
+ * with a chip per column to jump between them.
  */
-function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { role: RoleData; list: Candidate[]; unread: number; boardRef: RefObject<HTMLDivElement | null>; setColumn: (key: string, el: HTMLElement | null) => void; focused: string | null; actions: CardActions }) {
-  /** Trial Ended only means something on a trial role — unless a card is already in it. */
-  const columns = TRACKER_COLUMNS.filter((col) => col.key !== "trial_ended" || role.type === "trial" || list.some((c) => c.trialEnded));
+function Board({ role, list, unread, actions }: { role: RoleData; list: Candidate[]; unread: number; actions: CardActions }) {
+  /** Trial Ended only means something on a trial role — unless a card is already in it. A declined candidate sits in Declined (TB-037) and a closed trial in Trial Ended, not their stage's column. */
+  const columns = TRACKER_COLUMNS.filter((col) => col.key !== "trial_ended" || role.type === "trial" || list.some((c) => c.trialEnded)).map((col) => ({ col, cards: list.filter((c) => columnOf(c) === col.key) }));
+  const { board, jumpTo, current, focused } = useColumnJump(columns.find((c) => c.cards.length)?.col.key ?? null);
   return (
-    /* The 40px side and bottom gutters are padding inside the board, so its horizontal bar
-       runs along the panel's bottom edge, 8px in, the same as every vertical bar — it used
-       to float 48px up with an empty strip under it. At rest the padding still lines the
-       columns up with the back link; scrolled, cards fade out at the edge rather than stopping
-       short. overflow-y-hidden stops a nested vertical scrollbar. */
-    <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
-      {/* data-tour: the role's tour points at the board and at a candidate's card (@/lib/portal/tours). */}
-      <div ref={boardRef} data-tour="role-board" className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
-        {columns.map((col) => {
-          /** A declined candidate sits in Declined (TB-037) and a closed trial in Trial Ended, not their stage's column. */
-          const cards = list.filter((c) => columnOf(c) === col.key);
-          return (
+    <>
+      <KanbanJump label="Pipeline stages" columns={columns.map(({ col, cards }) => ({ key: col.key, label: col.label, count: cards.length, colors: col }))} current={current} onJump={jumpTo} />
+      {/* The 40px side and bottom gutters are padding inside the board, so its horizontal bar
+          runs along the panel's bottom edge, 8px in, the same as every vertical bar — it used
+          to float 48px up with an empty strip under it. At rest the padding still lines the
+          columns up with the back link; scrolled, cards fade out at the edge rather than stopping
+          short. overflow-y-hidden stops a nested vertical scrollbar. */}
+      <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
+        {/* data-tour: the role's tour points at the board and at a candidate's card (@/lib/portal/tours). */}
+        <div ref={board} data-tour="role-board" className={`edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10 max-md:scroll-px-(--page-gutter) ${PHONE_BOARD}`}>
+          {columns.map(({ col, cards }) => (
             <KanbanColumn
               key={col.key}
-              ref={(el) => setColumn(col.key, el)}
+              data-column={col.key}
               label={col.label}
               count={cards.length}
               colors={col}
@@ -339,10 +327,10 @@ function Board({ role, list, unread, boardRef, setColumn, focused, actions }: { 
                 {cards.length === 0 && <ColumnEmpty column={col} />}
               </KanbanList>
             </KanbanColumn>
-          );
-        })}
-      </div>
-    </ScrollFade>
+          ))}
+        </div>
+      </ScrollFade>
+    </>
   );
 }
 
