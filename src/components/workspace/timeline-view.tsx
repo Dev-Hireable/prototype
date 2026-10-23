@@ -7,7 +7,7 @@ import { ICONS } from "@/components/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { InfoTip, Tip } from "@/components/portal/tip";
 import { dayOf, isWeekend, MONTH_SHORT, partsOf, rangeLabel, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";
-import { dateKind, datesOf, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
+import { dateKind, datesOf, isCompleted, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
 import { changeFor } from "@/lib/work/permissions";
 import { SCALES, type Group, type Scale, type WorkQuery } from "@/lib/work/query";
 import { barOf, dependencyLinks, dragDates, PX_PER_DAY, ticksOf, timelineRange, type Bar, type DependencyLink, type DragMode } from "@/lib/work/timeline";
@@ -30,14 +30,17 @@ import { groupColors } from "./labels";
  */
 
 /**
- * The item column: wide enough that most titles fit in the two lines a row allows — or, on a phone,
- * narrow enough to leave most of the width to the chart (the names truncate; a tap opens the item).
- * The chart's parts read it from LeftWidth.
+ * How the chart is laid out, which its parts read from Chart. `left` is the item column: wide enough
+ * that most titles fit in the two lines a row allows. A phone has no item column (`phone`): a column
+ * narrow enough to leave the chart any room cut the names to a few letters, so each row is its name
+ * on a line of its own, pinned at the left edge as the chart scrolls (`frameW`, the chart's visible
+ * width), over its bar.
  */
 const LEFT_WIDE = 340;
-const LEFT_PHONE = 132;
-const LeftWidth = createContext(LEFT_WIDE);
+const Chart = createContext({ left: LEFT_WIDE, phone: false, frameW: 0 });
 const ROW_H = 38;
+/** A phone's bar line, under the row's name. */
+const PHONE_BAR_H = 32;
 const GROUP_H = 32;
 const HEAD_H = 52;
 
@@ -107,15 +110,19 @@ export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[
   const hint = useMemo(() => dragHint(all, env), [all, env]);
   const range = useMemo(() => timelineRange(all, today, scale), [all, today, scale]);
   const from = range.from;
-  const LEFT = useMedia(PHONE) ? LEFT_PHONE : LEFT_WIDE;
-  const { scroller, frameW, scrollToToday } = useChartScroller(today, from, px, scale, LEFT);
+  const phone = useMedia(PHONE);
+  const LEFT = phone ? 0 : LEFT_WIDE;
+  // A phone opens on the earliest work still open: today could be weeks past it, the bars off-screen.
+  const firstOpen = useMemo(() => (phone ? firstOpenX(all, from, px) : null), [phone, all, from, px]);
+  const { scroller, frameW, scrollToToday } = useChartScroller({ today, from, px, scale, left: LEFT, firstOpen });
   // Whole days up to the edge, then the width to the exact pixel — a part-day more would scroll.
   const to = Math.max(range.to, from + Math.floor((frameW - LEFT) / px) - 1);
   const width = Math.max((to - from + 1) * px, frameW - LEFT);
   const { rows, visibleRows, sentinel, rowY, links } = useTimelineRows(groups, byId);
+  const chart = useMemo(() => ({ left: LEFT, phone, frameW }), [LEFT, phone, frameW]);
 
   return (
-    <LeftWidth.Provider value={LEFT}>
+    <Chart.Provider value={chart}>
       <div className="flex min-h-0 flex-1 flex-col px-[var(--ws-gutter,1rem)] pt-3 pb-4">
         <ScaleBar scale={scale} setQuery={setQuery} onToday={scrollToToday} hidden={links.hidden} hint={hint} />
         {/* Bordered frame, scroller inside: an outline on the scroller sat under its pinned header and item column. */}
@@ -125,7 +132,8 @@ export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[
               <TimelineHead from={from} to={to} px={px} width={width} scale={scale} today={today} />
               <div className="relative">
                 <DayMarks from={from} to={to} px={px} width={width} scale={scale} today={today} />
-                <DependencyLines links={links.links} byId={byId} rowY={rowY} from={from} px={px} width={width} />
+                {/* A phone's rows are as tall as their names, so the lines between them, drawn to fixed rows, are left out there. */}
+                {!phone && <DependencyLines links={links.links} byId={byId} rowY={rowY} from={from} px={px} width={width} />}
                 {visibleRows.map((r) =>
                   r.kind === "group" ? (
                     <GroupBand key={`g-${r.group.key}`} group={r.group} width={width} />
@@ -140,12 +148,26 @@ export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[
           </div>
         </div>
       </div>
-    </LeftWidth.Provider>
+    </Chart.Provider>
   );
 }
 
-/** The chart's scroller: how wide it is inside, kept current as it resizes, and a scroll back to today. */
-function useChartScroller(today: Day, from: Day, px: number, scale: Scale, LEFT: number) {
+/** Where the earliest bar of the work still open starts, or null when nothing open has dates. */
+function firstOpenX(items: readonly WorkItem[], from: Day, px: number): number | null {
+  let x: number | null = null;
+  for (const t of items) {
+    const bar = isCompleted(t.status) ? null : barOf(t, from, px);
+    if (bar && (x === null || bar.x < x)) x = bar.x;
+  }
+  return x;
+}
+
+/**
+ * The chart's scroller: how wide it is inside, kept current as it resizes, and a scroll back to today.
+ * It opens on today, or — given `firstOpen` (a phone) — on the earliest bar still open, a little in
+ * from the edge.
+ */
+function useChartScroller({ today, from, px, scale, left, firstOpen }: { today: Day; from: Day; px: number; scale: Scale; left: number; firstOpen: number | null }) {
   const scroller = useRef<HTMLDivElement>(null);
   /** The frame's inner width. The grid runs at least that far, so its header, bands and row rules reach the
    *  frame's right edge instead of stopping where the items' dates run out. */
@@ -160,14 +182,16 @@ function useChartScroller(today: Day, from: Day, px: number, scale: Scale, LEFT:
 
   const scrollToToday = () => {
     const el = scroller.current;
-    if (el) el.scrollLeft = Math.max(0, (today - from) * px - (el.clientWidth - LEFT) / 3);
+    if (el) el.scrollLeft = Math.max(0, (today - from) * px - (el.clientWidth - left) / 3);
   };
-  // Open on today, and again when the scale changes — not every time the range grows under a drag.
+  // Open where it starts, and again when the scale changes — not every time the range grows under a drag.
   const scrolledFor = useRef<Scale | null>(null);
   useEffect(() => {
-    if (scrolledFor.current === scale) return;
+    const el = scroller.current;
+    if (!el || scrolledFor.current === scale) return;
     scrolledFor.current = scale;
-    scrollToToday();
+    if (firstOpen === null) scrollToToday();
+    else el.scrollLeft = Math.max(0, firstOpen - 16);
   });
   return { scroller, frameW, scrollToToday };
 }
@@ -201,18 +225,21 @@ function useTimelineRows(groups: Group[], byId: ReadonlyMap<string, WorkItem>) {
   return { rows, visibleRows, sentinel, rowY, links };
 }
 
-/** Above the chart: the scale, a jump back to today, what the filters leave out, and how to move a bar. */
+/**
+ * Above the chart: the scale, a jump back to today, what the filters leave out, and how to move a bar.
+ * On a phone the controls are 40px tall, the view tabs' height, for a thumb.
+ */
 function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; setQuery: (p: Partial<WorkQuery>) => void; onToday: () => void; hidden: number; hint: ReturnType<typeof dragHint> }) {
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2">
       <span role="radiogroup" aria-label="Timeline scale" className="inline-flex rounded-lg bg-surface-2 p-[3px]">
         {SCALES.map((s) => (
-          <button key={s} type="button" role="radio" aria-checked={scale === s} onClick={() => setQuery({ scale: s })} className={`h-7 rounded-md px-3 text-[13px] font-medium capitalize ${scale === s ? "bg-white text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}>
+          <button key={s} type="button" role="radio" aria-checked={scale === s} onClick={() => setQuery({ scale: s })} className={`h-7 rounded-md px-3 text-[13px] font-medium capitalize max-md:h-[34px] ${scale === s ? "bg-white text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}>
             {s}
           </button>
         ))}
       </span>
-      <button type="button" onClick={onToday} className="h-9 rounded-lg border border-border bg-white px-3 text-[13px] font-medium text-ink hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary">
+      <button type="button" onClick={onToday} className="h-9 rounded-lg border border-border bg-white px-3 text-[13px] font-medium text-ink hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary max-md:h-10">
         Today
       </button>
       {hidden > 0 && <span className="text-[12.5px] text-ink-2">{hidden} {hidden === 1 ? "dependency is" : "dependencies are"} on items hidden by the filters.</span>}
@@ -226,16 +253,18 @@ function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; se
   );
 }
 
-/** The pinned header: the item column's heading, then the months over the scale's ticks, today's in bold. */
+/** The pinned header: the item column's heading (where there's an item column), then the months over the scale's ticks, today's in bold. */
 function TimelineHead({ from, to, px, width, scale, today }: { from: Day; to: Day; px: number; width: number; scale: Scale; today: Day }) {
-  const LEFT = useContext(LeftWidth);
+  const { left: LEFT } = useContext(Chart);
   const ticks = ticksOf(from, to, scale);
   const months = scale === "month" ? [] : ticksOf(from, to, "month");
   return (
     <div className="sticky top-0 z-30 flex border-b border-border bg-surface-2" style={{ height: HEAD_H }}>
-      <div className="sticky left-0 z-40 flex shrink-0 items-end border-r border-border bg-surface-2 px-4 pb-2 text-[12.5px] font-medium text-ink-2" style={{ width: LEFT }}>
-        Item
-      </div>
+      {LEFT > 0 && (
+        <div className="sticky left-0 z-40 flex shrink-0 items-end border-r border-border bg-surface-2 px-4 pb-2 text-[12.5px] font-medium text-ink-2" style={{ width: LEFT }}>
+          Item
+        </div>
+      )}
       {/* Clipped: a week tick is always 7 days, so the last one would run past the grid and scroll it sideways. */}
       <div className="relative overflow-hidden" style={{ width }} aria-hidden>
         {months.map((t) => (
@@ -255,7 +284,7 @@ function TimelineHead({ from, to, px, width, scale, today }: { from: Day; to: Da
 
 /** Behind the rows: the weekends shaded (not at a month's scale), and today's line with its label at the top. */
 function DayMarks({ from, to, px, width, scale, today }: { from: Day; to: Day; px: number; width: number; scale: Scale; today: Day }) {
-  const LEFT = useContext(LeftWidth);
+  const { left: LEFT } = useContext(Chart);
   return (
     <>
       <div aria-hidden className="pointer-events-none absolute top-0 bottom-0" style={{ left: LEFT, width }}>
@@ -276,7 +305,7 @@ function DayMarks({ from, to, px, width, scale, today }: { from: Day; to: Day; p
 
 /** The lines from each shown item to the shown work that waits on it; `rowY` is where each row sits. */
 function DependencyLines({ links, byId, rowY, from, px, width }: { links: DependencyLink[]; byId: ReadonlyMap<string, WorkItem>; rowY: { map: Map<string, number>; height: number }; from: Day; px: number; width: number }) {
-  const LEFT = useContext(LeftWidth);
+  const { left: LEFT } = useContext(Chart);
   return (
     <svg aria-hidden className="pointer-events-none absolute top-0 z-10 overflow-visible" style={{ left: LEFT, width, height: rowY.height }}>
       <defs>
@@ -305,16 +334,17 @@ function DependencyLines({ links, byId, rowY, from, px, width }: { links: Depend
 /**
  * A group's heading as a band across the whole chart, in the board's column colours (To do grey,
  * In progress blue, In review yellow, Done green) so the groups read apart at a glance. Positioned,
- * so it paints over the weekend stripes; the today line and dependency lines stay on top.
+ * so it paints over the weekend stripes; the today line and dependency lines stay on top. On a phone
+ * the label is only as wide as its words, pinned at the left edge, so today's tag still shows.
  */
 function GroupBand({ group, width }: { group: Group; width: number }) {
-  const LEFT = useContext(LeftWidth);
+  const { left: LEFT, phone } = useContext(Chart);
   const colors = groupColors(group);
   // The rule is an inset shadow on the band and a border on the pinned label, which covers its own
   // full height — a border on the band alone left a 1px slit the today line showed through.
   return (
     <div className="relative flex shadow-[inset_0_-1px_0_#e3e3e3]" style={{ height: GROUP_H, width: LEFT + width, background: colors.bg }}>
-      <span className="sticky left-0 z-[25] flex items-center border-r border-b border-r-black/[0.07] border-b-[#e3e3e3] px-4" style={{ width: LEFT, background: colors.bg }}>
+      <span className={`sticky left-0 z-[25] flex items-center border-b border-b-[#e3e3e3] ${phone ? "px-3" : "border-r border-r-black/[0.07] px-4"}`} style={{ width: phone ? undefined : LEFT, background: colors.bg }}>
         <GroupLabel group={group} colors={colors} />
       </span>
     </div>
@@ -483,17 +513,24 @@ function BarTag({ id, x, problem, dates }: { id: string; x: number; problem?: st
   );
 }
 
-/** The item column of a row: its status, number and name, and a mark when it starts too soon. */
+/**
+ * The item column of a row: its status, number and name, and a mark when it starts too soon. On a
+ * phone it's the row's first line, over the bar: as wide as its words, up to the chart's visible
+ * width, and pinned at the left edge as the chart scrolls. Words wrap whole there, never mid-word.
+ */
 function RowLabel({ item: t, violated }: { item: WorkItem; violated: boolean }) {
-  const LEFT = useContext(LeftWidth);
+  const { left: LEFT, phone, frameW } = useContext(Chart);
   const { openTask } = useWorkspace();
   return (
-    <div className="sticky left-0 z-[25] flex shrink-0 items-center gap-2 border-r border-b border-r-[#eeeeee] border-b-[#f0f0f0] bg-white px-4" style={{ width: LEFT }}>
+    <div
+      className={`sticky left-0 z-[25] flex shrink-0 items-center gap-2 ${phone ? "w-fit rounded-br-md bg-white/90 px-3 pt-2 pb-0.5" : "border-r border-b border-r-[#eeeeee] border-b-[#f0f0f0] bg-white px-4"}`}
+      style={phone ? { maxWidth: frameW || undefined } : { width: LEFT }}
+    >
       <StatusCircle status={t.status} size={14} label={STATUS_META[t.status].label} />
       <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
       {/* Two lines hold most titles; one longer than that shows whole on hover. */}
       <Tip label={t.title} off={t.title.length < 70}>
-        <button type="button" onClick={() => openTask(t.id)} className="line-clamp-2 min-w-0 flex-1 text-left text-[13px] leading-[1.25] break-words text-ink hover:underline focus-visible:underline focus-visible:outline-none">
+        <button type="button" onClick={() => openTask(t.id)} className={`line-clamp-2 min-w-0 flex-1 text-left text-[13px] leading-[1.25] text-ink hover:underline focus-visible:underline focus-visible:outline-none ${phone ? "break-normal pointer-coarse:-my-2 pointer-coarse:py-2" : "break-words"}`}>
           {t.title}
         </button>
       </Tip>
@@ -506,14 +543,19 @@ function RowLabel({ item: t, violated }: { item: WorkItem; violated: boolean }) 
   );
 }
 
-/** Where a bar would be for an item with no dates: it says so, and offers to schedule it to whoever may. */
+/**
+ * Where a bar would be for an item with no dates: it says so, and offers to schedule it to whoever
+ * may. Beside today — or, on a phone, pinned at the chart's left edge, under the item's name, so it
+ * never sits off-screen.
+ */
 function Unscheduled({ item: t, left, schedulable }: { item: WorkItem; left: number; schedulable: boolean }) {
   const { openTask } = useWorkspace();
+  const { phone } = useContext(Chart);
   return (
-    <span className="absolute inset-y-0 flex items-center gap-2 pl-3" style={{ left }}>
+    <span className={`inset-y-0 flex items-center gap-2 pl-3 ${phone ? "sticky left-0 h-full w-fit" : "absolute"}`} style={phone ? undefined : { left }}>
       <span className="text-[12px] text-ink-2">No dates</span>
       {schedulable && (
-        <button type="button" onClick={() => openTask(t.id, "dates")} className="inline-flex h-6 items-center gap-1 rounded-md border border-border bg-white px-2 text-[12px] font-medium text-ink hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary">
+        <button type="button" onClick={() => openTask(t.id, "dates")} className="hit-area inline-flex h-6 items-center gap-1 rounded-md border border-border bg-white px-2 text-[12px] font-medium text-ink [--hit:32px] hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary">
           <ICONS.schedule size={13} aria-hidden /> Schedule
         </button>
       )}
@@ -541,45 +583,59 @@ function shownBar(t: WorkItem, preview: Preview | null, from: Day, px: number, r
   return { bar: barOf(shown, from, px), bad: next ? checkDates({ start: next.start, due: next.due, type: t.type }, t, rules) : null, ...datesOf(shown) };
 }
 
+/** A row: the item's name (its column, or on a phone its own line), then the line its bar runs along. */
 const TimelineRow = memo(function TimelineRow({ item: t, from, px, width, scale, violated }: { item: WorkItem; from: Day; px: number; width: number; scale: Scale; violated: boolean }) {
-  const env = useWorkspace();
-  const { access, today } = env;
-  const { can, canStart, allowed } = planRights(t, env);
-  const grabbable = allowed("move");
-  const { preview, error, grab, handlers } = useBarDrag(t, px, allowed);
-  const { bar, bad, start, due } = shownBar(t, preview, from, px, { today, lastDay: dayOf(access.lastDay) });
-  const label = `${refOf(t)} ${t.title}, ${STATUS_META[t.status].label}, ${rangeLabel(start, due, today)}`;
-
+  const { phone } = useContext(Chart);
   return (
-    <div className="flex" style={{ height: ROW_H }} data-item-id={t.id} data-status={t.status} data-start={t.start ?? ""} data-due={t.due ?? ""}>
+    <div className={phone ? "flex flex-col border-b border-[#f0f0f0]" : "flex"} style={phone ? undefined : { height: ROW_H }} data-item-id={t.id} data-status={t.status} data-start={t.start ?? ""} data-due={t.due ?? ""}>
       <RowLabel item={t} violated={violated} />
-      <div className="relative border-b border-[#f0f0f0]" style={{ width }}>
-        {!bar ? (
-          <Unscheduled item={t} left={Math.max(0, (today - from) * px - 40)} schedulable={can || canStart} />
-        ) : (
-          <>
-            <BarButton item={t} bar={bar} bad={!!bad} label={label} can={can} canStart={canStart} grabbable={grabbable} scale={scale} grab={grab} handlers={handlers} />
-            {/* The name beside a bar too short to hold it, or a month's worth of bars. */}
-            {(bar.w < 90 || scale === "month" || bar.kind === "milestone") && (
-              <span className="pointer-events-none absolute top-1/2 -translate-y-1/2 truncate pl-2 text-[11.5px] text-ink-2" style={{ left: bar.x + Math.max(bar.w, 8) + 4, maxWidth: 240 }}>
-                {t.title}
-              </span>
-            )}
-            {(preview || error) && <BarTag id={`tl-err-${t.id}`} x={bar.x} problem={error ?? bad?.message} dates={rangeLabel(start, due, today)} />}
-          </>
-        )}
-      </div>
+      <BarLine item={t} from={from} px={px} width={width} scale={scale} />
     </div>
   );
 });
+
+/**
+ * The line a row's bar runs along: the bar, moved by whoever may plan it, with its name inside or
+ * beside it where there's no room — or, with no dates, saying so. A phone has the name on the line
+ * above, so a bar never repeats it there.
+ */
+function BarLine({ item: t, from, px, width, scale }: { item: WorkItem; from: Day; px: number; width: number; scale: Scale }) {
+  const env = useWorkspace();
+  const { phone } = useContext(Chart);
+  const { access, today } = env;
+  const { can, canStart, allowed } = planRights(t, env);
+  const { preview, error, grab, handlers } = useBarDrag(t, px, allowed);
+  const { bar, bad, start, due } = shownBar(t, preview, from, px, { today, lastDay: dayOf(access.lastDay) });
+  const label = `${refOf(t)} ${t.title}, ${STATUS_META[t.status].label}, ${rangeLabel(start, due, today)}`;
+  const named = !phone && !!bar && (bar.w < 90 || scale === "month" || bar.kind === "milestone");
+  return (
+    <div className={`relative ${phone ? "" : "border-b border-[#f0f0f0]"}`} style={{ width, height: phone ? PHONE_BAR_H : undefined }}>
+      {!bar ? (
+        <Unscheduled item={t} left={Math.max(0, (today - from) * px - 40)} schedulable={can || canStart} />
+      ) : (
+        <>
+          <BarButton item={t} bar={bar} bad={!!bad} label={label} can={can} canStart={canStart} grabbable={allowed("move")} titled={!phone && bar.w >= 90 && scale !== "month"} grab={grab} handlers={handlers} />
+          {/* The name beside a bar too short to hold it, or a month's worth of bars. */}
+          {named && (
+            <span className="pointer-events-none absolute top-1/2 -translate-y-1/2 truncate pl-2 text-[11.5px] text-ink-2" style={{ left: bar.x + Math.max(bar.w, 8) + 4, maxWidth: 240 }}>
+              {t.title}
+            </span>
+          )}
+          {(preview || error) && <BarTag id={`tl-err-${t.id}`} x={bar.x} problem={error ?? bad?.message} dates={rangeLabel(start, due, today)} />}
+        </>
+      )}
+    </div>
+  );
+}
 
 type BarDrag = ReturnType<typeof useBarDrag>;
 
 /**
  * The bar: a button that opens the item and moves by pointer or keys, with grips on the ends this
- * person may drag. Its name says what the keys do; `bad` points it at the tag saying why a move can't land.
+ * person may drag. Its name says what the keys do; `bad` points it at the tag saying why a move can't
+ * land. `titled`: the item's name inside it, where it's long enough to hold it.
  */
-function BarButton({ item: t, bar, bad, label, can, canStart, grabbable, scale, grab, handlers }: { item: WorkItem; bar: Bar; bad: boolean; label: string; can: boolean; canStart: boolean; grabbable: boolean; scale: Scale; grab: BarDrag["grab"]; handlers: BarDrag["handlers"] }) {
+function BarButton({ item: t, bar, bad, label, can, canStart, grabbable, titled, grab, handlers }: { item: WorkItem; bar: Bar; bad: boolean; label: string; can: boolean; canStart: boolean; grabbable: boolean; titled: boolean; grab: BarDrag["grab"]; handlers: BarDrag["handlers"] }) {
   return (
     <button
       type="button"
@@ -591,7 +647,7 @@ function BarButton({ item: t, bar, bad, label, can, canStart, grabbable, scale, 
       className={barClass(bar, t.status, bad, grabbable)}
       style={bar.kind === "milestone" ? { left: bar.x - 8, width: 16, height: 16 } : { left: bar.x + 1, width: Math.max(bar.w - 2, 6) }}
     >
-      <BarInside bar={bar} bad={bad} title={bar.w >= 90 && scale !== "month" ? t.title : undefined} grabStart={(can || canStart) && bar.kind !== "start" ? grab("start") : undefined} grabEnd={can && bar.kind !== "due" ? grab("end") : undefined} />
+      <BarInside bar={bar} bad={bad} title={titled ? t.title : undefined} grabStart={(can || canStart) && bar.kind !== "start" ? grab("start") : undefined} grabEnd={can && bar.kind !== "due" ? grab("end") : undefined} />
     </button>
   );
 }

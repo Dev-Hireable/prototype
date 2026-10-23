@@ -44,7 +44,7 @@ const GROUPS: Group[] = ["Today", "Yesterday", "Earlier"];
 const STEP = 10;
 
 /** The text buttons beside the pills, Select and Mark all as read: blue, grey while there's nothing to do. */
-const TEXT_ACTION = "rounded-md text-[13px] font-medium text-primary enabled:hover:underline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:text-[#c3c3c3]";
+const TEXT_ACTION = "hit-area rounded-md [--hit:32px] text-[13px] font-medium text-primary enabled:hover:underline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:text-[#c3c3c3]";
 
 /** What a delete took out of the feed: how many, and what puts them back. */
 type Removed = { count: number; undo: () => void };

@@ -146,8 +146,9 @@ function ListHead({ cols, query, setQuery }: { cols: Col[]; query: WorkQuery; se
               aria-sort={active ? (query.dir === "asc" ? "ascending" : "descending") : undefined}
               className={`sticky top-0 z-20 h-9 border-b border-border bg-surface-2 px-2 py-2 text-left text-[12.5px] font-medium whitespace-nowrap text-ink-2 ${i === 0 ? "left-0 z-30 pl-4" : ""}`}
             >
+              {/* On a touch screen the sort is the header's full height to tap; the margin takes the padding back, so nothing moves. */}
               {c.sort ? (
-                <button type="button" onClick={() => sortBy(c.sort as SortKey)} className="inline-flex items-center gap-1 rounded hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
+                <button type="button" onClick={() => sortBy(c.sort as SortKey)} className="inline-flex items-center gap-1 rounded hover:text-ink focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:-my-2 pointer-coarse:py-2">
                   {c.label}
                   {active ? <ICONS.chevron size={16} aria-hidden className={query.dir === "asc" ? "rotate-180" : ""} /> : <ICONS.sort size={14} aria-hidden className="opacity-40" />}
                 </button>

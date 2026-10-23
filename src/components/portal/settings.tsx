@@ -55,8 +55,9 @@ function AccountForm({ initial, avatar, emailLabel, accountType, onSave, onPhoto
   /** TB-099 — the new address only takes effect once the code that went to it is entered. */
   const [pending, setPending] = useState<string | null>(null);
   const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  // A phone pads the settings cards as it pads the profile's header card: the fields keep the width the 24px sides took.
   return (
-    <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
+    <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
       <SettingsHeading>Account</SettingsHeading>
       {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
       <PhotoField avatar={avatar} onPhoto={onPhoto} onToast={onToast} />
@@ -197,15 +198,19 @@ function EmailChange({ label, value, saved, onChange, pending, onPending, onToas
   );
 }
 
-/** The email field with Change email beside it, which waits for a new address, and the hint under both. */
+/**
+ * The email field with Change email beside it, which waits for a new address, and the hint under
+ * both. A phone puts the button under the field, full width: beside it, the field kept a third of
+ * the address.
+ */
 function EmailField({ label, value, saved, onChange, onChangeEmail }: { label: string; value: string; saved: string; onChange: (email: string) => void; onChangeEmail: () => void }) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
         <Field label={label} className="flex-1">
           <Input value={value} onChange={(event) => onChange(event.target.value)} type="email" aria-describedby="email-change-hint" />
         </Field>
-        <Button size="lg" className="shrink-0" disabled={value === saved || !value.includes("@")} onClick={onChangeEmail}>
+        <Button size="lg" className="shrink-0 max-sm:w-full" disabled={value === saved || !value.includes("@")} onClick={onChangeEmail}>
           Change email
         </Button>
       </div>
@@ -229,7 +234,11 @@ function codeProblem(code: string, sentAt: number): string | null {
   return null;
 }
 
-/** Under the email while a new address waits: the code sent to it, Verify, Cancel, Resend, and why a code was turned down. */
+/**
+ * Under the email while a new address waits: the code sent to it, Verify, Cancel, Resend, and why a
+ * code was turned down. A phone sets the field across the box and the two buttons under it, sharing
+ * the width.
+ */
 function VerifyEmail({ address, code, sentAt, onCode, onResend, onVerify, onCancel }: {
   address: string;
   code: string;
@@ -242,7 +251,7 @@ function VerifyEmail({ address, code, sentAt, onCode, onResend, onVerify, onCanc
   const [problem, setProblem] = useState<string | null>(null);
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-4">
-      <div className="flex items-end gap-3">
+      <div className="flex items-end gap-3 max-sm:flex-col max-sm:items-stretch">
         <Field label={`Enter the code sent to ${address}`} error={problem ?? undefined} className="flex-1">
           <Input
             value={code}
@@ -253,21 +262,23 @@ function VerifyEmail({ address, code, sentAt, onCode, onResend, onVerify, onCanc
             }}
           />
         </Field>
-        <Button size="lg" variant="primary" disabled={code.length !== 6} onClick={() => {
-            const turnedDown = codeProblem(code, sentAt);
-            setProblem(turnedDown);
-            if (!turnedDown) onVerify();
-          }}
-        >
-          Verify
-        </Button>
-        <Button size="lg" onClick={onCancel}>
-          Cancel
-        </Button>
+        <div className="flex gap-3 max-sm:*:flex-1 max-sm:[&_button]:w-full">
+          <Button size="lg" variant="primary" disabled={code.length !== 6} onClick={() => {
+              const turnedDown = codeProblem(code, sentAt);
+              setProblem(turnedDown);
+              if (!turnedDown) onVerify();
+            }}
+          >
+            Verify
+          </Button>
+          <Button size="lg" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
       </div>
       <p className="text-[13px] leading-[1.4] text-ink-2">
         Enter the 6-digit code. Didn&apos;t get it?{" "}
-        <button type="button" onClick={() => (setProblem(null), onResend())} className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+        <button type="button" onClick={() => (setProblem(null), onResend())} className="hit-area font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
           Resend code
         </button>
       </p>
@@ -302,7 +313,7 @@ export function PasswordSettingsCard() {
 
   return (
     <>
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
         <SettingsHeading>Change password</SettingsHeading>
         <Field label="Current password">
           <Input
@@ -360,6 +371,9 @@ export type NotificationPreference = {
   emailDisabled?: boolean;
 };
 
+/** The table's two box columns: narrower on a phone, so each event keeps the width to read in two lines rather than four. */
+const BOX_COLUMN = "w-20 max-sm:w-14";
+
 export function NotificationPreferencesCard({ events }: { events: readonly NotificationPreference[] }) {
   const [prefs, setPrefs] = useState(() => events.map((event) => ({ ...event })));
   const [toast, setToast] = useToast();
@@ -367,16 +381,16 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
 
   return (
     <>
-      <Card className="mx-auto flex w-full max-w-[760px] flex-col gap-4 p-6">
+      <Card className="mx-auto flex w-full max-w-[760px] flex-col gap-4 p-6 max-sm:p-4">
         <SettingsHeading>Notification preferences</SettingsHeading>
         <p className="max-w-[700px] text-[13px] leading-[1.4] text-ink-2">Choose how you hear about each event. Some offer and payment alerts are always on.</p>
-        <div className="flex items-center gap-4 border-b border-border py-2 text-[12px] leading-[1.4] font-medium text-ink-2">
+        <div className="flex items-center gap-4 border-b border-border py-2 text-[12px] leading-[1.4] font-medium text-ink-2 max-sm:gap-2">
           <span className="flex-1">Event</span>
-          <span className="w-20 text-center">In-app</span>
-          <span className="w-20 text-center">Email</span>
+          <span className={`${BOX_COLUMN} text-center`}>In-app</span>
+          <span className={`${BOX_COLUMN} text-center`}>Email</span>
         </div>
         {prefs.map((event) => (
-          <div key={event.key} className="flex items-center gap-4 border-b border-border py-2.5 leading-[1.4]">
+          <div key={event.key} className="flex items-center gap-4 border-b border-border py-2.5 leading-[1.4] max-sm:gap-2">
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <p className="text-[14px] font-medium text-ink">{event.title}</p>
               <p className="text-[12px] text-ink-2">{event.body}</p>
@@ -396,18 +410,22 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
   );
 }
 
-/** One box in the preferences table; one that's always on shows a lock and says so on hover. */
+/**
+ * One box in the preferences table; one that's always on shows a lock and says so on hover, or on a
+ * tap. A phone, with no hover, says so under the lock as well.
+ */
 function PreferenceBox({ checked, locked, label, onChange }: { checked: boolean; locked?: boolean; label: string; onChange: (on: boolean) => void }) {
   if (locked)
     return (
-      <Tip label="Always on">
-        <span role="img" aria-label={`${label}: always on`} className="flex h-6 w-20 items-center justify-center text-ink-2">
+      <Tip label="Always on" tap>
+        <span role="img" aria-label={`${label}: always on`} className={`flex h-6 items-center justify-center text-ink-2 max-sm:h-auto max-sm:flex-col max-sm:gap-0.5 ${BOX_COLUMN}`}>
           <ICONS.lock size={18} aria-hidden />
+          <span className="text-[10.5px] leading-[1.2] whitespace-nowrap sm:hidden">Always on</span>
         </span>
       </Tip>
     );
   return (
-    <span className="flex h-6 w-20 items-center justify-center">
+    <span className={`flex h-6 items-center justify-center ${BOX_COLUMN}`}>
       <Checkbox checked={checked} onChange={onChange}>
         <span className="sr-only">{label}</span>
       </Checkbox>
@@ -415,7 +433,14 @@ function PreferenceBox({ checked, locked, label, onChange }: { checked: boolean;
   );
 }
 
-export function PaymentMethodRow({ brand, title, subtitle, actions }: { brand: ReactNode; title: ReactNode; subtitle: ReactNode; actions?: ReactNode }) {
+export function PaymentMethodRow({ brand, title, subtitle, actions, note }: {
+  brand: ReactNode;
+  title: ReactNode;
+  subtitle: ReactNode;
+  actions?: ReactNode;
+  /** Why a button in `actions` is off. Its tip says so on hover; a phone, with none, says it under the buttons. */
+  note?: ReactNode;
+}) {
   return (
     // On a phone the buttons drop to a row of their own under the method, sharing its width.
     <div className="flex items-center gap-4 rounded-lg p-4 outline -outline-offset-1 outline-border max-sm:flex-wrap max-sm:gap-3">
@@ -425,6 +450,7 @@ export function PaymentMethodRow({ brand, title, subtitle, actions }: { brand: R
         <span className="text-[12px] leading-[1.4] text-ink-2">{subtitle}</span>
       </span>
       {actions && <div className="flex items-center gap-4 max-sm:w-full max-sm:gap-2 max-sm:*:flex-1 max-sm:[&_button]:h-10 max-sm:[&_button]:w-full">{actions}</div>}
+      {note && <p className="basis-full text-[12px] leading-[1.4] text-ink-2 sm:hidden">{note}</p>}
     </div>
   );
 }

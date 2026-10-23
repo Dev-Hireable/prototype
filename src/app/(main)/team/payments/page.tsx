@@ -5,8 +5,8 @@ import { Button, Card, Chip, Drawer, EmptyState, LinkButton, Page, Row, SearchBo
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { Transaction } from "@/lib/team/data";
 import { useLedger } from "@/lib/team/contracts";
+import { LEDGER_COLS as COLS } from "@/components/portal/styles";
 
-const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[130px]", "w-[110px]", "w-[132px]", "w-[80px]"];
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
 /** One name for each kind of transaction, the same in the filter, the table and the drawer. */
@@ -94,54 +94,61 @@ function useFilters(transactions: Transaction[]) {
 
 type Filters = ReturnType<typeof useFilters>;
 
-/** Search and the type, contract and date-range filters — any change goes back to the first page — and Export CSV. */
+/**
+ * Search and the type, contract and date-range filters — any change goes back to the first page — and
+ * Export CSV. On a phone the search spans the row and the rest sit two to a line in even columns: the
+ * shared row's wrapping gave Export CSV a wider share than the box beside it, its padding counting
+ * toward it.
+ */
 function LedgerToolbar({ filters, onExport }: { filters: Filters; onExport: () => void }) {
   const { q, setQ, type, setType, contract, setContract, range, setRange, setPage, contracts } = filters;
   return (
-    <Toolbar
-      right={
-        <Button size="lg" className="!px-5" onClick={onExport}>
-          Export CSV
-        </Button>
-      }
-    >
-      <SearchBox
-        value={q}
-        onChange={(v) => {
-          setQ(v);
-          setPage(1);
-        }}
-        placeholder="Search by contract or independent"
-        className="w-[300px]"
-      />
-      <Select
-        options={TYPES}
-        value={type}
-        onChange={(e) => {
-          setType(e.target.value);
-          setPage(1);
-        }}
-        className="!w-[190px]"
-      />
-      <Select
-        options={contracts}
-        value={contract}
-        onChange={(e) => {
-          setContract(e.target.value);
-          setPage(1);
-        }}
-        className="!w-[210px]"
-      />
-      <Select
-        options={Object.keys(RANGES)}
-        value={range}
-        onChange={(e) => {
-          setRange(e.target.value as keyof typeof RANGES);
-          setPage(1);
-        }}
-        className="!w-[150px]"
-      />
-    </Toolbar>
+    <div className="max-md:*:grid max-md:*:grid-cols-2">
+      <Toolbar
+        right={
+          <Button size="lg" className="!px-5" onClick={onExport}>
+            Export CSV
+          </Button>
+        }
+      >
+        <SearchBox
+          value={q}
+          onChange={(v) => {
+            setQ(v);
+            setPage(1);
+          }}
+          placeholder="Search by contract or independent"
+          className="w-[300px] max-md:col-span-2 max-md:w-full"
+        />
+        <Select
+          options={TYPES}
+          value={type}
+          onChange={(e) => {
+            setType(e.target.value);
+            setPage(1);
+          }}
+          className="!w-[190px]"
+        />
+        <Select
+          options={contracts}
+          value={contract}
+          onChange={(e) => {
+            setContract(e.target.value);
+            setPage(1);
+          }}
+          className="!w-[210px]"
+        />
+        <Select
+          options={Object.keys(RANGES)}
+          value={range}
+          onChange={(e) => {
+            setRange(e.target.value as keyof typeof RANGES);
+            setPage(1);
+          }}
+          className="!w-[150px]"
+        />
+      </Toolbar>
+    </div>
   );
 }
 
@@ -214,26 +221,7 @@ function TransactionTable({ filters, onView }: { filters: Filters; onView: (t: T
       <div data-tour="payment-ledger">
         <Table cols={COLS} head={["Date", "Contract", "Independent", "Type", "Amount", "Status", "Actions"]}>
           {shown.map((t) => (
-            <Row key={t.id}>
-              <span className={COLS[0]}>{t.date}</span>
-              {/* TB-119 — the row itself opens the detail, not just the button at the end of it. */}
-              <button type="button" onClick={() => onView(t)} className={`${COLS[1]} truncate text-left text-[14px] text-ink hover:text-primary`}>
-                {t.contract}
-              </button>
-              <span className={COLS[2]}>{t.independent}</span>
-              <span className={COLS[3]}>
-                <Chip>{TYPE_LABEL[t.type]}</Chip>
-              </span>
-              <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
-              <span className={COLS[5]}>
-                <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
-              </span>
-              <span className={COLS[6]}>
-                <Button size="sm" onClick={() => onView(t)}>
-                  View
-                </Button>
-              </span>
-            </Row>
+            <TransactionRow key={t.id} t={t} onView={() => onView(t)} />
           ))}
         </Table>
       </div>
@@ -261,6 +249,39 @@ function TransactionTable({ filters, onView }: { filters: Filters; onView: (t: T
         </div>
       )}
     </>
+  );
+}
+
+/** One transaction in the ledger: when, the contract and who, the kind, the amount, where it stands and View. */
+function TransactionRow({ t, onView }: { t: Transaction; onView: () => void }) {
+  return (
+    <Row>
+      <span className={COLS[0]}>{t.date}</span>
+      {/* TB-119 — the row itself opens the detail, not just the button at the end of it. On a
+          phone it heads the card, and a finger gets a 44px strip to tap: a taller box the margins
+          take back, raised over the line under it (`truncate` would clip a hit-area, and the
+          card's cells have no padding to give). */}
+      <button
+        type="button"
+        onClick={onView}
+        className={`${COLS[1]} truncate text-left text-[14px] text-ink hover:text-primary max-md:relative max-md:pointer-coarse:-my-3 max-md:pointer-coarse:min-h-11`}
+      >
+        {t.contract}
+      </button>
+      <span className={COLS[2]}>{t.independent}</span>
+      <span className={COLS[3]}>
+        <Chip>{TYPE_LABEL[t.type]}</Chip>
+      </span>
+      <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
+      <span className={COLS[5]}>
+        <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
+      </span>
+      <span className={COLS[6]}>
+        <Button size="sm" onClick={onView}>
+          View
+        </Button>
+      </span>
+    </Row>
   );
 }
 

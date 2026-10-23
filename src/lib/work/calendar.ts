@@ -95,6 +95,23 @@ export function layoutWeek(days: Day[], items: readonly WorkItem[], maxLanes = 3
 export const unscheduled = (items: readonly WorkItem[]) => items.filter((t) => dateKind(t) === "none");
 
 /**
+ * A phone's schedule for the month: each dated item once, on the last day it covers — its due date,
+ * or the day a start-only item starts — earliest day first, and on a day the earliest started first,
+ * then in the work's order. Listed on every day of its span (as the month grid draws it), an item
+ * a fortnight long filled the schedule fourteen times.
+ */
+export function agendaDays(items: readonly WorkItem[], y: number, m: number): [Day, WorkItem[]][] {
+  const first = monthStart(y, m);
+  const last = monthEnd(y, m);
+  const byDay = new Map<Day, { item: WorkItem; from: Day }[]>();
+  for (const item of items) {
+    const span = spanOf(item);
+    if (span && span.to >= first && span.to <= last) byDay.set(span.to, [...(byDay.get(span.to) ?? []), { item, from: span.from }]);
+  }
+  return [...byDay.entries()].sort((a, b) => a[0] - b[0]).map(([day, list]) => [day, list.sort((a, b) => a.from - b.from || byOrder(a.item, b.item)).map((x) => x.item)]);
+}
+
+/**
  * Its dates once moved so its first day lands on `to`, keeping its length. An unscheduled item
  * dropped on a day becomes due that day.
  */

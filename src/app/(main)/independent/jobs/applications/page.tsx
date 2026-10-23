@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Button, EmptyState, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
-import { KanbanColumn, KanbanList } from "@/components/portal/board";
+import { KanbanColumn, KanbanJump, KanbanList } from "@/components/portal/board";
+import { useBoardJump } from "@/components/portal/board-jump";
+import { PHONE_BOARD } from "@/components/portal/styles";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/scroll-fade";
 import { usePostings } from "@/lib/demo/deal";
@@ -82,22 +84,24 @@ export default function MyApplications() {
  */
 function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw }: { applications: Application[]; roles: Role[]; canWithdraw: (a: Application) => boolean; canChat: (a: Application) => boolean; chatHref: string; onWithdraw: (a: Application) => void }) {
   const [menu, setMenu] = useState<string | null>(null);
+  // #132 — a closed application leaves its stage's column for Closed, whatever stage it stopped at.
+  const columns = COLUMNS.map((col) => ({ col, cards: applications.filter((a) => (col.closed ? !!a.closed : !a.closed && col.stages.includes(a.stage))) }));
+  const { board, jumpTo, current } = useBoardJump(columns.find((c) => c.cards.length)?.col.key ?? null);
   return (
     // The 40px side and bottom gutters are padding inside the board, so its horizontal bar runs
     // along the panel's bottom edge, 8px in, like every vertical bar, instead of floating 48px up.
     // At rest the padding lines the columns up with the back-link row; scrolled, cards pass
     // through it and fade out at the edge (ScrollFade's mask) instead of being cut flush.
     // data-tour: My applications' tour points at its columns and a card (@/lib/portal/tours).
-    <div data-tour="applications" className="flex min-h-0 flex-1 pt-4">
-      <ScrollFade className="flex w-full min-w-0">
+    // On a phone, a column at a time, with a chip per column to jump between them.
+    <div data-tour="applications" className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
+      <KanbanJump label="Application stages" columns={columns.map(({ col, cards }) => ({ key: col.key, label: col.label, count: cards.length, colors: col }))} current={current} onJump={jumpTo} />
+      <ScrollFade className="flex min-h-0 w-full min-w-0 flex-1">
         {/* overflow-y-hidden is load-bearing: `overflow-x: auto` alone implicitly turns the y axis
             into a second scrollbar nested inside the shell's. Columns take the vertical scroll. */}
-        <div className="edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10">
-          {COLUMNS.map((col) => {
-            // #132 — a closed application leaves its stage's column for Closed, whatever stage it stopped at.
-            const cards = applications.filter((a) => (col.closed ? !!a.closed : !a.closed && col.stages.includes(a.stage)));
-            return (
-              <KanbanColumn key={col.key} label={col.label} count={cards.length} colors={col} unit={["application", "applications"]} width="min-w-[320px] max-w-[420px] flex-1">
+        <div ref={board} className={`edge-fade flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-hidden px-(--page-gutter) pb-10 max-md:scroll-px-(--page-gutter) ${PHONE_BOARD}`}>
+          {columns.map(({ col, cards }) => (
+              <KanbanColumn key={col.key} data-column={col.key} label={col.label} count={cards.length} colors={col} unit={["application", "applications"]} width="min-w-[320px] max-w-[420px] flex-1">
                 <KanbanList>
                   {cards.map((a) => (
                     // IN-018 wants the company and the real contract type on the card; the type
@@ -111,8 +115,7 @@ function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw
                   ))}
                 </KanbanList>
               </KanbanColumn>
-            );
-          })}
+          ))}
         </div>
       </ScrollFade>
     </div>

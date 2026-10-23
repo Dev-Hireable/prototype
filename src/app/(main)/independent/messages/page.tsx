@@ -32,8 +32,8 @@ export default function Messages() {
     <MessagesPage
       side="independent"
       conversations={conversations}
-      // One thread per company; the tabs filter it by stage. Applications, the first and the one
-      // Messages opens on, while you're in hiring; Conversations once you're working together.
+      // One thread per company; the tabs filter it by stage: Applications while you're in hiring,
+      // Conversations once you're working together. Messages opens on the first with a thread in it.
       tabs={["applications", "conversations"] as const}
       // With no thread at all, the thread pane says so once; the list stays quiet.
       emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "applications" ? "No applications in progress." : "No conversations yet.")}

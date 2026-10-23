@@ -11,6 +11,7 @@ import { Tip } from "@/components/portal/tip";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { KEEP_FAILED, keepFiles } from "@/lib/demo/files";
 import { hearsComments, isArchived, isCompleted, isOverdue, openBlockers, refOf, type WorkFile, type WorkItem } from "@/lib/work/model";
+import { PHONE, useMedia } from "@/lib/portal/media";
 import { capsFor, changeFor, type AgreedField } from "@/lib/work/permissions";
 import { checkComment, checkTitle } from "@/lib/work/validate";
 import { taskLinkAt, taskLinkHtml } from "@/lib/work/refs";
@@ -63,6 +64,8 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
   };
   /** A comment sent from the foot: the stream scrolls to it. */
   const sent = () => requestAnimationFrame(() => activity.current?.scrollIntoView({ block: "end", behavior: "smooth" }));
+  /** A phone has no room for the step beside the status: it gets the full width, under the bar. */
+  const phone = useMedia(PHONE);
   return (
     <Drawer
       open={open}
@@ -74,9 +77,9 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
       // the sheet starts on the first one this person can change — and on the close button still
       // when neither is theirs. Opened to send unfinished work, it starts on the note, with the question.
       initialFocus={focus === "dates" ? firstDate : focus === "submit" ? note : "close"}
-      header={<TopBar ref={top} item={item} byId={byId} step={step} box={box} onBox={setBox} />}
+      header={<TopBar ref={top} item={item} byId={byId} step={phone ? null : step} box={box} onBox={setBox} />}
       actions={<PanelActions item={item} />}
-      subheader={box && <StepPanel box={box} item={item} byId={byId} firstRef={note} onDone={closeBox} />}
+      subheader={box ? <StepPanel box={box} item={item} byId={byId} firstRef={note} onDone={closeBox} /> : phone && step && <StepRow step={step} item={item} onBox={setBox} />}
       // While a step's panel is open the comment box steps aside: one box to write in at a time.
       footer={canComment && !box && <SheetFoot item={item} onSent={sent} />}
     >
@@ -90,7 +93,7 @@ export function TaskDetail({ open, item, items, byId, focus, pending, onClose }:
  * The top bar, after the »: where the item stands — its status (a menu of the moves this person can
  * make), Blocked while it waits on open work, Read-only (and why) when it's part of finished work —
  * and, at the bar's end beside the ⋯, its next step (Send for review, Approve…), which steps aside
- * while its panel is open. On a phone the step wraps under the status, still at the end.
+ * while its panel is open. A phone gives the step a row of its own under the bar instead (StepRow).
  */
 function TopBar({ ref, item: t, byId, step, box, onBox }: { ref: Ref<HTMLDivElement>; item: WorkItem; byId: ReadonlyMap<string, WorkItem>; step: Step | null; box: StepBox | null; onBox: (box: StepBox) => void }) {
   const blockers = isCompleted(t.status) ? [] : openBlockers(t, byId);
@@ -115,6 +118,18 @@ function TopBar({ ref, item: t, byId, step, box, onBox }: { ref: Ref<HTMLDivElem
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * A phone's next step, under the top bar: the sheet's full width, its buttons sharing it, the main one
+ * at the end. Beside the status it wrapped onto a second line of its own anyway, indented and squeezed.
+ */
+function StepRow({ step, item, onBox }: { step: Step; item: WorkItem; onBox: (box: StepBox) => void }) {
+  return (
+    <span data-step className="flex items-center gap-2 *:flex-1 [&_button]:w-full">
+      <StepButtons step={step} item={item} onBox={onBox} />
+    </span>
   );
 }
 
@@ -167,11 +182,13 @@ function writeLink(url: string, html: string) {
 }
 
 /**
- * Where the focus goes once the step's panel, which had it, closes: back to the step that opened it,
- * or, once sent, to the status the step moved — or to the close, when that isn't this person's to move.
+ * Where the focus goes once the step's panel, which had it, closes: back to the step that opened it
+ * (in the bar, or a phone's row under it), or, once sent, to the status the step moved — or to the
+ * close, when that isn't this person's to move.
  */
 function focusAfterPanel(bar: HTMLElement | null, sent: boolean) {
-  const to = (sent ? null : bar?.querySelector<HTMLElement>("[data-step] button")) ?? bar?.querySelector<HTMLElement>("[data-status] button") ?? bar?.closest('[data-slot="sheet-content"]')?.querySelector<HTMLElement>("button");
+  const head = bar?.closest<HTMLElement>('[data-slot="sheet-header"]');
+  const to = (sent ? null : head?.querySelector<HTMLElement>("[data-step] button")) ?? bar?.querySelector<HTMLElement>("[data-status] button") ?? bar?.closest('[data-slot="sheet-content"]')?.querySelector<HTMLElement>("button");
   to?.focus();
 }
 

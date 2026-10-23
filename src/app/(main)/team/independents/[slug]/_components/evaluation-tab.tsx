@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Button, Card, CardHeading, Field, Select, Textarea } from "@/components/portal/ui";
+import { Button, Card, CardHeading, Field, InfoBanner, Select, Textarea } from "@/components/portal/ui";
 import { ContractScore, Stars } from "@/components/portal/contract-parts";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { usd } from "@/lib/demo/disputes";
@@ -21,6 +21,8 @@ export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft;
   const { contract, name, first, isTrial, submitted, canEvaluate } = t;
   /** A trial's one evaluation is on file: the form shows it, read-only. */
   const sent = isTrial && submitted;
+  /** While the trial runs, when its evaluation opens: said first, as why the form below is greyed out. Under the form, a phone had it a screen away from the heading. */
+  const opens = isTrial && !submitted && !canEvaluate ? evaluationOpens(t) : null;
   return (
     <div className={WITH_SIDE}>
       <div className="flex w-full min-w-0 flex-1 flex-col gap-5">
@@ -30,13 +32,16 @@ export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft;
           </h2>
           <p className="text-[14px] leading-[1.4] text-ink-2">{evaluationIntro(t)}</p>
         </div>
+        {opens && <InfoBanner>{opens}</InfoBanner>}
         <Card className="flex flex-col gap-4 p-5">
-          {/* Dimmed while it can't be sent yet; the buttons and the line saying when it opens stay legible. */}
+          {/* Dimmed while it can't be sent yet; the buttons stay legible. */}
           <div className={`flex flex-col gap-4 ${!canEvaluate && !sent ? "opacity-60" : ""}`}>
             <EvaluationForm t={t} draft={draft} />
           </div>
-          {/* TB-067: every field is required (marked *); a disabled Send says what's still missing. */}
-          <div className="flex flex-wrap justify-end gap-3">{actions}</div>
+          {/* TB-067: every field is required (marked *); a disabled Send says what's still missing. A
+              phone stacks the buttons full width, the main one on top, as a dialog's footer does, and
+              keeps any note above them. */}
+          <div className="flex flex-wrap justify-end gap-3 max-md:flex-col-reverse max-md:*:w-full max-md:[&_button]:w-full">{actions}</div>
         </Card>
         <EvaluationHistory t={t} />
       </div>
@@ -119,7 +124,7 @@ function TrialDecided({ t, onEnd, onHire }: ActionProps) {
   return (
     <>
       {(view.onDeal ? !!ends.close?.blocked : endBlocked) && !ended && (
-        <p className="w-full text-right text-[13px] leading-[1.4] text-ink-2">A dispute on this contract is holding {usd(view.escrow?.onHold ?? 0)} in escrow. You can end the contract once Hireable support has ruled on it.</p>
+        <p className="w-full text-right text-[13px] leading-[1.4] text-ink-2 max-md:order-last max-md:text-left">A dispute on this contract is holding {usd(view.escrow?.onHold ?? 0)} in escrow. You can end the contract once Hireable support has ruled on it.</p>
       )}
       <Button size="lg" disabled={ended || (view.onDeal ? !ends.close || !!ends.close.blocked : endBlocked)} onClick={onEnd}>
         {ended ? "Contract ended" : "End contract"}
@@ -133,18 +138,17 @@ function TrialDecided({ t, onEnd, onHire }: ActionProps) {
 
 /**
  * TB-067 / TB-071 / TB-072 want these visible but greyed out before the evaluation, so it's clear
- * what submitting one unlocks rather than hiding it; while the trial runs, one line beside them says
- * the day it opens.
+ * what submitting one unlocks rather than hiding it; while the trial runs, the banner over the form
+ * says the day it opens, and Send says it again on hover.
  */
 function TrialPending({ t, ready, missing, onEnd, onSend }: ActionProps) {
   const { first, ends, canEvaluate, waiting } = t;
   const opens = canEvaluate ? undefined : evaluationOpens(t);
   return (
     <>
-      {opens && <span className="mr-auto self-center text-[13px] leading-[1.4] text-ink-2">{opens}</span>}
       {/* A warning, before the buttons so they keep to one line: the score is final once this is sent. */}
       {canEvaluate && waiting.length > 0 && (
-        <p className="w-full text-right text-[13px] leading-[1.4] text-pretty text-warn-ink">
+        <p className="w-full text-right text-[13px] leading-[1.4] text-pretty text-warn-ink max-md:order-last max-md:text-left">
           <span className="font-semibold">
             {refOf(waiting[0])} {waiting[0].title}
           </span>

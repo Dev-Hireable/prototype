@@ -26,6 +26,31 @@ export const CLEAR_DEMO_RESET = "pr-36 max-md:pr-(--page-gutter)";
 export const PHONE_FILTER_ROW = "max-md:flex-wrap max-md:gap-2 max-md:*:min-w-[140px] max-md:*:flex-1 max-md:[&>:first-child]:basis-full";
 
 /**
+ * A money ledger's columns on the portal's one table (Table): Date · Contract · who · Type · Amount ·
+ * Status · View, the Team Builder's Transactions and the Independent's Earnings alike. A phone shows a
+ * row as a card of three lines: what it was with the amount at its right, then when and with whom
+ * with the status at its right, then the type with View. Two starting widths make those breaks: the
+ * contract's leaves room beside it for the amount and nothing else, and the type's for View only.
+ * Who it was with takes what its line has left, wrapping inside it, so the status always fits.
+ */
+export const LEDGER_COLS = [
+  "w-[110px] max-md:order-3 max-md:text-ink-2",
+  "min-w-0 flex-1 max-md:order-1 max-md:grow! max-md:basis-[calc(100%-7rem)]! max-md:font-medium max-md:whitespace-normal",
+  "w-[150px] max-md:order-4 max-md:grow! max-md:basis-0! max-md:text-ink-2",
+  "w-[165px] max-md:order-6 max-md:grow! max-md:basis-[calc(100%-5rem)]!",
+  "w-[110px] max-md:order-2 max-md:ml-auto max-md:text-[15px] max-md:font-semibold",
+  "w-[132px] max-md:order-5 max-md:ml-auto",
+  "w-[80px] max-md:order-7 max-md:ml-auto",
+];
+
+/**
+ * A kanban board's scroller on a phone, where a column is about the screen's width (KanbanColumn): a
+ * swipe settles on a column instead of stopping halfway between two. Give it the board's side gutter
+ * as its scroll padding too (`max-md:scroll-px-…`), so each column settles where the first one starts.
+ */
+export const PHONE_BOARD = "max-md:snap-x max-md:snap-mandatory";
+
+/**
  * A screen's one main action (Add task), on a phone: lifted out of its toolbar into a floating
  * button in the bottom-right corner, just above the tab bar, where the thumb of the hand holding
  * the phone already is. It keeps its label (an extended FAB), so it reads the same as on a desktop.
@@ -41,7 +66,8 @@ export const TABLET_FAB =
 /**
  * Every icon-only button — a kebab (⋮ ⋯), a close ×, a + — looks the same: a circle, grey at rest,
  * a grey wash on hover, the accent tint while the menu it opens is open. Only the size changes with
- * where it sits (pass `size-*`). Chip and filter × stay as they are: they're part of the chip.
+ * where it sits (pass `size-*`). Chip and filter × stay as they are: they're part of the chip. On a
+ * touch screen each takes a finger-sized tap (`hit-area`, globals.css), however small it's drawn.
  */
 export const ICON_BUTTON =
-  "flex shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-accent-bg data-popup-open:text-accent-ink";
+  "hit-area flex shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-accent-bg data-popup-open:text-accent-ink";

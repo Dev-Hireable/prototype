@@ -3,7 +3,7 @@
 import { Tip } from "@/components/portal/tip";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useEffectEvent, useId, useRef, useSyncExternalStore, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { ICONS } from "@/components/icons";
 import { dismissToast, raiseToast, type ToastAction } from "@/components/portal/notify";
@@ -61,20 +61,39 @@ export function Page({
    * the same line — --page-gutter (globals.css), 40px on a laptop, 24px on a tablet, 16px on a phone.
    */
   const inset = "pl-(--page-gutter)";
-  return (
+  const head = (
     <>
       <PageHeader title={title} badge={badge} onClose={onClose} tabs={tabs} inset={inset} heading={heading} />
       {nav && <PageNavRow nav={nav} actions={navActions} />}
-      {/* A filled page's content lines up with the nav row: --ws-gutter is the side gutter a
-          workspace pads its toolbar and views with — the page's own. */}
-      {fill ? (
-        <div className={`flex min-h-0 min-w-0 flex-1 flex-col [--ws-gutter:var(--page-gutter)] ${nav ? "pt-3" : ""}`}>{children}</div>
-      ) : (
-        <PageScroller padded={padded} underNav={!!nav}>
-          {children}
-        </PageScroller>
-      )}
     </>
+  );
+  if (fill) return <FillPage head={head} underNav={!!nav}>{children}</FillPage>;
+  return (
+    <>
+      {head}
+      <PageScroller padded={padded} underNav={!!nav}>
+        {children}
+      </PageScroller>
+    </>
+  );
+}
+
+/**
+ * A `fill` page: its content takes the rest of the panel as a plain flex column and does its own
+ * scrolling (a workspace's views). On a phone the page scrolls as a whole instead, its header and
+ * back link included: pinned above the view they took a third of the screen and left the view a
+ * strip to scroll in. The workspace pins its own toolbar while the rest goes by.
+ */
+function FillPage({ head, underNav, children }: { head: ReactNode; underNav: boolean; children: ReactNode }) {
+  return (
+    // `relative`, so what's placed absolutely inside (sr-only text) stays in the phone's scroll.
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col max-md:relative max-md:overflow-y-auto">
+      {head}
+      {/* The content lines up with the nav row: --ws-gutter is the side gutter a workspace pads its
+          toolbar and views with — the page's own. On a phone it's as tall as what's in it (and at
+          least the rest of the screen), never squeezed to fit, so the page scrolls, not the view. */}
+      <div className={`flex min-h-0 min-w-0 flex-1 flex-col [--ws-gutter:var(--page-gutter)] max-md:flex-[1_0_auto] ${underNav ? "pt-3" : ""}`}>{children}</div>
+    </div>
   );
 }
 
@@ -532,19 +551,25 @@ export function Checkbox({ checked, onChange, children, disabled, className = ""
  * where the whole row ticks it. `label` names it for screen readers when the row's words would be too long.
  */
 export function CheckboxBox({ checked, onChange, disabled, label, className = "" }: { checked: boolean; onChange?: (v: boolean) => void; disabled?: boolean; label?: string; className?: string }) {
-  return <CheckboxControl checked={checked} disabled={disabled} onCheckedChange={(v) => onChange?.(v)} aria-label={label} className={`bg-white ${className}`} />;
+  return <CheckboxControl checked={checked} disabled={disabled} onCheckedChange={(v) => onChange?.(v)} aria-label={label} className={`hit-area bg-white ${className}`} />;
 }
 
 /**
  * Rounded pill tabs — "Upcoming (2) / Past (3)", "All / Unread / …", List / Board. One is
  * always chosen: shadcn's ToggleGroup underneath (arrow keys move between them), drawn as pills.
  */
-/** A filter row's pills are small; a choice a form turns on (Full-time or Part-time) is a button's height. */
-const PILL_SIZE = { sm: "h-auto px-3 py-1.5 text-[13px]", lg: "h-10 px-5 text-[14px]" } as const;
+/**
+ * A filter row's pills are small; a choice a form turns on (Full-time or Part-time) is a button's
+ * height. A phone keeps a row of filters on one line it scrolls sideways, as its chips do elsewhere,
+ * rather than wrapping them onto a second and third line above what they filter; a touch screen
+ * draws the small ones a little taller, for a finger.
+ */
+const PILL_SIZE = { sm: "h-auto px-3 py-1.5 text-[13px] pointer-coarse:py-2", lg: "h-10 px-5 text-[14px]" } as const;
+const PILL_ROW = { sm: "flex-wrap max-md:max-w-full max-md:flex-nowrap max-md:overflow-x-auto", lg: "flex-wrap gap-2" } as const;
 
 export function Pills<T extends string>({ value, onChange, options, size = "sm", "aria-label": ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: ReactNode }[]; size?: keyof typeof PILL_SIZE; "aria-label"?: string }) {
   return (
-    <ToggleGroup value={[value]} onValueChange={(next) => next[0] && onChange(next[0] as T)} aria-label={ariaLabel} className={`flex-wrap ${size === "lg" ? "gap-2" : ""}`}>
+    <ToggleGroup value={[value]} onValueChange={(next) => next[0] && onChange(next[0] as T)} aria-label={ariaLabel} className={PILL_ROW[size]}>
       {options.map((o) => (
         <ToggleGroupItem
           key={o.value}
@@ -606,15 +631,20 @@ function minWidthOf(cols: string[]) {
   return cols.reduce((sum, c) => sum + Number(c.match(/(?:^|\s)w-\[(\d+)px\]/)?.[1] ?? c.match(/min-w-\[(\d+)px\]/)?.[1] ?? 200), 0);
 }
 
-/** A table as a grid. `cols` are Tailwind width classes. */
+/**
+ * A table as a grid. `cols` are Tailwind width classes. On a phone it isn't a grid any more: the
+ * heading row goes and each row is a small card whose cells wrap onto lines (Row), so nothing waits
+ * off to the right behind a sideways scroll. A page orders or stresses its cells there with
+ * `max-md:` classes in `cols` (the contract first, the amount bold).
+ */
 export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
   return (
     // It sized itself to its longest text (min-w-max), so payments and offers scrolled sideways on
     // a laptop whatever room they had. It fills the page now, and only scrolls once the page is
     // narrower than its columns need — which still keeps a narrow pane from crushing them together.
     <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
-      <div style={{ minWidth: minWidthOf(cols) }}>
-        <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 ${CELLS}`}>
+      <div style={{ "--table-min": `${minWidthOf(cols)}px` } as CSSProperties} className="md:min-w-(--table-min)">
+        <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 max-md:hidden ${CELLS}`}>
           {/* A heading wider than its column ends in "…" rather than running into the next one. */}
           {head.map((h, i) => (
             <span key={h} className={`${cols[i]} truncate`}>
@@ -628,8 +658,16 @@ export function Table({ cols, head, children }: { cols: string[]; head: string[]
   );
 }
 
+/**
+ * On a phone a row's cells drop their column widths and wrap, a small card per row (Table). A page
+ * lays a cell out differently there with `max-md:…!` in its column: the name on a line of its own
+ * (`max-md:basis-full!`), the amount pushed right (`max-md:ml-auto`).
+ */
+const PHONE_ROW =
+  "max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 max-md:p-3 max-md:whitespace-normal max-md:[&>*]:w-auto max-md:[&>*]:min-w-0 max-md:[&>*]:max-w-full max-md:[&>*]:grow-0 max-md:[&>*]:basis-auto max-md:[&>*]:p-0!";
+
 export function Row({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${className}`}>{children}</div>;
+  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${PHONE_ROW} ${className}`}>{children}</div>;
 }
 
 /** Search + dropdowns on the left, a count or a button on the right; they wrap when they don't fit, and on a phone the search takes a row of its own. */

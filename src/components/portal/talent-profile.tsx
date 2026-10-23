@@ -163,8 +163,9 @@ export function TalentProfile({ person, viewer, hired = false, badge, actions, n
 function IntroCell({ still, video, name, action, onPlay }: { still?: string; video?: string; name: string; action?: ReactNode; onPlay: () => void }) {
   return (
     // Running down beside the tabs, it stops where the tab row starts (mb 36, the row's height), so there's room
-    // between the card and the divider instead of the card sitting on it.
-    <div className="relative aspect-[4/5] w-full max-w-[280px] @lg:col-start-2 @lg:row-start-1 @lg:max-w-none @lg:self-center @2xl:row-[1/span_2] @2xl:mb-9 @2xl:aspect-auto @2xl:self-stretch">
+    // between the card and the divider instead of the card sitting on it. A phone shows it as a video
+    // is shown there, across the screen at 16:9: a 4:5 card took a screen's height to scroll past.
+    <div className="relative aspect-[4/5] w-full max-w-[280px] max-sm:aspect-video max-sm:max-w-none @lg:col-start-2 @lg:row-start-1 @lg:max-w-none @lg:self-center @2xl:row-[1/span_2] @2xl:mb-9 @2xl:aspect-auto @2xl:self-stretch">
       {still || video ? (
         <IntroVideo still={still} video={video} name={name} onPlay={onPlay} />
       ) : (
@@ -267,8 +268,25 @@ function Hero({
         {(p.location || (hired && (p.links.website || p.links.linkedin))) && <PlaceAndLinks location={p.location} links={hired ? p.links : undefined} />}
       </div>
       <Facts rate={p.rate} level={p.level} history={p.history} />
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {actions && <ProfileActions>{actions}</ProfileActions>}
       {note}
+    </div>
+  );
+}
+
+/**
+ * A profile's buttons under the facts, in a row that wraps. A phone sets them in a grid two to a
+ * line, each filling its half, and with an odd number the first (the main one) across the line: wrapped,
+ * the last was left alone at its own width. A page that groups its own (the candidate's next step,
+ * with a tour pointing at it) groups them in one of these too, and that one spans the line.
+ */
+export function ProfileActions({ children, tour }: { children: ReactNode; /** The guided tour's mark on the group (@/lib/portal/tours). */ tour?: string }) {
+  return (
+    <div
+      data-tour={tour}
+      className="flex flex-wrap items-center gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&_a]:w-full max-sm:[&_button]:w-full max-sm:[&>:first-child:nth-last-child(odd)]:col-span-2"
+    >
+      {children}
     </div>
   );
 }
@@ -461,7 +479,10 @@ function IntroVideo({ still, video, name, onPlay }: { still?: string; video?: st
   );
 }
 
-/** The link buttons beside the location: a 28px white circle, p 4, around the site's own icon, with a faint ring so it reads as a button. */
+/**
+ * The link buttons beside the location: a 28px white circle, p 4, around the site's own icon, with a
+ * faint ring so it reads as a button — and, on a touch screen, a finger-sized tap round it (hit-area).
+ */
 function IconLink({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
     <Tip label={bare(value)}>
@@ -470,7 +491,7 @@ function IconLink({ label, value, icon }: { label: string; value: string; icon: 
         target="_blank"
         rel="noreferrer"
         aria-label={`${label}: ${bare(value)}`}
-        className="flex size-7 items-center justify-center rounded-full bg-white p-1 outline -outline-offset-1 outline-[#e5e5e5] transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="hit-area flex size-7 items-center justify-center rounded-full bg-white p-1 outline -outline-offset-1 outline-[#e5e5e5] transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         {icon}
       </a>

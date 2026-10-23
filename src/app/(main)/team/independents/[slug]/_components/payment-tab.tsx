@@ -32,14 +32,17 @@ export function PaymentTab({ t, payments, disputeButton }: { t: Tracker; payment
   );
 }
 
-/** A card of terms, one to a line: the label on the left, the value on the right. */
+/**
+ * A card of terms, one to a line: the label on the left, the value on the right — or, on a phone, the
+ * label over the value, where side by side the two squeezed each other into narrow, wrapping columns.
+ */
 function TermsCard({ title, rows }: { title: string; rows: readonly (readonly [string, ReactNode])[] }) {
   return (
     <Card className="flex flex-col gap-4 p-5">
       <CardHeading>{title}</CardHeading>
       <dl className="flex flex-col gap-3 text-[14px] leading-[1.4]">
         {rows.map(([k, v]) => (
-          <div key={k} className="flex justify-between gap-4">
+          <div key={k} className="flex justify-between gap-4 max-md:flex-col max-md:gap-0.5">
             <dt className="text-ink-2">{k}</dt>
             <dd className="font-medium text-ink">{v}</dd>
           </div>

@@ -10,7 +10,7 @@ import { refOf, type WorkItem } from "@/lib/work/model";
 import type { WorkQuery } from "@/lib/work/query";
 import { formatAmount, workload, WORKLOAD_RULE, type Bucket, type WorkloadRow } from "@/lib/work/workload";
 import { useWorkspace } from "./context";
-import { AssigneeChip } from "./meta";
+import { AssigneeAvatar, AssigneeChip } from "./meta";
 
 /**
  * Workload: for each person on the contract (and what's unassigned), how much work falls on each
@@ -63,43 +63,58 @@ export function WorkloadView({ items, query, setQuery }: { items: readonly WorkI
 /** What every row is drawn against: the window's days, its first and last, the busiest cell on screen, and the measure. */
 type WorkloadGrid = { days: Day[]; from: Day; last: Day; max: number; unit: string; metric: WorkQuery["metric"] };
 
-/** Above the grid: the weeks showing and how to move them, how many, what's measured, and whether done work counts. */
+/** Total, on a phone: pinned at the grid's right edge, a soft shadow where the days pass under it. */
+const PINNED_TOTAL = "max-md:right-0 max-md:min-w-14 max-md:shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.18)]";
+
+/**
+ * Above the grid: the weeks showing and how to move them, how many, what's measured, and whether done
+ * work counts. A phone packs it into two rows rather than three — the window and how many weeks, then
+ * This week, the measure and done work — with the dates as wide as they are and 40px controls for a
+ * thumb. From a tablet up This week sits beside the window it resets, as one row.
+ */
 function WindowBar({ query, setQuery, from, last }: { query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void; from: Day; last: Day }) {
   const { today } = useWorkspace();
   const shift = (weeks: number) => setQuery({ week: isoOf(addDays(from, weeks * 7)) });
   const isThisWeek = from === weekStartOf(today);
+  const step = "flex size-9 items-center justify-center rounded-lg border border-border bg-white hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary max-md:size-10";
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="flex items-center gap-1" role="group" aria-label="Window">
-        <button type="button" onClick={() => shift(-query.span)} aria-label="Earlier" className="flex size-9 items-center justify-center rounded-lg border border-border bg-white hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary">
+        <button type="button" onClick={() => shift(-query.span)} aria-label="Earlier" className={step}>
           <ICONS.chevronLeft size={18} aria-hidden />
         </button>
-        <span className="min-w-[150px] text-center text-[13.5px] font-semibold text-ink" aria-live="polite">
+        <span className="min-w-[150px] text-center text-[13.5px] font-semibold whitespace-nowrap text-ink max-md:min-w-0 max-md:px-1 max-md:text-[13px]" aria-live="polite">
           {shortLabel(from, today)} – {shortLabel(last, today)}
         </span>
-        <button type="button" onClick={() => shift(query.span)} aria-label="Later" className="flex size-9 items-center justify-center rounded-lg border border-border bg-white hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary">
+        <button type="button" onClick={() => shift(query.span)} aria-label="Later" className={step}>
           <ICONS.chevronRight size={18} aria-hidden />
         </button>
-        <button type="button" disabled={isThisWeek} onClick={() => setQuery({ week: null })} className="h-9 rounded-lg border border-border bg-white px-3 text-[13px] font-medium text-ink hover:bg-surface-alt disabled:text-ink-2 disabled:hover:bg-white">
-          This week
-        </button>
       </span>
-      <Segmented label="Weeks shown" value={String(query.span)} options={[["2", "2 weeks"], ["4", "4 weeks"]]} onChange={(v) => setQuery({ span: v === "4" ? 4 : 2 })} />
-      <Segmented label="Measure" value={query.metric} options={[["effort", "Effort"], ["count", "Items"]]} onChange={(v) => setQuery({ metric: v as WorkQuery["metric"] })} />
-      <Checkbox checked={query.done} onChange={(v) => setQuery({ done: v })} className="text-[13px]">
+      {/* Pulled in to the window's own 4px gap from a tablet up; on a phone it leads the second row. */}
+      <button type="button" disabled={isThisWeek} onClick={() => setQuery({ week: null })} className="h-9 rounded-lg border border-border bg-white px-3 text-[13px] font-medium whitespace-nowrap text-ink hover:bg-surface-alt disabled:text-ink-2 disabled:hover:bg-white md:-ml-1 max-md:order-2 max-md:h-10 max-md:px-2.5">
+        This week
+      </button>
+      <Segmented label="Weeks shown" value={String(query.span)} options={[["2", "2 weeks"], ["4", "4 weeks"]]} onChange={(v) => setQuery({ span: v === "4" ? 4 : 2 })} className="max-md:order-1" />
+      <Segmented label="Measure" value={query.metric} options={[["effort", "Effort"], ["count", "Items"]]} onChange={(v) => setQuery({ metric: v as WorkQuery["metric"] })} className="max-md:order-3" />
+      <Checkbox checked={query.done} onChange={(v) => setQuery({ done: v })} className="text-[13px] max-md:order-4">
         Include done
       </Checkbox>
     </div>
   );
 }
 
-/** The grid's pinned header: Person, Before, a column per day — today's marked, the 1st and the window's first day with their month — then After, Total (the weeks showing) and No dates. */
+/**
+ * The grid's pinned header: Person, Before, a column per day — today's marked, the 1st and the
+ * window's first day with their month — then After, Total (the weeks showing) and No dates. On a
+ * phone the Person column is just wide enough for a photo, and Total stays pinned at the right edge
+ * while the days scroll under it: at 160px the names left room for three days, and Total never showed.
+ */
 function WorkloadHead({ days, from }: { days: Day[]; from: Day }) {
   const { today } = useWorkspace();
   return (
     <thead>
       <tr>
-        <th scope="col" className="sticky top-0 left-0 z-30 w-[160px] min-w-[160px] border-b border-border bg-surface-2 px-3 py-2 text-left text-[12.5px] font-medium text-ink-2">
+        <th scope="col" className="sticky top-0 left-0 z-30 w-[160px] min-w-[160px] border-b border-border bg-surface-2 px-3 py-2 text-left text-[12.5px] font-medium text-ink-2 max-md:w-[60px] max-md:min-w-[60px] max-md:px-2">
           Person
         </th>
         <th scope="col" className="sticky top-0 z-20 min-w-[56px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
@@ -115,7 +130,7 @@ function WorkloadHead({ days, from }: { days: Day[]; from: Day }) {
         <th scope="col" className="sticky top-0 z-20 min-w-[56px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
           After
         </th>
-        <th scope="col" className="sticky top-0 z-20 min-w-[72px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
+        <th scope="col" className={`sticky top-0 z-20 min-w-[72px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2 ${PINNED_TOTAL} max-md:z-30`}>
           Total
         </th>
         <th scope="col" className="sticky top-0 z-20 min-w-[84px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
@@ -132,8 +147,14 @@ function PersonRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid }) {
   const { days, from, last, max, unit, metric } = grid;
   return (
     <tr data-row={r.key}>
-      <th scope="row" className="sticky left-0 z-10 border-b border-[#eeeeee] bg-white px-3 py-2 text-left font-normal">
-        <AssigneeChip assignee={r.key === "none" ? null : r.key} people={people} />
+      <th scope="row" className="sticky left-0 z-10 border-b border-[#eeeeee] bg-white px-3 py-2 text-left font-normal max-md:px-2">
+        {/* A phone has room for the photo alone; the name is its tip and its accessible name. */}
+        <span className="max-md:hidden">
+          <AssigneeChip assignee={r.key === "none" ? null : r.key} people={people} />
+        </span>
+        <span className="md:hidden">
+          <AssigneeAvatar assignee={r.key === "none" ? null : r.key} people={people} />
+        </span>
         {metric === "effort" && r.unestimated.length > 0 && (
           <ItemsPopover title={`${assigneeLabel(r.key)} · no effort estimate`} items={r.unestimated.map((item) => ({ item, value: 0 }))} showValues={false}>
             <span className="mt-0.5 block text-left text-[11.5px] text-ink-2 underline decoration-dotted underline-offset-2">
@@ -147,7 +168,7 @@ function PersonRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid }) {
         <Cell key={day} bucket={r.cells[i]} max={max} weekend={isWeekend(day)} today={day === today} weekStart={weekdayOf(day) === 0} label={`${assigneeLabel(r.key)}, ${longLabel(day)}`} day={day} />
       ))}
       <Cell bucket={r.after} max={max} label={`${assigneeLabel(r.key)}, after ${shortLabel(last)}`} edge />
-      <td className="border-b border-l border-[#eeeeee] px-2 text-center font-semibold text-ink tabular-nums" aria-label={`${assigneeLabel(r.key)}, total for the ${days.length / 7} weeks shown: ${formatAmount(r.total)} ${unit}`}>
+      <td className={`border-b border-l border-[#eeeeee] px-2 text-center font-semibold text-ink tabular-nums max-md:sticky max-md:z-10 max-md:bg-white ${PINNED_TOTAL}`} aria-label={`${assigneeLabel(r.key)}, total for the ${days.length / 7} weeks shown: ${formatAmount(r.total)} ${unit}`}>
         {formatAmount(r.total)}
       </td>
       <NoDatesCell row={r} metric={metric} />
@@ -173,11 +194,12 @@ function NoDatesCell({ row: r, metric }: { row: WorkloadRow; metric: WorkQuery["
   );
 }
 
-function Segmented({ label, value, options, onChange }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void }) {
+/** A choice of two or more, as the Timeline's scale: 40px tall on a phone, the view tabs' height, with narrower segments there. */
+function Segmented({ label, value, options, onChange, className = "" }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void; className?: string }) {
   return (
-    <span role="radiogroup" aria-label={label} className="inline-flex rounded-lg bg-surface-2 p-[3px]">
+    <span role="radiogroup" aria-label={label} className={`inline-flex rounded-lg bg-surface-2 p-[3px] ${className}`}>
       {options.map(([v, text]) => (
-        <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)} className={`h-7 rounded-md px-3 text-[13px] font-medium ${value === v ? "bg-white text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}>
+        <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)} className={`h-7 rounded-md px-3 text-[13px] font-medium whitespace-nowrap max-md:h-[34px] max-md:px-2.5 ${value === v ? "bg-white text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}>
           {text}
         </button>
       ))}

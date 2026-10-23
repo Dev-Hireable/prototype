@@ -81,15 +81,17 @@ export function ContractList({ layout, items, who = "Contract" }: { layout: Cont
 
 const COLS = {
   // The name keeps to its own width and the bar takes what's spare, up to a point, so the facts
-  // sit beside the name rather than across the page from it.
-  who: "w-[280px]",
+  // sit beside the name rather than across the page from it. A phone's card (Table) leads with who,
+  // its type at the line's end as on a card in the grid, then the bar across the card, then the
+  // rest, the message last; a cell left empty there (no trial fit, no status) takes no room.
+  who: "w-[280px] max-md:basis-0! max-md:grow!",
   type: "w-[112px]",
-  progress: "min-w-[240px] max-w-[440px] flex-1",
-  fit: "w-[112px]",
+  progress: "min-w-[240px] max-w-[440px] flex-1 max-md:basis-full!",
+  fit: "w-[112px] max-md:empty:hidden",
   time: "w-[176px]",
-  status: "w-[120px]",
-  action: "w-[64px] justify-end",
-  actionWide: "w-[190px] justify-end",
+  status: "w-[120px] max-md:empty:hidden",
+  action: "w-[64px] justify-end max-md:ml-auto",
+  actionWide: "w-[190px] justify-end max-md:ml-auto",
 };
 
 type Counts = ReturnType<typeof taskCounts>;

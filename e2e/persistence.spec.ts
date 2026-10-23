@@ -53,7 +53,7 @@ test.describe("persistence · the thread's log", () => {
     const started = page.locator('[id^="msg-"]').filter({ hasText: /^Brand Designer trial started, / });
     const logged = () => page.evaluate(() => (JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}").chat ?? []).filter((m: { event?: { text: string } }) => m.event?.text.startsWith("Brand Designer trial started")).length);
     await expect(started).toHaveCount(1);
-    // Messages opens on Candidates; a hired Independent's thread is under Conversations, tagged Trial.
+    // Messages opens on the first tab with a thread in it: a hired Independent's is under Conversations, tagged Trial.
     await page.getByRole("button", { name: /^conversations$/i }).click();
     await expect(page.getByRole("button", { name: /Juan Dela Cruz/ }).getByText("Trial", { exact: true })).toBeVisible();
     await page.reload();

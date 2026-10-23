@@ -35,8 +35,8 @@ export default function Messages() {
     <MessagesPage
       side="team"
       conversations={conversations}
-      // One thread per person; the tabs filter it by stage. Candidates, the first and the one Messages
-      // opens on, is everyone still in hiring; Conversations, the people you're working with.
+      // One thread per person; the tabs filter it by stage. Candidates is everyone still in hiring;
+      // Conversations, the people you're working with. Messages opens on the first with a thread in it.
       tabs={["candidates", "conversations"] as const}
       // With no thread at all, the thread pane says so once; the list stays quiet.
       emptyTab={(tab) => (conversations.length === 0 ? "" : tab === "candidates" ? "No candidates in progress." : "No conversations yet.")}

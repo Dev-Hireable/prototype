@@ -151,10 +151,10 @@ function Headline({ pct, label }: { pct: number; label: string }) {
   );
 }
 
-/** The smaller numbers beside the headline, each over its label, a hairline before each. */
+/** The smaller numbers beside the headline, each over its label, a hairline before each. A phone sets them two by two under it, in columns, rather than wrapping them wherever they fall. */
 function Stats({ stats }: { stats: Stat[] }) {
   return (
-    <dl className="flex flex-wrap gap-y-3">
+    <dl className="flex flex-wrap gap-y-3 max-md:grid max-md:w-full max-md:grid-cols-2">
       {stats.map((s) => (
         <div key={s.label} className="flex flex-col-reverse gap-2 border-l border-line px-5">
           <dt className="text-[12.5px] leading-[1.3] text-ink-2">{s.label}</dt>
@@ -274,16 +274,24 @@ function RecentChanges({ items }: { items: WorkItem[] }) {
   );
 }
 
-/** One item in a list: its status, number and name, and whatever the list says about it. */
+/**
+ * One item in a list: its status, number and name, and whatever the list says about it. On a phone
+ * that's two lines, the name over what's said about it: on one, the reason took the room and left the
+ * name a few letters.
+ */
 function ItemRow({ item: t, lead, meta }: { item: WorkItem; lead?: ReactNode; meta?: ReactNode }) {
   return (
     <li>
       <button type="button" onClick={() => openWork(t.id)} className="group flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-[13.5px] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary">
         {lead}
         <StatusCircle status={t.status} size={16} />
-        <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
-        <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
-        {meta}
+        <span className="flex min-w-0 flex-1 items-center gap-2.5 max-md:flex-col max-md:items-start max-md:gap-0.5">
+          <span className="flex max-w-full min-w-0 flex-1 items-center gap-2.5 max-md:items-baseline">
+            <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+            <span className="min-w-0 flex-1 truncate text-ink max-md:line-clamp-2 max-md:whitespace-normal max-md:break-normal">{t.title}</span>
+          </span>
+          {meta}
+        </span>
         <ICONS.chevronRight size={16} aria-hidden className="shrink-0 text-ink-2" />
       </button>
     </li>
@@ -294,11 +302,11 @@ function Count({ n }: { n: number }) {
   return <span className="min-w-7 rounded bg-[#fff3cc] px-1.5 py-0.5 text-center text-[12.5px] font-medium text-[#8e6f12] tabular-nums">{n}</span>;
 }
 
-/** "3 more" when a list is cut short — they're all in the work. */
+/** "3 more" when a list is cut short — they're all in the work. A finger's height to tap on a touch screen, the margin taking back the padding so nothing moves. */
 function More({ total }: { total: number }) {
   if (total <= ROWS) return null;
   return (
-    <button type="button" onClick={() => openWork()} className="self-start text-[13px] font-medium text-primary hover:underline">
+    <button type="button" onClick={() => openWork()} className="self-start text-[13px] font-medium text-primary hover:underline pointer-coarse:-my-3 pointer-coarse:py-3">
       {total - ROWS} more in the work
     </button>
   );

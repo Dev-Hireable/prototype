@@ -30,7 +30,9 @@ export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a ta
       <div className="overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-border">
         {rows.map((row, i) => (
           <div key={row.key} className="border-t border-[#eeeeee] first:border-t-0">
-            <div className="flex items-center gap-2 py-1 pr-2 pl-3 hover:bg-surface-alt focus-within:bg-surface-alt">
+            {/* A phone puts the week and priority on a line under the name, which beside them had
+                room for about four letters; the menu stays at the end of the name's line. */}
+            <div className="flex items-center gap-2 py-1 pr-2 pl-3 hover:bg-surface-alt focus-within:bg-surface-alt max-sm:flex-wrap max-sm:gap-y-0 max-sm:pb-2">
               <StatusCircle status="todo" />
               <input
                 ref={plan.inputRef(row.key)}
@@ -44,10 +46,11 @@ export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a ta
               />
               {row.description?.trim() && !plan.details.has(row.key) && <ShowDetails index={i} onClick={() => plan.toggleDetails(row.key)} />}
               {/* Fixed, left-aligned columns so the weeks and pills line up from row to row. */}
-              <div className="flex w-24 shrink-0">
+              <span aria-hidden className="hidden basis-full max-sm:order-2 max-sm:block" />
+              <div className="flex w-24 shrink-0 max-sm:order-3 max-sm:ml-5">
                 <WeekMenu week={row.week} weeks={weeks} onChange={(week) => cap.change(row, { week })} />
               </div>
-              <div className="flex w-24 shrink-0">
+              <div className="flex w-24 shrink-0 max-sm:order-3">
                 <PriorityMenu priority={row.priority} onChange={(p) => cap.change(row, { priority: p ?? undefined })} />
               </div>
               <RowMenu index={i} open={plan.details.has(row.key)} described={!!row.description?.trim()} deletable={rows.length > 1 || !!row.title} onDetails={() => plan.toggleDetails(row.key)} onDelete={() => plan.deleteRow(row.key)} />

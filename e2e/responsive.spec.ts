@@ -15,8 +15,8 @@ test.describe("on a phone", () => {
   });
 });
 
-// Phone navigation: the rail gives way to a tab bar along the bottom edge, and the open section's
-// pages and everything else to the Menu sheet. The page carries no nav strip of its own.
+// Phone navigation: the rail gives way to a tab bar along the bottom edge, and everything else to
+// the Menu sheet; a section's own pages also sit in a row over each of them.
 test.describe("on a phone · navigation", () => {
   test("the tab bar and the Menu sheet reach every page", async ({ page }) => {
     await page.goto("/team");
@@ -25,7 +25,9 @@ test.describe("on a phone · navigation", () => {
     // It sits along the bottom edge, in reach of the thumb.
     const box = (await tabs.boundingBox())!;
     expect(box.y + box.height).toBeGreaterThan((page.viewportSize()?.height ?? 0) - 2);
-    await expect(page.getByRole("navigation", { name: "Home" })).toHaveCount(0);
+    // No section panel: the section's pages are a row over the page instead.
+    await expect(page.getByRole("navigation", { name: "Home", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: "Home pages" }).getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
 
     const menu = page.getByRole("dialog", { name: "Menu" });
     await tabs.getByRole("button", { name: "Menu" }).click();
@@ -63,6 +65,23 @@ test.describe("on a phone · navigation", () => {
     await tabs.getByRole("button", { name: "Menu" }).click();
     await menu.getByRole("button", { name: "Log out" }).click();
     await expect(page.getByRole("dialog", { name: "Log out?" })).toBeVisible();
+  });
+});
+
+test.describe("on a phone · section pages", () => {
+  test("a section's pages are a row over each of them, and the role wizard has the whole screen", async ({ page }) => {
+    await page.goto("/independent/jobs");
+    const pages = page.getByRole("navigation", { name: "Job Board pages" });
+    await pages.getByRole("link", { name: "My applications" }).click();
+    await expect(page).toHaveURL(/\/independent\/jobs\/applications$/);
+    await expect(pages.getByRole("link", { name: "My applications" })).toHaveAttribute("aria-current", "page");
+    // A detail page has its back link instead.
+    await page.goto("/independent/jobs/applications/deal");
+    await expect(pages).toHaveCount(0);
+
+    await page.goto("/team/hire/new?type=trial");
+    await expect(page.getByRole("button", { name: "Save as draft" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Sections" })).toBeHidden();
   });
 });
 

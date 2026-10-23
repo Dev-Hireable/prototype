@@ -28,20 +28,26 @@ type CommentBoxProps = {
 export function CommentBox({ onSend, placeholder = "Add a comment...", label = "Add a comment", sendLabel = "Send", maxLength, validate, describedBy, attach = false }: CommentBoxProps) {
   const draft = useCommentDraft(onSend, validate);
   const { files } = draft;
+  const pending = files.files.length > 0;
   return (
     <div className="flex flex-col gap-1.5">
-      <div {...(attach ? fileDropHandlers(files.add) : {})} className="flex flex-col gap-2 rounded-xl bg-white py-1.5 pr-1.5 pl-3.5 outline -outline-offset-1 outline-border focus-within:outline-[#a6a6a6]">
-        {files.files.length > 0 && (
-          <div className="pt-2 pr-2">
+      {/* The text field is the whole box but its buttons, its padding its own: a tap anywhere on the
+          pill puts the cursor in it. With the padding on the box, the field was a 17px line in a 44px
+          pill, and a finger on the rest of it did nothing. */}
+      <div {...(attach ? fileDropHandlers(files.add) : {})} className="flex flex-col gap-2 rounded-xl bg-white outline -outline-offset-1 outline-border focus-within:outline-[#a6a6a6]">
+        {pending && (
+          <div className="px-3.5 pt-3.5">
             <PendingFiles files={files.files} onRemove={files.remove} />
           </div>
         )}
-        <div className="flex items-end gap-0.5">
-          <div className="flex min-w-0 flex-1 py-[7.5px]">
-            <CommentField text={draft.text} onText={draft.setText} onSend={draft.send} label={label} invalid={!!draft.problem} placeholder={placeholder} maxLength={maxLength} describedBy={describedBy} />
+        <div className="flex items-end gap-0.5 pr-1.5">
+          <div className="flex min-w-0 flex-1">
+            <CommentField text={draft.text} onText={draft.setText} onSend={draft.send} label={label} invalid={!!draft.problem} placeholder={placeholder} maxLength={maxLength} describedBy={describedBy} underFiles={pending} />
           </div>
-          {attach && <AttachButton onPick={files.add} />}
-          <SendButton label={sendLabel} disabled={!draft.ready} onClick={draft.send} />
+          <span className="flex items-end gap-0.5 pb-1.5">
+            {attach && <AttachButton onPick={files.add} />}
+            <SendButton label={sendLabel} disabled={!draft.ready} onClick={draft.send} />
+          </span>
         </div>
       </div>
       {draft.problem && (
@@ -79,8 +85,12 @@ function useCommentDraft(onSend: CommentBoxProps["onSend"], validate: CommentBox
   return { text, setText, files, ready, problem: wrong ?? files.error, send: () => void send() };
 }
 
-/** The box's text: it grows with what's typed, Enter sends and Shift+Enter breaks the line. */
-function CommentField({ text, onText, onSend, label, invalid, placeholder, maxLength, describedBy }: { text: string; onText: (text: string) => void; onSend: () => void; label: string; invalid: boolean; placeholder: string; maxLength?: number; describedBy?: string }) {
+/**
+ * The box's text: it grows with what's typed, Enter sends and Shift+Enter breaks the line. It carries
+ * the box's padding as its own — less above it under files waiting to go (`underFiles`), which have
+ * the box's top edge — so the whole pill is the field to tap.
+ */
+function CommentField({ text, onText, onSend, label, invalid, placeholder, maxLength, describedBy, underFiles }: { text: string; onText: (text: string) => void; onSend: () => void; label: string; invalid: boolean; placeholder: string; maxLength?: number; describedBy?: string; underFiles: boolean }) {
   return (
     <textarea
       rows={1}
@@ -97,7 +107,8 @@ function CommentField({ text, onText, onSend, label, invalid, placeholder, maxLe
       aria-invalid={invalid}
       aria-describedby={describedBy}
       placeholder={placeholder}
-      className="field-sizing-content max-h-40 min-h-[17px] w-full resize-none text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2"
+      // 160px of text at most, as before the padding moved in: 13.5px is the box's 6 and the line's 7.5.
+      className={`field-sizing-content max-h-[187px] w-full resize-none bg-transparent pb-[13.5px] pl-3.5 text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2 ${underFiles ? "min-h-[38px] pt-[7.5px]" : "min-h-11 pt-[13.5px]"}`}
     />
   );
 }

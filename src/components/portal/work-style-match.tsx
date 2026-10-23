@@ -79,7 +79,7 @@ export function WorkStyleMatch({ company, theirs, mine }: { company: string; the
           </div>
         ))}
       </div>
-      <p className="text-[12px] leading-[1.4] text-ink-2">Hover a tag to see what it means.</p>
+      <p className="text-[12px] leading-[1.4] text-ink-2">Hover or tap a tag to see what it means.</p>
     </div>
   );
 }

@@ -2,7 +2,9 @@
 
 import { memo, useCallback, useRef, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
-import { KanbanColumn, KanbanEmpty, KanbanList, type ColumnFrame } from "@/components/portal/board";
+import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList, type ColumnFrame } from "@/components/portal/board";
+import { useBoardJump } from "@/components/portal/board-jump";
+import { PHONE_BOARD } from "@/components/portal/styles";
 import { PriorityPill, StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/tip";
 import { dayOf } from "@/lib/work/dates";
@@ -41,16 +43,19 @@ export function BoardView({ groups, byId, query, pendingIds }: { groups: Group[]
   const onKeyMove = useCallback((t: WorkItem, e: KeyboardEvent) => keyMove(t, e, { groups, env, reorderable, setHint }), [groups, env, reorderable, setHint]);
   const menuModel = useMenuModel(byId, groups, env, reorderable);
   const kit: CardKit = { byId, pendingIds, handle, onDragStart: dnd.onDragStart, onDragEnd: dnd.onDragEnd, onKeyMove };
+  // On a phone, a column at a time, opening at the first with work in it, and a chip per column.
+  const { board, jumpTo, current } = useBoardJump(groups.find((g) => g.items.length)?.key ?? null);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <KanbanJump label="Board columns" columns={groups.map((g) => ({ key: g.key, label: g.label, count: g.items.length, colors: groupColors(g) }))} current={current} onJump={jumpTo} className="px-[var(--ws-gutter,1rem)] pt-3" />
       {hint && (
         <p role="status" className="mx-[var(--ws-gutter,1rem)] mt-3 rounded-lg bg-warn-bg px-3 py-2 text-[13px] leading-[1.4] text-warn-ink">
           {hint}
         </p>
       )}
       {/* Positioned, like the List's scroller, so nothing a column places absolutely passes through it to stretch the page. */}
-      <div className="relative flex min-h-0 flex-1 items-stretch gap-3 overflow-x-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="board">
+      <div ref={board} className={`relative flex min-h-0 flex-1 items-stretch gap-3 overflow-x-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4 max-md:scroll-px-[var(--ws-gutter,1rem)] ${PHONE_BOARD}`} data-testid="board">
         {groups.map((g) => (
           <BoardColumn key={g.key} group={g} dnd={dnd} cards={cards} reorderable={reorderable} sort={query} archived={query.archived} kit={kit} />
         ))}
@@ -144,6 +149,8 @@ function BoardColumn({ group: g, dnd, cards, reorderable, sort, archived, kit }:
       colors={groupColors(g)}
       frame={frame}
       dimmed={dimmed}
+      // On a phone the page scrolls, not each column: a column is as long as its cards.
+      className="max-md:max-h-none"
       data-column={g.key}
       data-drop={state}
       onDragOver={(e) => {

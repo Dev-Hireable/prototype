@@ -45,7 +45,8 @@ export default function PersonalProfile() {
             setToast("Photo updated everywhere");
           }}
         >
-          <p className="truncate text-[14px] leading-[1.4] text-ink-2">
+          {/* Two lines on a phone, as the name over it gets, rather than an ellipsis halfway through the company. */}
+          <p className="truncate text-[14px] leading-[1.4] text-ink-2 max-sm:line-clamp-2 max-sm:whitespace-normal">
             {profile.title} · {company.name}
           </p>
           {/* TB-094 — read-only. */}

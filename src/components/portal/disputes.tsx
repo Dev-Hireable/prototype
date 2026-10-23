@@ -185,14 +185,35 @@ function CaseLink({ d, side }: { d: Dispute; side: DisputeParty }) {
 
 /* ------------------------------------------------------------ list page -- */
 
+/**
+ * Where each cell sits in a phone's card (PHONE_CARD), the same for both sides: who it's with across
+ * the top, the contract and reason under it, then the amount and who it's waiting on, and last the
+ * status and when it was filed with the way in at the end.
+ */
+const PHONE = {
+  who: "max-md:col-span-full max-md:row-start-1",
+  contract: "max-md:col-span-full max-md:row-start-2",
+  amount: "max-md:col-start-1 max-md:row-start-3",
+  waiting: "max-md:col-[2/-1] max-md:row-start-3",
+  status: "max-md:col-start-1 max-md:row-start-4",
+  filed: "max-md:col-start-2 max-md:row-start-4",
+  open: "max-md:col-start-3 max-md:row-start-4",
+};
+
+/**
+ * The card's grid, so each line ends where it should whatever the names' lengths: the amount and
+ * the status share the first column, the waiting-on and the date the second, the way in the last.
+ */
+const PHONE_CARD = "max-md:grid max-md:grid-cols-[auto_minmax(0,1fr)_auto]";
+
 /** Each side's table: the column widths, and the headings over them. */
 const TABLES: Record<DisputeParty, { cols: string[]; head: string[] }> = {
   team: {
-    cols: ["w-[198px]", "min-w-0 flex-1", "w-[104px]", "w-[112px]", "w-[184px]", "w-[112px]", "w-[104px]"],
+    cols: [`w-[198px] ${PHONE.who}`, `min-w-0 flex-1 ${PHONE.contract}`, `w-[104px] ${PHONE.filed}`, `w-[112px] ${PHONE.amount}`, `w-[184px] ${PHONE.waiting}`, `w-[112px] ${PHONE.status}`, `w-[104px] ${PHONE.open}`],
     head: ["Independent", "Contract · reason", "Filed", "Amount", "Waiting on", "Status", ""],
   },
   independent: {
-    cols: ["w-[108px]", "min-w-0 flex-1", "w-[180px]", "w-[112px]", "w-[184px]", "w-[112px]", "w-[104px]"],
+    cols: [`w-[108px] ${PHONE.filed}`, `min-w-0 flex-1 ${PHONE.contract}`, `w-[180px] ${PHONE.who}`, `w-[112px] ${PHONE.amount}`, `w-[184px] ${PHONE.waiting}`, `w-[112px] ${PHONE.status}`, `w-[104px] ${PHONE.open}`],
     head: ["Filed", "Contract · reason", "Team Builder", "Amount", "Waiting on", "Status", ""],
   },
 };
@@ -337,27 +358,36 @@ function NoMatches({ onClear }: { onClear: () => void }) {
 /**
  * One dispute in the table: who it's with (the Team Builder's) or when it was filed (the talent's)
  * first, then the contract and reason, the amount, who it's waiting on, its status and the way in.
+ * A phone's card leads with who it's with on both sides, and names the bare date and the waiting-on
+ * that the hidden headings named; a closed case waits on no one, which its status already says.
  */
 function DisputeRow({ d, side, cols, now }: { d: Dispute; side: DisputeParty; cols: string[]; now: number }) {
+  const filed = (
+    <>
+      <span className="md:hidden">Filed </span>
+      {dateOf(d.at)}
+    </>
+  );
   return (
-    <Row>
+    <Row className={PHONE_CARD}>
       {side === "team" ? (
         <>
           <span className={cols[0]}>
             <Person name={d.independent.name} role={d.title} avatar={d.independent.avatar} />
           </span>
           <ContractCell d={d} className={cols[1]} />
-          <span className={`${cols[2]} text-ink-2`}>{dateOf(d.at)}</span>
+          <span className={`${cols[2]} text-ink-2`}>{filed}</span>
         </>
       ) : (
         <>
-          <span className={`${cols[0]} text-ink-2`}>{dateOf(d.at)}</span>
+          <span className={`${cols[0]} text-ink-2`}>{filed}</span>
           <ContractCell d={d} className={cols[1]} />
-          <span className={`${cols[2]} truncate`}>{d.team.company}</span>
+          <span className={`${cols[2]} truncate max-md:text-[14px] max-md:font-semibold`}>{d.team.company}</span>
         </>
       )}
-      <span className={`${cols[3]} text-[14px]`}>{usd(d.amount)}</span>
-      <span className={`${cols[4]} truncate`}>
+      <span className={`${cols[3]} text-[14px] max-md:font-semibold`}>{usd(d.amount)}</span>
+      <span className={`${cols[4]} truncate max-md:whitespace-normal ${waitingOn(d) ? "" : "max-md:hidden"}`}>
+        <span className="text-ink-2 md:hidden">Waiting on </span>
         <WaitingOn d={d} side={side} now={now} />
       </span>
       <span className={cols[5]}>
@@ -370,10 +400,10 @@ function DisputeRow({ d, side, cols, now }: { d: Dispute; side: DisputeParty; co
   );
 }
 
-/** The table's contract column: the contract, with the reason under it. */
+/** The table's contract column: the contract, with the reason under it; on a phone's card, from its left edge. */
 function ContractCell({ d, className }: { d: Dispute; className: string }) {
   return (
-    <span className={`${className} flex flex-col`}>
+    <span className={`${className} flex flex-col items-start!`}>
       <span className="truncate text-[14px]">{contractName(d)}</span>
       <span className="truncate text-ink-2">{d.reason}</span>
     </span>

@@ -31,7 +31,7 @@ export function DemoReset() {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className={`fixed top-5 right-5 z-40 flex h-6 items-center gap-1 rounded-full border border-border bg-white pr-2.5 pl-2 text-[12px] leading-none font-medium whitespace-nowrap text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${inPortal ? "max-md:hidden" : ""}`}
+        className={`hit-area fixed top-5 right-5 z-40 flex h-6 items-center gap-1 rounded-full border border-border bg-white pr-2.5 pl-2 text-[12px] leading-none font-medium whitespace-nowrap text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${inPortal ? "max-md:hidden" : ""}`}
       >
         <MdRestartAlt size={14} aria-hidden />
         Reset demo

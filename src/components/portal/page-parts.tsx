@@ -43,16 +43,17 @@ export function Section({
  * rate, experience and rating, a job's pay, length, hours, level and seats. Each cell is its value
  * over a small label. Where they don't fit on one line the cells wrap onto another rather than cut
  * the values short; the 1px gaps over the rule colour draw the dividers either way. `sm` is the
- * same strip for a side column (the application page's details card).
+ * same strip for a side column (the application page's details card). A phone sets them two to a
+ * line, and a value or label too long for its cell (a pay range) wraps rather than ending in "…".
  */
 export function FactStrip({ cells, size = "md", className = "" }: { cells: { label: string; value: ReactNode }[]; size?: "md" | "sm"; className?: string }) {
   const sm = size === "sm";
   return (
     <dl className={`flex w-full flex-wrap gap-px overflow-hidden rounded-lg bg-[#e5e5e5] outline -outline-offset-1 outline-border ${className}`}>
       {cells.map((c) => (
-        <div key={c.label} className={`flex min-w-0 flex-col-reverse gap-1 bg-white ${sm ? "flex-[1_1_104px] px-3 py-2.5" : "flex-[1_1_132px] px-4 py-3"}`}>
-          <dt className="truncate text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{c.label}</dt>
-          <dd className={`flex items-center gap-1 truncate font-display leading-[1.3] font-semibold text-ink ${sm ? "text-[15px]" : "text-[18px]"}`} style={DM}>
+        <div key={c.label} className={`flex min-w-0 flex-col-reverse gap-1 bg-white max-sm:basis-[150px] ${sm ? "flex-[1_1_104px] px-3 py-2.5" : "flex-[1_1_132px] px-4 py-3"}`}>
+          <dt className="truncate text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2 max-sm:whitespace-normal">{c.label}</dt>
+          <dd className={`flex items-center gap-1 truncate font-display leading-[1.3] font-semibold text-ink max-sm:whitespace-normal ${sm ? "text-[15px]" : "text-[18px]"}`} style={DM}>
             {c.value}
           </dd>
         </div>

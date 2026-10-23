@@ -1,12 +1,13 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ICONS, type IconName } from "@/components/icons";
 import { Button, InfoBanner } from "@/components/portal/ui";
 import { PHONE_FAB } from "@/components/portal/styles";
 import { ViewTabsList } from "@/components/portal/view-switch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { PHONE, useMedia } from "@/lib/portal/media";
 import { writeParams } from "@/lib/portal/query-state";
 import { todayDay, type Day } from "@/lib/work/dates";
 import { countsOf, isArchived, type AssigneeKey, type WorkItem } from "@/lib/work/model";
@@ -24,7 +25,7 @@ import { ProjectPicker } from "./project-picker";
 import { CorruptWork, MissingContract, NoMatches, NoWork, ViewBoundary, WorkspaceSkeleton } from "./states";
 import { TaskDetail } from "./task-detail";
 import { TimelineView } from "./timeline-view";
-import { FilterChips, Toolbar } from "./toolbar";
+import { FilterChips, Search, Toolbar, ToolbarMenus } from "./toolbar";
 import { focusItem, useWidth } from "./util";
 import { WorkMessages } from "./work-messages";
 import { WorkloadView } from "./workload-view";
@@ -54,6 +55,7 @@ export function ProjectWorkspace({ actor, people, context, closedNote }: Workspa
   useE2ESeam(env.actions.repo);
   const list = useWorkList(work, query, env.today, env.assigneeLabel, projectScope);
   const clearFilters = () => setQuery({ ...EMPTY_FILTERS, q: "" });
+  const panel = useViewOpensAtTop(query.view);
 
   if (work.status === "loading") return <WorkspaceSkeleton view={query.view} />;
   if (work.status === "corrupt") return <CorruptWork />;
@@ -62,12 +64,15 @@ export function ProjectWorkspace({ actor, people, context, closedNote }: Workspa
   const empty = emptyStateOf(list, query, split, scope);
   return (
     <WorkspaceProvider value={env}>
-      <div ref={rootRef} className="flex min-h-0 min-w-0 flex-1 flex-col" data-testid="workspace" data-view={query.view} data-role={env.actor.role}>
+      {/* On a phone the page scrolls to the end of the work; with Add task floating over its corner, the end has room to clear it. */}
+      <div ref={rootRef} className={`flex min-h-0 min-w-0 flex-1 flex-col ${env.canCreate ? "max-md:pb-20" : ""}`} data-testid="workspace" data-view={query.view} data-role={env.actor.role}>
         <Tabs value={query.view} onValueChange={(v) => setQuery({ view: v as ViewKey })} className="flex min-h-0 flex-1 flex-col gap-0">
           <WorkspaceHead context={context} list={list} split={split} scope={scope} query={query} setQuery={setQuery} onAdd={() => setAdding(true)} />
           <ReadOnlyNote closedNote={closedNote} closedPlaceNote={closedPlaceNote} />
           {taskId && !open && <MissingItemNote onDismiss={closeTask} />}
-          <TabsContent value={query.view} className="flex min-h-0 min-w-0 flex-1 flex-col text-[14px]">
+          {/* Isolated on a phone, so nothing a view layers inside it (a timeline's pinned header) rides
+              over the pinned toolbar as the page scrolls; scrolled to, it stops under that toolbar. */}
+          <TabsContent ref={panel} value={query.view} className="flex min-h-0 min-w-0 flex-1 flex-col text-[14px] max-md:isolate max-md:scroll-mt-14">
             <ViewBoundary key={query.view} label={VIEW_LABEL[query.view].toLowerCase()}>
               {empty ? (
                 <EmptyWork kind={empty} archived={query.archived} onAdd={() => setAdding(true)} onClear={clearFilters} />
@@ -137,6 +142,25 @@ function useByValue<T>(value: T): T {
   return useMemo(() => value, [key]); // oxlint-disable-line react-hooks/exhaustive-deps
 }
 
+/**
+ * On a phone, where the page scrolls as a whole (Page's `fill`), a view picked from the pinned tabs
+ * opens at its top, just under them — not halfway down, wherever the last view had been scrolled to.
+ * It runs before the views' own effects, so the Calendar can still open on today.
+ */
+function useViewOpensAtTop(view: ViewKey) {
+  const panel = useRef<HTMLDivElement>(null);
+  const was = useRef(view);
+  useLayoutEffect(() => {
+    if (was.current === view) return;
+    was.current = view;
+    const el = panel.current;
+    // Only a phone has the pinned bar (PhoneHead); elsewhere each view scrolls in itself.
+    const bar = el?.closest('[data-testid="workspace"]')?.querySelector("[data-pinned-bar]");
+    if (el && bar && el.getBoundingClientRect().top < bar.getBoundingClientRect().bottom) el.scrollIntoView({ block: "start" });
+  }, [view]);
+  return panel;
+}
+
 /** The test seam: the repository these actions save through, for the E2E suite to reach. */
 function useE2ESeam(repo: WorkActions["repo"]) {
   // The E2E build puts this portal's repository on window.__hireable. The check is written out
@@ -147,26 +171,55 @@ function useE2ESeam(repo: WorkActions["repo"]) {
   }, [repo]);
 }
 
-/** Above the view: the summary line, the place picker and view tabs, the toolbar, and the filters that are on. */
-function WorkspaceHead({ context, list, split, scope, query, setQuery, onAdd }: { context?: ReactNode; list: WorkList; split: boolean; scope: Scope; query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void; onAdd: () => void }) {
+type HeadProps = { context?: ReactNode; list: WorkList; split: boolean; scope: Scope; query: WorkQuery; setQuery: (p: Partial<WorkQuery>) => void; onAdd: () => void };
+
+/** Above the view: the summary line, the place picker and view tabs, the toolbar, and the filters that are on. A phone lays it out its own way (PhoneHead). */
+function WorkspaceHead(props: HeadProps) {
+  const { context, list, split, scope, query, setQuery, onAdd } = props;
   const { assigneeLabel } = useWorkspace();
+  const phone = useMedia(PHONE);
+  if (phone) return <PhoneHead {...props} />;
   return (
     <div className="flex shrink-0 flex-col gap-3 border-b border-border px-[var(--ws-gutter,1rem)] pt-1 pb-3">
       <SummaryLine context={context} counts={list.counts} split={split} scope={scope} />
       <ViewBar split={split} setQuery={setQuery} inReview={list.inReview} onAdd={onAdd} />
-      <Toolbar
-        query={query}
-        setQuery={setQuery}
-        assigneeLabel={assigneeLabel}
-        tags={list.tags}
-        shown={list.sorted.length}
-        total={list.total}
-        groupable={list.groupable}
-        projects={split}
-        sortable={query.view !== "workload" && query.view !== "calendar"}
-      />
+      <Toolbar {...toolbarProps(list, query, setQuery, assigneeLabel, split)} />
       <FilterChips query={query} setQuery={setQuery} assigneeLabel={assigneeLabel} />
     </div>
+  );
+}
+
+/** What the toolbar works from: the query, the tags in use, the counts, and which menus this view has. */
+function toolbarProps(list: WorkList, query: WorkQuery, setQuery: (p: Partial<WorkQuery>) => void, assigneeLabel: (k: AssigneeKey) => string, split: boolean) {
+  return { query, setQuery, assigneeLabel, tags: list.tags, shown: list.sorted.length, total: list.total, groupable: list.groupable, projects: split, sortable: query.view !== "workload" && query.view !== "calendar" };
+}
+
+/**
+ * A phone's head, in the page's own scroll (Page's `fill`): the view tabs and the search pinned at the
+ * top while the page goes by under them, the search taking the whole row while it's typed in; then
+ * the place picker, Filter, Sort and Group, and Review, and the filters that are on, which scroll
+ * away with the rest. The summary is left to the Overview, so the view gets the screen.
+ */
+function PhoneHead({ list, split, query, setQuery, onAdd }: HeadProps) {
+  const { assigneeLabel } = useWorkspace();
+  return (
+    <>
+      {/* A hairline under it once the page runs beneath (stuck-edge). */}
+      <div data-pinned-bar className="group/bar stuck-edge sticky top-0 z-30 flex shrink-0 items-center gap-2 bg-white px-[var(--ws-gutter,1rem)] py-2">
+        <span className="shrink-0 group-has-[input:focus]/bar:hidden">
+          <ViewTabsList options={VIEW_OPTIONS} />
+        </span>
+        <Search value={query.q} onChange={(q) => setQuery({ q })} compact />
+      </div>
+      <div className="flex shrink-0 flex-col gap-3 border-b border-border px-[var(--ws-gutter,1rem)] pt-1 pb-3">
+        <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Filter, sort and group">
+          {split && <ProjectPicker setQuery={setQuery} />}
+          <ToolbarMenus {...toolbarProps(list, query, setQuery, assigneeLabel, split)} />
+          <HeadActions inReview={list.inReview} onAdd={onAdd} />
+        </div>
+        <FilterChips query={query} setQuery={setQuery} assigneeLabel={assigneeLabel} />
+      </div>
+    </>
   );
 }
 
@@ -310,11 +363,20 @@ function SummaryLine({ context, counts, split, scope }: { context?: ReactNode; c
 
 /** The place picker and the view tabs; then, at the end, Review for work waiting on the Team Builder, and Add task. */
 function ViewBar({ split, setQuery, inReview, onAdd }: { split: boolean; setQuery: (p: Partial<WorkQuery>) => void; inReview: WorkItem[]; onAdd: () => void }) {
-  const env = useWorkspace();
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:gap-x-2">
       {split && <ProjectPicker setQuery={setQuery} />}
       <ViewTabsList options={VIEW_OPTIONS} />
+      <HeadActions inReview={inReview} onAdd={onAdd} />
+    </div>
+  );
+}
+
+/** The head's end: Review for work waiting on the Team Builder, and Add task, which a phone floats over the page (PHONE_FAB). */
+function HeadActions({ inReview, onAdd }: { inReview: WorkItem[]; onAdd: () => void }) {
+  const env = useWorkspace();
+  return (
+    <>
       <span className="flex-1" />
       {inReview.length > 0 && env.actor.role === "manager" && env.access.reviewOpen && (
         <Button size="md" onClick={() => env.openTask(inReview[0].id)}>
@@ -326,7 +388,7 @@ function ViewBar({ split, setQuery, inReview, onAdd }: { split: boolean; setQuer
           <ICONS.add size={18} aria-hidden /> Add task
         </Button>
       )}
-    </div>
+    </>
   );
 }
 

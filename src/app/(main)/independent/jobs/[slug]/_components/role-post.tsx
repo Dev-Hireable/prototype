@@ -16,12 +16,15 @@ const DM = { fontVariationSettings: '"opsz" 14' };
 export function RoleHeader({ role }: { role: Role }) {
   /** Three facts, as on the profile: the pay (with a part-time role's hours), how long or when, and the level. */
   const facts = jobFacts({ type: role.type, pay: role.rateRange, duration: role.duration, hours: role.hours, level: role.level });
+  /** Where and when, leaving out what the post doesn't say, so no "·" is left standing on its own. */
+  const more = [role.about.location, role.posted].filter(Boolean).join(" · ");
   return (
     // data-tour: the role's tour points at the role and at its work style (@/lib/portal/tours).
     <header data-tour="role-head" className="flex max-w-[768px] flex-col gap-6">
       <div className="flex flex-col gap-2">
         <p className="text-[14px] leading-[1.4] text-ink-2">
-          <span className="font-semibold text-ink">{role.company}</span> · {role.about.location} · {role.posted}
+          <span className="font-semibold text-ink">{role.company}</span>
+          {more && ` · ${more}`}
         </p>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h2 className="font-display text-[32px] leading-[1.3] font-semibold text-ink" style={DM}>

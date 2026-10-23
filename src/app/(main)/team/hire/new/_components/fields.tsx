@@ -30,9 +30,10 @@ export function Block({ label, helper, required = false, children }: { label: st
       <span className="flex flex-col gap-2">
         {children}
         {helper && (
-          <span className="flex justify-between text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
+          // The count keeps to one line; a long hint beside it on a phone wraps instead.
+          <span className="flex justify-between gap-4 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
             <span>{helper[0]}</span>
-            <span>{helper[1]}</span>
+            <span className="whitespace-nowrap">{helper[1]}</span>
           </span>
         )}
       </span>
@@ -156,7 +157,7 @@ export function TrialNotes({
         <Textarea value={expectation} maxLength={500} onChange={(e) => onExpectation(e.target.value)} placeholder={copy.notesPlaceholder} className="!h-[96px] resize-none" />
         <span className="flex justify-between gap-4 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
           <span>{copy.notesHint}</span>
-          <span>{expectation.length} / 500</span>
+          <span className="whitespace-nowrap">{expectation.length} / 500</span>
         </span>
       </label>
       <label className="flex flex-col gap-2">

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Button, LinkButton, Modal, Page, Row, StatusDot, Table, Toast } from "@/components/portal/ui";
+import { useState, type ReactNode } from "react";
+import { Button, EmptyState, LinkButton, Modal, Page, Pills, Row, StatusDot, Table, Toast } from "@/components/portal/ui";
 import { canJoin, JOIN_OPENS_MINUTES } from "@/lib/portal/dates";
 import type { Interview } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
@@ -10,7 +10,6 @@ import { useInterviewTime } from "@/lib/independent/interview-time";
 import { useQueryState } from "@/lib/portal/query-state";
 import { useToast } from "@/lib/portal/toast";
 import { ROW_LINK } from "@/components/portal/toolbar";
-import { ViewSwitch } from "@/components/portal/view-switch";
 import { useWithReturn } from "@/components/portal/return";
 import { RescheduleDialog } from "@/components/independent/reschedule-dialog";
 
@@ -27,9 +26,22 @@ const STATUS: Record<Interview["status"], { label: string; tone: "info" | "ok" |
 /**
  * Role flex · Company · Date and time · Format · Status · Actions, on the same grid table as every
  * other portal list (it was a hand-rolled one without column rules). The time takes two lines, the
- * talent's own clock over the Team Builder's, so a long slot can't run into Format.
+ * talent's own clock over the Team Builder's, so a long slot can't run into Format. A phone shows
+ * each row as a card in the same order: the role, the company and the time each on a line of their
+ * own, the format beside the status, and the buttons sharing the last line.
  */
-const COLS = ["min-w-[200px] flex-1", "w-[170px]", "w-[190px]", "w-[120px]", "w-[150px]", "w-[290px]"];
+const COLS = [
+  "min-w-[200px] flex-1 max-md:basis-full!",
+  "w-[170px] max-md:basis-full! max-md:text-ink-2",
+  "w-[190px] max-md:basis-full!",
+  "w-[120px]",
+  "w-[150px]",
+  "w-[290px] max-md:mt-1.5 max-md:basis-full! max-md:*:flex-1 max-md:[&_button]:w-full",
+];
+
+/** What each list says with nothing on it. */
+const NONE_UPCOMING = { title: "No upcoming interviews", body: "Invitations from Team Builders will show here." };
+const NONE_PAST = { title: "No past interviews yet", body: "Interviews that are over, declined or cancelled show here." };
 
 export default function Interviews() {
   const [tab, setTab] = useQueryState("tab", "upcoming", ["upcoming", "past"] as const);
@@ -51,16 +63,12 @@ export default function Interviews() {
 
   return (
     <Page title="Interviews">
-      {/* The same 36px switch as every list's toolbar. */}
       <InterviewsToolbar tab={tab} onTab={setTab} upcoming={upcoming.length} past={past.length} />
-      <Table cols={COLS} head={["Role", "Company", "Date and time", "Format", "Status", "Actions"]}>
-        {rows.map((iv) => (
-          <InterviewRow key={iv.id} iv={iv} time={clock.both(iv)} href={withReturn(iv.roleHref)} onAccept={() => accept(iv)} onDecline={() => setDeclining(iv)} onReschedule={() => setRescheduling(iv)} />
-        ))}
-        {rows.length === 0 && (
-          <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">{tab === "upcoming" ? "No interviews yet. Invitations from Team Builders will show here." : "No past interviews yet."}</p>
-        )}
-      </Table>
+      <InterviewList
+        tab={tab}
+        rows={rows}
+        row={(iv) => <InterviewRow key={iv.id} iv={iv} time={clock.both(iv)} href={withReturn(iv.roleHref)} onAccept={() => accept(iv)} onDecline={() => setDeclining(iv)} onReschedule={() => setRescheduling(iv)} />}
+      />
 
       <DeclineInterview
         interview={declining}
@@ -90,20 +98,35 @@ export default function Interviews() {
   );
 }
 
-/** Upcoming or past interviews, each with how many there are. */
+/**
+ * Upcoming or past interviews, each with how many there are. Two filters over one list, so they're
+ * the filter pills rather than a view switch.
+ */
 function InterviewsToolbar({ tab, onTab, upcoming, past }: { tab: "upcoming" | "past"; onTab: (tab: "upcoming" | "past") => void; upcoming: number; past: number }) {
   return (
-    <div className="flex items-center gap-2" role="toolbar" aria-label="Interviews">
-      <ViewSwitch
-        label="Show"
-        value={tab}
-        onChange={onTab}
-        options={[
-          { value: "upcoming", label: `Upcoming (${upcoming})`, icon: "schedule" },
-          { value: "past", label: `Past (${past})`, icon: "history" },
-        ]}
-      />
-    </div>
+    <Pills
+      aria-label="Show interviews"
+      value={tab}
+      onChange={onTab}
+      options={[
+        { value: "upcoming", label: `Upcoming (${upcoming})` },
+        { value: "past", label: `Past (${past})` },
+      ]}
+    />
+  );
+}
+
+/**
+ * The open tab's interviews, a row each, or what the tab says when it has none: an empty state of its
+ * own, as inside the table it sat in the table's minimum width, off centre wherever the table scrolls
+ * sideways.
+ */
+function InterviewList({ tab, rows, row }: { tab: "upcoming" | "past"; rows: Interview[]; row: (iv: Interview) => ReactNode }) {
+  if (rows.length === 0) return <EmptyState {...(tab === "upcoming" ? NONE_UPCOMING : NONE_PAST)} />;
+  return (
+    <Table cols={COLS} head={["Role", "Company", "Date and time", "Format", "Status", "Actions"]}>
+      {rows.map((iv) => row(iv))}
+    </Table>
   );
 }
 

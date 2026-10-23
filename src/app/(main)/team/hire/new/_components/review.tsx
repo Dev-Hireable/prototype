@@ -56,8 +56,9 @@ function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobTy
         label="Role"
         {...item("title")}
         heading={
-          <div className="flex items-center gap-4">
-            <h3 className="font-display text-[32px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
+          // A size down on a phone, as the page titles are, so a two-word role keeps to a line.
+          <div className="flex items-center gap-4 max-md:flex-wrap max-md:gap-x-3 max-md:gap-y-1">
+            <h3 className="font-display text-[32px] leading-[1.5] font-semibold text-ink max-md:text-[24px] max-md:leading-[1.3]" style={{ fontVariationSettings: '"opsz" 14' }}>
               {f.title}
             </h3>
             <JobBadge type={type} />

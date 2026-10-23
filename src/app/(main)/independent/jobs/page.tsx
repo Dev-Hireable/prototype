@@ -145,7 +145,9 @@ function RoleResults({ filters: f, published, results }: { filters: RoleFilters;
   const current = Math.min(f.page, pages);
   const shown = results.slice((current - 1) * PER_PAGE, current * PER_PAGE);
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-4">
+    // Below lg the Filter button floats over the bottom right of the page (MarketplaceFilterPanel):
+    // the extra room lets the end of the list, the pager's Next with it, scroll up clear of it.
+    <div className="flex min-w-0 flex-1 flex-col gap-4 max-lg:pb-10">
       <SearchBox value={f.q} onChange={f.setQ} placeholder="Search by title, company or skill" />
       {/* The real count. It used to add a flat 37 to whatever was on screen. */}
       <p className="text-[14px] leading-[1.4] text-ink-2">{results.length === 1 ? "1 open role" : `${results.length} open roles`}</p>

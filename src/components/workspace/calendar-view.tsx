@@ -5,13 +5,14 @@ import { ICONS } from "@/components/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { layoutWeek, monthWeeks, moveToDay, spanOf, unscheduled, type Segment, type WeekLayout } from "@/lib/work/calendar";
+import { agendaDays, layoutWeek, monthWeeks, moveToDay, spanOf, unscheduled, type Segment, type WeekLayout } from "@/lib/work/calendar";
 import { addMonths, dayOf, isoOf, isWeekend, longLabel, MONTH_LONG, monthKey, parseMonth, partsOf, shortLabel, WEEKDAY_SHORT, type Day } from "@/lib/work/dates";
 import { refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
 import { changeFor } from "@/lib/work/permissions";
 import type { WorkQuery } from "@/lib/work/query";
 import { checkDates } from "@/lib/work/validate";
 import { useWorkspace, type WorkspaceEnv } from "./context";
+import { Ref } from "./meta";
 import { QuickAdd } from "./quick-add";
 
 /**
@@ -399,24 +400,22 @@ function MorePopover({ day, items, count }: { day: Day; items: WorkItem[]; count
 }
 
 /**
- * A phone-width month: a small month grid on top, a dot under each day with something on it (a tap
- * scrolls to that day), then the schedule — each day as a date block beside its items as cards — and
- * last what's unscheduled. A day's heading stays for screen readers ("Fri 25 Sep 2026 · Today").
+ * A phone-width month: a small month grid on top, a dot under each day with something due (a tap
+ * scrolls to that day), then the schedule — each day as a date block beside its items as cards, each
+ * item once, on its due day, with its dates — and last what's unscheduled. In the month with today
+ * in it, today always has its day, and the schedule opens on it. A day's heading stays for screen
+ * readers ("Fri 25 Sep 2026 · Today").
  */
 function Agenda({ items, loose, y, m, header }: { items: readonly WorkItem[]; loose: WorkItem[]; y: number; m: number; header: ReactNode }) {
   const { today } = useWorkspace();
-  const days = useMemo(() => {
-    const byDay = new Map<Day, WorkItem[]>();
-    for (const w of monthWeeks(y, m))
-      for (const [day, list] of layoutWeek(w, items, 99).all) if (partsOf(day).m === m) byDay.set(day, list);
-    return [...byDay.entries()].sort((a, b) => a[0] - b[0]);
-  }, [items, y, m]);
-  const busy = new Set(days.map(([day]) => day));
+  const days = useMemo(() => withToday(agendaDays(items, y, m), today, y, m), [items, today, y, m]);
+  const busy = new Set(days.flatMap(([day, list]) => (list.length ? [day] : [])));
+  useAgendaOnToday(days, today, y, m);
   return (
     <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="calendar">
       {header}
       <MiniMonth y={y} m={m} today={today} busy={busy} />
-      {days.length === 0 && <p className="rounded-lg bg-surface-2 px-4 py-6 text-center text-[13px] text-ink-2">Nothing is scheduled in {MONTH_LONG[m - 1]}.</p>}
+      {busy.size === 0 && <p className="rounded-lg bg-surface-2 px-4 py-6 text-center text-[13px] text-ink-2">Nothing is scheduled in {MONTH_LONG[m - 1]}.</p>}
       <div className="flex flex-col gap-3">
         {days.map(([day, list]) => (
           <AgendaDay key={day} day={day} today={today} list={list} />
@@ -430,6 +429,28 @@ function Agenda({ items, loose, y, m, header }: { items: readonly WorkItem[]; lo
       )}
     </div>
   );
+}
+
+/** The schedule with today in it whenever the month shown has today — saying, when nothing is due, that nothing is — so it always has a today to open on. */
+function withToday(days: [Day, WorkItem[]][], today: Day, y: number, m: number): [Day, WorkItem[]][] {
+  const here = partsOf(today);
+  if (here.y !== y || here.m !== m || days.some(([day]) => day === today)) return days;
+  return [...days, [today, []] as [Day, WorkItem[]]].sort((a, b) => a[0] - b[0]);
+}
+
+/**
+ * Once per month shown, the month with today in it opens the schedule on today: its day comes up to
+ * the top, under the pinned toolbar (the days' scroll margin). A phone scrolls the whole page, so
+ * it's that scroll that moves.
+ */
+function useAgendaOnToday(days: readonly [Day, WorkItem[]][], today: Day, y: number, m: number) {
+  const scrolledFor = useRef<string | null>(null);
+  useEffect(() => {
+    const shown = `${y}-${m}`;
+    if (scrolledFor.current === shown) return;
+    scrolledFor.current = shown;
+    if (days.some(([day]) => day === today)) document.getElementById(`agenda-${today}`)?.scrollIntoView({ block: "start" });
+  });
 }
 
 /** The month as a small grid: today ringed, a dot under each day with work on it, a tap to jump there. */
@@ -465,12 +486,12 @@ function MiniMonth({ y, m, today, busy }: { y: number; m: number; today: Day; bu
   );
 }
 
-/** One day of the schedule: its date block, then its items as cards. */
+/** One day of the schedule: its date block, then its items as cards. Scrolled to, it stops clear of the toolbar pinned over the page. */
 function AgendaDay({ day, today, list }: { day: Day; today: Day; list: WorkItem[] }) {
   const { d } = partsOf(day);
   const isToday = day === today;
   return (
-    <section id={`agenda-${day}`} aria-label={longLabel(day)} className="flex scroll-mt-3 gap-3">
+    <section id={`agenda-${day}`} aria-label={longLabel(day)} className="flex scroll-mt-16 gap-3">
       <h3 className="sr-only">
         {longLabel(day)}
         {isToday && " · Today"}
@@ -479,18 +500,26 @@ function AgendaDay({ day, today, list }: { day: Day; today: Day; list: WorkItem[
         <span className="text-[11px] font-medium uppercase">{WEEKDAY_SHORT[(day + 4) % 7]}</span>
         <span className={`flex size-9 items-center justify-center rounded-full text-[18px] font-semibold tabular-nums ${isToday ? "bg-primary text-white" : ""}`}>{d}</span>
       </div>
-      <ul className="flex min-w-0 flex-1 flex-col gap-2">
-        {list.map((t) => (
-          <AgendaCard key={t.id} t={t} />
-        ))}
-      </ul>
+      {list.length === 0 ? (
+        <p className="flex min-h-12 min-w-0 flex-1 items-center rounded-lg border border-dashed border-border px-3 text-[13px] text-ink-2">Nothing is due today.</p>
+      ) : (
+        <ul className="flex min-w-0 flex-1 flex-col gap-2">
+          {list.map((t) => (
+            <AgendaCard key={t.id} t={t} />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
 
-/** An item in the schedule: a card with its status, number and name, that opens it. */
+/**
+ * An item in the schedule: a card with its status, number and name (two lines of it, whole words),
+ * and — when it isn't just due on the day it's listed under — its dates, that opens it.
+ */
 function AgendaCard({ t }: { t: WorkItem }) {
-  const { openTask } = useWorkspace();
+  const { openTask, today } = useWorkspace();
+  const when = agendaWhen(t, today);
   return (
     <li>
       <button
@@ -500,9 +529,22 @@ function AgendaCard({ t }: { t: WorkItem }) {
         className="flex min-h-12 w-full items-center gap-2.5 rounded-lg border border-border bg-white px-3 py-2 text-left text-[14px] active:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary"
       >
         <StatusCircle status={t.status} size={16} />
-        <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
-        <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="line-clamp-2 leading-[1.3] break-normal text-ink">
+            <Ref item={t} />
+            {t.title}
+          </span>
+          {when && <span className="text-[12px] leading-[1.3] text-ink-2">{when}</span>}
+        </span>
       </button>
     </li>
   );
+}
+
+/** What a schedule card says about its dates: the range it runs, that it starts on the day, or that it's a milestone. Nothing for a plain due date: the day it's under says it. */
+function agendaWhen(t: WorkItem, today: Day) {
+  const span = spanOf(t);
+  if (span?.kind === "range") return `${shortLabel(span.from, today)} – ${shortLabel(span.to, today)}`;
+  if (span?.kind === "start") return "Starts";
+  return span?.kind === "milestone" ? "Milestone" : null;
 }

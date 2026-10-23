@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { layoutWeek, monthWeeks, moveToDay, spanOf, unscheduled } from "../../src/lib/work/calendar";
+import { agendaDays, layoutWeek, monthWeeks, moveToDay, spanOf, unscheduled } from "../../src/lib/work/calendar";
 import { dayOf, isoOf } from "../../src/lib/work/dates";
 import { item, iso, TODAY } from "./fixtures";
 
@@ -47,5 +47,23 @@ test.describe("calendar", () => {
     expect(moveToDay(item({ due: "2026-09-21" }), dayOf("2026-10-05") as number)).toEqual({ start: undefined, due: "2026-10-05" });
     expect(moveToDay(item({ start: "2026-09-21" }), dayOf("2026-10-05") as number)).toEqual({ start: "2026-10-05", due: undefined });
     expect(moveToDay(item({}), dayOf("2026-10-05") as number)).toEqual({ start: undefined, due: "2026-10-05" });
+  });
+});
+
+test.describe("calendar · agenda", () => {
+  test("a phone's schedule lists each item once, on the last day it covers", () => {
+    const long = item({ title: "Long", start: "2026-09-10", due: "2026-09-24" });
+    const due = item({ title: "Due", due: "2026-09-24" });
+    const starts = item({ title: "Starts", start: "2026-09-15" });
+    const next = item({ title: "Next month", start: "2026-09-28", due: "2026-10-02" });
+    const days = agendaDays([due, long, starts, next, item({})], 2026, 9);
+    const listed = days.map(([d, list]) => [isoOf(d), list.map((t) => t.title)]);
+    // A fortnight-long item is on its due day only; a start-only one on its start; one due next
+    // month waits for that month; on a shared day the earliest started comes first.
+    expect(listed).toEqual([
+      ["2026-09-15", ["Starts"]],
+      ["2026-09-24", ["Long", "Due"]],
+    ]);
+    expect(agendaDays([next], 2026, 10).map(([d]) => isoOf(d))).toEqual(["2026-10-02"]);
   });
 });

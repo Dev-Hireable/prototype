@@ -1,17 +1,17 @@
 import Link from "next/link";
 import { MessageButton } from "@/components/portal/ui";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import type { CONTRACT_TABS } from "@/lib/contract/view";
 import type { Contract } from "@/lib/independent/data";
 import { useQuickChat } from "@/lib/portal/quick-chat";
 import { companyChat } from "../_lib/chat";
 
-type Section = (typeof CONTRACT_TABS)[number];
-
-const SECTION_LABEL: Record<Exclude<Section, "tasks">, string> = { evaluation: "Evaluation", overview: "Overview", contract: "Contract & Payment" };
-
-/** All contracts › the contract — and, on a tab other than Work, the tab, with the contract's crumb leading back to Work. */
-export function Crumbs({ contract, tab }: { contract: Contract; tab: Section }) {
+/**
+ * All contracts › the contract, on every tab, as the Team Builder's tracker reads (All Independents ›
+ * the person): the tabs under the title already say which one is open. With the tab as a third crumb,
+ * a phone — which shows only the step back — offered the contract itself as the way back from its
+ * own Overview.
+ */
+export function Crumbs({ contract }: { contract: Contract }) {
   return (
     <Breadcrumb>
       <BreadcrumbList>
@@ -19,26 +19,11 @@ export function Crumbs({ contract, tab }: { contract: Contract; tab: Section }) 
           <BreadcrumbLink render={<Link href="/independent/contracts" />}>All contracts</BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
-        {tab === "tasks" ? (
-          <BreadcrumbItem>
-            <BreadcrumbPage>
-              {contract.title} at {contract.company}
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-        ) : (
-          <>
-            {/* On a tab, the contract crumb leads back to its default Tasks tab. */}
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href={`/independent/contracts/${contract.slug}`} />}>
-                {contract.title} at {contract.company}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>{SECTION_LABEL[tab]}</BreadcrumbPage>
-            </BreadcrumbItem>
-          </>
-        )}
+        <BreadcrumbItem>
+          <BreadcrumbPage>
+            {contract.title} at {contract.company}
+          </BreadcrumbPage>
+        </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>
   );

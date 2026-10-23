@@ -176,10 +176,14 @@ function ApplicantsCard({ candidates, active }: { candidates: Candidate[]; activ
   );
 }
 
-/** The Interviews card: the next few, each linking to the candidate's card with a Join button, or a note that nothing is scheduled. */
+/**
+ * The Interviews card: the next few, each linking to the candidate's card with a Join button, or a
+ * note that nothing is scheduled — which fills the card where it stands level with the one beside
+ * it, and on a phone, with no card beside it, is as tall as what it says.
+ */
 function UpcomingInterviews({ upcoming }: { upcoming: Interview[] }) {
   return upcoming.length === 0 ? (
-    <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[13px] leading-[1.4] text-ink-2">Nothing scheduled. Invite a candidate to interview to see it here.</p>
+    <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[13px] leading-[1.4] text-ink-2 max-md:flex-none">Nothing scheduled. Invite a candidate to interview to see it here.</p>
   ) : (
     <ul className="flex flex-col gap-2">
       {upcoming.map((iv) => {
@@ -208,8 +212,9 @@ function UpcomingInterviews({ upcoming }: { upcoming: Interview[] }) {
 function ActiveContracts({ active }: { active: Contract[] }) {
   return (
     <>
+      {/* As tall as what it says on a phone, as the Interviews card's note is. */}
       {active.length === 0 ? (
-        <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">
+        <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2 max-md:flex-none">
           No active engagements yet. Hire an Independent to see their contract here.
         </p>
       ) : (

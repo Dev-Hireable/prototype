@@ -4,8 +4,8 @@ import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
-import { Button, Card, Chip, EmptyState, Field, InfoBanner, Input, KebabMenu, LinkButton, Modal, Page, SearchBox, Select, StatusDot, Toast } from "@/components/portal/ui";
-import { PHONE_FILTER_ROW } from "@/components/portal/styles";
+import { Button, Card, Chip, EmptyState, Field, InfoBanner, Input, KebabMenu, LinkButton, Modal, Page, Row, SearchBox, Select, StatusDot, Table, Toast } from "@/components/portal/ui";
+import { LEDGER_COLS as COLS, PHONE_FILTER_ROW } from "@/components/portal/styles";
 import { MenuAction } from "@/components/portal/controls";
 import { useDeal } from "@/lib/demo/deal";
 import { useDisputes, type Dispute } from "@/lib/demo/disputes";
@@ -29,7 +29,6 @@ const BRAND: Partial<Record<PayoutMethod["brand"], { src: string; w: number; cls
   GCash: { src: "/brands/gcash.png", w: 110, cls: "h-[26px] w-[110px]" },
 };
 
-const COLS = ["w-[110px]", "min-w-0 flex-1", "w-[150px]", "w-[150px]", "w-[110px]", "w-[130px]", "w-[80px]"];
 /** IN-078 date ranges, measured from the newest row rather than the wall clock. */
 const RANGES = { "All time": Infinity, "Last 30 days": 30, "Last 90 days": 90 } as const;
 type Range = keyof typeof RANGES;
@@ -42,6 +41,8 @@ const daysBetween = (a: number, b: number) => {
 /** The seed carries formatted strings, and the summary has to add them up. */
 const amountOf = (s: string) => Number(s.replace(/[^0-9.]/g, "")) || 0;
 const money = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** The balance card that holds Withdraw on a phone. */
+const AVAILABLE = "Available to withdraw";
 
 type ContractName = (t: Transaction) => string;
 
@@ -55,11 +56,13 @@ export default function Wallet() {
   const [detail, setDetail] = useState<Transaction | null>(null);
   const [toast, setToast] = useToast();
   const { all, contractName, filters } = useLedger(transactions);
+  const withdraw = () => setWithdrawing(true);
 
   return (
     <Page title="Earnings">
       <div className="flex flex-col gap-6">
-        <Balances all={all} available={available} />
+        {/* A phone has Withdraw in the Available card; wider screens have it over the ledger. */}
+        <Balances all={all} available={available} withdraw={<CardWithdraw off={withdrawOff} available={available} onClick={withdraw} />} />
 
         <PayoutMethods
           payouts={payouts}
@@ -73,13 +76,7 @@ export default function Wallet() {
         />
 
         <FilterBar filters={filters} total={all.length}>
-          {/* Off, with why as its tip, until something is available, the ID is verified and a verified method can take it.
-              The span is the Earnings tour's anchor (@/lib/portal/tours): Button takes no extra props. */}
-          <span data-tour="withdraw" className="ml-auto">
-            <Button variant="primary" size="lg" disabled={!!withdrawOff} title={withdrawOff} onClick={() => setWithdrawing(true)}>
-              Withdraw
-            </Button>
-          </span>
+          <WithdrawButton off={withdrawOff} onClick={withdraw} className="ml-auto max-md:hidden" />
         </FilterBar>
 
         <TransactionList all={all} filters={filters} contractName={contractName} onView={setDetail} />
@@ -250,8 +247,41 @@ function useFilters(all: Transaction[], contractName: ContractName) {
 
 type Filters = ReturnType<typeof useFilters>;
 
-/** IN-052 — every figure is added up from the ledger, so a recorded payment moves it at once. */
-function Balances({ all, available }: { all: Transaction[]; available: number }) {
+/**
+ * Earnings' one action: off, with why as its tip, until something is available, the ID is verified
+ * and a verified method can take it. The span is the Earnings tour's anchor (@/lib/portal/tours):
+ * Button takes no extra props. There are two, one for a phone and one for wider screens, and the
+ * tour points at whichever is on screen.
+ */
+function WithdrawButton({ off, onClick, className = "", full = false }: { off: string | undefined; onClick: () => void; className?: string; full?: boolean }) {
+  return (
+    <span data-tour="withdraw" className={className}>
+      <Button variant="primary" size="lg" disabled={!!off} title={off} onClick={onClick} className={full ? "w-full" : ""}>
+        Withdraw
+      </Button>
+    </span>
+  );
+}
+
+/**
+ * Withdraw where a phone has it, in the Available card, full width under the thumb, with the reason
+ * it's off written under it: a finger can't hover for the tip. With nothing available the card's own
+ * figure and line already say why, so there's no line then.
+ */
+function CardWithdraw({ off, available, onClick }: { off: string | undefined; available: number; onClick: () => void }) {
+  return (
+    <div className="mt-3 flex flex-col gap-1.5 md:hidden">
+      <WithdrawButton off={off} onClick={onClick} className="flex" full />
+      {off && available > 0 && <p className="text-[12px] leading-[1.4] text-ink-2">{off}</p>}
+    </div>
+  );
+}
+
+/**
+ * IN-052 — every figure is added up from the ledger, so a recorded payment moves it at once. `withdraw`
+ * goes in the Available card, which a phone puts first and across the full width, as the one to act on.
+ */
+function Balances({ all, available, withdraw }: { all: Transaction[]; available: number; withdraw: ReactNode }) {
   const received = all.filter((t) => t.type === "Payment Released").reduce((n, t) => n + amountOf(t.amount), 0);
   // What's still in escrow is what's left on the deposit rows: a split or a refund takes part of one.
   const heldRows = all.filter((t) => t.type === "Payment Deposited" && (t.left ?? 0) > 0);
@@ -266,16 +296,17 @@ function Balances({ all, available }: { all: Transaction[]; available: number })
     <div data-tour="earnings-totals" className="flex gap-4 whitespace-nowrap max-lg:flex-wrap max-lg:gap-3 max-lg:whitespace-normal">
       {[
         [money(received), "Received, all time", `${releases.length} ${releases.length === 1 ? "payment" : "payments"} received from ${payingContracts} ${payingContracts === 1 ? "contract" : "contracts"}`],
-        [money(available), "Available to withdraw", available ? "released and not yet withdrawn" : received ? "withdrawn already" : "nothing released yet"],
+        [money(available), AVAILABLE, available ? "released and not yet withdrawn" : received ? "withdrawn already" : "nothing released yet"],
         [money(held), "Held in escrow", `${heldTrials} ${heldTrials === 1 ? "trial" : "trials"} funded and not yet released`],
         [money(withdrawn), "Withdrawn to payout method", `${withdrawals.length === 1 ? "one payout" : `${withdrawals.length} payouts`} so far`],
       ].map(([v, l, s]) => (
-        <Card key={l} className="flex min-w-0 flex-1 flex-col gap-0.5 p-4 max-lg:basis-[150px]">
+        <Card key={l} className={`flex min-w-0 flex-1 flex-col gap-0.5 p-4 max-lg:basis-[150px] ${l === AVAILABLE ? "max-md:order-first max-md:basis-full" : ""}`}>
           <p className="font-display text-[22px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
             {v}
           </p>
           <p className="text-[13px] leading-[1.4] font-medium text-ink-2">{l}</p>
           <p className="text-[12px] leading-[1.4] text-ink-2">{s}</p>
+          {l === AVAILABLE && withdraw}
         </Card>
       ))}
     </div>
@@ -288,7 +319,8 @@ function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { 
   return (
     <div data-tour="payout-methods">
       <Card className="flex flex-col gap-4 p-6">
-        <div className="flex items-center justify-between gap-3">
+        {/* Where the two don't fit on a line (a phone), the button goes under the heading rather than squeezing it onto two. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
             Payout methods
           </h2>
@@ -330,13 +362,17 @@ function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { 
   );
 }
 
-/** One payout method: its brand, the last four digits, who holds it and whether it's verified. `removeOff` says why Remove is off (removeBlocker). */
+/**
+ * One payout method: its brand, the last four digits, who holds it and whether it's verified.
+ * `removeOff` says why Remove is off (removeBlocker). A phone stacks the cards one under another, so
+ * there each is only as tall as its lines rather than a fixed card shape.
+ */
 function PayoutCard({ method: m, open, onOpenChange, removeOff, onSetDefault, onHistory, onRemove }: { method: PayoutMethod; open: boolean; onOpenChange: (open: boolean) => void; removeOff: string | undefined; onSetDefault: () => void; onHistory: () => void; onRemove: () => void }) {
   const brand = BRAND[m.brand];
   const verified = m.verified.startsWith("Verified");
   return (
     <div
-      className={`relative flex h-[190px] flex-col justify-between rounded-2xl p-5 drop-shadow-[0_6px_8px_rgba(26,31,46,0.08)] ${m.isDefault ? "border-[1.5px] border-ok" : "border border-[#e3e6ea]"}`}
+      className={`relative flex h-[190px] flex-col justify-between rounded-2xl p-5 drop-shadow-[0_6px_8px_rgba(26,31,46,0.08)] max-md:h-auto max-md:gap-3 ${m.isDefault ? "border-[1.5px] border-ok" : "border border-[#e3e6ea]"}`}
       style={{ backgroundImage: "linear-gradient(151.55deg, #ffffff 0%, #f2f4f7 71.429%)" }}
     >
       {m.isDefault && (
@@ -435,36 +471,48 @@ function TransactionList({ all, filters: f, contractName, onView }: { all: Trans
 /** One page of the ledger: date, contract, company, type, amount and status, and a View button on each row. */
 function TransactionTable({ rows, contractName, onView }: { rows: Transaction[]; contractName: ContractName; onView: (t: Transaction) => void }) {
   return (
-    <div className="overflow-hidden rounded-lg outline -outline-offset-1 outline-border">
-      <div className="flex items-center gap-4 bg-surface-2 px-4 py-3 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2">
-        {["Date", "Contract", "Company", "Type", "Amount", "Status", "Actions"].map((h, i) => (
-          <span key={h} className={COLS[i]}>
-            {h}
-          </span>
-        ))}
-      </div>
+    <Table cols={COLS} head={["Date", "Contract", "Company", "Type", "Amount", "Status", "Actions"]}>
       {/* Date + description repeat when two payments land on one contract the same day (a
           dispute release, then End Contract): keyed() numbers exact repeats. */}
       {keyed(rows, (t) => `${t.date}-${t.desc}-${t.amount}`).map(({ item: t, key }) => (
-        <div key={key} className="flex items-center gap-4 border-t border-border px-4 py-3 text-[13px] leading-[1.4] whitespace-nowrap text-ink">
-          <span className={COLS[0]}>{t.date}</span>
-          <span className={`${COLS[1]} truncate text-[14px]`}>{contractName(t)}</span>
-          <span className={COLS[2]}>{t.party}</span>
-          <span className={COLS[3]}>
-            <Chip>{EARNINGS_LABEL[t.type] ?? t.type}</Chip>
-          </span>
-          <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
-          <span className={COLS[5]}>
-            <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
-          </span>
-          <span className={COLS[6]}>
-            <Button size="sm" onClick={() => onView(t)}>
-              View
-            </Button>
-          </span>
-        </div>
+        <LedgerRow key={key} t={t} contract={contractName(t)} onView={() => onView(t)} />
       ))}
-    </div>
+    </Table>
+  );
+}
+
+/**
+ * One row of the ledger. A withdrawal has no contract or company: the table keeps a "—" in both
+ * columns, while a phone's card, which has no columns to keep, names it by what it was ("Payout to
+ * Maya ····4471") and leaves the company out.
+ */
+function LedgerRow({ t, contract, onView }: { t: Transaction; contract: string; onView: () => void }) {
+  const what = contract === "—" ? (
+    <>
+      <span className="max-md:hidden">—</span>
+      <span className="md:hidden">{t.desc}</span>
+    </>
+  ) : (
+    contract
+  );
+  return (
+    <Row>
+      <span className={COLS[0]}>{t.date}</span>
+      <span className={`${COLS[1]} truncate text-[14px]`}>{what}</span>
+      <span className={`${COLS[2]} ${t.party === "—" ? "max-md:hidden" : ""}`}>{t.party}</span>
+      <span className={COLS[3]}>
+        <Chip>{EARNINGS_LABEL[t.type] ?? t.type}</Chip>
+      </span>
+      <span className={`${COLS[4]} text-[14px] font-medium`}>{t.amount}</span>
+      <span className={COLS[5]}>
+        <StatusDot tone={t.status.tone}>{t.status.label}</StatusDot>
+      </span>
+      <span className={COLS[6]}>
+        <Button size="sm" onClick={onView}>
+          View
+        </Button>
+      </span>
+    </Row>
   );
 }
 
