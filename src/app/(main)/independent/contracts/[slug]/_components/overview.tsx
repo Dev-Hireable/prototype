@@ -1,6 +1,7 @@
 import { Button } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
-import type { ContractView } from "@/lib/contract/view";
+import { cancelledLine, type ContractView } from "@/lib/contract/view";
+import { PAIR } from "@/lib/demo/live";
 import { dayLabel } from "@/lib/portal/dates";
 import { usd } from "@/lib/demo/disputes";
 import { hoursLabel, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
@@ -56,6 +57,8 @@ export function OverviewCallouts({ contract, view, ended, onReadEvaluation, onRe
           {notice.by === "independent" ? `You gave notice on ${dayLabel(notice.given)}` : `${contract.company} gave notice on ${dayLabel(notice.given)}`}: the {typeLabel.toLowerCase()} role ends after {dayLabel(notice.lastDay)}. It carries on, and you're paid, until then.
         </Callout>
       )}
+      {/* Called off before its first day: by whom, and why. */}
+      {view.cancelled && <Callout>{cancelledLine(view, "independent", { team: contract.company, independent: PAIR.independent.name })}</Callout>}
       {!closedTrial && !ended && <ChangesAsked contract={contract} onOpen={onOpenTask} />}
     </>
   );

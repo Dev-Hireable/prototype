@@ -1,6 +1,6 @@
 "use client";
 
-import { payScheduleOf } from "@/lib/demo/contract";
+import { payScheduleOf, reasonLine } from "@/lib/demo/contract";
 import { dayLabel, daysLeftLabel, parseDay, sinceOrFrom } from "@/lib/portal/dates";
 import { lifecycleOfDeal, trialEvaluationOf, useDeal } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
@@ -62,6 +62,10 @@ export function useContractView(contract: ContractOnPage, title: string, side: S
     notice: life?.notice,
     /** Called off before its first day. */
     cancelled: live.cancelled,
+    /** Who called it off, and why. */
+    cancelReason: live.cancelReason,
+    /** The day it was called off. */
+    endedOn: live.endedOn,
     closedTrial: !!life && trialClosed(life),
     block,
     running,
@@ -103,6 +107,8 @@ function liveOf(deal: Deal | null, allDisputes: Dispute[], onDeal: boolean) {
     chapter: onDeal ? liveChapter(deal) : undefined,
     conversion: onDeal ? deal?.conversion : undefined,
     cancelled: onDeal && !!deal?.contract?.cancelled,
+    cancelReason: onDeal ? deal?.contract?.cancelReason : undefined,
+    endedOn: onDeal ? deal?.contract?.endedOn : undefined,
     trialEval: onDeal ? trialEvaluationOf(deal) : undefined,
     pay: onDeal ? payScheduleOf(deal) : null,
   };
@@ -116,6 +122,18 @@ export function termLine(contract: { started: string; ends: string; endedOn?: st
   if (cancelled) return `Cancelled ${contract.endedOn ?? ""}, before it started`;
   if (notice && !ended) return `${contract.started} – ${dayLabel(notice.lastDay)} (notice)`;
   return `${contract.started} – ${contract.ends}`;
+}
+
+/**
+ * TB-071 / IN-091 — who called the contract off before its first day, when, and why, as each side's
+ * Overview and Admin read it. `viewer` is whose page it is: their own cancel reads "You cancelled".
+ */
+export function cancelledLine(c: { cancelReason?: NonNullable<Deal["contract"]>["cancelReason"]; endedOn?: string }, viewer: Side | "admin", names: Record<Side, string>) {
+  const r = c.cancelReason;
+  const on = c.endedOn ? ` on ${c.endedOn}` : "";
+  if (!r) return `This contract was cancelled${on}, before it started.`;
+  const mine = r.by === viewer;
+  return mine ? `You cancelled this contract${on}, before it started. Your reason: “${reasonLine(r)}”.` : `${names[r.by]} cancelled this contract${on}, before it started. Their reason: “${reasonLine(r)}”.`;
 }
 
 /** A role's next payday, as both sides' terms show it. */

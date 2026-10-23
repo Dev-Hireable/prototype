@@ -1,4 +1,4 @@
-import { expect, open, test, view } from "./fixtures";
+import { expect, open, PATH, savedDeal, test, toast, view } from "./fixtures";
 
 // Phone width (the mobile project): the workspace still works — views, the board scrolling
 // sideways inside itself, the calendar as an agenda, an item opening full width.
@@ -99,5 +99,40 @@ test.describe("on a phone · sheets", () => {
     for (let i = 1; i <= 12; i++) await touch.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: box.y + 8 + 40 * i }] });
     await touch.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     await expect(sheet).toHaveCount(0);
+  });
+});
+
+// Cancelling a contract before its first day on a phone: the reason, the note and the typed name
+// all fit, the keyboard can't hide what's being typed into, and 16px fields keep the page from
+// zooming in on focus.
+test.describe("on a phone · cancelling a contract", () => {
+  test.use({ seedOptions: { contract: { started: "2026-10-05", ends: "2026-11-13" } } });
+
+  test("the dialog fits the screen, and every field and the confirm can be reached", async ({ page }) => {
+    await page.goto(`${PATH.independent}?tab=contract`);
+    await page.getByRole("button", { name: "Cancel contract" }).click();
+    const dialog = page.getByRole("dialog", { name: "Cancel the Brand Designer contract?" });
+    await expect(dialog).toBeVisible();
+    const screen = page.viewportSize()!;
+    const box = (await dialog.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(screen.width + 1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(1);
+
+    const typed = dialog.getByRole("textbox", { name: "Type Brand Designer to confirm" });
+    const note = dialog.getByRole("textbox", { name: /Anything else/ });
+    for (const field of [note, typed]) expect(await field.evaluate((el) => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+
+    await dialog.getByRole("button", { name: "Reason" }).click();
+    await page.getByRole("option", { name: "Plans changed" }).click();
+    await typed.tap();
+    await typed.fill("Brand Designer");
+    await expect(typed).toBeInViewport();
+    const confirm = dialog.getByRole("button", { name: "Cancel contract" });
+    await confirm.scrollIntoViewIfNeeded();
+    await expect(confirm).toBeInViewport();
+    await confirm.tap();
+    await expect(toast(page, "Contract cancelled")).toBeVisible();
+    expect((await savedDeal(page)).contract.cancelReason).toEqual({ by: "independent", reason: "Plans changed" });
   });
 });
