@@ -27,34 +27,24 @@ type OnboardingSplashGateProps = {
 };
 
 /**
- * How long the finished Hireable logo stays on screen before the splash fades, in ms. The splash
- * lifts once the logo has drawn in full, never part-way through: a fixed second cut the draw
- * (about 1.8 s) short, so the quiz came in over half a logo.
+ * The longest the splash stays, in ms, if the logo never reports a finished cycle (GSAP's chunk
+ * stalls, say). The splash otherwise lifts the moment the logo has drawn in, held and drawn back
+ * out (about 4 s), never part-way through; this sits well past that, even with the SVGs' 2 s wait,
+ * so it never cuts a cycle short.
  */
-const DRAWN_HOLD_MS = 300;
-
-/**
- * The longest the splash stays, in ms, if the logo never reports a finished draw (GSAP's chunk
- * stalls, say). Well past a normal draw, about 2.5 s even with the SVGs' 2 s wait, so it never cuts
- * one short.
- */
-const SPLASH_CEILING_MS = 8000;
+const SPLASH_CEILING_MS = 10000;
 
 export function OnboardingSplashGate({ children }: OnboardingSplashGateProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
-  const [isLogoDrawn, setIsLogoDrawn] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(
-      () => setIsLoading(false),
-      isLogoDrawn ? DRAWN_HOLD_MS : SPLASH_CEILING_MS,
-    );
+    const timer = setTimeout(() => setIsLoading(false), SPLASH_CEILING_MS);
     return () => clearTimeout(timer);
-  }, [isLogoDrawn]);
+  }, []);
 
-  const handleLogoDrawn = useCallback(() => {
-    setIsLogoDrawn(true);
+  const handleLogoCycle = useCallback(() => {
+    setIsLoading(false);
   }, []);
 
   const handleExitComplete = useCallback(() => {
@@ -67,7 +57,7 @@ export function OnboardingSplashGate({ children }: OnboardingSplashGateProps) {
         key="onboarding-splash-loader"
         fullscreen
         isLoading={isLoading}
-        onLoaderDrawn={handleLogoDrawn}
+        onLoaderCycle={handleLogoCycle}
         onExitComplete={handleExitComplete}
       />
       {/*

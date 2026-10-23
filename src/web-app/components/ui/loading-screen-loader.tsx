@@ -94,21 +94,24 @@ function decodeLoaderParts(): Promise<unknown> {
 export function HireableLoader({
   className,
   size = 80,
-  onDrawn,
+  onCycle,
 }: {
   className?: string;
   size?: number;
-  /** Called once, when the logo has drawn in full for the first time (at once with reduced motion). */
-  onDrawn?: () => void;
+  /**
+   * Called once, when the logo has played its first full cycle: drawn in, held, and drawn back out
+   * (at once with reduced motion, which shows the logo at rest).
+   */
+  onCycle?: () => void;
 }) {
   // CSS background images only load once the parts are laid out; ask for them with the HTML instead.
   for (const { key } of LOADER_PARTS) {
     preload(loaderSrc(key), { as: 'image', fetchPriority: 'high' });
   }
-  const onDrawnRef = React.useRef(onDrawn);
+  const onCycleRef = React.useRef(onCycle);
   React.useEffect(() => {
-    onDrawnRef.current = onDrawn;
-  }, [onDrawn]);
+    onCycleRef.current = onCycle;
+  }, [onCycle]);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const partRefs = React.useRef<Record<LoaderPartKey, HTMLDivElement | null>>({
     rose: null,
@@ -121,11 +124,11 @@ export function HireableLoader({
     () => {
       let cancelled = false;
       let killTimeline: (() => void) | null = null;
-      let drawn = false;
-      const reportDrawn = () => {
-        if (cancelled || drawn) return;
-        drawn = true;
-        onDrawnRef.current?.();
+      let cycled = false;
+      const reportCycle = () => {
+        if (cancelled || cycled) return;
+        cycled = true;
+        onCycleRef.current?.();
       };
       void Promise.all([loadGsap(), decodeLoaderParts()])
         .then(([{ default: gsap }]) => {
@@ -141,14 +144,22 @@ export function HireableLoader({
           if (prefersReducedMotion()) {
             gsap.set(rose, { clipPath: 'inset(0% 0 0 0)' });
             gsap.set(remainingParts, { clipPath: 'inset(0 0 0% 0)' });
-            reportDrawn();
+            reportCycle();
             return;
           }
+          // The first repeat is the draw back out (yoyo); it ends when the playhead is back at 0.
+          let drawingOut = false;
           const timeline = gsap.timeline({
             repeat: -1,
             repeatDelay: 0.5,
             yoyo: true,
             defaults: { duration: 0.6, ease: 'power2.inOut' },
+            onRepeat: () => {
+              drawingOut = true;
+            },
+            onUpdate: () => {
+              if (drawingOut && timeline.time() <= 0) reportCycle();
+            },
           });
           killTimeline = () => timeline.kill();
           timeline
@@ -158,11 +169,10 @@ export function HireableLoader({
           remainingParts.forEach((part) => {
             timeline.to(part, { clipPath: 'inset(0 0 0% 0)' }, '-=0.2');
           });
-          timeline.call(reportDrawn);
         })
         .catch((error: unknown) => {
           reportGsapLoadError(error);
-          reportDrawn();
+          reportCycle();
         });
       return () => {
         cancelled = true;
