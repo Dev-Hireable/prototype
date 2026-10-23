@@ -123,29 +123,33 @@ function useSetupSteps() {
   return setupSteps({ company, roles, workStyle });
 }
 
-/** The greeting with the two quick actions, beside the account setup checklist. */
+/** The greeting with the two quick actions, beside the account setup checklist (on a phone, between them). */
 function SetupHero({ steps }: { steps: DashboardChecklistItem[] }) {
   /* TB-120/121 — the greeting and the avatar follow whatever the profile page saved. */
   const { profile, workStyle } = useTeamAccount();
   return (
-    <DashboardHero>
-      <DashboardGreeting name={profile.name.split(" ")[0]} dateClassName="text-[15px] leading-[1.2] tracking-[0.2px] text-ink-2">
-        <DashboardQuickAction tour="create-role" title="Create a role" body="Post a role and start collecting applications." href="/team/hire" icon={<Add size={20} aria-hidden />} />
-        <DashboardQuickAction title="Discover Independents" body="Browse matched talent and invite them to apply." href="/team/discover" icon={<Search size={20} aria-hidden />} />
-      </DashboardGreeting>
-
-      <DashboardSetupCard
-        side="team"
-        avatarSrc={profile.photo}
-        avatarClassName="object-top"
-        title="Finish setting up your account"
-        description="Complete your account to start hiring."
-        items={steps}
-        traits={traitTagsFor(workStyle, "team")}
-        matching="Independents are matched to these tags."
-        profileHref="/team/profile"
-      />
-    </DashboardHero>
+    <DashboardHero
+      greeting={<DashboardGreeting name={profile.name.split(" ")[0]} dateClassName="text-[15px] leading-[1.2] tracking-[0.2px] text-ink-2" />}
+      card={
+        <DashboardSetupCard
+          side="team"
+          avatarSrc={profile.photo}
+          avatarClassName="object-top"
+          title="Finish setting up your account"
+          description="Complete your account to start hiring."
+          items={steps}
+          traits={traitTagsFor(workStyle, "team")}
+          matching="Independents are matched to these tags."
+          profileHref="/team/profile"
+        />
+      }
+      actions={
+        <>
+          <DashboardQuickAction tour="create-role" title="Create a role" body="Post a role and start collecting applications." href="/team/hire" icon={<Add size={20} aria-hidden />} />
+          <DashboardQuickAction title="Discover Independents" body="Browse matched talent and invite them to apply." href="/team/discover" icon={<Search size={20} aria-hidden />} />
+        </>
+      }
+    />
   );
 }
 

@@ -19,17 +19,32 @@ export function DashboardFrame({ children }: { children: ReactNode }) {
 }
 
 /**
- * Greeting | setup card, side by side down to a tablet; a phone stacks them. Both tracks are minmax(0, …) so they
+ * Greeting and actions | setup card, side by side down to a tablet. Both tracks are minmax(0, …) so they
  * shrink instead of wrapping — a grid column can go narrower than its content, which is what
  * `flex-wrap` refused to do (the card's 604px minimum kept bumping it onto its own row).
  *
  * The ratio is proportional rather than a fixed 389px so the right column can't run away on a
  * wide screen: action rows past ~800px leave a dead gap between the label and its button.
+ *
+ * A phone stacks the greeting, the card, then the actions: your work style (or what's left to set
+ * up) before the shortcuts, the user's call (2026-10-23). The markup runs in that order, so a
+ * screen reader and Tab read it the way a phone shows it; from a tablet up the grid places each
+ * part in its column.
  */
-export function DashboardHero({ children }: { children: ReactNode }) {
-  // items-stretch so the greeting column matches the setup card's height and can distribute its
-  // content over it, rather than sitting top-aligned above a block of empty space.
-  return <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] items-stretch gap-6 max-md:grid-cols-1">{children}</div>;
+export function DashboardHero({ greeting, card, actions }: { greeting: ReactNode; card: ReactNode; actions: ReactNode }) {
+  return (
+    // The card spans both rows, so the left column is as tall as it is: the greeting at the top and
+    // the actions at the foot (the second row takes the spare height), rather than one short block
+    // over empty space.
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] grid-rows-[auto_1fr] gap-x-6 gap-y-8 max-md:grid-cols-1 max-md:grid-rows-none max-md:gap-y-6">
+      <div className="min-w-0 md:pt-2">{greeting}</div>
+      {/* A grid of one, so the card stretches to the rows it spans. */}
+      <div className="grid min-w-0 md:col-start-2 md:row-span-2 md:row-start-1">{card}</div>
+      {/* Stacked, matched width: these are the dashboard's primary actions now that the duplicate
+          quick-action cards are gone. */}
+      <div className="flex w-full min-w-0 flex-col gap-3 md:self-end md:pb-2">{actions}</div>
+    </div>
+  );
 }
 
 const cardKey = (card: ReactNode) => (isValidElement(card) ? String(card.key) : String(card));
@@ -75,34 +90,27 @@ export function DashboardSummaryGrid({ main, side }: { main: ReactNode[]; side: 
   );
 }
 
-export function DashboardGreeting({ name, dateClassName = "text-[15px] tracking-[0.2px] text-ink-2", children }: { name: string; dateClassName?: string; children: ReactNode }) {
+/** The hero's greeting: the name, then today's date. DashboardHero places it, and the actions under it. */
+export function DashboardGreeting({ name, dateClassName = "text-[15px] tracking-[0.2px] text-ink-2" }: { name: string; dateClassName?: string }) {
   return (
-    // justify-between spreads headline and actions across the column's full height, so the left
-    // side reads as deliberate rather than as a short block with dead space under it.
-    <div className="flex min-w-0 flex-col justify-between gap-8 py-2">
-      <div className="flex w-full min-w-0 flex-col gap-4">
-        {/* clamp: scales with the hero instead of overflowing a narrow column, and gets to fill
-            the taller column now that the greeting stretches to the setup card's height. */}
-        {/* Two deliberate lines — the name gets its own, the rest sits under it — instead of
-            wrapping wherever the column width happens to break it. */}
-        {/* Font size inline rather than an arbitrary Tailwind class: the JIT silently dropped the
-            `text-[clamp(...)]` utility on rebuild and the headline fell back to 16px. */}
-        <p className="font-display leading-[1.15] text-ink" style={{ fontVariationSettings: '"opsz" 14', fontSize: "clamp(24px, 2.8vw, 40px)" }}>
-          <span className="block">
-            Hey <span className="font-semibold">{name}</span>,
-          </span>
-          <span className="block">catching you up on today!</span>
-        </p>
-        {/* The real date — it was a fixed "Today, is 09 July 2026" on both dashboards. Portal pages
-            render after hydration, so this never disagrees with a server render. */}
-        <p className={dateClassName}>
-          {/* react-doctor-disable-next-line react-doctor/rendering-hydration-mismatch-time -- PortalShell renders pages only once hydrated */}
-          Today is {WEEKDAYS[new Date().getDay()]}, {dayLabel(new Date())}
-        </p>
-      </div>
-      {/* Stacked, matched width: these are the dashboard's primary actions now that the
-          duplicate quick-action cards are gone. */}
-      <div className="flex w-full flex-col gap-3">{children}</div>
+    <div className="flex w-full min-w-0 flex-col gap-4">
+      {/* clamp: scales with the hero instead of overflowing a narrow column. */}
+      {/* Two deliberate lines — the name gets its own, the rest sits under it — instead of
+          wrapping wherever the column width happens to break it. */}
+      {/* Font size inline rather than an arbitrary Tailwind class: the JIT silently dropped the
+          `text-[clamp(...)]` utility on rebuild and the headline fell back to 16px. */}
+      <p className="font-display leading-[1.15] text-ink" style={{ fontVariationSettings: '"opsz" 14', fontSize: "clamp(24px, 2.8vw, 40px)" }}>
+        <span className="block">
+          Hey <span className="font-semibold">{name}</span>,
+        </span>
+        <span className="block">catching you up on today!</span>
+      </p>
+      {/* The real date — it was a fixed "Today, is 09 July 2026" on both dashboards. Portal pages
+          render after hydration, so this never disagrees with a server render. */}
+      <p className={dateClassName}>
+        {/* react-doctor-disable-next-line react-doctor/rendering-hydration-mismatch-time -- PortalShell renders pages only once hydrated */}
+        Today is {WEEKDAYS[new Date().getDay()]}, {dayLabel(new Date())}
+      </p>
     </div>
   );
 }
