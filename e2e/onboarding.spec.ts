@@ -85,13 +85,14 @@ async function letTimeRun(page: Page) {
 }
 
 /**
- * Waits out the brief splash that covers every onboarding page for a second after it hydrates. It's
- * in the page from the first paint (transparent until it hydrates), so it's hidden only once it has
- * played and gone. Waiting first for it at full opacity could miss a splash this short between two
- * polls.
+ * Waits out the splash that covers every onboarding page until the Hireable logo has drawn in and
+ * back out (about four seconds). It's in the page from the first paint (transparent until it hydrates), so
+ * it's hidden only once it has played and gone. Waiting first for it at full opacity could miss a
+ * splash this short between two polls.
  */
 async function waitOutSplash(page: Page) {
-  await expect(page.getByRole("status").filter({ hasText: "Loading…" })).toBeHidden();
+  // Past the splash's own 10 s ceiling, so a slow load fails on the page, not on this wait.
+  await expect(page.getByRole("status").filter({ hasText: "Loading…" })).toBeHidden({ timeout: 12_000 });
 }
 
 /** Opens a side's onboarding with the clock running. */

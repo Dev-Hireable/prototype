@@ -67,7 +67,7 @@ function CardRow({ card: c, only, onDefault, onRemove }: { card: PaymentMethod; 
   const keep = c.isDefault && !only ? "Set another card as default to remove this one." : undefined;
   return (
     <PaymentMethodRow
-      brand={<Image src={c.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={c.brand} width={26} height={17} className="h-[17px] w-[26px]" />}
+      brand={<Image src={c.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={c.brand} width={26} height={17} className="h-[17px] w-[26px]" loading="eager" />}
       title={
         <>
           {c.brand} ending {c.last4}

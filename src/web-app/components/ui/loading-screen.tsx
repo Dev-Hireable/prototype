@@ -16,6 +16,8 @@ interface LoadingScreenProps extends React.OutputHTMLAttributes<HTMLOutputElemen
   spinnerSize?: number;
   isLoading?: boolean;
   onExitComplete?: () => void;
+  /** Called once the logo has played its first full cycle: drawn in, held, and drawn back out. */
+  onLoaderCycle?: () => void;
 }
 
 export function LoadingScreen({
@@ -24,6 +26,7 @@ export function LoadingScreen({
   spinnerSize = 80,
   isLoading = true,
   onExitComplete,
+  onLoaderCycle,
   ...props
 }: LoadingScreenProps) {
   const containerRef = React.useRef<HTMLOutputElement>(null);
@@ -106,7 +109,7 @@ export function LoadingScreen({
         style={{ width: spinnerSize, height: spinnerSize }}
         className="flex items-center justify-center"
       >
-        <HireableLoader size={spinnerSize} />
+        <HireableLoader size={spinnerSize} onCycle={onLoaderCycle} />
       </div>
       <span className="sr-only">Loading…</span>
     </output>

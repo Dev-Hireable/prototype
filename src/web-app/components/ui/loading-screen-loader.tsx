@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { preload } from 'react-dom';
 import { useGSAP } from '@gsap/react';
 import { cn } from '@/web-app/lib/utils';
 import { loadGsap, reportGsapLoadError } from '@/web-app/lib/load-gsap';
@@ -67,13 +68,50 @@ const LOADER_PARTS: readonly LoaderPart[] = [
   },
 ];
 type LoaderPartKey = (typeof LOADER_PARTS)[number]['key'];
+const loaderSrc = (key: LoaderPartKey) => `/loader/${key}.svg`;
+
+/** How long the draw waits for its SVGs, in ms; a stalled request plays it over whatever has arrived. */
+const DECODE_WAIT_MS = 2000;
+
+/**
+ * Resolves once every part's SVG is decoded, so the draw never plays over empty boxes, or after
+ * DECODE_WAIT_MS: a request that never answers leaves decode() pending for good.
+ */
+function decodeLoaderParts(): Promise<unknown> {
+  const decoded = Promise.all(
+    LOADER_PARTS.map(({ key }) => {
+      const image = new Image();
+      image.src = loaderSrc(key);
+      return image.decode().catch(() => undefined);
+    }),
+  );
+  return Promise.race([
+    decoded,
+    new Promise((resolve) => setTimeout(resolve, DECODE_WAIT_MS)),
+  ]);
+}
+
 export function HireableLoader({
   className,
   size = 80,
+  onCycle,
 }: {
   className?: string;
   size?: number;
+  /**
+   * Called once, when the logo has played its first full cycle: drawn in, held, and drawn back out
+   * (at once with reduced motion, which shows the logo at rest).
+   */
+  onCycle?: () => void;
 }) {
+  // CSS background images only load once the parts are laid out; ask for them with the HTML instead.
+  for (const { key } of LOADER_PARTS) {
+    preload(loaderSrc(key), { as: 'image', fetchPriority: 'high' });
+  }
+  const onCycleRef = React.useRef(onCycle);
+  React.useEffect(() => {
+    onCycleRef.current = onCycle;
+  }, [onCycle]);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const partRefs = React.useRef<Record<LoaderPartKey, HTMLDivElement | null>>({
     rose: null,
@@ -86,8 +124,14 @@ export function HireableLoader({
     () => {
       let cancelled = false;
       let killTimeline: (() => void) | null = null;
-      void loadGsap()
-        .then(({ default: gsap }) => {
+      let cycled = false;
+      const reportCycle = () => {
+        if (cancelled || cycled) return;
+        cycled = true;
+        onCycleRef.current?.();
+      };
+      void Promise.all([loadGsap(), decodeLoaderParts()])
+        .then(([{ default: gsap }]) => {
           if (cancelled || !containerRef.current) {
             return;
           }
@@ -100,13 +144,22 @@ export function HireableLoader({
           if (prefersReducedMotion()) {
             gsap.set(rose, { clipPath: 'inset(0% 0 0 0)' });
             gsap.set(remainingParts, { clipPath: 'inset(0 0 0% 0)' });
+            reportCycle();
             return;
           }
+          // The first repeat is the draw back out (yoyo); it ends when the playhead is back at 0.
+          let drawingOut = false;
           const timeline = gsap.timeline({
             repeat: -1,
             repeatDelay: 0.5,
             yoyo: true,
             defaults: { duration: 0.6, ease: 'power2.inOut' },
+            onRepeat: () => {
+              drawingOut = true;
+            },
+            onUpdate: () => {
+              if (drawingOut && timeline.time() <= 0) reportCycle();
+            },
           });
           killTimeline = () => timeline.kill();
           timeline
@@ -117,7 +170,10 @@ export function HireableLoader({
             timeline.to(part, { clipPath: 'inset(0 0 0% 0)' }, '-=0.2');
           });
         })
-        .catch(reportGsapLoadError);
+        .catch((error: unknown) => {
+          reportGsapLoadError(error);
+          reportCycle();
+        });
       return () => {
         cancelled = true;
         killTimeline?.();

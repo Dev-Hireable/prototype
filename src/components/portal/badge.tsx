@@ -66,7 +66,9 @@ export function Badge({
       className={`inline-flex h-6 shrink-0 items-center gap-1 rounded border px-2 text-[12px] leading-none font-medium tracking-[0.2px] whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0 ${caps ? "uppercase" : ""} ${look} ${className}`}
     >
       {icon}
-      {children}
+      {/* Trimmed to its capitals so flex centring sets the letters in the middle: in the full line
+          box Chrome's rounding left them up to a pixel high. */}
+      <span className="trim-to-caps">{children}</span>
     </span>
   );
 }

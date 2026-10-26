@@ -1,7 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { preload } from 'react-dom';
 
 import { OnboardingWizard } from '../_components/onboarding-wizard';
+import {
+  ONBOARDING_MASCOT_SRC,
+  ONBOARDING_WORDMARK_SRC,
+} from '../_data/onboarding-assets';
 import { localQuizQuestions } from '../_lib/local-quiz';
 import { asPublicSignupRole } from '@/web-app/lib/auth/auth-routes';
 import {
@@ -54,6 +59,11 @@ export default async function OnboardingPage({ params }: PageProps) {
   if (!parsedRole) {
     notFound();
   }
+
+  // The steps sit hidden behind the splash, and a hidden <img> doesn't load: fetch the pictures
+  // with the page instead, so they're there the moment the splash lifts.
+  preload(ONBOARDING_MASCOT_SRC[parsedRole], { as: 'image' });
+  preload(ONBOARDING_WORDMARK_SRC, { as: 'image' });
 
   return (
     <OnboardingWizard

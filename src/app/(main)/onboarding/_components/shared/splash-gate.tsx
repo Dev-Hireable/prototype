@@ -27,20 +27,24 @@ type OnboardingSplashGateProps = {
 };
 
 /**
- * How long the splash stays once the page has hydrated, in ms: a brief transition into the intro.
- * Nothing loads behind it by then (the wizard is already rendered and the stored traits are read in
- * the same commit's effects), so it used to hold a full screen with nothing to do for 4.2 s, between
- * sign-up's Continue and the intro.
+ * The longest the splash stays, in ms, if the logo never reports a finished cycle (GSAP's chunk
+ * stalls, say). The splash otherwise lifts the moment the logo has drawn in, held and drawn back
+ * out (about 4 s), never part-way through; this sits well past that, even with the SVGs' 2 s wait,
+ * so it never cuts a cycle short.
  */
-const SPLASH_MS = 1000;
+const SPLASH_CEILING_MS = 10000;
 
 export function OnboardingSplashGate({ children }: OnboardingSplashGateProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), SPLASH_MS);
+    const timer = setTimeout(() => setIsLoading(false), SPLASH_CEILING_MS);
     return () => clearTimeout(timer);
+  }, []);
+
+  const handleLogoCycle = useCallback(() => {
+    setIsLoading(false);
   }, []);
 
   const handleExitComplete = useCallback(() => {
@@ -53,6 +57,7 @@ export function OnboardingSplashGate({ children }: OnboardingSplashGateProps) {
         key="onboarding-splash-loader"
         fullscreen
         isLoading={isLoading}
+        onLoaderCycle={handleLogoCycle}
         onExitComplete={handleExitComplete}
       />
       {/*

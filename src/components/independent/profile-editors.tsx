@@ -141,7 +141,7 @@ function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved
   return (
     <div className="flex items-center gap-4">
       <ImagePicker
-        image={<Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" />}
+        image={<Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" loading="eager" />}
         label={`Change photo (JPG or PNG, up to ${IMAGE_MAX_MB}MB)`}
         onPick={async (f) => {
           if (!f) return;

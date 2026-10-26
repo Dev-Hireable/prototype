@@ -70,7 +70,7 @@ export function DashboardSetupCard({ side, avatarSrc, avatarClassName = "", titl
           drifting over the header copy — a fixed 330px-from-left offset put it on top of the
           text as the card grew. The header text is capped below so the two never meet. */}
       <Image src="/independent/complete-profile.png" alt="" width={600} height={600} preload className="pointer-events-none absolute -top-10 right-2 aspect-square w-[40%] max-w-[330px] rotate-[6.6deg] opacity-80 max-md:-top-6 max-md:-right-2 max-md:w-[32%]" />
-      <Image src="/independent/complete-profile-blur.svg" alt="" width={1009} height={386} className="pointer-events-none absolute top-[53px] left-[-213px] max-w-none" />
+      <Image src="/independent/complete-profile-blur.svg" alt="" width={1009} height={386} className="pointer-events-none absolute top-[53px] left-[-213px] max-w-none" loading="eager" />
 
       {complete ? (
         <>
@@ -108,7 +108,7 @@ function SetupHeading({ id, avatarSrc, avatarClassName, title, description, stac
   return (
     // On a phone the art takes the card's top-right third, so the copy keeps to the rest of the width.
     <div className={`relative flex max-md:pr-[34%] ${stacked ? "flex-col items-start gap-3" : "items-center gap-4 max-md:items-start max-md:gap-3"}`}>
-      <Image src={avatarSrc} alt="" width={96} height={96} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover ${stacked ? "size-14 max-md:size-12" : "size-12 max-md:size-10"} ${avatarClassName}`} />
+      <Image src={avatarSrc} alt="" width={96} height={96} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover ${stacked ? "size-14 max-md:size-12" : "size-12 max-md:size-10"} ${avatarClassName}`} loading="eager" />
       {/* Capped so the copy wraps before it runs under the decorative art on the right. */}
       <div className="flex min-w-0 max-w-[50%] flex-1 flex-col gap-1.5 leading-[1.25] tracking-[0.2px] max-md:max-w-none">
         <h2 id={id} className="text-[18px] font-semibold text-ink max-md:text-[16px]">

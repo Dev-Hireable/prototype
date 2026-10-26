@@ -384,7 +384,7 @@ function PayoutCard({ method: m, open, onOpenChange, removeOff, onSetDefault, on
         </span>
       )}
       <div className="flex items-center gap-2">
-        {brand ? <Image src={brand.src} alt={m.brand} width={brand.w} height={26} className={`${brand.cls} object-contain`} /> : <span className="h-[26px] text-[20px] leading-[26px] font-bold text-ink">Bank</span>}
+        {brand ? <Image src={brand.src} alt={m.brand} width={brand.w} height={26} className={`${brand.cls} object-contain`} loading="eager" /> : <span className="h-[26px] text-[20px] leading-[26px] font-bold text-ink">Bank</span>}
         <span className="flex-1" />
         <KebabMenu label="Payout method actions" open={open} onOpenChange={onOpenChange} buttonClassName="!size-7">
           <MenuAction disabled={m.isDefault || !verified} title={m.isDefault ? "This is already your default." : verified ? undefined : "It can be your default once it's verified."} onClick={onSetDefault} icon={<SetDefault size={18} aria-hidden />}>

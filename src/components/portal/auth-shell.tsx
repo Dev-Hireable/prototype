@@ -52,7 +52,7 @@ export function AuthShell({ title, subtitle, children, footer, width = 480 }: { 
     <main className="relative flex flex-1 flex-col items-center justify-center overflow-x-hidden overflow-y-auto px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-14 [@media(max-height:760px)]:!py-5">
       <div className="flex w-full flex-col gap-6 sm:gap-8 [@media(max-height:760px)]:!gap-4" style={{ maxWidth: width }}>
         <div className="flex flex-col items-center gap-3 sm:gap-4 [@media(max-height:760px)]:!gap-2">
-          <Image src="/hireable-mark.svg" alt="" width={44} height={44} className="size-11 [@media(max-height:760px)]:size-9" unoptimized />
+          <Image src="/hireable-mark.svg" alt="" width={44} height={44} className="size-11 [@media(max-height:760px)]:size-9" unoptimized loading="eager" />
           <h1 className="text-center text-[24px] leading-[1.3] font-semibold tracking-[-0.2px] text-balance text-ink sm:text-[30px] [@media(max-height:760px)]:!text-[24px]">{title}</h1>
           {subtitle && <p className="text-center text-[14px] leading-[1.45] text-balance text-ink-2">{subtitle}</p>}
         </div>

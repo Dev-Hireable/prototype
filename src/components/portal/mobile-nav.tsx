@@ -148,7 +148,7 @@ function TabFace({ icon, label, active, badge }: { icon: Section["icon"] | "menu
       }`}
     >
       {icon === "logo" ? (
-        <Image src="/hireable-mark.svg" alt="" width={22} height={22} className={`size-[22px] ${active ? "" : "grayscale"}`} />
+        <Image src="/hireable-mark.svg" alt="" width={22} height={22} className={`size-[22px] ${active ? "" : "grayscale"}`} loading="eager" />
       ) : (
         <Glyph icon={icon} size={22} />
       )}
@@ -200,7 +200,7 @@ function MenuSheet({ open, onClose, sections, more, section, activeMenuHref, pro
           <SheetTitle className="sr-only">Menu</SheetTitle>
           <nav aria-label="More" className="flex flex-col px-3 pt-2">
             <Link href={profileHref} prefetch={false} onClick={onClose} aria-current={profileOpen ? "page" : undefined} className={`${ROW} h-16`}>
-              <Image src={avatar} alt="" width={80} height={80} className="size-10 shrink-0 rounded-full bg-[#d2d8db] object-cover" />
+              <Image src={avatar} alt="" width={80} height={80} className="size-10 shrink-0 rounded-full bg-[#d2d8db] object-cover" loading="eager" />
               <span className="flex-1">My profile</span>
               <Glyph icon="chevronRight" size={20} />
             </Link>
@@ -271,7 +271,7 @@ function MoreSection({ s, current, activeMenuHref, badge, pageBadges, onClose }:
   const [open, setOpen] = useState(current);
   const face = (
     <>
-      {s.icon === "logo" ? <Image src="/hireable-mark.svg" alt="" width={22} height={22} className="size-[22px]" /> : <Glyph icon={s.icon} size={22} />}
+      {s.icon === "logo" ? <Image src="/hireable-mark.svg" alt="" width={22} height={22} className="size-[22px]" loading="eager" /> : <Glyph icon={s.icon} size={22} />}
       <span className="flex-1">{s.label}</span>
       {badge > 0 && <Count n={badge} />}
     </>

@@ -24,7 +24,7 @@ export function CardOnFile({ cards, card, onPick, label, empty }: { cards: Payme
       <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</p>
       {card ? (
         <PaymentMethodRow
-          brand={<Image src={card.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={card.brand} width={26} height={17} className="h-[17px] w-[26px]" />}
+          brand={<Image src={card.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={card.brand} width={26} height={17} className="h-[17px] w-[26px]" loading="eager" />}
           title={`${card.brand} ending ${card.last4}`}
           subtitle={`Expires ${card.expires}`}
           actions={<ChangeCard cards={cards} card={card} onPick={onPick} onAdd={() => setAdding(true)} />}

@@ -2,6 +2,7 @@ import Image from 'next/image';
 import type { ReactNode } from 'react';
 
 import { ProgressBar } from '@/web-app/components/ui/progress-bar';
+import { ONBOARDING_WORDMARK_SRC } from '../../_data/onboarding-assets';
 
 type OnboardingStepShellProps = {
   children: ReactNode;
@@ -28,7 +29,7 @@ export function OnboardingStepShell({
           className="bg-background flex w-full items-center justify-center px-6 py-4 lg:px-14 lg:py-8"
         >
           <Image
-            src="/Logo-name.svg"
+            src={ONBOARDING_WORDMARK_SRC}
             alt="Hireable"
             width={120}
             height={24}

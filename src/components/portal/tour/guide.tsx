@@ -15,7 +15,7 @@ export function GuideCard({ side, nameTag = false, className = "", children, ...
   return (
     <div {...rest} className={`relative pt-[94px] text-ink ${className}`}>
       {/* The portrait's flat foot rests 2px behind the card's edge, so there's never a gap under it. */}
-      <Image src={GUIDES[side].figure} alt="" width={83} height={96} unoptimized draggable={false} className="pointer-events-none absolute top-0 right-7 h-[96px] w-auto select-none" />
+      <Image src={GUIDES[side].figure} alt="" width={83} height={96} unoptimized draggable={false} className="pointer-events-none absolute top-0 right-7 h-[96px] w-auto select-none" loading="eager" />
       {nameTag && <GuideName side={side} className="absolute top-[26px] right-[116px] z-10 px-3 py-1 text-[14px] leading-[1.4] shadow-[0_2px_6px_rgba(0,0,0,.16)]" />}
       <div className="relative overflow-hidden rounded-[24px] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.24)]">
         <div aria-hidden className={`pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-b to-transparent ${GUIDE_LOOK[side].wash}`} />

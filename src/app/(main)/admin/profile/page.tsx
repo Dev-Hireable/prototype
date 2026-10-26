@@ -19,7 +19,7 @@ export default function AdminProfile() {
     <AdminPage title="Profile" actions={<Button size="sm">Edit profile</Button>}>
       <Card className="flex flex-col gap-6 p-[18px]">
         <div className="flex items-center gap-4">
-          <Image src="/admin/avatar.jpg" alt="" width={128} height={128} className="size-16 rounded-full bg-[#d2d8db] object-cover" />
+          <Image src="/admin/avatar.jpg" alt="" width={128} height={128} className="size-16 rounded-full bg-[#d2d8db] object-cover" loading="eager" />
           <div className="flex flex-col gap-1">
             <p className="text-[18px] leading-[1.45] font-semibold text-ink-deep">{me.name}</p>
             <p className="text-[12.5px] text-muted">{me.email}</p>

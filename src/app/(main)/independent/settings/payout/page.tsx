@@ -85,7 +85,7 @@ function MethodRow({ method: m, only, removeOff, onSetDefault, onRemove }: { met
   const why = [!m.isDefault && !verified && UNVERIFIED, !only && removeOff].filter(Boolean).join(" ");
   return (
     <PaymentMethodRow
-      brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" />}
+      brand={m.brand === "Bank" ? <span className="text-[12px] leading-[1.4] font-semibold text-ink">Bank</span> : <Image src={m.brand === "GCash" ? "/brands/gcash.png" : "/brands/maya.png"} alt={m.brand} width={110} height={26} className="h-[17px] w-auto object-contain" loading="eager" />}
       title={
         <>
           {payoutTitle(m)}
