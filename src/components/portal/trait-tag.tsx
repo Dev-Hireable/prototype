@@ -55,7 +55,7 @@ export function TraitTag({ tag, view }: { tag: WorkStyleTag; view?: "self" | "ot
   return (
     <TagMeaning tag={tag} view={view}>
       {/* react-doctor-disable-next-line react-doctor/no-noninteractive-tabindex -- focusable so a keyboard can open the tip (see FOCUS) */}
-      <span tabIndex={0} className={`inline-flex items-center justify-center gap-1 rounded-full px-3 py-2 text-ink ${FOCUS}`} style={{ backgroundColor: bg }}>
+      <span tabIndex={0} className={`inline-flex items-center justify-center gap-1 edge-glow rounded-full px-3 py-2 text-ink ${FOCUS}`} style={{ backgroundColor: bg }}>
         <Icon size={16} aria-hidden className="shrink-0" />
         <span className={`${nunitoSans.className} trim-to-caps text-[14px] leading-[1.2] font-medium tracking-[0.2px] uppercase`}>{tag.label}</span>
       </span>

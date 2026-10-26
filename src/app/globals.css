@@ -665,3 +665,11 @@ summary {
 .trim-to-caps {
   text-box: trim-both cap alphabetic;
 }
+
+/*
+ * A soft white glow just inside a coloured pill's edge, fading toward the middle, like the real
+ * app's raised buttons: the work style tags and the high match pill.
+ */
+.edge-glow {
+  box-shadow: inset 0 0 5px 1px rgb(255 255 255 / 0.5);
+}

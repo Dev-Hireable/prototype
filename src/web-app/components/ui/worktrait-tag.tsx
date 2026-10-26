@@ -9,7 +9,7 @@ import * as React from 'react';
 import { Icon } from './icon';
 
 const worktraitTagBaseClassName =
-  'inline-flex flex-row items-center justify-center rounded-full';
+  'edge-glow inline-flex flex-row items-center justify-center rounded-full';
 
 // Typed as a total record so adding a work-style dimension fails the build
 // here instead of silently rendering an unstyled tag.
