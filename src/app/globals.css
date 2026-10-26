@@ -75,6 +75,7 @@
   --color-baseline: #ccd4db; /* chart baseline */
   --color-surface-2: #f2f2f2; /* the shell's frame + rail */
   --color-surface-alt: #f9fafb; /* table head */
+  --color-tile: #f6f6f6; /* a row or tile inside a card's white panel (TRAY_PANEL) */
   --color-row-alt: #fcfdfe; /* even table rows */
   --color-accent: #1770d9;
   --color-accent-soft: #99c7f5;
@@ -668,8 +669,9 @@ summary {
 
 /*
  * A soft white glow just inside a coloured pill's edge, fading toward the middle, like the real
- * app's raised buttons: the work style tags and the high match pill.
+ * app's raised buttons: every solid badge (Badge solid: Trial, job types, High priority), the match
+ * pills, the work style tags and the filled parts of a Meter.
  */
 .edge-glow {
-  box-shadow: inset 0 0 5px 1px rgb(255 255 255 / 0.5);
+  box-shadow: inset 0 0 6px rgb(255 255 255 / 0.6);
 }
