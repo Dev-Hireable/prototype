@@ -44,10 +44,20 @@ const SOLID: Record<BadgeTone, string> = {
   "part-time": "bg-brand-magenta",
 };
 
+/**
+ * md is the one badge everywhere; lg sits beside a 32px heading pill (the profile header's "Pro",
+ * level with the large MatchPill). A solid badge has no border, so its padding takes the pixel back.
+ */
+const SIZE = {
+  md: { box: "h-6 px-2 text-[12px]", solid: "px-[9px]!" },
+  lg: { box: "h-8 px-3 text-[14px]", solid: "px-[13px]!" },
+};
+
 export function Badge({
   children,
   tone = "neutral",
   variant = "tint",
+  size = "md",
   icon,
   caps = false,
   className = "",
@@ -55,6 +65,7 @@ export function Badge({
   children: ReactNode;
   tone?: BadgeTone;
   variant?: BadgeVariant;
+  size?: keyof typeof SIZE;
   /** A 14px glyph before the label. */
   icon?: ReactNode;
   /** Uppercase, for the job-type badges. */
@@ -62,10 +73,10 @@ export function Badge({
   className?: string;
 }) {
   const look =
-    variant === "outline" ? "border-[#c3c3c3] bg-white text-ink" : variant === "solid" ? `edge-glow border-0 px-[9px]! text-white ${SOLID[tone]}` : `border-transparent ${TINT[tone]}`;
+    variant === "outline" ? "border-[#c3c3c3] bg-white text-ink" : variant === "solid" ? `edge-glow border-0 ${SIZE[size].solid} text-white ${SOLID[tone]}` : `border-transparent ${TINT[tone]}`;
   return (
     <span
-      className={`inline-flex h-6 shrink-0 items-center gap-1 rounded border px-2 text-[12px] leading-none font-medium tracking-[0.2px] whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0 ${caps ? "uppercase" : ""} ${look} ${className}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded border ${SIZE[size].box} leading-none font-medium tracking-[0.2px] whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0 ${caps ? "uppercase" : ""} ${look} ${className}`}
     >
       {icon}
       {/* Trimmed to its capitals so flex centring sets the letters in the middle: in the full line

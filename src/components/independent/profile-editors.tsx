@@ -1,8 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useState, type ChangeEvent } from "react";
-import { Chip, Field, Input, Select, Textarea } from "@/components/portal/ui";
+import { Avatar, Chip, Field, Input, Select, Textarea } from "@/components/portal/ui";
 import { SkillPicker } from "@/components/portal/controls";
 import { EditPanel } from "@/components/portal/inline-edit";
 import { EXPERIENCE_LEVELS } from "@/lib/contract/job-types";
@@ -141,7 +140,7 @@ function PhotoField({ photo, saved, onPhoto, onMessage }: { photo: string; saved
   return (
     <div className="flex items-center gap-4">
       <ImagePicker
-        image={<Image src={photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" loading="eager" />}
+        image={<Avatar src={photo} size={80} />}
         label={`Change photo (JPG or PNG, up to ${IMAGE_MAX_MB}MB)`}
         onPick={async (f) => {
           if (!f) return;

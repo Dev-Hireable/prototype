@@ -29,8 +29,7 @@ export function NextStep({ app, job, live, onReviewOffer, ...actions }: StepProp
       {(app.stage === "offer_received" || app.stage === "offer_accepted" || app.stage === "hired") && <OfferCard app={app} job={job} live={live} onReviewOffer={onReviewOffer} />}
 
       {(app.stage === "applied" || app.stage === "matched") && (
-        <Card className="flex flex-col gap-2 p-4">
-          <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{app.stage === "matched" ? "You are matched" : "Application received"}</p>
+        <Card title={app.stage === "matched" ? "You are matched" : "Application received"} className="flex flex-col gap-2 p-4">
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{app.stage === "matched" ? `${job.company} can now invite you to an interview.` : `${job.company} is reviewing applications.`}</p>
         </Card>
       )}
@@ -41,8 +40,7 @@ export function NextStep({ app, job, live, onReviewOffer, ...actions }: StepProp
 /** A short card: what happened, what it means for the application, and the one thing to do about it. */
 function Status({ title, children, action }: { title: string; children: string; action?: ReactNode }) {
   return (
-    <Card className="flex flex-col gap-2 p-4">
-      <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{title}</p>
+    <Card title={title} className="flex flex-col gap-2 p-4">
       <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">{children}</p>
       {action && <div className="mt-2 flex flex-col">{action}</div>}
     </Card>
@@ -82,8 +80,7 @@ function ProposalStep({ app, job, live }: StepProps) {
   return (
     <>
       {revision && (app.stage === "proposal_requested" || app.stage === "proposal_sent") && (
-        <Card className="flex flex-col gap-4 p-4">
-          <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Revision requested to Proposal v{live?.proposal?.version ?? 1}</p>
+        <Card title={`Revision requested to Proposal v${live?.proposal?.version ?? 1}`} className="flex flex-col gap-4 p-4">
           {live?.revision && <p className="rounded-lg bg-warn-bg p-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-warn-ink [overflow-wrap:anywhere]">{live.revision.note}</p>}
           <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/proposal?revise=1`}>
             Revise proposal
@@ -146,13 +143,13 @@ function ProposalRequest({ app, job, note }: { app: Application; job: JobView; n
 function OfferCard({ app, job, live, onReviewOffer }: StepProps & { onReviewOffer: () => void }) {
   const withReturn = useWithReturn();
   const received = app.stage === "offer_received";
+  const declined = received && live?.offer?.status === "declined" ? live.offer : undefined;
   return (
-    <Card className="flex flex-col gap-2 p-4">
-      {received && live?.offer?.status === "declined" ? (
+    <Card title={declined ? "You declined this offer" : undefined} className="flex flex-col gap-2 p-4">
+      {declined ? (
         <>
-          <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">You declined this offer</p>
           <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">
-            {job.company} was told{live.offer.declineReason ? `, with your reason: “${live.offer.declineReason}”` : ""}. If they send a new offer, it shows up here.
+            {job.company} was told{declined.declineReason ? `, with your reason: “${declined.declineReason}”` : ""}. If they send a new offer, it shows up here.
           </p>
           <Button size="lg" onClick={onReviewOffer}>
             View declined offer

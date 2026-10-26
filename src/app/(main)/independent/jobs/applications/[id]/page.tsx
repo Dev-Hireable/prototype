@@ -5,6 +5,7 @@ import { use, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { ApplicationOfferDialog } from "@/components/independent/application-offer-dialog";
 import { ApplicationProposalDialog } from "@/components/independent/application-proposal-dialog";
+import { AboutCompany } from "@/components/independent/about-company";
 import { RescheduleDialog } from "@/components/independent/reschedule-dialog";
 import { LockedTasks } from "@/components/portal/tasks/locked-tasks";
 import { Button, Card, Chip, JobBadge, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
@@ -27,9 +28,6 @@ import { stageBadgeOf, type InterviewActions, type StepProps } from "./_lib/step
 
 const Flag = ICONS.flag;
 const Pin = ICONS.location;
-const Business = ICONS.business;
-
-const H2 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink-deep";
 
 /**
  * Below lg the two columns become one, and their cards take turns in it: the role and the stage it's
@@ -169,23 +167,17 @@ function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: Re
         </p>
         <p className="text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink">{job.description}</p>
       </Card>
-      <Card className={`flex flex-col gap-4 p-4 ${ORDER.pay}`}>
-        <h3 className={H2}>Pay &amp; details</h3>
+      <Card title="Pay & details" className={`flex flex-col gap-4 p-4 ${ORDER.pay}`}>
         {/* The job page's facts strip, so a role reads the same wherever it's shown. */}
         <FactStrip size="sm" cells={jobFacts({ type: job.type, pay: job.budget, duration: job.duration, hours: job.hours, level: job.experience })} />
       </Card>
       {/* TB-025 — a trial's tasks are shared once the talent's proposal is accepted (the offer); until then, how many. */}
       {job.type === "trial" && (
-        <Card className={`flex flex-col gap-4 p-4 ${ORDER.tasks}`}>
-          <div className="flex flex-col gap-1">
-            <h3 className={H2}>Trial tasks</h3>
-            {tasksShared && <p className="text-[13px] leading-[1.4] text-ink-2">{job.company} set these for the trial. They become its task list once you sign the offer.</p>}
-          </div>
+        <Card title="Trial tasks" sub={tasksShared && `${job.company} set these for the trial. They become its task list once you sign the offer.`} className={`flex flex-col gap-4 p-4 ${ORDER.tasks}`}>
           {tasksShared ? <TaskPlanList tasks={job.tasks} empty={`${job.company} hasn't listed the trial's tasks yet.`} /> : <LockedTasks company={job.company} count={job.tasks.length} />}
         </Card>
       )}
-      <Card className={`flex flex-col gap-6 p-4 ${ORDER.skills}`}>
-        <h3 className={H2}>Skills</h3>
+      <Card title="Skills" className={`flex flex-col gap-6 p-4 ${ORDER.skills}`}>
         <div className="flex flex-wrap gap-2">
           {job.skills.map((s) => (
             <Chip key={s} size="sm">
@@ -195,8 +187,7 @@ function RoleColumn({ job, stage, tasksShared, mine }: { job: JobView; stage: Re
         </div>
       </Card>
       {/* Where the work-style chart was: the company's Workplace Tags beside the talent's, trait by trait. */}
-      <Card className={`flex flex-col gap-4 p-4 ${ORDER.style}`}>
-        <h3 className={H2}>Work style</h3>
+      <Card title="Work style" className={`flex flex-col gap-4 p-4 ${ORDER.style}`}>
         <WorkStyleMatch company={job.company} theirs={theirs} mine={mine} />
       </Card>
     </div>
@@ -221,13 +212,15 @@ function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...action
       {/* TB-106 — the proposal they sent, as the Team Builder reads it, opened over the page. At
           every stage from the first submission on. */}
       {proposal && live && (
-        <Card className={`flex flex-col gap-3 p-4 ${ORDER.proposal}`}>
-          <div className="flex items-baseline justify-between gap-3">
-            <h3 className={H2}>Your proposal</h3>
-            <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
+        <Card
+          title="Your proposal"
+          aside={
+            <span className="shrink-0 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
               v{proposal.version} · {proposal.sent}
             </span>
-          </div>
+          }
+          className={`flex flex-col gap-3 p-4 ${ORDER.proposal}`}
+        >
           {/* A finger gets a tap 45px tall on the link without the card moving. */}
           <button type="button" onClick={onReadProposal} className="self-start text-[14px] font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:-my-3 pointer-coarse:py-3">
             View proposal
@@ -236,13 +229,12 @@ function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...action
       )}
 
       {live?.note && (
-        <Card className={`flex flex-col gap-2 p-4 ${ORDER.note}`}>
-          <h3 className={H2}>Your note with the application</h3>
+        <Card title="Your note with the application" className={`flex flex-col gap-2 p-4 ${ORDER.note}`}>
           <p className="text-[14px] leading-[1.4] tracking-[0.2px] text-ink-2">{live.note}</p>
         </Card>
       )}
 
-      <AboutCompany job={job} className={ORDER.company} />
+      <JobCompany job={job} className={ORDER.company} />
       {/* As wide as its words in the one column too, not a full-width strip that flags on any tap
           beside it; a finger gets a tap 45px tall without the line moving. */}
       <button
@@ -256,28 +248,12 @@ function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...action
   );
 }
 
-/** The company behind the role: its name, where it is and what it does. */
-function AboutCompany({ job, className = "" }: { job: JobView; className?: string }) {
+/** The company behind the role: the same block as the role page's, its name and industry and where it is. */
+function JobCompany({ job, className = "" }: { job: JobView; className?: string }) {
   const initials = job.company.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <Card className={`flex flex-col gap-4 p-4 ${className}`}>
-      <h3 className={H2}>About the Team Builder</h3>
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#5b5bd6] text-[15px] leading-none font-semibold text-white">{initials}</span>
-        <span className="min-w-0 truncate text-[15px] leading-[1.3] font-semibold text-ink">{job.company}</span>
-      </div>
-      <ul className="flex flex-col gap-2.5 text-[14px] leading-[1.3] text-ink">
-        {job.location && (
-          <li className="flex items-center gap-2">
-            <Pin size={18} aria-hidden className="shrink-0 text-ink-2" /> {job.location}
-          </li>
-        )}
-        {job.industry && (
-          <li className="flex items-center gap-2">
-            <Business size={18} aria-hidden className="shrink-0 text-ink-2" /> {job.industry}
-          </li>
-        )}
-      </ul>
+    <Card title="About the Team Builder" className={`flex flex-col gap-4 p-4 ${className}`}>
+      <AboutCompany name={job.company} initials={initials} industry={job.industry} facts={[{ icon: Pin, text: job.location }]} />
     </Card>
   );
 }

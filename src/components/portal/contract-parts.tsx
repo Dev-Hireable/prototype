@@ -11,16 +11,6 @@ import { isArchived, isCompleted, type Side } from "@/lib/work/model";
  * Pieces the talent's contract page and the Team Builder's tracker both show, the same on each side.
  */
 
-/** A 1–5 rating: the stars given in amber, the rest in grey, read out as "4 out of 5 stars". `size` is its text size. */
-export function Stars({ value, size }: { value: number; size: string }) {
-  return (
-    <span className={`flex items-center gap-1 ${size} leading-[1.2] text-[#f2994a]`} aria-label={`${value} out of 5 stars`}>
-      {"★".repeat(value)}
-      <span className="text-ink-2">{"★".repeat(5 - value)}</span>
-    </span>
-  );
-}
-
 /** A sidebar card's short label-and-value lines: the pay, the term, the escrow and the payout. */
 export function SummaryRows({ rows }: { rows: readonly (readonly [string, ReactNode])[] }) {
   return (

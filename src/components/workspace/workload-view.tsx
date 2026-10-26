@@ -11,6 +11,7 @@ import type { WorkQuery } from "@/lib/work/query";
 import { formatAmount, workload, WORKLOAD_RULE, type Bucket, type WorkloadRow } from "@/lib/work/workload";
 import { useWorkspace } from "./context";
 import { AssigneeAvatar, AssigneeChip } from "./meta";
+import { STEP_BUTTON, TODAY_BUTTON, VIEW_FRAME } from "./view-frame";
 
 /**
  * Workload: for each person on the contract (and what's unassigned), how much work falls on each
@@ -44,7 +45,7 @@ export function WorkloadView({ items, query, setQuery }: { items: readonly WorkI
       {/* Bordered frame, scroller inside (an outline on the scroller sat under its pinned cells). As
           tall as its three rows, not the whole pane. Positioned, like the List's, so what its cells
           place absolutely (sr-only text) stays inside it instead of stretching the page. */}
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-white">
+      <div className={VIEW_FRAME}>
         <div className="relative min-h-0 overflow-auto">
           <table className="w-full border-separate border-spacing-0 text-[13px]" aria-label={`Workload by person, ${shortLabel(from)} to ${shortLabel(last)}, in ${unit}`}>
             <WorkloadHead days={result.days} from={from} />
@@ -76,22 +77,21 @@ function WindowBar({ query, setQuery, from, last }: { query: WorkQuery; setQuery
   const { today } = useWorkspace();
   const shift = (weeks: number) => setQuery({ week: isoOf(addDays(from, weeks * 7)) });
   const isThisWeek = from === weekStartOf(today);
-  const step = "flex size-9 items-center justify-center rounded-lg border border-border bg-white hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary max-md:size-10";
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="flex items-center gap-1" role="group" aria-label="Window">
-        <button type="button" onClick={() => shift(-query.span)} aria-label="Earlier" className={step}>
+        <button type="button" onClick={() => shift(-query.span)} aria-label="Earlier" className={STEP_BUTTON}>
           <ICONS.chevronLeft size={18} aria-hidden />
         </button>
         <span className="min-w-[150px] text-center text-[13.5px] font-semibold whitespace-nowrap text-ink max-md:min-w-0 max-md:px-1 max-md:text-[13px]" aria-live="polite">
           {shortLabel(from, today)} – {shortLabel(last, today)}
         </span>
-        <button type="button" onClick={() => shift(query.span)} aria-label="Later" className={step}>
+        <button type="button" onClick={() => shift(query.span)} aria-label="Later" className={STEP_BUTTON}>
           <ICONS.chevronRight size={18} aria-hidden />
         </button>
       </span>
       {/* Pulled in to the window's own 4px gap from a tablet up; on a phone it leads the second row. */}
-      <button type="button" disabled={isThisWeek} onClick={() => setQuery({ week: null })} className="h-9 rounded-lg border border-border bg-white px-3 text-[13px] font-medium whitespace-nowrap text-ink hover:bg-surface-alt disabled:text-ink-2 disabled:hover:bg-white md:-ml-1 max-md:order-2 max-md:h-10 max-md:px-2.5">
+      <button type="button" disabled={isThisWeek} onClick={() => setQuery({ week: null })} className={`${TODAY_BUTTON} md:-ml-1 max-md:order-2 max-md:px-2.5`}>
         This week
       </button>
       <Segmented label="Weeks shown" value={String(query.span)} options={[["2", "2 weeks"], ["4", "4 weeks"]]} onChange={(v) => setQuery({ span: v === "4" ? 4 : 2 })} className="max-md:order-1" />

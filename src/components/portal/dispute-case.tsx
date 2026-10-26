@@ -7,6 +7,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Avatar, Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/portal/ui";
 import { Callout } from "@/components/portal/callout";
+import { Badge } from "@/components/portal/badge";
 import { FileTiles } from "@/components/portal/attachments";
 import { Meter } from "@/components/portal/meter";
 import { BreadcrumbBack } from "@/components/portal/nav";
@@ -52,6 +53,7 @@ import type { PartyTurn } from "@/lib/disputes/case";
 import { CASE_FILE_TYPES, checkCaseFile, keepFile, MAX_CASE_FILE_MB, MAX_CASE_FILES, usePreviewUrl } from "@/lib/demo/files";
 import { PAIR, useLive, type LivePayment } from "@/lib/demo/live";
 import { keyed } from "@/lib/portal/keys";
+import type { BadgeTone } from "@/lib/portal/tone";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { useNow } from "@/lib/portal/use-now";
 
@@ -64,14 +66,14 @@ import { useNow } from "@/lib/portal/use-now";
 
 /**
  * Each side's colour on the timeline, and how they're labelled — Hireable's: the Independent in the
- * brand pink, the Team Builder in the brand blue. The tags use a dark shade of each on its own tint
- * so the label clears AA; the avatar ring is the brand colour itself.
+ * brand pink, the Team Builder in the brand blue. The tags are the shared Badge in the matching
+ * tint; the avatar ring is the brand colour itself.
  */
-const ACTOR: Record<Entry["by"], { mark: string; tag: string; role: string }> = {
-  team: { mark: "ring-brand-blue", tag: "bg-[#e6f6fe] text-[#005b8a]", role: "Team Builder" },
-  independent: { mark: "ring-brand-pink", tag: "bg-[#ffebf1] text-[#a3123f]", role: "Independent" },
-  support: { mark: "ring-[#d99a00]", tag: "bg-[#fff3cc] text-[#7a5e0a]", role: "Hireable support" },
-  system: { mark: "ring-[#8a8f98]", tag: "bg-surface-2 text-ink-2", role: "Hireable" },
+const ACTOR: Record<Entry["by"], { mark: string; tag: BadgeTone; role: string }> = {
+  team: { mark: "ring-brand-blue", tag: "info", role: "Team Builder" },
+  independent: { mark: "ring-brand-pink", tag: "part-time", role: "Independent" },
+  support: { mark: "ring-[#d99a00]", tag: "review", role: "Hireable support" },
+  system: { mark: "ring-[#8a8f98]", tag: "neutral", role: "Hireable" },
 };
 
 const avatarOf = (d: Dispute, by: Entry["by"]) => (by === "team" ? PAIR.team.avatar : by === "independent" ? d.independent.avatar : by === "support" ? "/admin/avatar.jpg" : null);
@@ -359,7 +361,7 @@ function Timeline({ d, viewer, offset }: { d: Dispute; viewer: CaseViewer; offse
               <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13.5px] leading-[1.4]">
                 {e.kind !== "note" && <span className="font-semibold text-ink">{nameFor(d, e.by, viewer, e.name)}</span>}
                 <span className="text-ink">{headline(d, e, viewer)}</span>
-                <span className={`rounded px-1.5 py-0.5 text-[11.5px] font-medium ${ACTOR[e.by].tag}`}>{ACTOR[e.by].role}</span>
+                <Badge tone={ACTOR[e.by].tag}>{ACTOR[e.by].role}</Badge>
                 <time dateTime={new Date(e.at).toISOString()} className="ml-auto text-[12px] whitespace-nowrap text-ink-2">
                   {stampOf(e.at, offset)}
                 </time>

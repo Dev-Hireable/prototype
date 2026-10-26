@@ -13,21 +13,12 @@ export default function AdminDashboard() {
         ))}
       </StatGrid>
 
-      <div className="flex w-full items-start gap-4 overflow-clip max-md:flex-col max-md:items-stretch">
-        <Card className="flex min-w-0 flex-1 flex-col gap-[14px] overflow-clip p-[18px]">
-          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 overflow-clip">
-            <h2 className="text-[14px] leading-[1.45] font-semibold whitespace-nowrap text-ink-deep">
-              Sign-ups — last 8 months
-            </h2>
-            <Legend series={signups.series} />
-          </div>
+      {/* Level cards: the donut's stretches to the bar chart's height, its ring centred in it. */}
+      <div className="flex w-full items-stretch gap-4 max-md:flex-col">
+        <Card title="Sign-ups — last 8 months" aside={<Legend series={signups.series} />} className="min-w-0 flex-1 p-[18px]">
           <BarChart {...signups} />
         </Card>
-
-        <Card className="flex h-[276px] w-[380px] shrink-0 flex-col gap-[25px] overflow-clip p-[18px] max-md:h-auto max-md:w-full">
-          <h2 className="text-[14px] leading-[1.45] font-semibold whitespace-nowrap text-ink-deep">
-            Trial outcomes — 41 completed
-          </h2>
+        <Card title="Trial outcomes — 41 completed" className="flex w-[380px] shrink-0 items-center p-[18px] max-md:w-full">
           <Donut {...trialOutcomes} />
         </Card>
       </div>

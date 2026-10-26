@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
 import { Button, Input, KebabMenu, Modal } from "@/components/portal/ui";
+import { MiniBar } from "@/components/portal/meter";
 import { MenuAction } from "@/components/portal/controls";
 import { TOOLBAR_BUTTON } from "@/components/portal/toolbar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -208,9 +209,7 @@ function Place({ p }: { p: ProjectSummary }) {
     <span className="flex min-w-0 flex-1 items-center gap-3">
       <span className="min-w-0 flex-1 truncate">{p.name}</span>
       {p.kind === "project" && p.total > 0 && (
-        <span aria-hidden className="h-1.5 w-10 shrink-0 overflow-hidden rounded-full bg-surface-2">
-          <span className="block h-full rounded-full bg-ok" style={{ width: `${(p.done / p.total) * 100}%` }} />
-        </span>
+        <MiniBar value={p.done} total={p.total} className="w-10 shrink-0" />
       )}
       <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{detail}</span>
     </span>

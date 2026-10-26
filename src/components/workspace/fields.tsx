@@ -5,6 +5,7 @@ import { ICONS } from "@/components/icons";
 import { DatePicker } from "@/components/portal/date-picker";
 import { PriorityMenu, PriorityPill, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/tip";
+import { Button } from "@/components/portal/ui";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
@@ -426,9 +427,9 @@ function EffortPicker({ item, text, setText, save }: { item: WorkItem; text: str
           placeholder={`0–${EFFORT_MAX}`}
           className="h-9 w-20 rounded-md border border-border px-2 text-[14px] tabular-nums outline-none focus:border-primary"
         />
-        <button type="submit" className="h-9 rounded-md bg-primary px-3 text-[13px] font-medium text-white disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]" disabled={!!error}>
+        <Button type="submit" variant="primary" size="sm" disabled={!!error}>
           Set
-        </button>
+        </Button>
         {item.effort !== undefined && (
           <button type="button" onClick={() => save(null)} className="h-9 rounded-md px-2 text-[13px] text-ink-2 hover:bg-surface-2">
             Clear

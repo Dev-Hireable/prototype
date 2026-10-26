@@ -104,8 +104,8 @@ const list = (page: Page) => page.getByRole("table");
 /** The case's process check. */
 const processCheck = (page: Page) => page.getByRole("table").filter({ has: page.getByRole("columnheader", { name: "Source" }) });
 
-/** A figure over the list, read as its label, value and note: "Past SLA 1 pending longer than 5 days". */
-const stat = (page: Page, label: string) => page.getByText(label, { exact: true }).locator("..");
+/** A figure over the list, read as its label, value and note: "Past SLA 1 pending longer than 5 days" — the whole card, panel and tray. */
+const stat = (page: Page, label: string) => page.getByText(label, { exact: true }).locator("xpath=ancestor::section[1]");
 /** Reads a stat's lines as one, the way it's seen. */
 const AS_SEEN = { useInnerText: true };
 

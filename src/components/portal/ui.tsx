@@ -12,7 +12,7 @@ import type { Tone } from "@/lib/portal/tone";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
-import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses, PHONE_FILTER_ROW } from "@/components/portal/styles";
+import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses, PHONE_FILTER_ROW, splitTray, TRAY, TRAY_PANEL } from "@/components/portal/styles";
 import { Checkbox as CheckboxControl } from "@/components/ui/checkbox";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, useSheetSide } from "@/components/ui/sheet";
 import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -295,8 +295,38 @@ export function MessageButton({ href, onClick, children = "Message", size = "md"
 
 /* -------------------------------------------------------------- surfaces -- */
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-lg bg-white outline -outline-offset-1 outline-border ${className}`}>{children}</section>;
+/**
+ * The card every screen builds on, in the one card look (TRAY): a grey tray with the white panel
+ * inside it that holds the content. Where it sits and how big it is go on the tray, its own layout
+ * and padding on the panel (splitTray), so a call site styles it as if it were one box. A section
+ * heading (`title`, with an optional `sub` line and an `aside` for its controls: a menu, an Add
+ * button, a badge) sits on the tray above the panel; the thing's own name stays inside.
+ */
+export function Card({ title, sub, aside, label, children, className = "" }: { title?: ReactNode; sub?: ReactNode; aside?: ReactNode; /** Names the whole card, tray header included, as a region (the Offer card a test reads). */ label?: string; children?: ReactNode; className?: string }) {
+  const { tray, panel } = splitTray(className);
+  return (
+    <section aria-label={label} className={`flex flex-col ${TRAY} ${tray}`}>
+      {title !== undefined && <TrayHeader title={title} sub={sub} aside={aside} />}
+      {children !== undefined && children !== null && children !== false && <div className={`min-h-0 flex-1 ${TRAY_PANEL} ${panel}`}>{children}</div>}
+    </section>
+  );
+}
+
+/**
+ * A card's heading on its tray: the title (and a line under it), its controls at the right, level
+ * with it. Where both won't fit (a phone), the controls wrap under the heading rather than squeeze
+ * it: the heading keeps at least 15rem, or the whole row when that's narrower.
+ */
+function TrayHeader({ title, sub, aside }: { title: ReactNode; sub?: ReactNode; aside?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 pt-2 pb-2.5">
+      <div className="flex min-w-[min(100%,15rem)] flex-1 flex-col gap-0.5">
+        <CardHeading>{title}</CardHeading>
+        {sub && <p className="text-[12.5px] leading-[1.4] text-ink-2">{sub}</p>}
+      </div>
+      {aside}
+    </div>
+  );
 }
 
 export function CardTitle({ children, className = "" }: { children: ReactNode; className?: string }) {
@@ -321,12 +351,18 @@ export function KeyValue({ label, value }: { label: string; value: ReactNode }) 
   );
 }
 
-export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
+/**
+ * The one "nothing here" box: a title, a line or two on why and what next, and the way on. `icon`
+ * puts a glyph in a white circle over the title (the workspace's empty and error states); `action`
+ * may hold more than one button, centred in a row. `className` sizes it (a max width, say).
+ */
+export function EmptyState({ icon, title, body, action, className = "" }: { icon?: ReactNode; title: string; body?: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg bg-[#fafafa] px-6 py-12 text-center outline -outline-offset-1 outline-border">
-      <p className="text-[16px] font-semibold text-ink">{title}</p>
-      <p className="text-[12px] text-ink-2">{body}</p>
-      {action && <div className="mt-2">{action}</div>}
+    <div className={`flex flex-col items-center gap-3 rounded-lg bg-[#fafafa] px-6 py-12 text-center outline -outline-offset-1 outline-border ${className}`}>
+      {icon && <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink-2 outline -outline-offset-1 outline-border">{icon}</span>}
+      <h2 className="text-[16px] leading-[1.4] font-semibold text-ink">{title}</h2>
+      {body && <div className="text-[13px] leading-[1.5] text-ink-2">{body}</div>}
+      {action && <div className="mt-2 flex flex-wrap justify-center gap-2">{action}</div>}
     </div>
   );
 }
@@ -375,7 +411,7 @@ export function JobBadge({ type }: { type: JobType }) {
  * what the score is based on. `lg` is the same pill at the profile header's size, beside a 32px name.
  */
 export function MatchPill({ pct, coded = false, title, size = "md" }: { pct: number; coded?: boolean; title?: string; size?: "md" | "lg" }) {
-  const tone = pct >= 60 ? "bg-[#f2c94c] text-[#5c4708]" : "bg-[#e5e5e5] text-[#616161]";
+  const tone = pct >= 60 ? "edge-glow bg-[#f2c94c] text-[#5c4708]" : "bg-[#e5e5e5] text-[#616161]";
   const base = `inline-flex items-center rounded leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${size === "lg" ? "h-8 px-3 text-[14px]" : "h-6 px-2 text-[12px]"}`;
   // Trimmed to its capitals, as in the Badge, so the label sits in the pill's middle.
   const label = <span className="trim-to-caps">{pct}% match</span>;

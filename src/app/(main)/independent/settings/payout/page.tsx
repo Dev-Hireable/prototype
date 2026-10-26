@@ -24,17 +24,16 @@ export default function PayoutSettings() {
 
   return (
     <Page title="Settings">
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
-        {/* Where the two don't fit on a line (a phone), the button goes under the heading rather than squeezing it onto two. */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-            Payout methods
-          </h2>
+      <Card
+        title="Payout methods"
+        sub="Released pay waits in your balance until you withdraw it to a verified payout method."
+        aside={
           <Button variant="primary" size="lg" onClick={() => setAdding(true)}>
             Add payout method
           </Button>
-        </div>
-        <p className="text-[13px] leading-[1.4] text-ink-2">Released pay waits in your balance until you withdraw it to a verified payout method.</p>
+        }
+        className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6"
+      >
         {/* KYC: payouts go only to a verified name, so the methods say where the ID check stands. */}
         <IdStatus onToast={setToast} />
         {payouts.length === 0 && <EmptyState title="No payout method yet" body="You'll be asked for one before your first proposal." />}

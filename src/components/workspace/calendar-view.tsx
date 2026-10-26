@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
+import { CountPill } from "@/components/portal/board";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,6 +15,7 @@ import { checkDates } from "@/lib/work/validate";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { Ref } from "./meta";
 import { QuickAdd } from "./quick-add";
+import { STEP_BUTTON, TODAY_BUTTON, VIEW_FRAME } from "./view-frame";
 
 /**
  * The Calendar: a month, Sunday first. An item with a start and a due spans those days (split at
@@ -53,19 +55,18 @@ function CalendarHeader({ query, setQuery, today, className = "" }: { query: Wor
   };
   const here = partsOf(today);
   const isThis = y === here.y && m === here.m;
-  const step = "flex size-8 items-center justify-center rounded-lg text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary";
   return (
     <div role="group" aria-label="Month" className={`flex shrink-0 items-center gap-1 ${className}`}>
       <h2 className="mr-auto text-[15px] leading-[1.3] font-semibold text-ink" aria-live="polite">
         {MONTH_LONG[m - 1]} {y}
       </h2>
-      <button type="button" disabled={isThis} onClick={() => setQuery({ month: null })} className="mr-1 h-8 rounded-lg border border-border bg-white px-3 text-[13px] font-medium text-ink hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary disabled:text-ink-2 disabled:hover:bg-white">
+      <button type="button" disabled={isThis} onClick={() => setQuery({ month: null })} className={`${TODAY_BUTTON} mr-1`}>
         Today
       </button>
-      <button type="button" onClick={() => go(-1)} aria-label="Previous month" className={step}>
+      <button type="button" onClick={() => go(-1)} aria-label="Previous month" className={STEP_BUTTON}>
         <ICONS.chevronLeft size={20} aria-hidden />
       </button>
-      <button type="button" onClick={() => go(1)} aria-label="Next month" className={step}>
+      <button type="button" onClick={() => go(1)} aria-label="Next month" className={STEP_BUTTON}>
         <ICONS.chevronRight size={20} aria-hidden />
       </button>
     </div>
@@ -91,7 +92,7 @@ export function CalendarView({ items, query, setQuery, narrow }: { items: readon
     // Below a laptop Unscheduled goes under the month, so the month keeps the full width.
     <div className="flex min-h-0 flex-1 gap-3 px-[var(--ws-gutter,1rem)] pt-3 pb-4 max-lg:flex-col">
       {/* Bordered frame, scroller inside: the day cells are positioned, so they painted over an outline on the scroller. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-white">
+      <div className={`${VIEW_FRAME} min-w-0 flex-1`}>
         {header("border-b border-border px-3 py-2")}
         <div ref={grid} className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-auto" data-testid="calendar">
           {scheduled === 0 && items.length > 0 && (
@@ -349,7 +350,7 @@ function UnscheduledList({ loose, dnd }: { loose: WorkItem[]; dnd: DayDrag }) {
     <aside className="flex w-64 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-[#fafafa] max-lg:max-h-44 max-lg:w-full" aria-label="Unscheduled">
       <h3 className="flex items-center justify-between border-b border-border px-3 py-2.5 text-[13.5px] font-semibold text-ink">
         Unscheduled
-        <span className="rounded bg-surface-2 px-1.5 text-[12px] font-medium text-ink-2 tabular-nums">{loose.length}</span>
+        <CountPill className="bg-surface-2 text-ink-2">{loose.length}</CountPill>
       </h3>
       <p className="px-3 pt-2 text-[12px] leading-[1.4] text-ink-2">{loose.length ? "No start or due date yet. Drag one onto a day to set its due date." : "Everything here has a date."}</p>
       <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">

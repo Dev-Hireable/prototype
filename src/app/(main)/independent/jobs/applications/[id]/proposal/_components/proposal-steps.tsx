@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Badge } from "@/components/portal/badge";
-import { Button, Card, Field, Input, Steps, Textarea } from "@/components/portal/ui";
+import { Button, Field, Input, Steps, Textarea } from "@/components/portal/ui";
+import { StepCard } from "@/components/portal/step-card";
 import { DatePicker } from "@/components/portal/date-picker";
 import { ProposalReadiness } from "@/components/independent/id-verification";
 import { ProposalBody, type ProposalAuthor } from "@/components/portal/proposal-review";
@@ -190,23 +191,6 @@ function ReviewStep({
         </Button>
       </div>
     </div>
-  );
-}
-
-/** A step's card: its heading, marked when what the step asks for is required, over the step itself. */
-function StepCard({ title, required = false, children }: { title: string; required?: boolean; children: ReactNode }) {
-  return (
-    <Card className="flex flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
-      <h3 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">
-        {title}
-        {required && (
-          <span aria-hidden className="text-danger">
-            {" *"}
-          </span>
-        )}
-      </h3>
-      {children}
-    </Card>
   );
 }
 

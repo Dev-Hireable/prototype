@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { ICONS } from "@/components/icons";
-import { Avatar, JobBadge, Page } from "@/components/portal/ui";
+import { Avatar, JobBadge, LinkButton, Page } from "@/components/portal/ui";
 import {
   DashboardBanner,
   DashboardBarChart,
+  DashboardEmpty,
   DashboardFrame,
   DashboardGreeting,
   DashboardHero,
@@ -188,14 +189,14 @@ function ApplicantsCard({ candidates, active }: { candidates: Candidate[]; activ
  */
 function UpcomingInterviews({ upcoming }: { upcoming: Interview[] }) {
   return upcoming.length === 0 ? (
-    <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[13px] leading-[1.4] text-ink-2 max-md:flex-none">Nothing scheduled. Invite a candidate to interview to see it here.</p>
+    <DashboardEmpty>Nothing scheduled. Invite a candidate to interview to see it here.</DashboardEmpty>
   ) : (
     <ul className="flex flex-col gap-2">
       {upcoming.map((iv) => {
         // The candidate's card in the pipeline, where the interview is joined, moved or cancelled; else the role's Interview column.
         const href = iv.roleSlug && iv.candidate ? `/team/hire/roles/${iv.roleSlug}/candidates/${iv.candidate}` : iv.roleSlug ? `/team/hire/roles/${iv.roleSlug}?stage=interview` : "/team/hire/roles";
         return (
-          <li key={iv.id} className="flex items-center gap-3 rounded-lg bg-white p-3">
+          <li key={iv.id} className="flex items-center gap-3 rounded-lg bg-tile p-3">
             <Avatar src={avatarOf(iv.independent)} size={32} />
             <Link href={href} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] tracking-[0.2px]">
               {/* Not hired yet, so the surname stays an initial. */}
@@ -203,9 +204,9 @@ function UpcomingInterviews({ upcoming }: { upcoming: Interview[] }) {
               {/* #312 — in the Team Builder's clock, with the talent's beside it. */}
               <span className="line-clamp-2 text-[12px] leading-[1.35] text-ink-2">{slotForTeam(iv.when, iv.offset, iv.independent)}</span>
             </Link>
-            <Link href={href} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
+            <LinkButton href={href} variant="primary" className="shrink-0">
               Join
-            </Link>
+            </LinkButton>
           </li>
         );
       })}
@@ -219,16 +220,14 @@ function ActiveContracts({ active }: { active: Contract[] }) {
     <>
       {/* As tall as what it says on a phone, as the Interviews card's note is. */}
       {active.length === 0 ? (
-        <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2 max-md:flex-none">
-          No active engagements yet. Hire an Independent to see their contract here.
-        </p>
+        <DashboardEmpty>No active engagements yet. Hire an Independent to see their contract here.</DashboardEmpty>
       ) : (
         // Capped so a long roster doesn't stretch every card in the row to its height —
         // the rest are one click away behind the header arrow.
         <ul className="flex flex-col gap-2">
           {active.slice(0, 3).map((c) => (
             <li key={c.slug}>
-              <Link href={`/team/independents/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-white p-3 hover:bg-surface-alt">
+              <Link href={`/team/independents/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-tile p-3 hover:bg-surface-2">
                 <Avatar src={avatarOf(c.independent)} size={32} />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.2] tracking-[0.2px]">
                   <span className="truncate text-[15px] font-semibold text-ink">{nameOf(c.slug, c.independent)}</span>
@@ -245,7 +244,7 @@ function ActiveContracts({ active }: { active: Contract[] }) {
           View all {active.length} contracts
         </Link>
       )}
-      <Link href="/team/hire" className="mt-2 flex items-center justify-center gap-1 rounded-lg bg-white py-2.5 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-primary hover:bg-surface-alt">
+      <Link href="/team/hire" className="mt-2 flex items-center justify-center gap-1 rounded-lg bg-tile py-2.5 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-primary hover:bg-surface-2">
         <Add size={18} aria-hidden /> Hire
       </Link>
     </>

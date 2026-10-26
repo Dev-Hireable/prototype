@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { ICONS } from "@/components/icons";
-import { Initials, JobBadge, Page } from "@/components/portal/ui";
-import { DashboardBanner, DashboardBarChart, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardStat, DashboardSummaryCard, DashboardSummaryGrid, type DashboardChecklistItem } from "@/components/portal/dashboard";
+import { Initials, JobBadge, LinkButton, Page } from "@/components/portal/ui";
+import { DashboardBanner, DashboardBarChart, DashboardEmpty, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardStat, DashboardSummaryCard, DashboardSummaryGrid, type DashboardChecklistItem } from "@/components/portal/dashboard";
 import { DashboardTasks } from "@/components/portal/dashboard-tasks";
 import { isEndedStatus, trialClosed } from "@/lib/contract/lifecycle";
 import { dayLabel, daysLeftLabel, sinceOrFrom } from "@/lib/portal/dates";
@@ -164,18 +164,18 @@ function InterviewsCard({ upcoming }: { upcoming: Interview[] }) {
     <DashboardSummaryCard title="Interviews" href="/independent/jobs/interviews">
       {upcoming.length === 0 ? (
         // It fills the card where the card is levelled with the one beside it; a phone stacks them, so there it's as tall as its words.
-        <p className="flex items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2 md:flex-1">No interviews scheduled. Apply to a role and a Team Builder can invite you.</p>
+        <DashboardEmpty>No interviews scheduled. Apply to a role and a Team Builder can invite you.</DashboardEmpty>
       ) : (
         <ul className="flex flex-col gap-2">
           {upcoming.slice(0, 3).map((iv) => (
-            <li key={iv.id} className="flex items-center gap-4 rounded-lg bg-white p-3">
+            <li key={iv.id} className="flex items-center gap-4 rounded-lg bg-tile p-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1 tracking-[0.2px]">
                 <p className="truncate text-[14px] font-semibold text-ink">{iv.role}</p>
                 <p className="text-[12px] leading-[1.4] text-ink-2">{clock.both(iv)}</p>
               </div>
-              <Link href={iv.roleHref} className="flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-white hover:brightness-110">
+              <LinkButton href={iv.roleHref} variant="primary" className="shrink-0">
                 {iv.status === "starts" ? "Respond" : "Open"}
-              </Link>
+              </LinkButton>
             </li>
           ))}
         </ul>
@@ -190,14 +190,14 @@ function ContractsCard({ active }: { active: Contract[] }) {
     <DashboardSummaryCard title="Active contracts" href="/independent/contracts">
       {active.length === 0 ? (
         // Fills a levelled card, as Interviews' note does; as tall as its words on a phone.
-        <p className="flex items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2 md:flex-1">No active contracts yet. Apply to a role and your engagements appear here.</p>
+        <DashboardEmpty>No active contracts yet. Apply to a role and your engagements appear here.</DashboardEmpty>
       ) : (
         <ul className="flex flex-col gap-2">
           {active.slice(0, 3).map((c) => {
             const left = c.left;
             return (
               <li key={c.slug}>
-                <Link href={`/independent/contracts/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-white p-3 hover:bg-surface-alt">
+                <Link href={`/independent/contracts/${c.slug}`} className="flex items-center gap-3 rounded-lg bg-tile p-3 hover:bg-surface-2">
                   <Initials text={c.initials} className="size-8 shrink-0 text-[11px]" />
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.2] tracking-[0.2px]">
                     <span className="truncate text-[14px] font-semibold text-ink">{c.company}</span>

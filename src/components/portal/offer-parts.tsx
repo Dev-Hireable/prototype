@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useId, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Checkbox, Field, Modal, Textarea } from "@/components/portal/ui";
+import { Button, Card, Checkbox, Field, Modal, Textarea } from "@/components/portal/ui";
 import type { JobType } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { agreementFor } from "@/lib/contract/agreement";
@@ -132,6 +132,22 @@ export function OfferFrom({ name, company }: { name: string; company: string }) 
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The talent's sign card, the same on an application's offer and the post-trial offer: who it's
+ * from, then "Sign contract" over what each offer puts there (the signature, its answer).
+ */
+export function SignCard({ name, company, children }: { name: string; company: string; children: ReactNode }) {
+  return (
+    <Card className="flex w-[360px] shrink-0 flex-col divide-y divide-[#e5e5e5] max-lg:w-full">
+      <OfferFrom name={name} company={company} />
+      <div className="flex flex-col gap-4 p-6">
+        <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Sign contract</h3>
+        {children}
+      </div>
+    </Card>
   );
 }
 

@@ -7,7 +7,8 @@ import { SamplesEditor } from "@/components/independent/portfolio-editor";
 import { Page, Toast } from "@/components/portal/ui";
 import { EditButton } from "@/components/portal/inline-edit";
 import { RetakeQuizDialog } from "@/components/portal/retake-quiz-dialog";
-import { FlatBadge, TalentProfile } from "@/components/portal/talent-profile";
+import { TalentProfile } from "@/components/portal/talent-profile";
+import { Badge } from "@/components/portal/badge";
 import { checkIntro, INTRO_TYPES, saveIntro, useIntroVideo } from "@/lib/demo/intro";
 import { usePortfolio, type Sample } from "@/lib/demo/portfolio";
 import { useNextRetake } from "@/lib/demo/retake";
@@ -60,7 +61,12 @@ export default function Profile() {
         // As a Team Builder sees it before a hire: "Juan D." and no links (TalentProfile, not hired), and
         // the same intro card: the still every Team Builder view shows, or the talent's own video once added.
         person={{ ...profile, intro: ME.intro, introVideo: introVideo ?? undefined, tags, samples, history: historyOf(contracts) }}
-        badge={<FlatBadge>Pro</FlatBadge>}
+        // The talent's "Pro", at the size of the gradient MatchPill a Team Builder sees in its place.
+        badge={
+          <Badge tone="ok" size="lg">
+            Pro
+          </Badge>
+        }
         note={
           // IN-060 — this page is the Team Builder's view of you, not a separate internal one.
           <p className="flex items-center gap-1.5 text-[13px] leading-[1.4] text-ink-2">

@@ -3,16 +3,15 @@
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState } from "react";
-import { ICONS } from "@/components/icons";
 import { Avatar, Button, Card, Chip, JobBadge, LinkButton, MatchPill, MessageButton, Modal, Page, StatusDot, Tabs, Toast } from "@/components/portal/ui";
 import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList } from "@/components/portal/board";
 import { useBoardJump } from "@/components/portal/board-jump";
-import { PHONE_BOARD } from "@/components/portal/styles";
+import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
 import { FactStrip } from "@/components/portal/page-parts";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
-import { Tip } from "@/components/portal/tip";
+import { MessageLink } from "@/components/portal/contract-card";
 import { DropDialog } from "@/components/team/drop-dialog";
 import { ProfileDrawer, SaveButton } from "@/components/team/ui";
 import { InterviewDialog } from "@/components/team/interview-dialog";
@@ -32,17 +31,6 @@ import { useDeal } from "@/lib/demo/deal";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { ReturnNav, useWithReturn } from "@/components/portal/return";
 
-const H3 = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-[#0a0a0a]";
-const Message = ICONS.messages;
-
-/** A card's primary buttons, filled and full height. */
-const PRIMARY = "h-9 rounded-lg bg-primary text-[13px] leading-[1.2] font-semibold text-white hover:brightness-110";
-/** The same, for one that waits on the candidate: greyed while disabled. */
-const PRIMARY_WAITS = `${PRIMARY} w-full disabled:cursor-not-allowed disabled:bg-[#e5e5e5] disabled:text-[#c3c3c3]`;
-/** A card's quiet second step, beside its main one. */
-const SECONDARY = "h-9 rounded-lg border border-border bg-white text-[13px] leading-[1.2] font-medium text-ink hover:bg-surface-alt";
-/** Delete, on a declined card: the one solid red button. Decline itself is a red text link (#279). */
-const DANGER = "h-9 rounded-lg bg-danger text-[13px] leading-[1.2] font-medium text-white hover:bg-danger-hover";
 
 const firstOf = (c: Candidate) => byName(c.independent).name.split(" ")[0];
 
@@ -362,39 +350,48 @@ function CandidateCard({ c, type, column, unread, actions }: { c: Candidate; typ
   // pay is one total that only the proposal sets.
   const proposed = c.id === DEAL_ID ? deal?.proposal?.rate : undefined;
   const pay = proposed ? payFor(type, proposed) : type === "trial" ? undefined : p.rate;
+  const withReturn = useWithReturn();
   return (
-    <li data-tour="candidate" className={`flex flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${c.dropped ? "opacity-60" : ""}`}>
-      <div className="flex items-start gap-2.5">
-        <Avatar src={p.avatar} size={36} />
-        <CardName c={c} name={name} headline={p.role} onOpen={actions.open} />
-        <MessageLink name={name} unread={unread} />
-      </div>
-      <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">{pay ? `${pay} · ${p.level}` : p.level}</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <MatchPill pct={p.match} coded title={MATCH_TOOLTIP.team} />
-        {c.dropped ? <StatusDot tone="danger">Declined</StatusDot> : c.status && <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>}
-      </div>
-      <p className="text-[11.5px] leading-[1.2] text-ink-2">{c.status?.meta ?? c.submitted}</p>
-      <StageButtons c={c} column={column} actions={actions} />
-      {/* TB-044: decline at any stage, restore to where they were. Hired candidates can't be
-          declined (TB-037). Decline is a red text link, so it doesn't vie with the column's step (#279). */}
-      {c.dropped ? (
-        // Restore, or delete for good so the Declined column doesn't pile up.
-        <div className="grid grid-cols-2 gap-2">
-          <button type="button" onClick={() => actions.drop(c)} className={SECONDARY}>
-            Restore
-          </button>
-          <button type="button" onClick={() => actions.remove(c)} className={DANGER}>
-            Delete
-          </button>
+    <li data-tour="candidate" className={`flex flex-col ${TRAY} ${c.dropped ? "opacity-60" : ""}`}>
+      {/* Who they are on the white panel; when, and what to do next, on the tray under it. */}
+      <div className={`flex flex-col gap-2.5 p-3 ${TRAY_PANEL}`}>
+        <div className="flex items-start gap-2.5">
+          <Avatar src={p.avatar} size={36} />
+          <CardName c={c} name={name} headline={p.role} onOpen={actions.open} />
+          {/* TB-037: unread messages show a red count on it. Every card can be messaged: the thread
+              exists from the invite to apply or the application, not just the live pair's. */}
+          <MessageLink href={withReturn("/team/messages")} name={name} unread={unread} />
         </div>
-      ) : (
-        c.stage !== "hired" && (
-          <button type="button" onClick={() => actions.drop(c)} className="self-start text-[13px] leading-[1.2] font-medium text-danger hover:underline">
-            Decline
-          </button>
-        )
-      )}
+        <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">{pay ? `${pay} · ${p.level}` : p.level}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <MatchPill pct={p.match} coded title={MATCH_TOOLTIP.team} />
+          {c.dropped ? <StatusDot tone="danger">Declined</StatusDot> : c.status && <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>}
+        </div>
+      </div>
+      <div className={`flex flex-col gap-2.5 ${TRAY_FOOT}`}>
+        <p className="text-[11.5px] leading-[1.2] text-ink-2">{c.status?.meta ?? c.submitted}</p>
+        <StageButtons c={c} column={column} actions={actions} />
+        {/* TB-044: decline at any stage, restore to where they were. Hired candidates can't be
+            declined (TB-037). Decline is a red text link, so it doesn't vie with the column's step (#279). */}
+        {c.dropped ? (
+          // Restore, or delete for good so the Declined column doesn't pile up.
+          <div className="grid grid-cols-2 gap-2">
+            <Button size="sm" onClick={() => actions.drop(c)}>
+              Restore
+            </Button>
+            {/* Delete, on a declined card: the one solid red button. Decline itself is a red text link (#279). */}
+            <Button size="sm" variant="danger" onClick={() => actions.remove(c)}>
+              Delete
+            </Button>
+          </div>
+        ) : (
+          c.stage !== "hired" && (
+            <button type="button" onClick={() => actions.drop(c)} className="self-start text-[13px] leading-[1.2] font-medium text-danger hover:underline">
+              Decline
+            </button>
+          )
+        )}
+      </div>
     </li>
   );
 }
@@ -424,22 +421,6 @@ function CardName({ c, name, headline, onOpen }: { c: Candidate; name: string; h
   );
 }
 
-/**
- * TB-037: unread messages show a red badge on the message icon. Every card can be messaged: the
- * thread exists from the invite to apply or the application, for every card, not just the live pair.
- */
-function MessageLink({ name, unread }: { name: string; unread: number }) {
-  const withReturn = useWithReturn();
-  return (
-    <Link href={withReturn("/team/messages")} aria-label={`Message ${name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-ink hover:bg-surface-alt">
-      <Message size={16} aria-hidden />
-      {unread > 0 && (
-        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white"><span className="badge-count">{unread > 9 ? "9+" : unread}</span></span>
-      )}
-    </Link>
-  );
-}
-
 /** The step a card's column offers: invite, mark the interview done, request or review the proposal, review the offer, or open the hire's contract. */
 function StageButtons({ c, column, actions }: { c: Candidate; column: string; actions: CardActions }) {
   if (c.dropped) return null;
@@ -449,20 +430,18 @@ function StageButtons({ c, column, actions }: { c: Candidate; column: string; ac
       {/* TB-037: book the interview from the column, without opening a profile — once
           they've applied. A match invited to apply hasn't yet, so it waits on them. */}
       {(column === "candidates" || column === "matched") && (
-        <Tip label={waiting ? `${firstOf(c)} hasn't applied yet. You can invite them to interview once they do.` : undefined} wrap={waiting}>
-          <button type="button" disabled={waiting} onClick={() => actions.invite(c)} className={PRIMARY_WAITS}>
-            Invite to interview
-          </button>
-        </Tip>
+        <Button size="sm" variant="primary" disabled={waiting} title={waiting ? `${firstOf(c)} hasn't applied yet. You can invite them to interview once they do.` : undefined} onClick={() => actions.invite(c)} className="w-full">
+          Invite to interview
+        </Button>
       )}
       {column === "interview" && <InterviewButton c={c} actions={actions} />}
       {/* TB-104: Review proposal once they've actually submitted one — it opens right
           here on the board, the same dialog the profile opens — and while a revision
           is out, so its history stays one click away. */}
       {(c.stage === "proposal_sent" || (c.stage === "proposal_requested" && c.status?.label === "Revision requested")) && (
-        <button type="button" onClick={() => actions.review(c)} className={PRIMARY}>
+        <Button size="sm" variant="primary" onClick={() => actions.review(c)}>
           Review proposal
-        </button>
+        </Button>
       )}
       {/* TB-037: the sent offer is reviewable but not editable: its card on the candidate's page reads it and withdraws it. */}
       {column === "offer" && (
@@ -479,9 +458,9 @@ function StageButtons({ c, column, actions }: { c: Candidate; column: string; ac
 function ContractLink({ c, running }: { c: Candidate; running: boolean }) {
   const withReturn = useWithReturn();
   return (
-    <Link href={withReturn(`/team/independents/${c.independent}`)} className={`${PRIMARY} flex items-center justify-center`}>
+    <LinkButton size="sm" variant="primary" href={withReturn(`/team/independents/${c.independent}`)}>
       {running && c.hiredAs === "trial" ? "Track trial progress" : "Open contract"}
-    </Link>
+    </LinkButton>
   );
 }
 
@@ -495,13 +474,13 @@ function InterviewButton({ c, actions }: { c: Candidate; actions: CardActions })
   if (c.stage === "interviewed") {
     return (
       <>
-        <button type="button" onClick={() => actions.request(c)} className={PRIMARY}>
+        <Button size="sm" variant="primary" onClick={() => actions.request(c)}>
           Request proposal
-        </button>
+        </Button>
         {c.autoDone && (
-          <button type="button" onClick={() => actions.miss(c)} className={SECONDARY}>
+          <Button size="sm" onClick={() => actions.miss(c)}>
             Did not happen
-          </button>
+          </Button>
         )}
       </>
     );
@@ -509,17 +488,15 @@ function InterviewButton({ c, actions }: { c: Candidate; actions: CardActions })
   // They declined it, asked for another time, or it was cancelled: a new slot is the way on.
   if (needsNewSlot(c)) {
     return (
-      <button type="button" onClick={() => actions.invite(c)} className={PRIMARY}>
+      <Button size="sm" variant="primary" onClick={() => actions.invite(c)}>
         {c.status?.label === NEW_TIME_REQUESTED ? "Review new time" : "Offer a new time"}
-      </button>
+      </Button>
     );
   }
   return (
-    <Tip label={c.stage === "invited" ? `Waiting for ${firstOf(c)} to confirm the interview` : undefined} wrap={c.stage === "invited"}>
-      <button type="button" disabled={c.stage === "invited"} onClick={() => actions.complete(c)} className={PRIMARY_WAITS}>
-        Mark interview done
-      </button>
-    </Tip>
+    <Button size="sm" variant="primary" disabled={c.stage === "invited"} title={c.stage === "invited" ? `Waiting for ${firstOf(c)} to confirm the interview` : undefined} onClick={() => actions.complete(c)} className="w-full">
+      Mark interview done
+    </Button>
   );
 }
 
@@ -542,23 +519,17 @@ function JobDetails({ role }: { role: RoleData }) {
           </p>
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink">{role.description}</p>
         </Card>
-        <Card className="flex flex-col gap-4 p-4">
-          <h3 className={H3}>Pay &amp; details</h3>
+        <Card title="Pay & details" className="flex flex-col gap-4 p-4">
           {/* The facts strip the talent's job page shows, so the post reads the same on both sides. */}
           <FactStrip size="sm" cells={jobFacts({ type: role.type, pay: role.budget, duration: role.duration, hours: role.hours, level: role.experience })} />
         </Card>
         {/* TB-025 — the trial's tasks, as the job post sets them; the offer carries them (TB-105). */}
         {role.type === "trial" && (
-          <Card className="flex flex-col gap-4 p-4">
-            <div className="flex flex-col gap-1">
-              <h3 className={H3}>Trial tasks</h3>
-              <p className="text-[13px] leading-[1.4] text-ink-2">Independents see these tasks after you accept their proposal.</p>
-            </div>
+          <Card title="Trial tasks" sub="Independents see these tasks after you accept their proposal." className="flex flex-col gap-4 p-4">
             <TaskPlanList tasks={role.tasks ?? []} empty="No trial tasks." />
           </Card>
         )}
-        <Card className="flex flex-col gap-6 p-4">
-          <h3 className={H3}>Skills</h3>
+        <Card title="Skills" className="flex flex-col gap-6 p-4">
           <div className="flex flex-wrap gap-2">
             {role.skills.map((s) => (
               <Chip key={s} size="sm">

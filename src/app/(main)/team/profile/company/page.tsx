@@ -1,6 +1,7 @@
 "use client";
 
 import { Checkbox, Page, Toast } from "@/components/portal/ui";
+import { CompanyMark } from "@/components/portal/company-mark";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/profile-editor";
 import { WorkStyleSection } from "@/components/team/work-style-section";
 import { useToast, type SetToast } from "@/lib/portal/toast";
@@ -78,7 +79,7 @@ function CompanyLogo({ src, name }: { src: string | null; name: string }) {
     // eslint-disable-next-line @next/next/no-img-element -- object URL from a local file, not a remote asset
     <img src={src} alt="" className="size-20 rounded-full bg-white object-cover outline -outline-offset-1 outline-border" />
   ) : (
-    <span className="flex size-20 items-center justify-center rounded-full bg-[#5b5bd6] text-[28px] leading-none font-semibold text-white">{name.slice(0, 2).toUpperCase()}</span>
+    <CompanyMark initials={name.slice(0, 2).toUpperCase()} className="size-20 rounded-full text-[28px]" />
   );
 }
 

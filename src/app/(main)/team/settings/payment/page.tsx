@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { Button, Card, CardHeading, EmptyState, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { Button, Card, EmptyState, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { Tip } from "@/components/portal/tip";
 import { PaymentMethodRow } from "@/components/portal/settings";
 import { AddCardDialog, ADD_CARD } from "@/components/team/add-card-dialog";
@@ -23,14 +23,15 @@ export default function PaymentMethods() {
 
   return (
     <Page title="Settings">
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
-        <div className="flex items-center justify-between">
-          <CardHeading>Payment methods</CardHeading>
+      <Card
+        title="Payment methods"
+        aside={
           <Button size="lg" variant="primary" onClick={() => setAdding(true)}>
             {ADD_CARD}
           </Button>
-        </div>
-        {cards.length === 0 ? (
+        }
+        className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4"
+      >        {cards.length === 0 ? (
           <EmptyState title="No card yet" body="You'll be asked for a card when you send your first offer." />
         ) : (
           <p className="text-[13px] leading-[1.4] text-ink-2">Trial escrow and monthly pay are charged to your default card.</p>

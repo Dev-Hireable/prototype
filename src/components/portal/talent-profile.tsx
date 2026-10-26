@@ -3,9 +3,10 @@
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Chip, EmptyState, JobBadge, Modal, Tabs } from "@/components/portal/ui";
+import { Avatar, Chip, EmptyState, JobBadge, Modal, Tabs } from "@/components/portal/ui";
 import { FactStrip, Section } from "@/components/portal/page-parts";
 import { PortfolioGallery } from "@/components/portal/portfolio-gallery";
+import { Stars } from "@/components/portal/stars";
 import { Tip } from "@/components/portal/tip";
 import { TraitTag } from "@/components/portal/trait-tag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";
@@ -204,12 +205,6 @@ function IntroPlayer({ src, name, open, onClose }: { src: string; name: string; 
   );
 }
 
-/** The badge beside the name — the talent's "Pro". A Team Builder's view has the gradient MatchPill there. */
-export function FlatBadge({ tone = "ok", children }: { tone?: "ok" | "warn" | "neutral"; children: ReactNode }) {
-  const TONE = { ok: "bg-[#eef9f2] text-ok", warn: "bg-warn-bg text-warn-ink", neutral: "bg-surface-2 text-ink-2" };
-  return <span className={`inline-flex h-8 items-center rounded px-3 text-[14px] leading-[1.2] font-medium tracking-[0.2px] whitespace-nowrap ${TONE[tone]}`}>{children}</span>;
-}
-
 /** The open tab: kept in the URL on a page, or to itself on a sheet over another page. */
 function useProfileTab(inUrl: boolean): [Tab, (tab: Tab) => void] {
   const [urlTab, setUrlTab] = useQueryState<Tab>("tab", "about", TAB_KEYS);
@@ -248,7 +243,7 @@ function Hero({
       <div className="flex flex-col gap-3">
         {/* The link sits level with the photo's bottom edge rather than halfway up it. */}
         <div className="flex items-end gap-4">
-          <Image src={p.photo} alt="" width={160} height={160} className="size-20 rounded-full bg-[#d2d8db] object-cover" loading="eager" />
+          <Avatar src={p.photo} size={80} />
           {photoAction}
         </div>
         <div className="flex flex-col gap-1">
@@ -526,16 +521,6 @@ function Evaluation({ evaluation: e }: { evaluation: PastEvaluation }) {
       </div>
       <p className={BODY}>{e.feedback}</p>
     </article>
-  );
-}
-
-function Stars({ value }: { value: number }) {
-  return (
-    <span role="img" aria-label={`${value} out of 5 stars`} className="flex items-center gap-[2.667px]">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Star key={n} size={16} aria-hidden className={n <= value ? "text-[#f2c94c]" : "text-[#d8d8d8]"} />
-      ))}
-    </span>
   );
 }
 

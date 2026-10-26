@@ -1,9 +1,9 @@
 import { Tip } from "@/components/portal/tip";
 /*
- * Both charts are fixed geometry, driven by data:
- *   BarChart  — a 640×206 plot: gridlines every 45px from y 180 up to 0
- *               (320 units ⇒ 0.5625 px/unit), 20px bars at x 18+80i / 42+80i, radius 3 top,
- *               y-labels at (−2, line−14) 10px, x-labels at (28+80i, 186) 10.5px.
+ * Both charts are driven by data:
+ *   BarChart  — as wide as its card, 200px tall: a gridline per tick, each month a group of
+ *               bars (at most 20px wide, radius 3 top) centred over its label, heights in % of `max`;
+ *               the tick values in their own column, so they never sit under a bar.
  *   Donut     — 144×144: three arcs r 62, stroke 16, butt caps,
  *               a 6° gap between segments starting 3° past 12 o'clock.
  */
@@ -12,77 +12,67 @@ import { Tip } from "@/components/portal/tip";
 
 export type BarSeries = { label: string; color: string; values: number[] };
 
-const PLOT_W = 640;
-const PLOT_H = 206;
-const BASELINE = 180;
-const STEP = 80;
+const PLOT_H = 200;
 
-export function BarChart({
-  categories,
-  series,
-  max,
-  ticks,
-}: {
-  categories: string[];
-  series: BarSeries[];
-  max: number;
-  ticks: number[];
-}) {
-  const scale = BASELINE / max;
+/** Where `value` sits up the plot, as a CSS length from its foot. */
+const up = (value: number, max: number) => `${(value / max) * 100}%`;
+
+/**
+ * Grouped bars across the card's whole width: the tick values in a column of their own on the
+ * left, a gridline per tick, and each category's bars side by side, centred over its label.
+ * Hovering a bar names its month, series and value.
+ */
+export function BarChart({ categories, series, max, ticks }: { categories: string[]; series: BarSeries[]; max: number; ticks: number[] }) {
   return (
-    <>
-      <div className="relative" style={{ width: PLOT_W, height: PLOT_H }}>
-        {ticks.map((t, i) => {
-          const y = BASELINE - (BASELINE / (ticks.length - 1)) * i;
-          return (
-            <div key={t}>
-              <div
-                className={`absolute right-0 left-0 h-px ${i === 0 ? "bg-baseline" : "bg-grid"}`}
-                style={{ top: y - 1 }}
-              />
-              <span
-                className={`absolute text-[10px] leading-[1.45] whitespace-nowrap text-muted ${i === 0 ? "opacity-0" : ""}`}
-                style={{ left: -2, top: y - 14 }}
-              >
-                {t}
-              </span>
-            </div>
-          );
-        })}
-        {categories.map((cat, i) => (
-          <div key={cat}>
-            {series.map((s, k) => {
-              const h = s.values[i] * scale;
-              return (
-                <Tip key={s.label} label={`${cat} · ${s.label}: ${s.values[i]}`}>
-                  <div className="absolute w-5 rounded-t-[3px]" style={{ left: 18 + k * 24 + i * STEP, top: BASELINE - h, height: h, background: s.color }} />
-                </Tip>
-              );
-            })}
-            <span
-              className="absolute text-[10.5px] leading-[1.45] whitespace-nowrap text-muted"
-              style={{ left: 28 + i * STEP, top: 186 }}
-            >
-              {cat}
+    <div role="figure" aria-label={series.map((s) => `${s.label}: ${categories.map((c, i) => `${c} ${s.values[i]}`).join(", ")}`).join(". ")} className="flex w-full flex-col gap-2">
+      <div className="flex w-full gap-3" style={{ height: PLOT_H }}>
+        <div aria-hidden className="relative w-7 shrink-0">
+          {ticks.map((t) => (
+            <span key={t} className="absolute right-0 translate-y-1/2 text-[11px] leading-none whitespace-nowrap text-muted tabular-nums" style={{ bottom: up(t, max) }}>
+              {t}
             </span>
+          ))}
+        </div>
+        <div className="relative min-w-0 flex-1">
+          {ticks.map((t, i) => (
+            <div key={t} aria-hidden className={`absolute inset-x-0 h-px ${i === 0 ? "bg-baseline" : "bg-grid"}`} style={{ bottom: up(t, max) }} />
+          ))}
+          <div className="absolute inset-0 flex items-end">
+            {categories.map((cat, i) => (
+              <div key={cat} className="flex h-full min-w-0 flex-1 items-end justify-center gap-1 px-1">
+                {series.map((s) => (
+                  <Tip key={s.label} label={`${cat} · ${s.label}: ${s.values[i]}`}>
+                    <div className="max-w-5 min-w-1.5 flex-1 rounded-t-[3px]" style={{ height: up(s.values[i], max), background: s.color }} />
+                  </Tip>
+                ))}
+              </div>
+            ))}
           </div>
+        </div>
+      </div>
+      {/* The month names, under their bars: the same columns, past the tick column and its gap. */}
+      <div aria-hidden className="flex w-full pl-10">
+        {categories.map((cat) => (
+          <span key={cat} className="min-w-0 flex-1 text-center text-[11px] leading-[1.45] whitespace-nowrap text-muted">
+            {cat}
+          </span>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
+/** Each series' swatch and name, in a row: a chart card's heading aside. */
 export function Legend({ series }: { series: BarSeries[] }) {
   return (
-    <>
-      <span className="size-[10px] shrink-0" aria-hidden />
+    <span className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1.5">
       {series.map((s) => (
         <span key={s.label} className="flex items-center gap-1.5 text-[11.5px] leading-[1.45] whitespace-nowrap text-muted">
           <span aria-hidden className="size-2 rounded-full" style={{ background: s.color }} />
           {s.label}
         </span>
       ))}
-    </>
+    </span>
   );
 }
 

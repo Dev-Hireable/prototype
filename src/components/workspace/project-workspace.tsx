@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { ICONS, type IconName } from "@/components/icons";
 import { Button, InfoBanner } from "@/components/portal/ui";
 import { PHONE_FAB } from "@/components/portal/styles";
+import { MiniBar } from "@/components/portal/meter";
 import { ViewTabsList } from "@/components/portal/view-switch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { PHONE, useMedia } from "@/lib/portal/media";
@@ -338,11 +339,7 @@ function SummaryLine({ context, counts, split, scope }: { context?: ReactNode; c
         <SummaryStat>{split && scope !== ALL ? "Nothing open here" : access.trial ? "No trial tasks" : "Nothing on the list yet"}</SummaryStat>
       ) : (
         <SummaryStat
-          mark={
-            <span aria-hidden className="h-1.5 w-12 overflow-hidden rounded-full bg-surface-2">
-              <span className="block h-full rounded-full bg-ok" style={{ width: `${(counts.done / counts.total) * 100}%` }} />
-            </span>
-          }
+          mark={<MiniBar value={counts.done} total={counts.total} />}
         >
           <b className="font-semibold text-ink">{counts.done}</b> of {counts.total} done
         </SummaryStat>

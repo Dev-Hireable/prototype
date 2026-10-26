@@ -3,9 +3,11 @@
 import { useRef, useState, type ReactNode } from "react";
 import { MdOutlineEdit, MdOutlinePhotoCamera } from "react-icons/md";
 import { Button, Input, Select, Textarea } from "@/components/portal/ui";
+import { MiniBar } from "@/components/portal/meter";
 import { CityPicker, TimeZonePicker } from "@/components/portal/time-zone-picker";
 import { Tip } from "@/components/portal/tip";
 import { ICONS } from "@/components/icons";
+import { Badge } from "@/components/portal/badge";
 
 /**
  * The profile editors' parts — the Team Builder's own profile and the company profile draw every
@@ -156,7 +158,11 @@ export function EditableRow({
       <span className="text-[13px] leading-[1.4] font-medium text-ink-2 max-sm:col-span-2">{label}</span>
       <span className={`min-w-0 text-[14px] leading-[1.5] whitespace-pre-line ${value ? "text-ink" : "text-ink-2"}`}>
         {value || placeholder || "Not set"}
-        {!value && required && <span className="ml-2 rounded-full bg-warn-bg px-2 py-0.5 text-[12px] font-semibold text-warn-ink">Required</span>}
+        {!value && required && (
+          <Badge tone="warn" className="ml-2 align-middle">
+            Required
+          </Badge>
+        )}
       </span>
       {/* A touch screen has no hover to bring the pencil out, so there it always shows: the row is editable. */}
       <span aria-hidden className="flex size-8 items-center justify-center rounded-md text-ink-2 opacity-0 transition group-hover:bg-white group-hover:opacity-100 group-focus-visible:opacity-100 pointer-coarse:opacity-100">
@@ -293,13 +299,10 @@ function DraftField({
 
 /** How much of a profile is filled in, as a bar and a line on what it unlocks. */
 export function Completeness({ done, total, children }: { done: number; total: number; children?: ReactNode }) {
-  const pct = total ? Math.round((done / total) * 100) : 0;
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-surface-2 px-4 py-3">
       <div className="flex items-center gap-3">
-        <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white" role="progressbar" aria-label="Profile complete" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
-          <span className={`block h-full rounded-full ${done === total ? "bg-ok" : "bg-primary"}`} style={{ width: `${pct}%` }} />
-        </span>
+        <MiniBar value={done} total={total} label="Profile complete" track="bg-white" fill={done === total ? "bg-ok" : "bg-primary"} className="flex-1" />
         <span className="text-[12.5px] font-semibold text-ink tabular-nums">
           {done} of {total}
         </span>

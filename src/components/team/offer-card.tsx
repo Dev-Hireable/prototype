@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, CardTitle, StatusDot } from "@/components/portal/ui";
+import { Button, Card, StatusDot } from "@/components/portal/ui";
 import { OfferDialog, WithdrawOfferDialog } from "@/components/team/offer-dialog";
 import { hoursLabel, payFor } from "@/lib/contract/job-types";
 import { dayRangeLabel } from "@/lib/portal/dates";
@@ -28,12 +28,17 @@ export function OfferCard({ offer, name, onWithdraw, onToast }: { offer: Offer; 
   /** Only the live engagement's offer has its terms and tasks on file to show. */
   const live = offer.id === DEAL_ID;
   return (
-    <Card className="p-4">
-      <section aria-label="Offer" className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle>Offer</CardTitle>
+    <Card
+      title="Offer"
+      aside={
+        <span className="shrink-0">
           <StatusDot tone={offer.status.tone}>{offer.status.label}</StatusDot>
-        </div>
+        </span>
+      }
+      label="Offer"
+      className="p-4"
+    >
+      <div className="flex flex-col gap-4">
         <dl className="grid grid-cols-2 gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
           <OfferFact label="Pay" value={payFor(offer.type, offer.rate)} />
           <OfferFact label={offer.type === "trial" ? "Trial" : "Starts"} value={termsOf(offer)} />
@@ -64,7 +69,7 @@ export function OfferCard({ offer, name, onWithdraw, onToast }: { offer: Offer; 
           }}
         />
         {live && <OfferDialog open={viewing} onClose={() => setViewing(false)} onToast={onToast} />}
-      </section>
+      </div>
     </Card>
   );
 }

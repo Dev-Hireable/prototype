@@ -4,7 +4,7 @@ import { Card } from "@/components/portal/ui";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
-import { CLEAR_DEMO_RESET, PHONE_FILTER_ROW } from "@/components/portal/styles";
+import { CLEAR_DEMO_RESET, PHONE_FILTER_ROW, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
 import { keyed } from "@/lib/portal/keys";
 import { ICONS } from "@/components/icons";
 
@@ -76,11 +76,14 @@ export function AdminPage({
 
 export function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <Card className="flex min-w-0 flex-1 flex-col gap-1 overflow-clip p-[18px] leading-[1.45] whitespace-nowrap max-lg:basis-[150px] max-lg:whitespace-normal">
-      <p className="text-[12.5px] text-muted">{label}</p>
-      <p className="text-[24px] font-semibold tracking-[-0.48px] text-ink-deep">{value}</p>
-      {sub && <p className="text-[11.5px] text-muted">{sub}</p>}
-    </Card>
+    // The card look every card shares: the figure on the white panel, what it's out of on the grey tray under it.
+    <section className={`flex min-w-0 flex-1 flex-col leading-[1.45] whitespace-nowrap max-lg:basis-[150px] max-lg:whitespace-normal ${TRAY}`}>
+      <div className={`flex flex-col gap-1 overflow-clip px-[14px] py-3 ${TRAY_PANEL}`}>
+        <p className="text-[12.5px] text-muted">{label}</p>
+        <p className="text-[24px] font-semibold tracking-[-0.48px] text-ink-deep">{value}</p>
+      </div>
+      {sub && <p className={`text-[11.5px] text-muted ${TRAY_FOOT}`}>{sub}</p>}
+    </section>
   );
 }
 

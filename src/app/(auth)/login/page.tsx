@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AuthError, AuthShell, PasswordInput } from "@/components/portal/auth-shell";
 import { Button, Field, Input } from "@/components/portal/ui";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD, landingFor, signIn } from "@/lib/demo/auth";
+import { Badge } from "@/components/portal/badge";
 
 /** OB-001 — sign in, land on the dashboard the account type belongs to (by way of the quiz, the first time). */
 export default function Login() {
@@ -94,7 +95,7 @@ function DemoAccountPicker({ selectedEmail, onPick }: { selectedEmail: string; o
             <span className="text-[13px] leading-[1.3] font-medium text-ink">{a.name}</span>
             <span className="truncate text-[12px] leading-[1.3] text-ink-2">{a.email}</span>
           </span>
-          <span className="shrink-0 rounded-full bg-surface-2 px-2 py-1 text-[11px] leading-[1.2] font-medium text-ink-2">{a.label}</span>
+          <Badge>{a.label}</Badge>
         </button>
       ))}
     </div>
