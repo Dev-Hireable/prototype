@@ -25,9 +25,9 @@ test.describe("on a phone · navigation", () => {
     // It sits along the bottom edge, in reach of the thumb.
     const box = (await tabs.boundingBox())!;
     expect(box.y + box.height).toBeGreaterThan((page.viewportSize()?.height ?? 0) - 2);
-    // No section panel: the section's pages are a row over the page instead.
+    // No section panel and no row of its pages over the page: they're in the Menu sheet, once.
     await expect(page.getByRole("navigation", { name: "Home", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("navigation", { name: "Home pages" }).getByRole("link", { name: "Dashboard" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("navigation", { name: "Home pages" })).toHaveCount(0);
 
     const menu = page.getByRole("dialog", { name: "Menu" });
     await tabs.getByRole("button", { name: "Menu" }).click();
@@ -69,15 +69,12 @@ test.describe("on a phone · navigation", () => {
 });
 
 test.describe("on a phone · section pages", () => {
-  test("a section's pages are a row over each of them, and the role wizard has the whole screen", async ({ page }) => {
+  test("a section's pages are in the Menu sheet, not repeated over the page, and the role wizard has the whole screen", async ({ page }) => {
     await page.goto("/independent/jobs");
-    const pages = page.getByRole("navigation", { name: "Job Board pages" });
-    await pages.getByRole("link", { name: "My applications" }).click();
+    await expect(page.getByRole("navigation", { name: "Job Board pages" })).toHaveCount(0);
+    await page.getByRole("navigation", { name: "Sections" }).getByRole("button", { name: "Menu" }).click();
+    await page.getByRole("dialog", { name: "Menu" }).getByRole("link", { name: "My applications" }).click();
     await expect(page).toHaveURL(/\/independent\/jobs\/applications$/);
-    await expect(pages.getByRole("link", { name: "My applications" })).toHaveAttribute("aria-current", "page");
-    // A detail page has its back link instead.
-    await page.goto("/independent/jobs/applications/deal");
-    await expect(pages).toHaveCount(0);
 
     await page.goto("/team/hire/new?type=trial");
     await expect(page.getByRole("button", { name: "Save as draft" })).toBeVisible();

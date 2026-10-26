@@ -10,7 +10,7 @@ import { Tip } from "@/components/portal/tip";
 import { TourHelp } from "@/components/portal/tour/tour-help";
 import { TourProvider } from "@/components/portal/tour/tour-provider";
 import { QuickChat } from "@/components/portal/quick-chat";
-import { MobileTabBar, SectionStrip } from "@/components/portal/mobile-nav";
+import { MobileTabBar } from "@/components/portal/mobile-nav";
 import { useHydrated } from "@/lib/demo/deal";
 import { signOut } from "@/lib/demo/auth";
 import { useContractClock } from "@/lib/demo/contract";
@@ -79,7 +79,6 @@ export function PortalShell({
               than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
           {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
               Suspense boundary — this one covers every portal page, so none needs its own. */}
-          <SectionStrip section={section} pathname={pathname} badges={badges} />
           <Suspense>{hydrated ? children : null}</Suspense>
         </div>
 
