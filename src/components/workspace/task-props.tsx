@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { ICONS, type IconName } from "@/components/icons";
 import { Checkbox } from "@/components/portal/ui";
+import { MiniBar } from "@/components/portal/meter";
 import { InfoTip, Tip } from "@/components/portal/tip";
 import { EFFORT_HELP, isArchived, type Subtask, type WorkItem } from "@/lib/work/model";
 import { capsFor, changeFor, tickRefusal, type AgreedField, type Caps } from "@/lib/work/permissions";
@@ -161,9 +162,7 @@ function Subtasks({ item: t, caps }: { item: WorkItem; caps: Caps }) {
             <span className="tabular-nums">
               {done} of {subs.length} done
             </span>
-            <span className="h-1.5 max-w-40 flex-1 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-              <span className="block h-full rounded-full bg-ok transition-[width]" style={{ width: `${(done / subs.length) * 100}%` }} />
-            </span>
+            <MiniBar value={done} total={subs.length} className="max-w-40 flex-1" />
           </p>
           <ul className="flex flex-col">
             {subs.map((s) => (

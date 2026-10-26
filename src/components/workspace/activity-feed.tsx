@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { FileTiles } from "@/components/portal/attachments";
+import { DayDivider } from "@/components/portal/day-divider";
 import { Tip } from "@/components/portal/tip";
 import { Avatar } from "@/components/portal/ui";
 import { keyed } from "@/lib/portal/keys";
@@ -96,24 +97,13 @@ export function ActivityStream({ feed, items, empty }: { feed: readonly (FeedEve
           const on = runsOn(f, shown[i - 1], newDay);
           return (
             <li key={key} className={f.kind === "comment" ? (on ? "pt-1" : "pt-3") : "pt-2"}>
-              {newDay && <DayDivider label={dayHeading(days[i], today)} />}
+              {newDay && <DayDivider label={dayHeading(days[i], today)} className="pt-1 pb-2" />}
               {f.kind === "comment" ? <Turn comment={f} runsOn={on} items={items} /> : f.kind === "moves" ? <MovesNote run={f} /> : <EventNote event={f} />}
             </li>
           );
         })}
       </ol>
     </div>
-  );
-}
-
-/** Where a new day starts: its name between two hairlines. */
-function DayDivider({ label }: { label: string }) {
-  return (
-    <p className="flex items-center gap-3 pt-1 pb-2 text-[12px] leading-[1.3] font-medium text-ink-2">
-      <span aria-hidden className="h-px flex-1 bg-[#eeeeee]" />
-      {label}
-      <span aria-hidden className="h-px flex-1 bg-[#eeeeee]" />
-    </p>
   );
 }
 

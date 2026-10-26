@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Button, Card, InfoBanner, Input, JobBadge, Select, Textarea } from "@/components/portal/ui";
+import { Button, InfoBanner, Input, JobBadge, Select, Textarea } from "@/components/portal/ui";
+import { StepCard } from "@/components/portal/step-card";
 import { SkillPicker } from "@/components/portal/controls";
 import { TaskPlanEditor, TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { hoursLabel, type JobType } from "@/lib/contract/job-types";
@@ -51,7 +52,7 @@ export function ReviewStep({ f, t, type, weeks, edits, canPublish, onDraft, onPu
 /** The post's main facts, each with its pencil: the role, the pay, the description, the skills, when, the level, the hours and how many. */
 function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobType; item: Item }) {
   return (
-    <Card className="flex flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
+    <StepCard>
       <ReviewItem
         label="Role"
         {...item("title")}
@@ -103,14 +104,14 @@ function MainFacts({ f, t, type, item }: { f: RoleForm; t: PathCopy; type: JobTy
       <ReviewItem label="Experience Level:" value={f.level === LEVELS[0] ? "Any level" : f.level} {...item("experience")} editor={<Select options={[...LEVELS]} value={f.level} onChange={(e) => f.setLevel(e.target.value)} />} />
       {type === "part-time" && <ReviewItem label="Hours a week:" value={hoursLabel(f.hours)} {...item("weekly")} editor={<HoursChips value={f.hours} onChange={f.setHours} />} />}
       <ReviewItem label="How many to hire:" value={String(f.hires)} {...item("hires")} editor={<Counter value={f.hires} onChange={f.setHires} />} />
-    </Card>
+    </StepCard>
   );
 }
 
 /** A trial's tasks, its notes and its link, under one pencil: none of it is on the public post. */
 function TrialExtras({ f, weeks, item }: { f: RoleForm; weeks: number; item: Item }) {
   return (
-    <Card className="flex flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
+    <StepCard>
       <ReviewItem
         label={TRIAL_TASKS.title}
         value={<span className="text-[13px] font-normal text-ink-2">{TRIAL_TASKS.notPublic}</span>}
@@ -140,7 +141,7 @@ function TrialExtras({ f, weeks, item }: { f: RoleForm; weeks: number; item: Ite
           )}
         </div>
       </ReviewItem>
-    </Card>
+    </StepCard>
   );
 }
 
@@ -148,7 +149,7 @@ function TrialExtras({ f, weeks, item }: { f: RoleForm; weeks: number; item: Ite
 function BenefitExtras({ f, item }: { f: RoleForm; item: Item }) {
   const benefits = Object.entries(f.benefits);
   return (
-    <Card className="flex flex-col gap-6 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
+    <StepCard tight>
       <ReviewItem label="Benefits" {...item("benefits")} editor={<BenefitsEditor value={f.benefits} onChange={f.setBenefits} />}>
         {benefits.length === 0 ? (
           <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">None added.</p>
@@ -164,6 +165,6 @@ function BenefitExtras({ f, item }: { f: RoleForm; item: Item }) {
         )}
       </ReviewItem>
       <InfoBanner>{BENEFITS_DISCLAIMER}</InfoBanner>
-    </Card>
+    </StepCard>
   );
 }

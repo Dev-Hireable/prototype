@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import { Button, Card, CardHeading, Field, InfoBanner, Select, Textarea } from "@/components/portal/ui";
-import { ContractScore, Stars } from "@/components/portal/contract-parts";
+import { ContractScore } from "@/components/portal/contract-parts";
+import { Stars } from "@/components/portal/stars";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
+import { ScoreScale } from "@/components/portal/score-scale";
 import { usd } from "@/lib/demo/disputes";
 import { keyed } from "@/lib/portal/keys";
 import { refOf } from "@/lib/work/model";
@@ -71,20 +73,7 @@ function EvaluationForm({ t, draft }: { t: Tracker; draft: Draft }) {
               {" *"}
             </span>
           </p>
-          <div role="group" aria-label={label} className="flex gap-2 max-sm:grid max-sm:grid-cols-5">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                disabled={locked}
-                aria-pressed={n === shownScores[i]}
-                onClick={() => draft.setScores((s) => s.map((v, k) => (k === i ? n : v)))}
-                className={`flex h-9 w-11 items-center max-sm:h-11 max-sm:w-auto justify-center rounded-md text-[14px] leading-[1.4] font-medium ${n === shownScores[i] ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"}`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+          <ScoreScale label={label} value={shownScores[i]} disabled={locked} onPick={(n) => draft.setScores((s) => s.map((v, k) => (k === i ? n : v)))} />
         </div>
       ))}
       <Field label="Recommendation" required className="pt-2">
@@ -208,7 +197,7 @@ function EvaluationHistory({ t }: { t: Tracker }) {
               <span className="text-[13px] leading-[1.4] text-ink-2">
                 {h === trialFirst || isTrial ? "Trial evaluation · " : ""}Submitted {h.date}
               </span>
-              <Stars value={h.stars} size="text-[14px]" />
+              <Stars value={h.stars} size={14} />
             </div>
             <p className="text-[13.5px] leading-[1.5] text-ink">{h.feedback}</p>
             <p className="text-[12.5px] leading-[1.4] text-ink-2">

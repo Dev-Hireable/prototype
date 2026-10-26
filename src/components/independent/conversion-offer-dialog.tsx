@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button, Card, InfoBanner, Modal, StatusDot } from "@/components/portal/ui";
-import { Agreement, DeclineOfferDialog, OfferFrom, OfferTerms, Signature } from "@/components/portal/offer-parts";
+import { Agreement, DeclineOfferDialog, OfferTerms, SignCard, Signature } from "@/components/portal/offer-parts";
 import { FT_BENEFITS, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useDeal, type ConversionOffer } from "@/lib/demo/deal";
 import { useDisputes } from "@/lib/demo/disputes";
@@ -48,7 +48,7 @@ export function ConversionOfferDialog({ slug, open, onClose, onToast }: { slug: 
         <OfferBanners offer={offer} company={contract.company} expired={state.expired} ended={state.ended} />
         <div className="flex items-start gap-6 max-lg:flex-col">
           <OfferBody offer={offer} contract={contract} />
-          <SignCard contract={contract} offer={offer} open={state.open} expired={state.expired} fullName={profile.name} onAccept={accept} onDecline={() => setDeclining(true)} onClose={onClose} />
+          <Signing contract={contract} offer={offer} open={state.open} expired={state.expired} fullName={profile.name} onAccept={accept} onDecline={() => setDeclining(true)} onClose={onClose} />
         </div>
       </Modal>
       <DeclineOfferDialog
@@ -110,30 +110,26 @@ function Benefits({ included }: { included: string[] }) {
  * The side card: the manager the offer is from, and signing it: the account's name typed and the
  * tick, with Accept or Decline while it's open, or what became of it.
  */
-function SignCard({ contract, offer, open, expired, fullName, onAccept, onDecline, onClose }: { contract: Contract; offer: ConversionOffer; open: boolean; expired: boolean; fullName: string; onAccept: () => void; onDecline: () => void; onClose: () => void }) {
+function Signing({ contract, offer, open, expired, fullName, onAccept, onDecline, onClose }: { contract: Contract; offer: ConversionOffer; open: boolean; expired: boolean; fullName: string; onAccept: () => void; onDecline: () => void; onClose: () => void }) {
   const [name, setName] = useState("");
   const [agree, setAgree] = useState(false);
   const signed = signatureMatches(name, fullName) && agree;
   return (
-    <Card className="flex w-[360px] shrink-0 flex-col divide-y divide-[#e5e5e5] max-lg:w-full">
-      <OfferFrom name={contract.manager} company={contract.company} />
-      <div className="flex flex-col gap-4 p-6">
-        <h3 className={HEADING}>Sign contract</h3>
-        {open ? (
-          <>
-            <Signature name={name} onName={setName} agree={agree} onAgree={setAgree} fullName={fullName} />
-            <Button size="lg" variant="primary" disabled={!signed} title={signed ? undefined : `Type ${fullName} and tick the box to accept`} onClick={onAccept}>
-              Accept
-            </Button>
-            <Button size="lg" variant="danger" onClick={onDecline}>
-              Decline
-            </Button>
-          </>
-        ) : (
-          <Answered offer={offer} expired={expired} fullName={fullName} onClose={onClose} />
-        )}
-      </div>
-    </Card>
+    <SignCard name={contract.manager} company={contract.company}>
+      {open ? (
+        <>
+          <Signature name={name} onName={setName} agree={agree} onAgree={setAgree} fullName={fullName} />
+          <Button size="lg" variant="primary" disabled={!signed} title={signed ? undefined : `Type ${fullName} and tick the box to accept`} onClick={onAccept}>
+            Accept
+          </Button>
+          <Button size="lg" variant="danger" onClick={onDecline}>
+            Decline
+          </Button>
+        </>
+      ) : (
+        <Answered offer={offer} expired={expired} fullName={fullName} onClose={onClose} />
+      )}
+    </SignCard>
   );
 }
 

@@ -2,7 +2,7 @@ import { DisputeHistory } from "./dispute-history";
 import { LiveContractCard } from "./live-contract";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { ICONS } from "@/components/icons";
-import { Button, Card } from "@/components/portal/ui";
+import { Button, EmptyState } from "@/components/portal/ui";
 import { AdminPage, DataTable, StatCard, StatGrid } from "./ui";
 import type { ActivityEvent, Stat } from "@/lib/admin/data/users";
 
@@ -70,6 +70,6 @@ function ActivityLog({ activity }: { activity: ActivityEvent[] }) {
       ]}
     />
   ) : (
-    <Card className="px-5 py-10 text-center text-sm text-muted">No activity recorded yet.</Card>
+    <EmptyState title="No activity recorded yet" />
   );
 }

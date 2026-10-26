@@ -4,19 +4,18 @@ import { memo, useCallback, useRef, type DragEvent, type KeyboardEvent, type Ref
 import { ICONS } from "@/components/icons";
 import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList, type ColumnFrame } from "@/components/portal/board";
 import { useBoardJump } from "@/components/portal/board-jump";
-import { PHONE_BOARD } from "@/components/portal/styles";
+import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
 import { PriorityPill, StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Tip } from "@/components/portal/tip";
-import { dayOf } from "@/lib/work/dates";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, TYPE_META, type WorkItem } from "@/lib/work/model";
-import { capsFor, lockedReason, targetsFor, transitionFor } from "@/lib/work/permissions";
+import { capsFor, targetsFor, transitionFor } from "@/lib/work/permissions";
 import { sortItems, type Group, type WorkQuery } from "@/lib/work/query";
 import { slotAt, useCardDrag, type CardDrag, type Dragging } from "./card-drag";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { addToGroup, groupEffort, stepByKey, takesNewWork, useMenuModel } from "./group-actions";
 import { ItemMenu, ItemMenuTrigger, useItemMenuHandle, type ItemMenuHandle } from "./item-menu";
 import { itemData } from "./item-data";
-import { AssigneeChip, BlockedChip, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, Ref, TagChip, TypeChip } from "./meta";
+import { AssigneeAvatar, BlockedChip, FactText, ChangesChip, DueChip, EffortChip, LockChip, PlaceChip, Ref, TagChip, TypeChip } from "./meta";
 import { dropPlan, placeAt, refusal, runPlan, sendForReview, type DropPlan } from "./moves";
 import { QuickAdd } from "./quick-add";
 import { useTimedMessage } from "./timed-message";
@@ -200,12 +199,14 @@ function ColumnAside({ group: g }: { group: Group }) {
   if (finished)
     return (
       <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium" aria-label={`${finished}, read-only`}>
-        <ICONS.lock size={13} aria-hidden /> {finished}
+        <ICONS.lock size={13} aria-hidden className="shrink-0" />
+        <FactText>{finished}</FactText>
       </span>
     );
   return effort > 0 ? (
     <span className="flex shrink-0 items-center gap-1 text-[12px] font-normal tabular-nums" aria-label={`Total effort ${effort}`}>
-      <ICONS.effort size={13} aria-hidden /> {effort}
+      <ICONS.effort size={13} aria-hidden className="shrink-0" />
+      <FactText>{effort}</FactText>
     </span>
   ) : null;
 }
@@ -257,8 +258,11 @@ type WorkCardProps = {
 };
 
 /**
- * A card: the status circle (the next step for whoever's looking), the name, what's due and how
- * big it is, and who has it. Memoised — a change to another item doesn't re-render it.
+ * A card, in the same three zones on every card so the eye learns once where to look: the name
+ * after its status circle (the next step for whoever's looking) leads; under it, only when there is
+ * some, how urgent, what's in the way and the tags; then a footer on the tray — when it's due on the
+ * left, how big and how far along on the right, ending in who has it. Memoised — a change to
+ * another item doesn't re-render it.
  */
 const WorkCard = memo(function WorkCard({ item: t, blockers, pending, lifted, slide, moving, handle, onDragStart, onDragEnd, onKeyMove, cards }: WorkCardProps) {
   const env = useWorkspace();
@@ -288,16 +292,15 @@ const WorkCard = memo(function WorkCard({ item: t, blockers, pending, lifted, sl
           openTask(t.id);
         } else onKeyMove(t, e);
       }}
-      className={`group/card flex cursor-pointer flex-col gap-2.5 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border transition [contain-intrinsic-size:auto_104px] [content-visibility:auto] hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${pending ? "opacity-80" : ""} ${isArchived(t) ? "bg-surface-alt" : ""}`}
+      className={`group/card flex cursor-pointer flex-col ${TRAY} transition [contain-intrinsic-size:auto_112px] [content-visibility:auto] hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${pending ? "opacity-80" : ""}`}
     >
-      {/* The name after its status circle, with its number ("#4") just before it. Everything under it starts where the name does. */}
-      <CardHead item={t} handle={handle} />
-      <div className="flex flex-col gap-2 pl-[26px]">
-        <CardBlockers item={t} blockers={blockers} />
-        <CardWhen item={t} />
-        <CardTags tags={t.tags} />
-        <CardFooter item={t} pending={pending} />
+      {/* A white panel on a grey tray: the work itself inside, the facts about it on the tray. The name
+          follows its status circle, its number ("#4") just before it; what's under it starts where the name does. */}
+      <div className={`flex flex-col gap-2 p-3 ${TRAY_PANEL} ${isArchived(t) ? "!bg-surface-alt" : ""}`}>
+        <CardHead item={t} handle={handle} />
+        <CardBody item={t} blockers={blockers} />
       </div>
+      <CardFooter item={t} pending={pending} />
     </div>
   );
   return (
@@ -324,45 +327,46 @@ function CardHead({ item: t, handle }: { item: WorkItem; handle: ItemMenuHandle 
   const env = useWorkspace();
   const next = nextStep(t, env);
   return (
-    <div className="flex items-start gap-2">
+    <div className="relative flex items-start gap-2">
       <span className="flex pt-px" onClick={(e) => e.stopPropagation()}>
         <StatusCircle status={t.status} onClick={next?.run} label={next?.label ?? STATUS_META[t.status].label} />
       </span>
-      <p className={`line-clamp-3 min-w-0 flex-1 text-[14px] leading-[1.35] font-medium break-words ${isCompleted(t.status) ? "text-ink-2 line-through" : "text-ink"}`}>
+      {/* The name has the line to itself: the menu lies over its end while the card is hovered or
+          focused, and only a touch screen, where it always shows, keeps room for it. */}
+      <p className={`line-clamp-3 min-w-0 flex-1 text-[14px] text-pretty leading-[1.35] font-medium break-words [@media(hover:none)]:pr-8 ${isCompleted(t.status) ? "text-ink-2 line-through" : "text-ink"}`}>
         <Ref item={t} />
         {t.title}
       </p>
-      <ItemMenuTrigger handle={handle} item={t} className="-my-0.5 opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100" />
+      <ItemMenuTrigger handle={handle} item={t} className="absolute -top-1 -right-1 bg-white opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100" />
     </div>
   );
 }
 
 /**
- * What's in the way, first and only when something is: it's blocked, or changes were asked for.
- * Work waiting on review needs no button — the column says so, and the card opens it.
+ * Under the name, and only when there is some: how urgent, what's in the way (it's blocked, or
+ * changes were asked for — the one place a card uses alarm colours), then its tags. Work waiting on
+ * review needs no button — the column says so, and the card opens it.
  */
-function CardBlockers({ item: t, blockers }: { item: WorkItem; blockers: number }) {
+function CardBody({ item: t, blockers }: { item: WorkItem; blockers: number }) {
   const changes = !!t.changes && (t.status === "todo" || t.status === "doing");
-  if (!(blockers > 0 || changes)) return null;
+  if (!(t.priority || blockers > 0 || changes || t.tags.length)) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 pl-[26px]">
+      {/* Priority as the list and the sheet show it: the one badge (PriorityPill). */}
+      {t.priority && <PriorityPill priority={t.priority} />}
       <BlockedChip count={blockers} />
       {changes && <ChangesChip />}
+      <CardTags tags={t.tags} />
     </div>
   );
 }
 
-/** When and how urgent, as one quiet line — and no empty line when there's neither. */
+/** The footer's left: when it's due, then where it's filed and whether it's read-only. */
 function CardWhen({ item: t }: { item: WorkItem }) {
-  const { projects, access, today } = useWorkspace();
-  /** Whether the details line carries a place or a read-only chip (PlaceChip, LockChip). */
-  const placed = (projects.showPlace && !!t.project) || (projects.showPlace && !!t.trial) || !!lockedReason(t, access);
-  if (!(dayOf(t.due) !== null || !!t.priority || isArchived(t) || placed)) return null;
+  const { today } = useWorkspace();
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
       <DueChip item={t} today={today} />
-      {/* Priority as the list and the sheet show it: the one badge (PriorityPill). */}
-      {t.priority && <PriorityPill priority={t.priority} />}
       {/* Which project, when the view mixes them; and read-only, when it's finished work. */}
       <PlaceChip item={t} />
       <LockChip item={t} />
@@ -376,25 +380,28 @@ function CardTags({ tags }: { tags: readonly string[] }) {
   const { tagColors } = useWorkspace();
   if (tags.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <>
       {tags.slice(0, 2).map((tag) => (
         <TagChip key={tag} tag={tag} colors={tagColors} />
       ))}
       {tags.length > 2 && <span className="text-[12px] text-ink-2">+{tags.length - 2}</span>}
-    </div>
+    </>
   );
 }
 
-/** Who has it; then what kind of work, how big, and how far along the checklist and the talk are. */
+/**
+ * The footer, on the tray under the panel: when it's due on the left; on the right what kind of work, how
+ * big, how far along the checklist and the talk are, and last — always in the same corner — who
+ * has it, as their photo (the name on hover and to a screen reader).
+ */
 function CardFooter({ item: t, pending }: { item: WorkItem; pending: boolean }) {
   const { people } = useWorkspace();
   const progress = progressOf(t);
   const subsDone = t.subtasks.filter((s) => s.done).length;
   return (
-    <div className="flex min-h-6 items-center gap-2.5">
-      <span className="min-w-0 flex-1">
-        <AssigneeChip assignee={t.assignee} people={people} />
-      </span>
+    <div className={`flex min-h-6 items-center gap-2.5 ${TRAY_FOOT}`}>
+      <CardWhen item={t} />
+      {pending && <span className="text-[11.5px] text-ink-2">Saving…</span>}
       {t.type !== "task" && (
         <Tip label={TYPE_META[t.type].label}>
           <span className="inline-flex">
@@ -405,15 +412,19 @@ function CardFooter({ item: t, pending }: { item: WorkItem; pending: boolean }) 
       <EffortChip effort={t.effort} />
       {progress !== null && (
         <span className="inline-flex items-center gap-1 text-[12px] text-ink-2 tabular-nums" aria-label={`${subsDone} of ${t.subtasks.length} subtasks done`}>
-          <ICONS.checklist size={14} aria-hidden /> {subsDone}/{t.subtasks.length}
+          <ICONS.checklist size={14} aria-hidden className="shrink-0" />
+          <FactText>
+            {subsDone}/{t.subtasks.length}
+          </FactText>
         </span>
       )}
       {t.comments.length > 0 && (
         <span className="inline-flex items-center gap-1 text-[12px] text-ink-2 tabular-nums" aria-label={`${t.comments.length} ${t.comments.length === 1 ? "comment" : "comments"}`}>
-          <ICONS.messages size={13} aria-hidden /> {t.comments.length}
+          <ICONS.messages size={13} aria-hidden className="shrink-0" />
+          <FactText>{t.comments.length}</FactText>
         </span>
       )}
-      {pending && <span className="text-[11.5px] text-ink-2">Saving…</span>}
+      <AssigneeAvatar assignee={t.assignee} people={people} size={24} />
     </div>
   );
 }

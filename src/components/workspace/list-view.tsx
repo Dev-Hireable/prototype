@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useMemo, useState, type KeyboardEvent } from "react";
+import { MiniBar } from "@/components/portal/meter";
 import { ICONS } from "@/components/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
@@ -15,6 +16,7 @@ import { AssigneeChip, BlockedChip, ChangesChip, DueChip, GroupLabel, LockChip, 
 import { sendForReview } from "./moves";
 import { QuickAdd } from "./quick-add";
 import { ago, useProgressive, useWidth } from "./util";
+import { VIEW_FRAME } from "./view-frame";
 import { groupColors } from "./labels";
 
 /**
@@ -95,7 +97,7 @@ export function ListView({ groups, byId, query, setQuery, pendingIds }: { groups
           an outline, which the pinned header and name column paint over — so the edge came and went.
           The scroller is positioned so it holds the cells' screen-reader text (sr-only is absolute):
           with nothing positioned above it, a row below the fold stretched the page and it scrolled. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-white">
+      <div className={`${VIEW_FRAME} flex-1`}>
         <div ref={frameRef} className="relative min-h-0 flex-1 overflow-auto" data-testid="list">
           <table className="w-full table-fixed border-separate border-spacing-0 text-[13px] leading-[1.4]" style={{ minWidth: tableWidth }} aria-label="Work items">
             <colgroup>
@@ -368,17 +370,16 @@ function circleStep(t: WorkItem, env: Pick<WorkspaceEnv, "actor" | "access" | "a
 /** How far along the item's subtasks are: a bar and "2/5" — or a dash when it has none. */
 function ProgressCell({ item: t }: { item: WorkItem }) {
   const progress = progressOf(t);
+  const done = t.subtasks.filter((s) => s.done).length;
   return (
     <td className={CELL}>
       {progress === null ? (
         <span className="px-1.5 text-ink-2">—</span>
       ) : (
-        <span className="flex items-center gap-2 px-1.5" aria-label={`${t.subtasks.filter((s) => s.done).length} of ${t.subtasks.length} subtasks done`}>
-          <span className="h-1.5 w-12 overflow-hidden rounded-full bg-surface-2">
-            <span className="block h-full rounded-full bg-ok" style={{ width: `${Math.round(progress * 100)}%` }} />
-          </span>
+        <span className="flex items-center gap-2 px-1.5" aria-label={`${done} of ${t.subtasks.length} subtasks done`}>
+          <MiniBar value={done} total={t.subtasks.length} />
           <span className="text-[12px] text-ink-2 tabular-nums">
-            {t.subtasks.filter((s) => s.done).length}/{t.subtasks.length}
+            {done}/{t.subtasks.length}
           </span>
         </span>
       )}

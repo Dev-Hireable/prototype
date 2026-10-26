@@ -15,15 +15,12 @@ export function InterviewCard({ app, job, live, ...actions }: StepProps & Interv
   const accepted = app.stage === "invite_accepted";
   const clock = useInterviewTime();
   return (
-    <Card className="flex flex-col gap-4 p-4">
-      {/* IN-070 — where the invitation stands, in place of a sentence saying so. */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 text-[15px] leading-[1.3] font-semibold text-ink">
-          <Video size={20} aria-hidden className="text-primary" /> Interview
+    // IN-070 — where the invitation stands, in place of a sentence saying so.
+    <Card title="Interview" aside={
+        <span className="shrink-0">
+          <StatusDot tone={accepted ? "ok" : "warn"}>{accepted ? "Confirmed" : "Awaiting your reply"}</StatusDot>
         </span>
-        <StatusDot tone={accepted ? "ok" : "warn"}>{accepted ? "Confirmed" : "Awaiting your reply"}</StatusDot>
-      </div>
-      <InterviewWhen time={clock.both(job.interview)} format={live?.interview?.format} />
+      } className="flex flex-col gap-4 p-4">      <InterviewWhen time={clock.both(job.interview)} format={live?.interview?.format} />
       {/* IN-070 — the link only appears once the invitation has been accepted. */}
       {accepted ? <MeetingLink link={job.interview.link} onToast={actions.onToast} /> : <p className="rounded-lg bg-surface-2 px-3 py-2.5 text-[13px] leading-[1.4] text-ink-2">The meeting link is shared once you accept the invitation.</p>}
       {live?.interview?.note && (

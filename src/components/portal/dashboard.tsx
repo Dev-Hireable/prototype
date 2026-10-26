@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Children, isValidElement, type CSSProperties, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { PORTAL_CONTENT_CLASS } from "@/components/portal/layout";
+import { TRAY, TRAY_PANEL } from "@/components/portal/styles";
 import { dayLabel } from "@/lib/portal/dates";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -154,20 +155,35 @@ export function DashboardSummaryCard({ title, subtitle, href, linkLabel, childre
     // of what's left, so both columns end level. flex-1 let it shrink below its content (the bar
     // chart spilled out the bottom). A phone stacks the cards, with no column to level, so there a
     // card is as tall as what it holds: its floor left a short one a band of empty grey.
-    <section aria-label={title} className="flex min-w-0 shrink-0 grow flex-col gap-4 rounded-lg bg-surface-2 p-4 md:min-h-[259px]">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex min-w-0 flex-col gap-0.5">
+    // The card look every card shares: the heading on the grey tray, what it sums up on the white panel inside.
+    <section aria-label={title} className={`flex min-w-0 shrink-0 grow flex-col ${TRAY} md:min-h-[259px]`}>
+      <div className="flex items-start justify-between gap-4 px-3 pt-2 pb-3">
+        <div className="flex min-w-0 flex-col gap-0.5 pt-1">
           <h2 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{title}</h2>
           {subtitle && <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">{subtitle}</p>}
         </div>
         {/* 48px: double the old 24px, which was both hard to spot and under the 44px minimum
             touch target. */}
-        <Link href={href} aria-label={linkLabel ?? `See more ${title.toLowerCase()}`} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink hover:bg-surface-alt">
+        <Link href={href} aria-label={linkLabel ?? `See more ${title.toLowerCase()}`} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink outline -outline-offset-1 outline-[#e3e3e3] hover:bg-surface-alt">
           <Forward size={24} aria-hidden />
         </Link>
       </div>
-      <div className="flex flex-1 flex-col">{children}</div>
+      <div className={`flex flex-1 flex-col p-3 ${TRAY_PANEL}`}>{children}</div>
     </section>
+  );
+}
+
+/**
+ * What a summary card says when it has nothing to list: one short line on a grey tile, filling the
+ * card on a desktop (so both columns end level) and as tall as its words on a phone. `icon` leads
+ * it when the empty state is good news ("all caught up").
+ */
+export function DashboardEmpty({ icon, children }: { icon?: ReactNode; children: ReactNode }) {
+  return (
+    <p className="flex items-center justify-center gap-2 rounded-lg bg-tile px-4 py-6 text-center text-[12.5px] leading-[1.4] text-ink-2 md:flex-1">
+      {icon}
+      {children}
+    </p>
   );
 }
 
@@ -177,7 +193,7 @@ export function DashboardSummaryCard({ title, subtitle, href, linkLabel, childre
  */
 export function DashboardStat({ href, icon, value, label }: { href: string; icon: ReactNode; value: number; label: string }) {
   return (
-    <Link href={href} className="flex items-center gap-4 rounded-lg bg-white px-4 py-3 hover:bg-surface-alt">
+    <Link href={href} className="flex items-center gap-4 rounded-lg bg-tile px-4 py-3 hover:bg-surface-2">
       <span className="flex size-10 items-center justify-center rounded-full border border-border bg-white text-ink">{icon}</span>
       <span className="flex-1 whitespace-nowrap">
         <span className="block text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink">{value}</span>

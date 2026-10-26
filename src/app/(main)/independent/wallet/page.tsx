@@ -7,6 +7,7 @@ import { AddPayoutModal } from "@/components/independent/add-payout-modal";
 import { Button, Card, Chip, EmptyState, Field, InfoBanner, Input, KebabMenu, LinkButton, Modal, Page, Row, SearchBox, Select, StatusDot, Table, Toast } from "@/components/portal/ui";
 import { LEDGER_COLS as COLS, PHONE_FILTER_ROW } from "@/components/portal/styles";
 import { MenuAction } from "@/components/portal/controls";
+import { FactsBox } from "@/components/portal/facts-box";
 import { useDeal } from "@/lib/demo/deal";
 import { useDisputes, type Dispute } from "@/lib/demo/disputes";
 import { PAIR } from "@/lib/demo/live";
@@ -318,17 +319,16 @@ function PayoutMethods({ payouts, onAdd, onSetDefault, onHistory, onRemove }: { 
   const [menu, setMenu] = useState<string | null>(null);
   return (
     <div data-tour="payout-methods">
-      <Card className="flex flex-col gap-4 p-6">
-        {/* Where the two don't fit on a line (a phone), the button goes under the heading rather than squeezing it onto two. */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-            Payout methods
-          </h2>
+      <Card
+        title="Payout methods"
+        sub="Released pay waits in your balance until you withdraw it to a verified payout method."
+        aside={
           <Button variant="primary" size="lg" onClick={onAdd}>
             Add payout method
           </Button>
-        </div>
-        <p className="text-[13px] leading-[1.4] text-ink-2">Released pay waits in your balance until you withdraw it to a verified payout method.</p>
+        }
+        className="flex flex-col gap-4 p-6"
+      >
         {payouts.length === 0 ? (
           <EmptyState title="No payout method yet" body="You'll be asked for one before your first proposal." />
         ) : (
@@ -372,11 +372,11 @@ function PayoutCard({ method: m, open, onOpenChange, removeOff, onSetDefault, on
   const verified = m.verified.startsWith("Verified");
   return (
     <div
-      className={`relative flex h-[190px] flex-col justify-between rounded-2xl p-5 drop-shadow-[0_6px_8px_rgba(26,31,46,0.08)] max-md:h-auto max-md:gap-3 ${m.isDefault ? "border-[1.5px] border-ok" : "border border-[#e3e6ea]"}`}
+      className={`relative flex h-[190px] flex-col justify-between rounded-2xl p-5 drop-shadow-[0_6px_8px_rgba(26,31,46,0.08)] max-md:h-auto max-md:gap-3 ${m.isDefault ? "border-2 border-ok" : "border border-[#e3e6ea]"}`}
       style={{ backgroundImage: "linear-gradient(151.55deg, #ffffff 0%, #f2f4f7 71.429%)" }}
     >
       {m.isDefault && (
-        <span className="absolute top-[-21.5px] left-5 flex items-center gap-[5px] rounded-t-lg bg-ok pt-[5px] pr-[11px] pb-1 pl-[9px] text-[9.5px] leading-[1.2] font-semibold tracking-[0.57px] text-white">
+        <span className="absolute bottom-full left-5 flex items-center gap-[5px] rounded-t-lg bg-ok pt-[5px] pr-[11px] pb-1 pl-[9px] text-[9.5px] leading-[1.2] font-semibold tracking-[0.57px] text-white">
           <span className="flex size-3.5 items-center justify-center rounded-[7px] bg-white text-ok">
             <Check size={10} aria-hidden />
           </span>
@@ -552,16 +552,7 @@ function TransactionDetail({ detail, contractName, onClose, onReceipt }: { detai
         </>
       }
     >
-      {detail && (
-        <dl className="flex flex-col gap-2 rounded-lg bg-[#fafafa] p-4 text-[13px] leading-[1.45] outline -outline-offset-1 outline-border">
-          {detailRows(detail, contractName).map(([k, v]) => (
-            <div key={k} className="flex gap-4">
-              <span className="w-[130px] shrink-0 text-ink-2">{k}</span>
-              <span className="min-w-0 flex-1 text-ink">{v}</span>
-            </div>
-          ))}
-        </dl>
-      )}
+      {detail && <FactsBox rows={detailRows(detail, contractName)} columns />}
     </Modal>
   );
 }

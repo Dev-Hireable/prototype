@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
-import { Avatar, InfoBanner, JobBadge, MatchPill } from "@/components/portal/ui";
+import { Avatar, Card, InfoBanner, JobBadge, MatchPill } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
+import { FactsBox } from "@/components/portal/facts-box";
 import { LockedTasks } from "@/components/portal/tasks/locked-tasks";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { ScrollFade } from "@/components/portal/scroll-fade";
@@ -47,10 +48,6 @@ export type ProposalPost = {
   /** The talent may read the trial's tasks: an offer has carried them. Until then they read how many there are. */
   tasksShared?: boolean;
 };
-
-function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`flex flex-col gap-4 rounded-lg bg-white p-6 outline -outline-offset-1 outline-border ${className}`}>{children}</section>;
-}
 
 function Term({ label, value }: { label: string; value: string }) {
   return (
@@ -167,7 +164,7 @@ export function ProposalBody({ author, post, proposal, viewer = "team", versions
 /** Who sent it — their photo, name, role and match — over the terms they propose. */
 function AuthorCard({ author, terms, viewer }: { author: ProposalAuthor; terms: [string, string][]; viewer: ProposalViewer }) {
   return (
-    <Card className="!gap-2">
+    <Card className="flex flex-col gap-2 p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <Avatar src={author.avatar} size={44} />
@@ -191,8 +188,7 @@ function AuthorCard({ author, terms, viewer }: { author: ProposalAuthor; terms: 
 /** The cover letter as written, with the portfolio link under it when there is one. */
 function CoverLetter({ letter, portfolio }: { letter: string; portfolio?: string }) {
   return (
-    <Card>
-      <p className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Cover letter</p>
+    <Card title="Cover letter" className="flex flex-col gap-4 p-6">
       <p className="text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line [overflow-wrap:anywhere] text-ink">{letter}</p>
       {/* The work samples the talent linked. */}
       {portfolio && (
@@ -219,15 +215,18 @@ function TasksCard({ post, proposal, team, first }: { post: ProposalPost; propos
   const locked = !team && trial && !legacy && !post.tasksShared;
   const copy = tasksCopy({ legacy, trial, team, first });
   return (
-    <Card>
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{copy.title}</p>
-        {listed.length > 0 && !locked && (
-          <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
+    <Card
+      title={copy.title}
+      aside={
+        listed.length > 0 &&
+        !locked && (
+          <span className="shrink-0 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
             {listed.length} {listed.length === 1 ? "task" : "tasks"}
           </span>
-        )}
-      </div>
+        )
+      }
+      className="flex flex-col gap-4 p-6"
+    >
       {locked ? <LockedTasks company={post.company ?? "The company"} count={listed.length} /> : <TaskPlanList tasks={listed} empty={copy.empty} />}
       {!locked && copy.note && <p className="text-[12px] leading-[1.35] tracking-[0.2px] text-ink-2">{copy.note}</p>}
     </Card>
@@ -252,14 +251,7 @@ function PostedJob({ post, proposal }: { post: ProposalPost; proposal: DealPropo
           </a>
         </div>
       )}
-      <dl className="flex flex-col gap-3 rounded-lg bg-surface-2 p-3 outline -outline-offset-1 outline-border">
-        {postedOf(post, proposal).map(([k, v]) => (
-          <div key={k} className="flex h-5 items-center justify-between gap-4">
-            <dt className="font-semibold whitespace-nowrap text-ink-2">{k}</dt>
-            <dd className={`truncate ${k === "ROLE" ? "text-accent-ink underline" : "text-ink"}`}>{v}</dd>
-          </div>
-        ))}
-      </dl>
+      <FactsBox rows={postedOf(post, proposal)} valueClassName={(k) => (k === "ROLE" ? "text-accent-ink underline" : "text-ink")} />
     </div>
   );
 }

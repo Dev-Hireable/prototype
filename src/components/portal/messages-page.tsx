@@ -5,8 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Highlight, SearchBox } from "@/components/portal/ui";
+import { Badge } from "@/components/portal/badge";
 import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { TypingDots } from "@/components/portal/typing-dots";
+import { DayDivider } from "@/components/portal/day-divider";
 import { ChatSourceLink, EntryDetails } from "@/components/portal/chat-source-link";
 import { Inbox, ThreadBody, ThreadHeader } from "@/components/portal/inbox";
 import { ReturnNav, useReturnTo, useWithReturn } from "@/components/portal/return";
@@ -285,7 +287,7 @@ function ConversationRow({ name, sub, stage, avatar, on, q, latest, onOpen }: { 
           <span className={`min-w-0 flex-1 text-[13px] font-semibold ${on ? "text-accent-ink" : "text-ink-deep"}`}>
             <Highlight text={name} query={q} />
           </span>
-          {stage && <span className="rounded-full bg-surface-2 px-2 py-px text-[10.5px] font-semibold text-ink-2">{stage}</span>}
+          {stage && <Badge>{stage}</Badge>}
           <span className={`text-[11px] ${on ? "text-[#6b7480]" : "text-muted"}`}>{latest.time}</span>
         </span>
         <span className={`text-[11px] ${on ? "text-[#5b6b7a]" : "text-muted"}`}>{sub}</span>
@@ -439,17 +441,6 @@ function dayOf(at: number | undefined, now = new Date()): string | undefined {
 function SlotTimes({ slot, side }: { slot: InterviewSlot; side: Side }) {
   const other: Side = side === "team" ? "independent" : "team";
   return <span className="w-full text-ink-deep">{bothClocks(slot.when, slot.offset, savedOffset(side), { offset: savedOffset(other), first: PAIR[other].name.split(" ")[0] })}</span>;
-}
-
-/** Between two days of the thread. */
-function DayDivider({ label }: { label: string }) {
-  return (
-    <p className="flex items-center gap-3 text-[11px] leading-[1.45] font-semibold text-muted">
-      <span className="h-px flex-1 bg-line" />
-      {label}
-      <span className="h-px flex-1 bg-line" />
-    </p>
-  );
 }
 
 /**

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useRef, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
-import { DashboardSummaryCard } from "@/components/portal/dashboard";
+import { DashboardEmpty, DashboardSummaryCard } from "@/components/portal/dashboard";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { slotAt, useCardDrag } from "@/components/workspace/card-drag";
 import { stepByKey } from "@/components/workspace/group-actions";
@@ -59,12 +59,11 @@ export function DashboardTasks({ side, me, base, allHref, about, counterpart, le
     <DashboardSummaryCard title="My tasks" subtitle={summary ? <Subtitle about={about} summary={summary} /> : about} href={allHref} linkLabel={side === "independent" ? "See all my tasks" : "Open the Work tab"}>
       {lead && <LeadRow lead={lead} />}
       {frozen ? (
-        <p className="flex flex-1 items-center justify-center rounded-lg bg-white px-4 py-6 text-center text-[12.5px] leading-[1.4] text-ink-2">{frozen}</p>
+        <DashboardEmpty>{frozen}</DashboardEmpty>
       ) : rows.length === 0 ? (
-        <p className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-white px-4 py-6 text-center text-[12px] leading-[1.4] text-ink-2">
-          <ICONS.taskDone size={18} aria-hidden className="shrink-0 text-ok" />
+        <DashboardEmpty icon={<ICONS.taskDone size={18} aria-hidden className="shrink-0 text-ok" />}>
           {side === "independent" ? "You're all caught up. Nothing is waiting on you." : "Nothing is waiting on you: no work to review, and none of your own open."}
-        </p>
+        </DashboardEmpty>
       ) : (
         <TaskList rows={rows} byId={work.byId} ctx={{ side, base, today, counterpart }} mover={mover} />
       )}
@@ -183,7 +182,7 @@ type Lead = { href: string; title: string; meta: string; overdue?: boolean };
 /** What needs this person before any task, above the list and outlined in the star's yellow; an overdue one says so in red. */
 function LeadRow({ lead }: { lead: Lead }) {
   return (
-    <Link href={lead.href} className="mb-2 flex min-h-12 items-center gap-3 rounded-lg bg-white px-3 py-2 outline -outline-offset-1 outline-[#f2c94c] hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary">
+    <Link href={lead.href} className="mb-2 flex min-h-12 items-center gap-3 rounded-lg bg-tile px-3 py-2 outline -outline-offset-1 outline-[#f2c94c] hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary">
       <ICONS.star size={16} aria-hidden className="shrink-0 text-[#d99a00]" />
       <span className="min-w-0 flex-1 truncate text-[14px] leading-[1.3] font-medium tracking-[0.2px] text-ink">{lead.title}</span>
       <span className={`shrink-0 text-[12px] leading-[1.2] font-medium ${lead.overdue ? "text-danger" : "text-[#8e6f12]"}`}>{lead.meta}</span>
@@ -210,7 +209,7 @@ function TaskRow({ row: { item: t, reason }, ctx: { side, base, today, counterpa
       onDragEnd={drag?.onEnd}
       onKeyDown={drag?.onKey}
       aria-keyshortcuts={drag ? "Alt+Shift+ArrowUp Alt+Shift+ArrowDown" : undefined}
-      className="group flex min-h-12 items-center gap-3 rounded-lg bg-white px-3 py-2 hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary"
+      className="group flex min-h-12 items-center gap-3 rounded-lg bg-tile px-3 py-2 hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary"
     >
       {drag && <ICONS.drag size={16} aria-hidden className="-mx-1 shrink-0 cursor-grab text-[#c4c4c4] group-hover:text-ink-2" />}
       {/* No tooltip on the circle: a tooltip trigger can't sit inside a link. Its status is said in words instead. */}

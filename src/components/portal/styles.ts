@@ -71,3 +71,33 @@ export const TABLET_FAB =
  */
 export const ICON_BUTTON =
   "hit-area flex shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-accent-bg data-popup-open:text-accent-ink";
+
+/*
+ * The one card look: a grey tray with a white panel inside it. The panel holds the thing itself (a
+ * task's name, a candidate, a role); the tray round it holds what's said about it (a heading above;
+ * dates, counts and the next step below), so every card reads in the same two layers. Every kanban
+ * card (the work board, the candidate pipeline, My Applications) and the dashboards' summary cards
+ * use it. Both edges are outlines, which cost no layout; rows with a background inside a panel stay
+ * position: static, or they paint over its edge.
+ */
+
+/** The tray: grey, a hairline edge, 4px of it showing round the panel. */
+export const TRAY = "rounded-xl bg-surface-2 p-1 outline -outline-offset-1 outline-border";
+
+/** The white panel inside, with a lighter edge than the tray's. */
+export const TRAY_PANEL = "rounded-lg bg-white outline -outline-offset-1 outline-[#e3e3e3]";
+
+/** What sits on the tray under the panel, inset to line up with a p-3 panel's content (one left edge). */
+export const TRAY_FOOT = "px-3 pt-2 pb-1.5";
+
+/** The classes that place and size a card in its parent: they go on its tray, the rest on its panel. */
+const TRAY_PLACEMENT = /^(?:[\w-]+:)*!?(?:-?m[trblxy]?-|w-|min-w-|max-w-|h-|min-h-|max-h-|flex-1$|flex-none$|grow|shrink|basis-|self-|order-|col-|row-)/;
+
+/**
+ * Splits a card's className between its tray (where it sits and how big it is) and its panel (its
+ * own layout and padding). A card's corners are the tray's, so a `rounded-*` it was given goes.
+ */
+export function splitTray(className: string) {
+  const classes = className.split(/\s+/).filter((c) => c && !/^(?:[\w-]+:)*rounded/.test(c));
+  return { tray: classes.filter((c) => TRAY_PLACEMENT.test(c)).join(" "), panel: classes.filter((c) => !TRAY_PLACEMENT.test(c)).join(" ") };
+}

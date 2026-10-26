@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ICONS } from "@/components/icons";
+import { Avatar } from "@/components/portal/ui";
 import { ResetDemoDialog } from "@/components/portal/demo-reset";
 import { TourMenu } from "@/components/portal/tour/tour-help";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { MenuItem, Section } from "@/lib/portal/nav";
-import { revealInRow } from "@/lib/portal/reveal";
 
 /*
  * A phone's navigation, below 768px where the rail and section panel don't fit beside a page.
@@ -19,7 +19,8 @@ import { revealInRow } from "@/lib/portal/reveal";
  *   Menu sheet  rises from the bottom: My profile, the open section's pages (Dashboard · Messages,
  *               Create Role · All Roles), the sections the bar has no room for, Help's tours,
  *               Reset demo and Log out — every row 52px
- *   page links  over a section's own pages, a row of links to the others (SectionStrip)
+ *   no page links over the page: a section's pages are in the Menu sheet, and a row of them over
+ *               the page only repeated it (removed 2026-10-26)
  * A tablet keeps the rail: it's held in both hands, and the rail is in reach of the left one.
  */
 
@@ -86,41 +87,6 @@ export function MobileTabBar({ hidden = false, sections, section, activeMenuHref
     </>
   );
 }
-
-/**
- * A phone's row of the open section's pages over the page — Discover roles · My applications · Saved
- * roles · Interviews — the one open lit as the tab bar lights its tab. Without it a section's other
- * pages were in the Menu sheet only, out of sight. Drawn on the section's own pages only (a detail
- * page has its back link instead), and not on Messages, whose thread takes the whole screen.
- */
-export function SectionStrip({ section, pathname, badges }: { section: Section; pathname: string; badges: Record<string, number> }) {
-  const row = useRef<HTMLUListElement>(null);
-  const pages = section.menu.filter((m: MenuItem) => !m.action);
-  const here = pages.find((m) => m.href === pathname);
-  // The open page's link in sight, when the row runs past the screen's edge.
-  useEffect(() => {
-    const on = row.current?.querySelector<HTMLElement>("[aria-current=page]");
-    if (row.current && on) revealInRow(row.current, on, "instant");
-  }, [pathname]);
-  if (pages.length < 2 || !here || here.bare) return null;
-  return (
-    <nav aria-label={`${section.title} pages`} className="shrink-0 border-b border-border md:hidden">
-      <ul ref={row} className="flex gap-1.5 overflow-x-auto px-(--page-gutter) py-2">
-        {pages.map((m) => (
-          <li key={m.href} className="shrink-0">
-            <Link href={m.href} prefetch={false} aria-current={m === here ? "page" : undefined} className={STRIP_LINK}>
-              {m.label}
-              {(badges[m.href] ?? 0) > 0 && <Count n={badges[m.href]} />}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
-
-const STRIP_LINK =
-  "flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] leading-none font-medium text-ink-2 active:bg-black/8 aria-[current=page]:bg-accent-bg aria-[current=page]:font-semibold aria-[current=page]:text-accent-ink [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:outline-primary";
 
 /**
  * The section drawn with the Hireable mark (Hire, Job Board) takes the bar's middle slot, the same on
@@ -200,7 +166,7 @@ function MenuSheet({ open, onClose, sections, more, section, activeMenuHref, pro
           <SheetTitle className="sr-only">Menu</SheetTitle>
           <nav aria-label="More" className="flex flex-col px-3 pt-2">
             <Link href={profileHref} prefetch={false} onClick={onClose} aria-current={profileOpen ? "page" : undefined} className={`${ROW} h-16`}>
-              <Image src={avatar} alt="" width={80} height={80} className="size-10 shrink-0 rounded-full bg-[#d2d8db] object-cover" loading="eager" />
+              <Avatar src={avatar} size={40} />
               <span className="flex-1">My profile</span>
               <Glyph icon="chevronRight" size={20} />
             </Link>

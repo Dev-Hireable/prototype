@@ -1,7 +1,6 @@
-import Image from "next/image";
 import { AdminPage } from "@/components/admin/ui";
 import { Badge } from "@/components/portal/badge";
-import { Button, Card } from "@/components/portal/ui";
+import { Avatar, Button, Card } from "@/components/portal/ui";
 import { adminAccounts } from "@/lib/admin/data/settings";
 
 /** The signed-in admin — the owner row of the same list "Admin accounts" renders. */
@@ -19,7 +18,7 @@ export default function AdminProfile() {
     <AdminPage title="Profile" actions={<Button size="sm">Edit profile</Button>}>
       <Card className="flex flex-col gap-6 p-[18px]">
         <div className="flex items-center gap-4">
-          <Image src="/admin/avatar.jpg" alt="" width={128} height={128} className="size-16 rounded-full bg-[#d2d8db] object-cover" loading="eager" />
+          <Avatar src="/admin/avatar.jpg" size={64} />
           <div className="flex flex-col gap-1">
             <p className="text-[18px] leading-[1.45] font-semibold text-ink-deep">{me.name}</p>
             <p className="text-[12.5px] text-muted">{me.email}</p>

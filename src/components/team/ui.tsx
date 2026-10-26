@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Avatar, Button, Chip, Drawer, LinkButton, MatchPill, Toast } from "@/components/portal/ui";
+import { TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
 import { useWithReturn } from "@/components/portal/return";
 import { TalentProfile, type TalentProfileData } from "@/components/portal/talent-profile";
-import { Tip } from "@/components/portal/tip";
+import { SaveButton as BookmarkButton, SaveToggle } from "@/components/portal/save-toggle";
 import { contractTypeOf, evaluationsOf, pastEvaluations, useDeal, type Deal, type PastEvaluation } from "@/lib/demo/deal";
 import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
@@ -30,30 +31,33 @@ import { toggleSavedWithNote } from "@/components/portal/notify";
 export function IndependentCard({ person, onInvite, onOpen }: { person: Independent; onInvite: () => void; onOpen: (p: Independent) => void }) {
   const { nameOf } = useHired();
   return (
-    <article className="flex flex-col gap-3 rounded-lg bg-white p-5 outline -outline-offset-1 outline-border">
-      {/* On a phone the actions drop under the name, full width. */}
-      <div className="flex items-center gap-3 max-sm:flex-wrap">
-        <Avatar src={person.avatar} size={48} />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          {/* A line of text, so a touch screen gives it a finger's height to tap (hit-area). */}
-          <button type="button" onClick={() => onOpen(person)} className="hit-area self-start text-[14px] leading-[1.4] font-medium text-primary hover:underline">
-            {nameOf(person)}
-          </button>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-[18px] leading-[1.4] font-semibold text-ink">{person.role}</span>
-            <MatchPill pct={person.match} coded title={MATCH_TOOLTIP.team} />
+    // Who they are on the white panel; their rate, level and place on the grey tray under it.
+    <article className={`flex flex-col ${TRAY}`}>
+      <div className={`flex flex-col gap-3 p-5 ${TRAY_PANEL}`}>
+        {/* On a phone the actions drop under the name, full width. */}
+        <div className="flex items-center gap-3 max-sm:flex-wrap">
+          <Avatar src={person.avatar} size={48} />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            {/* A line of text, so a touch screen gives it a finger's height to tap (hit-area). */}
+            <button type="button" onClick={() => onOpen(person)} className="hit-area self-start text-[14px] leading-[1.4] font-medium text-primary hover:underline">
+              {nameOf(person)}
+            </button>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-[18px] leading-[1.4] font-semibold text-ink">{person.role}</span>
+              <MatchPill pct={person.match} coded title={MATCH_TOOLTIP.team} />
+            </div>
           </div>
+          <IndependentCardActions person={person} onInvite={onInvite} />
         </div>
-        <IndependentCardActions person={person} onInvite={onInvite} />
+        <div className="flex flex-wrap gap-2">
+          {person.skills.map((s) => (
+            <Chip key={s}>{s}</Chip>
+          ))}
+        </div>
       </div>
-      <p className="text-[14px] leading-[1.4] text-ink-2">
+      <p className={`text-[14px] leading-[1.4] text-ink-2 ${TRAY_FOOT} px-5!`}>
         {person.rate} · {person.level} · {person.location}
       </p>
-      <div className="flex flex-wrap gap-2">
-        {person.skills.map((s) => (
-          <Chip key={s}>{s}</Chip>
-        ))}
-      </div>
     </article>
   );
 }
@@ -69,7 +73,7 @@ function IndependentCardActions({ person, onInvite }: { person: Independent; onI
   const inPipeline = pipelineOf(person.slug);
   return (
     <div className="flex shrink-0 items-center gap-2 max-sm:w-full max-sm:[&>a]:h-10 max-sm:[&>a]:flex-1 max-sm:[&>button]:h-10 max-sm:[&>button:last-child]:flex-1">
-      <SaveToggle person={person} />
+      <SaveIndependentToggle person={person} />
       {inPipeline && (
         <LinkButton size="sm" href={withReturn(pipelineHref(inPipeline))}>
           View in pipeline
@@ -84,27 +88,13 @@ function IndependentCardActions({ person, onInvite }: { person: Independent; onI
 
 /**
  * The card's bookmark: saves them, or takes them off the saved list at once, with Undo in the toast.
- * Drawn 28px beside the card's buttons from a tablet up, so a touch screen gives it a finger-sized
- * tap round it (hit-area); a phone draws it at the buttons' height.
+ * A phone draws it at the buttons' height.
  */
-function SaveToggle({ person }: { person: Independent }) {
+function SaveIndependentToggle({ person }: { person: Independent }) {
   const { saved, toggleSaved } = useSavedTalent();
   const { nameOf } = useHired();
   const isSaved = saved.includes(person.slug);
-  const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
-  return (
-    <Tip label={isSaved ? "Unsave" : "Save"}>
-      <button
-        type="button"
-        aria-label={isSaved ? "Unsave Independent" : "Save Independent"}
-        aria-pressed={isSaved}
-        onClick={() => toggleSavedWithNote(nameOf(person), isSaved, () => toggleSaved(person.slug))}
-        className="hit-area flex size-7 shrink-0 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary max-sm:size-10"
-      >
-        <Mark size={16} aria-hidden />
-      </button>
-    </Tip>
-  );
+  return <SaveToggle isSaved={isSaved} what="Independent" className="max-sm:size-10" onToggle={() => toggleSavedWithNote(nameOf(person), isSaved, () => toggleSaved(person.slug))} />;
 }
 
 /**
@@ -295,11 +285,5 @@ export function SaveButton({ person }: { person: Independent }) {
   const { saved, toggleSaved } = useSavedTalent();
   const { nameOf } = useHired();
   const isSaved = saved.includes(person.slug);
-  const Mark = isSaved ? ICONS.bookmark : ICONS.saved;
-  return (
-    <Button onClick={() => toggleSavedWithNote(nameOf(person), isSaved, () => toggleSaved(person.slug))}>
-      <Mark size={18} aria-hidden className={isSaved ? "text-primary" : "text-ink-2"} />
-      {isSaved ? "Saved" : "Save"}
-    </Button>
-  );
+  return <BookmarkButton isSaved={isSaved} onToggle={() => toggleSavedWithNote(nameOf(person), isSaved, () => toggleSaved(person.slug))} />;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { FactsBox } from "@/components/portal/facts-box";
 import { durationDays, formatDate, trialLength } from "@/lib/portal/dates";
 import { hoursLabel, payFor, postedStart } from "@/lib/contract/job-types";
 import type { JobView } from "@/lib/independent/job-view";
@@ -41,14 +42,5 @@ function PostTerms({ job, back }: { job: JobView; back: string }) {
     job.type === "trial" ? ["DURATION", trialLength(durationDays(job.duration))] : ["START", formatDate(postedStart(job.duration))],
     ...(job.type === "part-time" && job.hours ? ([["HOURS", hoursLabel(job.hours)]] as [string, ReactNode][]) : []),
   ];
-  return (
-    <dl className="flex flex-col gap-3 rounded-lg bg-surface-2 p-3 outline -outline-offset-1 outline-border">
-      {rows.map(([k, v]) => (
-        <div key={k} className="flex h-5 items-center justify-between gap-4">
-          <dt className="font-semibold whitespace-nowrap text-ink-2">{k}</dt>
-          <dd className="text-ink">{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  return <FactsBox rows={rows} />;
 }

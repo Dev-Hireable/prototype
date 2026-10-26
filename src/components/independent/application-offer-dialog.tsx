@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Agreement, DeclineOfferDialog, OfferDivider, OfferFrom, OfferTerms, Signature } from "@/components/portal/offer-parts";
+import { Agreement, DeclineOfferDialog, OfferDivider, OfferTerms, SignCard, Signature } from "@/components/portal/offer-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { Button, Card, InfoBanner, LinkButton, Modal } from "@/components/portal/ui";
 import { useDeal, type DealOffer } from "@/lib/demo/deal";
@@ -49,7 +49,7 @@ export function ApplicationOfferDialog({ app, open, onClose }: { app: Applicatio
         {sent.status === "withdrawn" && <InfoBanner tone="warn">{from} withdrew this offer, so it can no longer be accepted. Your proposal is still with them.</InfoBanner>}
         <div className="flex items-start gap-6 max-lg:flex-col max-lg:items-stretch">
           <OfferCard job={job} sent={sent} from={from} />
-          <SignCard sent={sent} from={from} fullName={profile.name} contractHref={contractHref} onAccept={accept} onDecline={() => setStep("decline")} />
+          <Signing sent={sent} from={from} fullName={profile.name} contractHref={contractHref} onAccept={accept} onDecline={() => setStep("decline")} />
         </div>
       </Modal>
       <AcceptedDialog open={open && step === "accepted"} from={from} onClose={close} onOpenContract={() => router.push(contractHref)} />
@@ -108,7 +108,7 @@ function OfferCard({ job, sent, from }: { job: JobView; sent: DealOffer; from: s
  * long the offer stands, and Accept or Decline — or the answer it already has, with the signature it
  * was accepted under.
  */
-function SignCard({ sent, from, fullName, contractHref, onAccept, onDecline }: { sent: DealOffer; from: string; fullName: string; contractHref: string; onAccept: (name: string) => void; onDecline: () => void }) {
+function Signing({ sent, from, fullName, contractHref, onAccept, onDecline }: { sent: DealOffer; from: string; fullName: string; contractHref: string; onAccept: (name: string) => void; onDecline: () => void }) {
   const [name, setName] = useState("");
   const [agree, setAgree] = useState(false);
   // Read back from the shared engagement, so an answer given earlier still shows after a reload.
@@ -119,15 +119,11 @@ function SignCard({ sent, from, fullName, contractHref, onAccept, onDecline }: {
   // Offers accepted before the signature was kept read as the account's name, with no date.
   const signed = sent.status === "accepted" ? (sent.signed ?? { name: fullName }) : undefined;
   return (
-    <Card className="flex w-[360px] shrink-0 flex-col divide-y divide-[#e5e5e5] max-lg:w-full">
-      <OfferFrom name={PAIR.team.name} company={from} />
-      <div className="flex flex-col gap-4 p-6">
-        <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Sign contract</h3>
-        <Signature name={name} onName={setName} agree={agree} onAgree={setAgree} disabled={!open} fullName={fullName} signed={signed} />
-        {open && expires && <InfoBanner>This offer expires on {expires}</InfoBanner>}
-        <Answer status={sent.status} waiting={waiting} contractHref={contractHref} onAccept={() => onAccept(name)} onDecline={onDecline} />
-      </div>
-    </Card>
+    <SignCard name={PAIR.team.name} company={from}>
+      <Signature name={name} onName={setName} agree={agree} onAgree={setAgree} disabled={!open} fullName={fullName} signed={signed} />
+      {open && expires && <InfoBanner>This offer expires on {expires}</InfoBanner>}
+      <Answer status={sent.status} waiting={waiting} contractHref={contractHref} onAccept={() => onAccept(name)} onDecline={onDecline} />
+    </SignCard>
   );
 }
 

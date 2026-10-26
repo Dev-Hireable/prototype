@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ICONS } from "@/components/icons";
 import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "@/components/portal/ui";
+import { TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
 import { hoursLabel, payFor } from "@/lib/contract/job-types";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Application, Role } from "@/lib/independent/data";
@@ -10,9 +10,7 @@ import { useSavedRoles } from "@/lib/independent/saved";
 import { useApplications } from "@/lib/independent/applications";
 import { useWithReturn } from "@/components/portal/return";
 import { toggleSavedWithNote } from "@/components/portal/notify";
-
-const Bookmark = ICONS.saved;
-const Bookmarked = ICONS.bookmark;
+import { SaveToggle } from "@/components/portal/save-toggle";
 
 /**
  * A role on Discover or Saved roles: the save toggle (unsaving says so, with Undo), then View role,
@@ -30,50 +28,43 @@ export function RoleCard({ role, variant = "discover" }: { role: Role; variant?:
   const out = (href: string) => (variant === "saved" ? withReturn(href) : href);
 
   return (
-    <article className="flex flex-col gap-3 rounded-lg bg-white p-5 outline -outline-offset-1 outline-border">
-      {/* A phone has no room for the title beside both buttons: the bookmark stays at the end of the
-          title's line, and the button wraps under the title, lined up with it (past the 44px initials
-          and their 12px gap). The title takes all of its line but the bookmark's 28px and the gaps. */}
-      <div className="flex items-start gap-3 max-md:flex-wrap">
-        <Initials text={role.initials} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1 max-md:basis-[calc(100%-100px)]">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <Link href={out(`/independent/jobs/${role.slug}`)} className="text-[18px] leading-[1.4] font-semibold text-ink hover:text-primary">
-              {role.title}
-            </Link>
-            <JobBadge type={role.type} />
-            {/* IN-012 — colour coded by band with the tooltip that explains the score. It was the
-                plain gradient, which looked identical at 88% and 58%. */}
-            <MatchPill pct={role.match} coded title={MATCH_TOOLTIP.independent} />
+    // The role on the white panel; when it was posted, the pay and the length on the grey tray under it.
+    <article className={`flex flex-col ${TRAY}`}>
+      <div className={`flex flex-col gap-3 p-5 ${TRAY_PANEL}`}>
+        {/* A phone has no room for the title beside both buttons: the bookmark stays at the end of the
+            title's line, and the button wraps under the title, lined up with it (past the 44px initials
+            and their 12px gap). The title takes all of its line but the bookmark's 28px and the gaps. */}
+        <div className="flex items-start gap-3 max-md:flex-wrap">
+          <Initials text={role.initials} />
+          <div className="flex min-w-0 flex-1 flex-col gap-1 max-md:basis-[calc(100%-100px)]">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Link href={out(`/independent/jobs/${role.slug}`)} className="text-[18px] leading-[1.4] font-semibold text-ink hover:text-primary">
+                {role.title}
+              </Link>
+              <JobBadge type={role.type} />
+              {/* IN-012 — colour coded by band with the tooltip that explains the score. It was the
+                  plain gradient, which looked identical at 88% and 58%. */}
+              <MatchPill pct={role.match} coded title={MATCH_TOOLTIP.independent} />
+            </div>
+            <p className="text-[14px] leading-[1.4] text-ink-2">{[role.company, role.location].filter(Boolean).join(" · ")}</p>
           </div>
-          <p className="text-[14px] leading-[1.4] text-ink-2">{[role.company, role.location].filter(Boolean).join(" · ")}</p>
+          <div className="flex shrink-0 items-center gap-2 max-md:contents">
+            {/* #82 — unsaving is the same bookmark toggle on both lists, undone from its toast; it isn't a red Remove. */}
+            <SaveToggle isSaved={isSaved} what="role" onToggle={() => toggleSavedWithNote(role.title, isSaved, () => toggleSaved(role.slug))} />
+            <span className="flex max-md:ml-14">
+              {variant === "saved" ? <SavedAction role={role} application={application} closed={closedLabel(role, withdrawn, declined)} out={out} /> : <ViewRole href={`/independent/jobs/${role.slug}`} />}
+            </span>
+          </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 max-md:contents">
-          {/* #82 — unsaving is the same bookmark toggle on both lists, undone from its toast; it isn't a red Remove. */}
-          <SaveToggle isSaved={isSaved} onToggle={() => toggleSavedWithNote(role.title, isSaved, () => toggleSaved(role.slug))} />
-          <span className="flex max-md:ml-14">
-            {variant === "saved" ? <SavedAction role={role} application={application} closed={closedLabel(role, withdrawn, declined)} out={out} /> : <ViewRole href={`/independent/jobs/${role.slug}`} />}
-          </span>
+        <p className="text-[14px] leading-[1.4] text-ink">{role.blurb}</p>
+        <div className="flex flex-wrap gap-2">
+          {role.skills.map((s) => (
+            <Chip key={s}>{s}</Chip>
+          ))}
         </div>
       </div>
-      <p className="text-[14px] leading-[1.4] text-ink-2">{metaLine(role, variant === "saved" ? savedOn[role.slug] : undefined)}</p>
-      <p className="text-[14px] leading-[1.4] text-ink">{role.blurb}</p>
-      <div className="flex flex-wrap gap-2">
-        {role.skills.map((s) => (
-          <Chip key={s}>{s}</Chip>
-        ))}
-      </div>
+      <p className={`text-[14px] leading-[1.4] text-ink-2 ${TRAY_FOOT} px-5!`}>{metaLine(role, variant === "saved" ? savedOn[role.slug] : undefined)}</p>
     </article>
-  );
-}
-
-/** The bookmark: saved or not, the same on Discover and Saved roles. Drawn at 28px; a finger gets a 44px tap on it (`hit-area`). */
-function SaveToggle({ isSaved, onToggle }: { isSaved: boolean; onToggle: () => void }) {
-  const Mark = isSaved ? Bookmarked : Bookmark;
-  return (
-    <button type="button" aria-label={isSaved ? "Unsave role" : "Save role"} aria-pressed={isSaved} onClick={onToggle} className="hit-area flex size-7 shrink-0 items-center justify-center rounded-full border-[1.167px] border-primary bg-white text-primary">
-      <Mark size={16} aria-hidden />
-    </button>
   );
 }
 

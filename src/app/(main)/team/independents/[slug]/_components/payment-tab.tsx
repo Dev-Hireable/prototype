@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card, CardHeading, StatusDot } from "@/components/portal/ui";
+import { Card, StatusDot } from "@/components/portal/ui";
 import { BenefitList } from "@/components/portal/contract-parts";
 import { DisputeRows } from "@/components/portal/disputes";
 import { benefitsOf } from "@/lib/contract/view";
@@ -17,9 +17,7 @@ export function PaymentTab({ t, payments, disputeButton }: { t: Tracker; payment
     <div className="mx-auto flex w-full max-w-[720px] flex-col gap-4">
       <TermsCard title="Contract terms" rows={contractTerms(t)} />
       {contract.type === "full-time" && (
-        <Card className="flex flex-col gap-4 p-5">
-          <CardHeading>Benefits</CardHeading>
-          <p className="text-[13px] leading-[1.4] text-ink-2">What the signed offer includes, on top of the pay.</p>
+        <Card title="Benefits" sub="What the signed offer includes, on top of the pay." className="flex flex-col gap-4 p-5">
           <BenefitList included={benefitsOf(view)} size="text-[14px]" />
         </Card>
       )}
@@ -38,8 +36,7 @@ export function PaymentTab({ t, payments, disputeButton }: { t: Tracker; payment
  */
 function TermsCard({ title, rows }: { title: string; rows: readonly (readonly [string, ReactNode])[] }) {
   return (
-    <Card className="flex flex-col gap-4 p-5">
-      <CardHeading>{title}</CardHeading>
+    <Card title={title} className="flex flex-col gap-4 p-5">
       <dl className="flex flex-col gap-3 text-[14px] leading-[1.4]">
         {rows.map(([k, v]) => (
           <div key={k} className="flex justify-between gap-4 max-md:flex-col max-md:gap-0.5">
@@ -56,8 +53,7 @@ function TermsCard({ title, rows }: { title: string; rows: readonly (readonly [s
 function PaymentHistory({ t, payments }: { t: Tracker; payments: Transaction[] }) {
   const { pay } = t.view;
   return (
-    <Card className="flex flex-col gap-3 p-5">
-      <CardHeading>Payment history</CardHeading>
+    <Card title="Payment history" className="flex flex-col gap-3 p-5">
       {payments.length === 0 ? (
         <p className="text-[13px] leading-[1.4] text-ink-2">{t.fromTrial ? "No transactions yet. The escrow deposit appears here once the trial starts." : pay?.next ? `No payments yet. The first, ${usd(pay.next.amount)}, is paid on ${dayLabel(pay.next.to)}.` : "No transactions yet. Monthly payments appear here as they are paid."}</p>
       ) : (
@@ -84,11 +80,7 @@ function PaymentHistory({ t, payments }: { t: Tracker; payments: Transaction[] }
 function Disputes({ t, disputeButton }: { t: Tracker; disputeButton: ReactNode }) {
   const { disputes: here, block, fileHint } = t.view;
   return (
-    <Card className="flex flex-col gap-3 p-5">
-      <div className="flex items-center justify-between gap-4">
-        <CardHeading>Disputes</CardHeading>
-        {disputeButton}
-      </div>
+    <Card title="Disputes" aside={disputeButton} className="flex flex-col gap-3 p-5">
       {here.length === 0 ? (
         <p className="text-[13px] leading-[1.4] text-ink-2">
           {block === "trial" || block === "starts"

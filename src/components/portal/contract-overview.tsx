@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
+import { CountPill } from "@/components/portal/board";
 import { Button } from "@/components/portal/ui";
 import { FactStrip, SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { PanelCard } from "@/components/portal/panel-card";
@@ -175,7 +176,7 @@ function Stats({ stats }: { stats: Stat[] }) {
 function Attention({ items, today, viewer, names, work }: { items: WorkItem[]; today: Day; viewer: Viewer; names: Record<Viewer, string>; work: { open: boolean; reviewOpen: boolean } }) {
   const rows = attentionRows(items, today, viewer, names, work);
   return (
-    <PanelCard title="Needs attention" aside={rows.length > 0 ? <Count n={rows.length} /> : undefined}>
+    <PanelCard title="Needs attention" aside={rows.length > 0 ? <CountPill className="bg-[#fff3cc] text-[#8e6f12]">{rows.length}</CountPill> : undefined}>
       {rows.length === 0 ? (
         <p className="flex items-center gap-2 text-[13px] leading-[1.4] text-ink-2">
           <ICONS.taskDone size={18} aria-hidden className="shrink-0 text-ok" />
@@ -296,10 +297,6 @@ function ItemRow({ item: t, lead, meta }: { item: WorkItem; lead?: ReactNode; me
       </button>
     </li>
   );
-}
-
-function Count({ n }: { n: number }) {
-  return <span className="min-w-7 rounded bg-[#fff3cc] px-1.5 py-0.5 text-center text-[12.5px] font-medium text-[#8e6f12] tabular-nums">{n}</span>;
 }
 
 /** "3 more" when a list is cut short — they're all in the work. A finger's height to tap on a touch screen, the margin taking back the padding so nothing moves. */

@@ -7,7 +7,7 @@ import { flushSync } from "react-dom";
 import type { IconType } from "react-icons";
 import { ICONS } from "@/components/icons";
 import { KebabMenu, MenuAction } from "@/components/portal/controls";
-import { Button, Checkbox, CheckboxBox, Pills, Toast } from "@/components/portal/ui";
+import { Avatar, Button, Checkbox, CheckboxBox, Pills, Toast } from "@/components/portal/ui";
 import { useWithReturn } from "@/components/portal/return";
 import { MONTHS } from "@/lib/portal/dates";
 import { categoryOf, type NoteCategory } from "@/lib/portal/notification-categories";
@@ -76,7 +76,7 @@ function Sender({ item }: { item: FeedItem }) {
       </span>
     );
   }
-  if (item.avatar) return <Image src={item.avatar} alt="" width={72} height={72} className="size-9 shrink-0 rounded-full bg-[#d2d8db] object-cover object-top" loading="eager" />;
+  if (item.avatar) return <Avatar src={item.avatar} size={36} />;
   if (item.logo) return <Image src={item.logo} alt="" width={72} height={72} className="size-9 shrink-0 rounded-full bg-white object-cover outline -outline-offset-1 outline-border" loading="eager" />;
   return (
     <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8f1fa] text-[12px] font-semibold text-primary">

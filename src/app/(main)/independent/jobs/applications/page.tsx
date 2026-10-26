@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { Button, EmptyState, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
 import { KanbanColumn, KanbanJump, KanbanList } from "@/components/portal/board";
 import { useBoardJump } from "@/components/portal/board-jump";
-import { PHONE_BOARD } from "@/components/portal/styles";
+import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
 import { MenuAction, MenuLink } from "@/components/portal/controls";
 import { ScrollFade } from "@/components/portal/scroll-fade";
 import { usePostings } from "@/lib/demo/deal";
@@ -125,50 +125,50 @@ function Board({ applications, roles, canWithdraw, canChat, chatHref, onWithdraw
 /** One application: who and what, its ⋮ menu, the type and match, when it was sent, where it stands — and, with an offer out, the way to it. */
 function ApplicationCard({ app: a, role, menu }: { app: Application; role: Role | undefined; menu: ReactNode }) {
   return (
-    <li className={`relative flex flex-col gap-3 rounded-lg bg-white p-3 outline -outline-offset-1 outline-border ${a.closed ? "opacity-60" : ""}`}>
-      <div className="flex items-start gap-2">
-        <Initials text={role?.initials ?? a.company.slice(0, 2).toUpperCase()} className="size-8 shrink-0 text-[11px]" />
-        <Link href={`/independent/jobs/applications/${a.id}`} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] hover:text-primary">
-          <span className="truncate text-[14px] font-semibold tracking-[0.2px] text-ink">{a.title}</span>
-          <span className="truncate text-[12px] text-ink-2">{a.company}</span>
-        </Link>
-        {menu}
-      </div>
-      {/* #85 — the date has its own line, so it can't run into the match. */}
-      <div className="flex flex-col gap-2 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
+    <li className={`relative flex flex-col ${TRAY} ${a.closed ? "opacity-60" : ""}`}>
+      {/* The role on the white panel; when it was sent and where it stands on the tray under it. */}
+      <div className={`flex flex-col gap-3 p-3 ${TRAY_PANEL}`}>
+        <div className="flex items-start gap-2">
+          <Initials text={role?.initials ?? a.company.slice(0, 2).toUpperCase()} className="size-8 shrink-0 text-[11px]" />
+          <Link href={`/independent/jobs/applications/${a.id}`} className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.25] hover:text-primary">
+            <span className="truncate text-[14px] font-semibold tracking-[0.2px] text-ink">{a.title}</span>
+            <span className="truncate text-[12px] text-ink-2">{a.company}</span>
+          </Link>
+          {menu}
+        </div>
         <span className="flex items-center gap-1">
           <JobBadge type={role?.type ?? "trial"} />
           <MatchPill pct={a.match} coded title={MATCH_TOOLTIP.independent} />
         </span>
-        <span>{a.submitted}</span>
       </div>
-      {a.status && <CardStatus status={a.status} />}
-      {/* IN-018 — an offer on the table gets its own way in. */}
-      {a.stage === "offer_received" && a.status?.label === "Offer received" && (
-        <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}?offer=1`} className="justify-center">
-          Review offer
-        </LinkButton>
-      )}
+      <div className={`flex flex-col gap-2 text-[12px] leading-[1.3] tracking-[0.2px] text-ink-2 ${TRAY_FOOT}`}>
+        {/* #85 — the date has its own line, so it can't run into the match. */}
+        <span>{a.submitted}</span>
+        {a.status && <CardStatus status={a.status} />}
+        {/* IN-018 — an offer on the table gets its own way in. */}
+        {a.stage === "offer_received" && a.status?.label === "Offer received" && (
+          <LinkButton size="sm" variant="primary" href={`/independent/jobs/applications/${a.id}?offer=1`} className="justify-center">
+            Review offer
+          </LinkButton>
+        )}
+      </div>
     </li>
   );
 }
 
 /**
- * Where the application stands, under a rule: the status, and what it's about. #84 — an interview's
- * time reads in the talent's own clock with the Team Builder's beside it, on a line of its own.
+ * Where the application stands, on the card's tray: the status, and what it's about. #84 — an
+ * interview's time reads in the talent's own clock with the Team Builder's beside it, on a line of its own.
  */
 function CardStatus({ status }: { status: NonNullable<Application["status"]> }) {
   const clock = useInterviewTime();
   return (
     <>
-      <span aria-hidden className="h-px w-full bg-border" />
-      <div className="flex flex-col gap-2 text-[12px] leading-[1.3] tracking-[0.2px] text-ink-2">
-        <span className="flex items-center justify-between gap-2">
-          <StatusDot tone={status.tone}>{status.label}</StatusDot>
-          {status.meta && <span>{status.meta}</span>}
-        </span>
-        {status.slot && <span>{clock.both(status.slot, status.slot.theirs)}</span>}
-      </div>
+      <span className="flex items-center justify-between gap-2">
+        <StatusDot tone={status.tone}>{status.label}</StatusDot>
+        {status.meta && <span>{status.meta}</span>}
+      </span>
+      {status.slot && <span>{clock.both(status.slot, status.slot.theirs)}</span>}
     </>
   );
 }

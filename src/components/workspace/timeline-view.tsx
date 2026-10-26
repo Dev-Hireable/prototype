@@ -16,6 +16,7 @@ import { useWorkspace, type WorkspaceEnv } from "./context";
 import { GroupLabel } from "./meta";
 import { useTimedMessage } from "./timed-message";
 import { useProgressive } from "./util";
+import { TODAY_BUTTON, VIEW_FRAME } from "./view-frame";
 import { groupColors } from "./labels";
 
 /**
@@ -126,7 +127,7 @@ export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[
       <div className="flex min-h-0 flex-1 flex-col px-[var(--ws-gutter,1rem)] pt-3 pb-4">
         <ScaleBar scale={scale} setQuery={setQuery} onToday={scrollToToday} hidden={links.hidden} hint={hint} />
         {/* Bordered frame, scroller inside: an outline on the scroller sat under its pinned header and item column. */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-white">
+        <div className={`${VIEW_FRAME} flex-1`}>
           <div ref={scroller} className="relative min-h-0 flex-1 overflow-auto" data-testid="timeline">
             <div className="relative" style={{ width: LEFT + width }}>
               <TimelineHead from={from} to={to} px={px} width={width} scale={scale} today={today} />
@@ -239,7 +240,7 @@ function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; se
           </button>
         ))}
       </span>
-      <button type="button" onClick={onToday} className="h-9 rounded-lg border border-border bg-white px-3 text-[13px] font-medium text-ink hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary max-md:h-10">
+      <button type="button" onClick={onToday} className={TODAY_BUTTON}>
         Today
       </button>
       {hidden > 0 && <span className="text-[12.5px] text-ink-2">{hidden} {hidden === 1 ? "dependency is" : "dependencies are"} on items hidden by the filters.</span>}

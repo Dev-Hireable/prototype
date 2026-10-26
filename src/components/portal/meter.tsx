@@ -23,7 +23,8 @@ export function Meter({ parts, total = 100, label, pill }: { parts: { value: num
   return (
     <div role="img" aria-label={label} className="flex h-7 w-full gap-1">
       {shown.map((p, i) => (
-        <span key={p.label} className={BLOCK} style={{ ...grow(p.value), backgroundColor: p.color }}>
+        // The filled parts carry the badges' soft white edge glow; what's still to go stays flat.
+        <span key={p.label} className={`${BLOCK} edge-glow`} style={{ ...grow(p.value), backgroundColor: p.color }}>
           {inside && i === shown.length - 1 && <Pill text={pill} className="right-1" />}
         </span>
       ))}
@@ -36,11 +37,31 @@ export function Meter({ parts, total = 100, label, pill }: { parts: { value: num
   );
 }
 
-/** The number on a bar: a white tab, round like the capsule it sits in, that reads the same on a colour and on the stripes. */
+/**
+ * The number on a bar: a white tab, round like the capsule it sits in, that reads the same on a colour
+ * and on the stripes. The number is trimmed to its capitals so flex centring sets the digits level,
+ * not the line box with its descender room below.
+ */
 function Pill({ text, className }: { text: string; className: string }) {
   return (
     <span className={`absolute inset-y-1 flex items-center rounded-full bg-white px-2 text-[12px] leading-none font-semibold text-ink tabular-nums shadow-[0_1px_2px_rgba(0,0,0,0.18)] ${className}`}>
-      {text}
+      <span className="trim-to-caps">{text}</span>
+    </span>
+  );
+}
+
+/**
+ * The thin bar beside a count — "3 of 5 done" on a subtask list, a project, the work summary, a
+ * profile's completeness: a 6px grey track and one fill, green by default. `className` sets its
+ * width (`w-12`, `flex-1`). With a `label` it's a progressbar of its own; without one it's
+ * decoration and the words beside it say the numbers.
+ */
+export function MiniBar({ value, total, label, fill = "bg-ok", track = "bg-surface-2", className = "w-12" }: { value: number; total: number; label?: string; fill?: string; track?: string; className?: string }) {
+  const pct = total > 0 ? Math.min(100, (value / total) * 100) : 0;
+  const a11y = label ? { role: "progressbar", "aria-label": label, "aria-valuemin": 0, "aria-valuemax": total, "aria-valuenow": value } : { "aria-hidden": true };
+  return (
+    <span {...a11y} className={`block h-1.5 overflow-hidden rounded-full ${track} ${className}`}>
+      <span className={`block h-full rounded-full motion-safe:transition-[width] ${fill}`} style={{ width: `${pct}%` }} />
     </span>
   );
 }

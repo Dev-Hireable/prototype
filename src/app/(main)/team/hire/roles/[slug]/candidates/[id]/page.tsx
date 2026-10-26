@@ -3,7 +3,7 @@
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Card, CardTitle, Field, JobBadge, LinkButton, MessageButton, Modal, Page, Select, StatusDot, Tabs, Textarea, Toast } from "@/components/portal/ui";
+import { Button, Card, Field, JobBadge, LinkButton, MessageButton, Modal, Page, Select, StatusDot, Tabs, Textarea, Toast } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { Tip } from "@/components/portal/tip";
 import { ProfileActions } from "@/components/portal/talent-profile";
@@ -366,8 +366,7 @@ function StageNote({ cand, first }: { cand: Candidate; first: string }) {
 function InterviewCard({ interview, onCopied, children }: { interview: Interview | undefined; onCopied: () => void; children?: ReactNode }) {
   const link = interview?.link;
   return (
-    <Card className="flex flex-col gap-4 p-4">
-      <CardTitle>Interview</CardTitle>
+    <Card title="Interview" className="flex flex-col gap-4 p-4">
       <dl className="grid grid-cols-2 gap-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink">
         <div className="col-span-2 flex flex-col gap-2">
           <dt className="font-semibold">When</dt>
@@ -401,8 +400,7 @@ function InterviewCard({ interview, onCopied, children }: { interview: Interview
 function NotesCard({ live: notes, first }: { live: Deal | null; first: string }) {
   if (!notes || !(notes.note || notes.interview?.note || notes.proposalRequest?.note || notes.offer?.declineReason || notes.proposalDeclined?.reason)) return null;
   return (
-    <Card className="flex flex-col gap-4 p-4">
-      <CardTitle>Notes</CardTitle>
+    <Card title="Notes" className="flex flex-col gap-4 p-4">
       <dl className="flex flex-col gap-3 text-[13px] leading-[1.4]">
         {notes.note && <Note label={`${first}'s note with the application`} text={notes.note} />}
         {notes.interview?.note && <Note label="Your note with the interview invite" text={notes.interview.note} />}

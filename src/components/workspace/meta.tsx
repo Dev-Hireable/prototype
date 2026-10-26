@@ -5,8 +5,9 @@ import { projectKeyOf } from "@/lib/work/projects";
 import { Tip } from "@/components/portal/tip";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import type { ColumnColors } from "@/components/portal/board";
+import { CountPill, type ColumnColors } from "@/components/portal/board";
 import { PersonChip } from "@/components/portal/tasks/task-bits";
+import { Badge } from "@/components/portal/badge";
 import { Avatar } from "@/components/portal/ui";
 import { firstName, TYPE_ICON, type TaskPeople } from "./labels";
 import { dayOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
@@ -25,19 +26,29 @@ export function GroupLabel({ group, colors, children }: { group: Group; colors: 
   return (
     <span className="flex min-w-0 items-center gap-2 text-[13px] leading-[1.2] font-semibold whitespace-nowrap" style={{ color: colors.text }}>
       <span className="truncate">{group.label}</span>
-      <span className="min-w-6 rounded px-1.5 py-0.5 text-center text-[12px] font-medium tabular-nums" style={{ background: colors.count }}>
+      <CountPill background={colors.count}>
         {group.items.length}
         <span className="sr-only">{group.items.length === 1 ? " item" : " items"}</span>
-      </span>
+      </CountPill>
       {children}
     </span>
   );
 }
 
+/** A tag's chip: the badge's shape, coloured from the tag palette rather than a badge tone. */
 const CHIP = "inline-flex h-6 max-w-full items-center gap-1 rounded px-1.5 text-[12px] leading-[1.2] font-medium whitespace-nowrap";
 
 /** A fact on a card's details line: an icon and a few words, grey, with no box around it. */
 const FACT = "inline-flex max-w-full items-center gap-1 text-[12px] leading-[1.2] whitespace-nowrap text-ink-2";
+
+/**
+ * A fact's words, trimmed to their capitals so the icon beside them centres on the letters, not on
+ * a line box Chrome rounds (up to a pixel off). Cut short with an ellipsis that clips sideways only,
+ * so a "y" or "g" still hangs below.
+ */
+export function FactText({ children, truncate = false }: { children: ReactNode; truncate?: boolean }) {
+  return <span className={`trim-to-caps ${truncate ? "min-w-0 overflow-x-clip text-ellipsis" : ""}`}>{children}</span>;
+}
 
 export function TypeChip({ type, iconOnly = false, plain = false }: { type: WorkType; iconOnly?: boolean; /** A card's details line: no box. */ plain?: boolean }) {
   const Icon = ICONS[TYPE_ICON[type]];
@@ -46,14 +57,11 @@ export function TypeChip({ type, iconOnly = false, plain = false }: { type: Work
     return (
       <span className={FACT}>
         <Icon size={14} aria-hidden className="shrink-0" />
-        {TYPE_META[type].label}
+        <FactText>{TYPE_META[type].label}</FactText>
       </span>
     );
   return (
-    <span className={`${CHIP} bg-surface-2 text-ink-2`}>
-      <Icon size={14} aria-hidden className="shrink-0" />
-      {TYPE_META[type].label}
-    </span>
+    <Badge icon={<Icon aria-hidden />}>{TYPE_META[type].label}</Badge>
   );
 }
 
@@ -75,7 +83,7 @@ export function DueChip({ item, today }: { item: WorkItem; today: Day }) {
   return (
     <span className={`${FACT} ${late ? "font-medium !text-danger" : ""}`} aria-label={`${late ? "Overdue, was due" : "Due"} ${longLabel(due)}`}>
       <ICONS.calendar size={13} aria-hidden className="shrink-0" />
-      {late ? `Overdue · ${relativeLabel(due, today)}` : relativeLabel(due, today)}
+      <FactText>{late ? `Overdue · ${relativeLabel(due, today)}` : relativeLabel(due, today)}</FactText>
     </span>
   );
 }
@@ -85,7 +93,7 @@ export function EffortChip({ effort }: { effort?: number }) {
   return (
     <span className={`${FACT} tabular-nums`} aria-label={`Effort ${effort}`}>
       <ICONS.effort size={13} aria-hidden className="shrink-0" />
-      {effort}
+      <FactText>{effort}</FactText>
     </span>
   );
 }
@@ -93,11 +101,10 @@ export function EffortChip({ effort }: { effort?: number }) {
 export function BlockedChip({ count }: { count: number }) {
   if (!count) return null;
   return (
-    <span className={`${CHIP} bg-[#fcf2f2] text-danger`}>
-      <ICONS.blocked size={13} aria-hidden className="shrink-0" />
+    <Badge tone="danger" icon={<ICONS.blocked aria-hidden />}>
       Blocked
       {count > 1 ? ` by ${count}` : ""}
-    </span>
+    </Badge>
   );
 }
 
@@ -164,13 +171,12 @@ export function AssigneeAvatar({ assignee, people, size = 28 }: { assignee: Assi
   );
 }
 
-/** The same shape as Blocked: both say the item can't simply go on. */
+/** The same badge as Blocked: both say the item can't simply go on. */
 export function ChangesChip() {
   return (
-    <span className={`${CHIP} bg-warn-bg text-warn-ink`}>
-      <ICONS.undo size={13} aria-hidden className="shrink-0" />
+    <Badge tone="warn" icon={<ICONS.undo aria-hidden />}>
       Changes requested
-    </span>
+    </Badge>
   );
 }
 
@@ -202,7 +208,7 @@ export function PlaceChip({ item }: { item: WorkItem }) {
   return (
     <span className={`${FACT} min-w-0`}>
       <ICONS.project size={14} aria-hidden className="shrink-0" />
-      <span className="truncate">{place.name}</span>
+      <FactText truncate>{place.name}</FactText>
       <span className="sr-only">{place.kind === "trial" ? " (the trial)" : " (project)"}</span>
     </span>
   );
@@ -216,7 +222,8 @@ export function LockChip({ item }: { item: WorkItem }) {
   return (
     <Tip label={why}>
       <span className={FACT} aria-label={`Read-only: ${why}`}>
-        <ICONS.lock size={14} aria-hidden /> Read-only
+        <ICONS.lock size={14} aria-hidden className="shrink-0" />
+        <FactText>Read-only</FactText>
       </span>
     </Tip>
   );

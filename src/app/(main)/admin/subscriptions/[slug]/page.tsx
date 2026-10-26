@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
-import { Button, Card } from "@/components/portal/ui";
+import { Button, EmptyState } from "@/components/portal/ui";
 import { BreadcrumbBack } from "@/components/portal/nav";
 import { subscriptions } from "@/lib/admin/data/subscriptions";
 import type { PlanChange } from "@/lib/admin/data/subscriptions";
@@ -44,7 +44,7 @@ export default async function SubscriptionDetail({ params }: PageProps<"/admin/s
             ]}
           />
         ) : (
-          <Card className="px-5 py-10 text-center text-sm text-muted">No plan changes recorded.</Card>
+          <EmptyState title="No plan changes recorded" />
         )}
       </div>
     </AdminPage>

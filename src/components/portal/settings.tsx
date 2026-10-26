@@ -10,14 +10,6 @@ import { Tip } from "@/components/portal/tip";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { checkImage, IMAGE_MAX_MB, readImage } from "@/lib/portal/profile-fields";
 
-function SettingsHeading({ children }: { children: ReactNode }) {
-  return (
-    <h2 className="font-display text-[18px] leading-[1.5] font-semibold text-ink" style={{ fontVariationSettings: '"opsz" 14' }}>
-      {children}
-    </h2>
-  );
-}
-
 export type AccountSettingsValues = { first: string; last: string; email: string; phone: string; tz: string };
 
 /** What each portal's settings page gives its account card. */
@@ -57,8 +49,7 @@ function AccountForm({ initial, avatar, emailLabel, accountType, onSave, onPhoto
   const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
   // A phone pads the settings cards as it pads the profile's header card: the fields keep the width the 24px sides took.
   return (
-    <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
-      <SettingsHeading>Account</SettingsHeading>
+    <Card title="Account" className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
       {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
       <PhotoField avatar={avatar} onPhoto={onPhoto} onToast={onToast} />
       {/* TB-099 / IN-067 — the name is the account's legal name: shown here, changed only through support. */}
@@ -313,8 +304,7 @@ export function PasswordSettingsCard() {
 
   return (
     <>
-      <Card className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
-        <SettingsHeading>Change password</SettingsHeading>
+      <Card title="Change password" className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
         <Field label="Current password">
           <Input
             type="password"
@@ -381,9 +371,7 @@ export function NotificationPreferencesCard({ events }: { events: readonly Notif
 
   return (
     <>
-      <Card className="mx-auto flex w-full max-w-[760px] flex-col gap-4 p-6 max-sm:p-4">
-        <SettingsHeading>Notification preferences</SettingsHeading>
-        <p className="max-w-[700px] text-[13px] leading-[1.4] text-ink-2">Choose how you hear about each event. Some offer and payment alerts are always on.</p>
+      <Card title="Notification preferences" sub="Choose how you hear about each event. Some offer and payment alerts are always on." className="mx-auto flex w-full max-w-[760px] flex-col gap-4 p-6 max-sm:p-4">
         <div className="flex items-center gap-4 border-b border-border py-2 text-[12px] leading-[1.4] font-medium text-ink-2 max-sm:gap-2">
           <span className="flex-1">Event</span>
           <span className={`${BOX_COLUMN} text-center`}>In-app</span>

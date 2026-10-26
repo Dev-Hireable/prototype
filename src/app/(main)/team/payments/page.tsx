@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Chip, Drawer, EmptyState, LinkButton, Page, Row, SearchBox, Select, StatusDot, Table, Toast, Toolbar } from "@/components/portal/ui";
+import { Button, Card, Chip, Drawer, EmptyState, LinkButton, Page, Pagination, Row, SearchBox, Select, StatusDot, Table, Toast, Toolbar } from "@/components/portal/ui";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { Transaction } from "@/lib/team/data";
 import { useLedger } from "@/lib/team/contracts";
 import { LEDGER_COLS as COLS } from "@/components/portal/styles";
+import { Badge } from "@/components/portal/badge";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
@@ -192,9 +193,9 @@ function FilterSummary({ filters }: { filters: Filters }) {
       {[q.trim() && `“${q.trim()}”`, type !== "All types" && type, contract !== "All contracts" && contract, range !== "All time" && range]
         .filter(Boolean)
         .map((f) => (
-          <span key={String(f)} className="rounded-full bg-accent-bg px-3 py-1 font-semibold text-accent-ink">
+          <Badge key={String(f)} tone="accent">
             {f}
-          </span>
+          </Badge>
         ))}
       <span className="text-ink-2">
         · {rows.length} of {all.length}
@@ -226,28 +227,9 @@ function TransactionTable({ filters, onView }: { filters: Filters; onView: (t: T
         </Table>
       </div>
 
-      {/* TB-084 pagination — real page maths, not a fixed row of numbers. */}
-      {pages > 1 && (
-        <div className="flex items-center justify-center gap-2 text-[13px] leading-[1.3]">
-          <Button size="sm" disabled={current === 1} onClick={() => setPage(current - 1)}>
-            Previous
-          </Button>
-          {Array.from({ length: pages }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-current={current === i + 1 ? "page" : undefined}
-              onClick={() => setPage(i + 1)}
-              className={`flex size-9 items-center justify-center rounded-lg font-medium ${current === i + 1 ? "bg-primary text-white" : "text-ink hover:bg-surface-alt"}`}
-            >
-              {i + 1}
-            </button>
-          ))}
-          <Button size="sm" disabled={current === pages} onClick={() => setPage(current + 1)}>
-            Next
-          </Button>
-        </div>
-      )}
+      {/* TB-084 pagination — real page maths, not a fixed row of numbers: the one Pagination the
+          other paged lists use. */}
+      <Pagination page={current} pages={pages} onChange={setPage} />
     </>
   );
 }

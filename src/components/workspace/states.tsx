@@ -2,7 +2,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button } from "@/components/portal/ui";
+import { Button, EmptyState } from "@/components/portal/ui";
 import { BACKUP_KEY, resetUnreadableDeal } from "@/lib/demo/deal";
 import type { Role } from "@/lib/work/permissions";
 import type { ViewKey } from "@/lib/work/query";
@@ -35,15 +35,11 @@ export function WorkspaceSkeleton({ view }: { view: ViewKey }) {
   );
 }
 
+/** A workspace state in the view's place: the shared EmptyState, with its icon, centred under the toolbar. */
 function Panel({ icon, title, body, children }: { icon: ReactNode; title: string; body: ReactNode; children?: ReactNode }) {
   return (
     <div className="flex flex-1 items-start justify-center px-[var(--ws-gutter,1rem)] py-10">
-      <div className="flex max-w-[480px] flex-col items-center gap-3 rounded-xl bg-[#fafafa] px-8 py-10 text-center outline -outline-offset-1 outline-border">
-        <span className="flex size-11 items-center justify-center rounded-full bg-white text-ink-2 outline -outline-offset-1 outline-border">{icon}</span>
-        <h2 className="text-[16px] leading-[1.4] font-semibold text-ink">{title}</h2>
-        <div className="text-[13.5px] leading-[1.5] text-ink-2">{body}</div>
-        {children && <div className="mt-2 flex flex-wrap justify-center gap-2">{children}</div>}
-      </div>
+      <EmptyState icon={icon} title={title} body={body} action={children} className="max-w-[480px] px-8 py-10" />
     </div>
   );
 }

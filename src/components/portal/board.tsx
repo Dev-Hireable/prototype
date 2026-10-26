@@ -75,9 +75,9 @@ export function KanbanColumn({
       <header className="flex shrink-0 items-center justify-between gap-2 rounded-t-[10px] px-3 py-2 text-[14px] leading-[1.2] font-medium tracking-[0.2px]" style={{ background: colors.bg, color: colors.text }}>
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate">{label}</span>
-          <span className="min-w-7 rounded px-1.5 py-0.5 text-center text-[12.5px] tabular-nums" style={{ background: colors.count }} aria-hidden>
+          <CountPill background={colors.count} aria-hidden>
             {count}
-          </span>
+          </CountPill>
         </span>
         {aside}
       </header>
@@ -85,6 +85,20 @@ export function KanbanColumn({
       {children}
       {footer && <div className="shrink-0 p-2 pt-0">{footer}</div>}
     </section>
+  );
+}
+
+/**
+ * A group's count on its colours: the chip beside a kanban column's name, a List group's and a
+ * Timeline band's heading, the Needs attention panel's and Unscheduled's. `background` is the
+ * group's darker count colour (ColumnColors.count); `className` brings a fill and text colour
+ * instead, for a count with no group colours.
+ */
+export function CountPill({ background, className = "", children, ...rest }: { background?: string } & ComponentProps<"span">) {
+  return (
+    <span {...rest} className={`min-w-7 rounded px-1.5 py-0.5 text-center text-[12.5px] font-medium tabular-nums ${className}`} style={background ? { background } : undefined}>
+      {children}
+    </span>
   );
 }
 

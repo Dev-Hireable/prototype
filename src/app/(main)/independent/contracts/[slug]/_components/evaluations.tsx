@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Card, MessageButton, StatusDot } from "@/components/portal/ui";
-import { Stars } from "@/components/portal/contract-parts";
+import { Stars } from "@/components/portal/stars";
 import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
+import { ScoreScale } from "@/components/portal/score-scale";
 import { TrialFitScore } from "@/components/portal/trial-widgets";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { ContractView } from "@/lib/contract/view";
@@ -44,7 +45,7 @@ function OngoingEvaluations({ entries, trial, contract, score, ended }: { entrie
             <Card key={key} className="flex flex-col gap-3 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[13px] leading-[1.4] text-ink-2">Submitted {e.date}</span>
-                <Stars value={e.stars} size="text-[16px]" />
+                <Stars value={e.stars} size={16} />
               </div>
               <p className="text-[14px] leading-[1.5] text-ink">{e.feedback}</p>
               <p className="text-[12.5px] leading-[1.4] text-ink-2">Recommendation: {e.recommendation}</p>
@@ -57,7 +58,7 @@ function OngoingEvaluations({ entries, trial, contract, score, ended }: { entrie
             <Card className="flex flex-col gap-3 p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="text-[13px] leading-[1.4] text-ink-2">Submitted {trial.date}</span>
-                <Stars value={trial.stars} size="text-[16px]" />
+                <Stars value={trial.stars} size={16} />
               </div>
               {(trial.scores ?? []).length > 0 && (
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[13px] leading-[1.4]">
@@ -98,7 +99,7 @@ function Evaluation({ evaluation, company, contract, thread, due }: { evaluation
         {/* IN-034 — the overall rating the Team Builder submitted, above the per-criterion scores: one
             score, the criteria's average. A rounded "4.0 overall" stood beside an "average 4.3". */}
         <Card className="flex items-center gap-4 p-5">
-          <Stars value={evaluation.stars} size="text-[24px]" />
+          <Stars value={evaluation.stars} size={24} />
           <p className="min-w-0 flex-1 text-[16px] leading-[1.4] font-semibold text-ink">{average.toFixed(1)} out of 5</p>
         </Card>
         <ScoresCard evaluation={evaluation} contract={contract} thread={thread} />
@@ -132,18 +133,7 @@ function ScoresCard({ evaluation, contract, thread }: { evaluation: DealEvaluati
       {(evaluation.scores ?? []).map((s) => (
         <div key={s.label} className="flex items-center justify-between max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
           <p className="text-[14px] leading-[1.4] font-medium text-ink">{s.label}</p>
-          <div className="flex gap-2 max-sm:grid max-sm:grid-cols-5">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <span
-                key={n}
-                className={`flex h-9 w-11 items-center max-sm:w-auto justify-center rounded-md text-[14px] leading-[1.4] font-medium ${
-                  n === s.value ? "bg-primary text-white outline -outline-offset-1 outline-primary" : "bg-surface-2 text-ink outline -outline-offset-1 outline-border"
-                }`}
-              >
-                {n}
-              </span>
-            ))}
-          </div>
+          <ScoreScale label={s.label} value={s.value} />
         </div>
       ))}
       <div className="flex flex-col gap-2 pt-2">

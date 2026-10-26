@@ -5,6 +5,7 @@ import { JobBadge, Row, Table } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { Tip } from "@/components/portal/tip";
 import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
+import { TRAY, TRAY_PANEL } from "@/components/portal/styles";
 import { ViewSwitch } from "@/components/portal/view-switch";
 import { WorkLegend, WorkMeter } from "@/components/portal/work-progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -107,9 +108,10 @@ type Counts = ReturnType<typeof taskCounts>;
 function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, status, action }: ContractSummary) {
   return (
     <article
-      className={`relative flex flex-col rounded-lg bg-white outline -outline-offset-1 outline-border transition-[box-shadow,outline-color] duration-200 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.3)] hover:outline-[#a6a6a6] ${inactive ? "opacity-60" : ""}`}
+      className={`relative flex flex-col ${TRAY} transition-[box-shadow,outline-color] duration-200 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.3)] hover:outline-[#a6a6a6] ${inactive ? "opacity-60" : ""}`}
     >
-      <div className="flex flex-col gap-5 p-5">
+      {/* Who and how the work stands on the white panel; time left, the score and the thread on the tray. */}
+      <div className={`flex flex-col gap-5 p-5 ${TRAY_PANEL}`}>
         <div className="flex items-start gap-3">
           {avatar(44)}
           <Link href={href} className={`flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.3] ${ROW_LINK}`}>
@@ -121,7 +123,7 @@ function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, 
         <CardWork counts={taskCounts(tasks)} />
         {action && <div className="relative z-10 flex flex-col">{action}</div>}
       </div>
-      <div className="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-2 border-t border-line px-5 py-2.5 text-[12.5px] leading-[1.3] text-ink-2">
+      <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-2 pb-1.5 text-[12.5px] leading-[1.3] text-ink-2">
         <TimeLeft type={type} left={left} over={over} inactive={inactive} ended={ended} started={started} />
         {type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}
         <span className="relative z-10 ml-auto flex items-center gap-2">
@@ -256,11 +258,20 @@ function TimeLeft({ type, left, over = false, inactive, ended, started }: Pick<C
 }
 
 /** The thread with the other party: a quiet icon button, named for screen readers and in its tooltip. */
-function MessageLink({ href, name }: { href: string; name: string }) {
+/**
+ * The one icon-only link to a thread, on a card: the chat glyph in a 32px circle, its name as the
+ * tip and the label. `unread` puts the red count on it (TB-037, the pipeline's cards).
+ */
+export function MessageLink({ href, name, unread = 0 }: { href: string; name: string; unread?: number }) {
   return (
     <Tip label={`Message ${name}`}>
-      <Link href={href} aria-label={`Message ${name}`} className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
+      <Link href={href} aria-label={`Message ${name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
         <Message size={18} aria-hidden />
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white">
+            <span className="badge-count">{unread > 9 ? "9+" : unread}</span>
+          </span>
+        )}
       </Link>
     </Tip>
   );

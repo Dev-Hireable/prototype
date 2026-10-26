@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Meter } from "@/components/portal/meter";
-import { Button, Card, Steps } from "@/components/portal/ui";
+import { Button, Steps } from "@/components/portal/ui";
+import { StepCard as StepFrame, StepHeading } from "@/components/portal/step-card";
 import { EditButton, EditPanel } from "@/components/portal/inline-edit";
 import type { PathCopy } from "../_lib/wizard";
 
@@ -54,16 +55,16 @@ function PhoneSteps({ steps, current }: { steps: readonly string[]; current: num
  */
 export function StepCard({ title, body, bodySize = 14, action, children }: { title: string; /** A line under the heading; left out where the heading says it all. */ body?: string; bodySize?: 14 | 16; /** A button beside the heading, e.g. Use a template. */ action?: ReactNode; children: ReactNode }) {
   return (
-    <Card className="flex w-full max-w-[720px] flex-col gap-10 rounded-2xl p-10 max-md:gap-6 max-md:p-5">
+    <StepFrame className="w-full max-w-[720px]">
       <div className={`flex items-start justify-between gap-4 max-sm:flex-col max-sm:gap-3 ${body || action ? "" : "max-md:contents"}`}>
         <div className={`flex flex-col gap-1 ${body ? "" : "max-md:contents"}`}>
-          <h3 className="text-[20px] leading-[1.5] font-semibold tracking-[0.4px] text-ink max-md:sr-only">{title}</h3>
+          <StepHeading className="max-md:sr-only">{title}</StepHeading>
           {body && <p className={`leading-[1.5] tracking-[0.2px] text-ink-2 ${bodySize === 16 ? "text-[16px]" : "text-[14px] leading-[1.2]"}`}>{body}</p>}
         </div>
         {action}
       </div>
       {children}
-    </Card>
+    </StepFrame>
   );
 }
 
