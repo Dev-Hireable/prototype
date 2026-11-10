@@ -118,28 +118,28 @@ function PlaceGroup({ label, places, scope, pick }: { label: string; places: rea
 function ProjectActions({ place: current, project, onRename, onDelete }: { place: ProjectSummary; project: WorkProject; onRename: () => void; onDelete: () => void }) {
   const { actions } = useWorkspace();
   return (
-    <KebabMenu label={`Actions for the project ${project.name}`} icon="horizontal" iconSize={20} menuWidth={240}>
+    <KebabMenu label={`Actions for the project ${project.name}`} menuWidth={240}>
       {current.archived ? (
-        <MenuAction onClick={() => void actions.unarchiveProject(project)} icon={<ICONS.unarchive size={18} aria-hidden />}>
+        <MenuAction onClick={() => void actions.unarchiveProject(project)}>
           Unarchive
         </MenuAction>
       ) : (
         <>
-          <MenuAction onClick={onRename} icon={<ICONS.edit size={18} aria-hidden />}>
+          <MenuAction onClick={onRename}>
             Rename…
           </MenuAction>
           {current.finished ? (
             <>
-              <MenuAction onClick={() => void actions.reopenProject(project)} icon={<ICONS.undo size={18} aria-hidden />}>
+              <MenuAction onClick={() => void actions.reopenProject(project)}>
                 Reopen
               </MenuAction>
-              <MenuAction onClick={() => void actions.archiveProject(project)} icon={<ICONS.archive size={18} aria-hidden />}>
+              <MenuAction onClick={() => void actions.archiveProject(project)}>
                 Archive
               </MenuAction>
             </>
           ) : (
             // Said in the row, not a tooltip: what's left before it can finish.
-            <MenuAction disabled={current.open > 0} onClick={() => void actions.finishProject(project)} icon={<ICONS.check size={18} aria-hidden />}>
+            <MenuAction disabled={current.open > 0} onClick={() => void actions.finishProject(project)}>
               {current.open > 0 ? `Finish (${current.open} still open)` : "Mark finished"}
             </MenuAction>
           )}
@@ -147,7 +147,7 @@ function ProjectActions({ place: current, project, onRename, onDelete }: { place
       )}
       {/* A finished project, or an empty one — work still in an active project is finished or moved first. */}
       {(current.finished || current.total === 0) && (
-        <MenuAction destructive onClick={onDelete} icon={<ICONS.trash size={18} aria-hidden />}>
+        <MenuAction destructive onClick={onDelete}>
           Delete…
         </MenuAction>
       )}

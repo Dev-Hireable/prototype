@@ -176,20 +176,20 @@ function CardStatus({ status }: { status: NonNullable<Application["status"]> }) 
 /** The card's ⋮ menu: open the application, message the Team Builder, or withdraw it. */
 function CardMenu({ app, open, onOpenChange, canChat, chatHref, withdrawable, onWithdraw }: { app: Application; open: boolean; onOpenChange: (open: boolean) => void; canChat: boolean; chatHref: string; withdrawable: boolean; onWithdraw: () => void }) {
   return (
-    <KebabMenu label="Application actions" open={open} onOpenChange={onOpenChange} iconSize={16} buttonClassName="!size-6">
-      <MenuLink density="compact" href={`/independent/jobs/applications/${app.id}`}>
+    <KebabMenu label="Application actions" open={open} onOpenChange={onOpenChange} buttonClassName="!size-6">
+      <MenuLink href={`/independent/jobs/applications/${app.id}`}>
         View application
       </MenuLink>
       {/* IN-022 — on every card with a thread, which is every application from the first contact
           (IN-006). It opens the conversation in Messages, like every other Message button. */}
       {canChat && (
-        <MenuLink density="compact" href={chatHref}>
+        <MenuLink href={chatHref}>
           Message Team Builder
         </MenuLink>
       )}
       {/* A signed offer is a contract: it is ended or disputed, never withdrawn —
           withdrawing used to delete the funded contract outright. A closed one has nothing to withdraw. */}
-      <MenuAction density="compact" destructive disabled={!withdrawable} title={withdrawable ? undefined : app.closed ? "This application is closed" : "You've accepted the offer. The contract can be ended, not withdrawn."} onClick={onWithdraw}>
+      <MenuAction destructive disabled={!withdrawable} title={withdrawable ? undefined : app.closed ? "This application is closed" : "You've accepted the offer. The contract can be ended, not withdrawn."} onClick={onWithdraw}>
         Withdraw application
       </MenuAction>
     </KebabMenu>

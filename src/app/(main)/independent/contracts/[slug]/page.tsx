@@ -85,10 +85,10 @@ function ContractTracker({ params }: { params: Promise<{ slug: string }> }) {
       }
       tabs={<ContractTabs value={tab} onChange={setTab} />}
       nav={<ReturnNav fallback={<Crumbs contract={contract} />} />}
-      navActions={<HeaderActions contract={contract} thread={thread} />}
+      headerActions={<HeaderActions contract={contract} thread={thread} />}
     >
       {tab === "tasks" && <ContractWork live={view.onDeal} contract={contract} life={view.life} notice={view.notice} cancelled={view.cancelled} ended={t.ended} scoreFinal={t.scoreFinal} actor={t.actor} people={t.people} closedNote={closedNote(contract, view, t.ended)} />}
-      {tab === "evaluation" && <EvaluationTab contract={contract} view={view} thread={thread} score={score} ended={t.ended} />}
+      {tab === "evaluation" && <EvaluationTab contract={contract} view={view} thread={thread} ended={t.ended} />}
       {tab === "contract" && <ContractTab t={t} wallet={wallet} score={score} company={company} onFile={() => dialogs.setFiling(true)} onEnd={() => dialogs.setEnding(true)} onWithdraw={withdraw} onReviewOffer={reviewOffer} />}
       {/* IN-076 — the contract at a glance: its terms, how far the work has got, what's waiting on
           you (changes asked for), what's due next and what changed. */}

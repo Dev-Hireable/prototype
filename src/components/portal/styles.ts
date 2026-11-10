@@ -77,15 +77,14 @@ export const ICON_BUTTON =
  * task's name, a candidate, a role); the tray round it holds what's said about it (a heading above;
  * dates, counts and the next step below), so every card reads in the same two layers. Every kanban
  * card (the work board, the candidate pipeline, My Applications) and the dashboards' summary cards
- * use it. Both edges are outlines, which cost no layout; rows with a background inside a panel stay
- * position: static, or they paint over its edge.
+ * use it.
  */
 
-/** The tray: grey, a hairline edge, 4px of it showing round the panel. */
-export const TRAY = "rounded-xl bg-surface-2 p-1 outline -outline-offset-1 outline-border";
+/** A 16px outer radius, 4px inset and one subtle structural edge. */
+export const TRAY = "rounded-2xl bg-surface-2 p-1 outline -outline-offset-1 outline-line";
 
-/** The white panel inside, with a lighter edge than the tray's. */
-export const TRAY_PANEL = "rounded-lg bg-white outline -outline-offset-1 outline-[#e3e3e3]";
+/** The 12px panel radius is the outer radius minus the inset. The surface change defines its edge. */
+export const TRAY_PANEL = "rounded-xl bg-white";
 
 /** What sits on the tray under the panel, inset to line up with a p-3 panel's content (one left edge). */
 export const TRAY_FOOT = "px-3 pt-2 pb-1.5";

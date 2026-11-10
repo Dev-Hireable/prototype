@@ -1,52 +1,34 @@
-import type { CSSProperties } from "react";
-
-/** What's still to go: fine diagonal stripes on the bar's grey. */
-const HATCH = "bg-surface-2 bg-[repeating-linear-gradient(135deg,#dcdcdc_0_2px,transparent_2px_8px)]";
-/** Each part is a capsule of its own, at least round, with a white gap between them as the divider. */
-const BLOCK = "relative min-w-7 rounded-full motion-safe:transition-[flex-grow] motion-safe:duration-500";
-/** How much of the bar the filled part needs before the number fits inside it. */
-const FITS = 0.18;
-
-const grow = (value: number): CSSProperties => ({ flexGrow: value, flexBasis: 0 });
+const METER_TRACK = "bg-surface-2";
 
 /**
- * The one progress bar the cards draw — a contract's Progress, the Trial Fit Score's parts, a
- * settlement's split: thick, each part a capsule in its colour with a white divider after it, and
- * whatever is still to go a hatched capsule. `pill` puts the headline number at the end of the
- * filled part, or at the start of what's left while the filled part is too short to hold it.
+ * Colored parts share a single track. Its exposed background represents what's left.
+ * The optional value sits near the end of the fill, with room to read it at low values.
  */
-export function Meter({ parts, total = 100, label, pill }: { parts: { value: number; color: string; label: string }[]; total?: number; label: string; pill?: string }) {
+export function Meter({ parts, total = 100, label, pill, compact = false }: { parts: { value: number; color: string; label: string }[]; total?: number; label: string; pill?: string; compact?: boolean }) {
   const shown = parts.filter((p) => p.value > 0);
   const filled = shown.reduce((n, p) => n + p.value, 0);
-  const rest = Math.max(0, total - filled);
-  const inside = pill !== undefined && total > 0 && filled / total >= FITS;
+  const scale = Math.max(total, filled) || 1;
+  const percent = (filled / scale) * 100;
   return (
-    <div role="img" aria-label={label} className="flex h-7 w-full gap-1">
+    <div role="img" aria-label={label} className={`relative flex w-full overflow-hidden rounded-full ${compact ? "h-2" : "h-7"} ${METER_TRACK}`}>
       {shown.map((p, i) => (
-        // The filled parts carry the badges' soft white edge glow; what's still to go stays flat.
-        <span key={p.label} className={`${BLOCK} edge-glow`} style={{ ...grow(p.value), backgroundColor: p.color }}>
-          {inside && i === shown.length - 1 && <Pill text={pill} className="right-1" />}
-        </span>
+        <span
+          key={p.label}
+          className={`edge-glow shrink-0 motion-safe:transition-[width] motion-safe:duration-500 ${i === shown.length - 1 ? "rounded-r-full" : ""}`}
+          style={{ width: `${(p.value / scale) * 100}%`, backgroundColor: p.color }}
+        />
       ))}
-      {(rest > 0 || filled === 0) && (
-        <span className={`${BLOCK} ${HATCH}`} style={grow(rest || 1)}>
-          {pill !== undefined && !inside && <Pill text={pill} className="left-1" />}
+      {pill !== undefined && (
+        <span
+          className="pointer-events-none absolute inset-y-1 left-0 flex max-w-full justify-end px-1 motion-safe:transition-[width] motion-safe:duration-500"
+          style={{ width: `max(3.5rem, ${percent}%)` }}
+        >
+          <span className="flex items-center rounded-full bg-white px-2 text-[12px] leading-none font-semibold text-ink tabular-nums shadow-[0_1px_2px_rgba(0,0,0,0.18)]">
+            <span className="trim-to-caps">{pill}</span>
+          </span>
         </span>
       )}
     </div>
-  );
-}
-
-/**
- * The number on a bar: a white tab, round like the capsule it sits in, that reads the same on a colour
- * and on the stripes. The number is trimmed to its capitals so flex centring sets the digits level,
- * not the line box with its descender room below.
- */
-function Pill({ text, className }: { text: string; className: string }) {
-  return (
-    <span className={`absolute inset-y-1 flex items-center rounded-full bg-white px-2 text-[12px] leading-none font-semibold text-ink tabular-nums shadow-[0_1px_2px_rgba(0,0,0,0.18)] ${className}`}>
-      <span className="trim-to-caps">{text}</span>
-    </span>
   );
 }
 
@@ -66,12 +48,12 @@ export function MiniBar({ value, total, label, fill = "bg-ok", track = "bg-surfa
   );
 }
 
-/** A bar's key: a part's colour, or — with none — the stripes of what's still to go. */
+/** A bar's key: a part's colour, or the neutral track for what's left. */
 export function Swatch({ color }: { color?: string }) {
   return (
     <span
       aria-hidden
-      className={`size-2.5 shrink-0 rounded-full ${color ? "" : "bg-surface-2 bg-[repeating-linear-gradient(135deg,#c4c4c4_0_1px,transparent_1px_3px)] shadow-[inset_0_0_0_1px_#d6d6d6]"}`}
+      className={`size-2.5 shrink-0 rounded-full ${color ? "" : `${METER_TRACK} ring-1 ring-inset ring-line`}`}
       style={color ? { backgroundColor: color } : undefined}
     />
   );

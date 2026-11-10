@@ -16,7 +16,7 @@ import { useWorkspace, type WorkspaceEnv } from "./context";
 import { GroupLabel } from "./meta";
 import { useTimedMessage } from "./timed-message";
 import { useProgressive } from "./util";
-import { TODAY_BUTTON, VIEW_FRAME } from "./view-frame";
+import { TODAY_BUTTON, VIEW_BODY, VIEW_CONTROLS, VIEW_FRAME, WORK_STATUS_SURFACE } from "./view-frame";
 import { groupColors } from "./labels";
 
 /**
@@ -45,12 +45,6 @@ const PHONE_BAR_H = 32;
 const GROUP_H = 32;
 const HEAD_H = 52;
 
-const BAR_TONE: Record<WorkItem["status"], string> = {
-  todo: "bg-[#d9d9d9] text-ink",
-  doing: "bg-[#8fd3f5] text-[#003049]",
-  review: "bg-[#ffd966] text-[#4d3b05]",
-  done: "bg-[#9ddcb4] text-[#0f4424]",
-};
 
 type Row = { kind: "group"; group: Group } | { kind: "item"; item: WorkItem };
 
@@ -125,10 +119,9 @@ export function TimelineView({ groups, byId, query, setQuery }: { groups: Group[
   return (
     <Chart.Provider value={chart}>
       <div className="flex min-h-0 flex-1 flex-col px-[var(--ws-gutter,1rem)] pt-3 pb-4">
-        <ScaleBar scale={scale} setQuery={setQuery} onToday={scrollToToday} hidden={links.hidden} hint={hint} />
-        {/* Bordered frame, scroller inside: an outline on the scroller sat under its pinned header and item column. */}
         <div className={`${VIEW_FRAME} flex-1`}>
-          <div ref={scroller} className="relative min-h-0 flex-1 overflow-auto" data-testid="timeline">
+          <ScaleBar scale={scale} setQuery={setQuery} onToday={scrollToToday} hidden={links.hidden} hint={hint} />
+          <div ref={scroller} className={`${VIEW_BODY} flex-1`} data-testid="timeline">
             <div className="relative" style={{ width: LEFT + width }}>
               <TimelineHead from={from} to={to} px={px} width={width} scale={scale} today={today} />
               <div className="relative">
@@ -232,8 +225,9 @@ function useTimelineRows(groups: Group[], byId: ReadonlyMap<string, WorkItem>) {
  */
 function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; setQuery: (p: Partial<WorkQuery>) => void; onToday: () => void; hidden: number; hint: ReturnType<typeof dragHint> }) {
   return (
-    <div className="mb-2 flex flex-wrap items-center gap-2">
-      <span role="radiogroup" aria-label="Timeline scale" className="inline-flex rounded-lg bg-surface-2 p-[3px]">
+    <div className={VIEW_CONTROLS}>
+      <h2 className="mr-auto font-display text-[17px] font-semibold text-ink">Timeline</h2>
+      <span role="radiogroup" aria-label="Timeline scale" className="inline-flex rounded-lg bg-white/65 p-[3px]">
         {SCALES.map((s) => (
           <button key={s} type="button" role="radio" aria-checked={scale === s} onClick={() => setQuery({ scale: s })} className={`h-7 rounded-md px-3 text-[13px] font-medium capitalize max-md:h-[34px] ${scale === s ? "bg-white text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}>
             {s}
@@ -245,10 +239,7 @@ function ScaleBar({ scale, setQuery, onToday, hidden, hint }: { scale: Scale; se
       </button>
       {hidden > 0 && <span className="text-[12.5px] text-ink-2">{hidden} {hidden === 1 ? "dependency is" : "dependencies are"} on items hidden by the filters.</span>}
       {hint && (
-        <span className="ml-auto hidden items-center gap-1 text-[12px] text-ink-2 lg:inline-flex">
-          {hint.text}
-          <InfoTip label={hint.keys} about="moving bars with the keyboard" />
-        </span>
+        <InfoTip label={`${hint.text} ${hint.keys}`} about="moving bars with the keyboard" />
       )}
     </div>
   );
@@ -260,9 +251,9 @@ function TimelineHead({ from, to, px, width, scale, today }: { from: Day; to: Da
   const ticks = ticksOf(from, to, scale);
   const months = scale === "month" ? [] : ticksOf(from, to, "month");
   return (
-    <div className="sticky top-0 z-30 flex border-b border-border bg-surface-2" style={{ height: HEAD_H }}>
+    <div className="sticky top-0 z-30 flex border-b border-line bg-white" style={{ height: HEAD_H }}>
       {LEFT > 0 && (
-        <div className="sticky left-0 z-40 flex shrink-0 items-end border-r border-border bg-surface-2 px-4 pb-2 text-[12.5px] font-medium text-ink-2" style={{ width: LEFT }}>
+        <div className="sticky left-0 z-40 flex shrink-0 items-end border-r border-line bg-white px-4 pb-2 text-[12.5px] font-medium text-ink-2" style={{ width: LEFT }}>
           Item
         </div>
       )}
@@ -292,11 +283,11 @@ function DayMarks({ from, to, px, width, scale, today }: { from: Day; to: Day; p
         {scale !== "month" &&
           Array.from({ length: to - from + 1 }, (_, i) => from + i)
             .filter(isWeekend)
-            .map((d) => <span key={d} className="absolute top-0 bottom-0 bg-[#f6f6f6]" style={{ left: (d - from) * px, width: px }} />)}
+            .map((d) => <span key={d} className="absolute top-0 bottom-0 bg-surface-alt" style={{ left: (d - from) * px, width: px }} />)}
         {today >= from && today <= to && <span className="absolute top-0 bottom-0 z-10 w-0.5 bg-primary/70" style={{ left: (today - from) * px + px / 2 }} />}
       </div>
       {today >= from && today <= to && (
-        <span className="pointer-events-none absolute z-20 -translate-x-1/2 rounded bg-primary px-1.5 py-0.5 text-[10.5px] font-semibold text-white" style={{ left: LEFT + (today - from) * px + px / 2, top: 2 }}>
+        <span className="pointer-events-none absolute z-20 -translate-x-1/2 rounded-full bg-primary px-2 py-0.5 text-[10.5px] font-semibold text-white" style={{ left: LEFT + (today - from) * px + px / 2, top: 2 }}>
           Today
         </span>
       )}
@@ -333,8 +324,7 @@ function DependencyLines({ links, byId, rowY, from, px, width }: { links: Depend
 }
 
 /**
- * A group's heading as a band across the whole chart, in the board's column colours (To do grey,
- * In progress blue, In review yellow, Done green) so the groups read apart at a glance. Positioned,
+ * A group's heading as a quiet band across the chart. Its label carries the group color. Positioned
  * so it paints over the weekend stripes; the today line and dependency lines stay on top. On a phone
  * the label is only as wide as its words, pinned at the left edge, so today's tag still shows.
  */
@@ -344,8 +334,8 @@ function GroupBand({ group, width }: { group: Group; width: number }) {
   // The rule is an inset shadow on the band and a border on the pinned label, which covers its own
   // full height — a border on the band alone left a 1px slit the today line showed through.
   return (
-    <div className="relative flex shadow-[inset_0_-1px_0_#e3e3e3]" style={{ height: GROUP_H, width: LEFT + width, background: colors.bg }}>
-      <span className={`sticky left-0 z-[25] flex items-center border-b border-b-[#e3e3e3] ${phone ? "px-3" : "border-r border-r-black/[0.07] px-4"}`} style={{ width: phone ? undefined : LEFT, background: colors.bg }}>
+    <div className="relative flex bg-surface-alt shadow-[inset_0_-1px_0_var(--color-line)]" style={{ height: GROUP_H, width: LEFT + width }}>
+      <span className={`sticky left-0 z-[25] flex items-center border-b border-line bg-surface-alt ${phone ? "px-3" : "border-r px-4"}`} style={{ width: phone ? undefined : LEFT }}>
         <GroupLabel group={group} colors={colors} />
       </span>
     </div>
@@ -488,7 +478,7 @@ function keysHint(can: boolean, canStart: boolean, grabbable: boolean) {
 /** A bar's look: its status's tone (red while a move breaks a rule), and a start-only stub fading out. */
 function barClass(bar: Bar, status: WorkItem["status"], bad: boolean, grabbable: boolean) {
   const grip = grabbable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer";
-  const body = bar.kind === "milestone" ? "" : `h-6 rounded-md ${bad ? "bg-[#fca5a5] text-[#7f1d1d] outline-2 outline-danger" : BAR_TONE[status]}`;
+  const body = bar.kind === "milestone" ? "" : `h-6 rounded-full ${bad ? "bg-[#fca5a5] text-[#7f1d1d] outline-2 outline-danger" : WORK_STATUS_SURFACE[status]}`;
   const fade = bar.kind === "start" ? "[mask-image:linear-gradient(to_right,black_40%,transparent)]" : "";
   return `absolute top-1/2 -translate-y-1/2 touch-none text-left select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${grip} ${body} ${fade}`;
 }

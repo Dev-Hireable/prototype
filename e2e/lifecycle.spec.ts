@@ -24,12 +24,16 @@ test.describe("after the trial's last day", () => {
     await expect(juan.getByText("The trial ended on 24 Sep 2026. Your work is with Alex for the evaluation, due 29 Sep 2026.")).toBeVisible();
   });
 
-  test("the trial's evaluation makes the score final and pays out the escrow", async ({ page }) => {
+  test("the trial's evaluation makes the score final and pays out the escrow", async ({ page, secondPage }) => {
     await page.goto(`${PATH.team}?tab=evaluation`);
+    const quality = page.getByRole("group", { name: "Quality of work" });
+    await expect(page.getByText("Rate each criterion from 1 (Needs improvement) to 5 (Excellent).")).toBeVisible();
+    await expect(quality.getByRole("button", { name: "1", exact: true })).toHaveAccessibleDescription("Needs improvement");
     // Nothing is scored to start with: each of the five is picked, like the recommendation and the comments.
     for (const [criterion, score] of [["Quality of work", "4"], ["Communication", "5"], ["Reliability", "4"], ["Initiative", "3"], ["Collaboration", "4"]]) {
       await page.getByRole("group", { name: criterion }).getByRole("button", { name: score, exact: true }).click();
     }
+    await expect(page.getByText("Excellent", { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Recommendation" }).click();
     await page.getByRole("option", { name: "Hire full-time" }).click();
     await page.getByRole("textbox", { name: "Comments for Juan" }).fill("Clear, careful work — ready for more.");
@@ -39,10 +43,20 @@ test.describe("after the trial's last day", () => {
     const deal = await savedDeal(page);
     expect(deal.contract.trialScore).toMatchObject({ phase: 4 });
     expect((await notes(page, "independent")).map((n) => n.title)).toEqual(expect.arrayContaining(["Your trial evaluation is in", "Payment recorded"]));
+    await expect(page.getByRole("heading", { name: "Your evaluation of Juan Dela Cruz" })).toBeVisible();
+    await expect(page.getByText("Clear, careful work — ready for more.")).toBeVisible();
+    await expect(page.getByRole("group", { name: "Quality of work" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Trial fit score", exact: true })).toHaveCount(0);
     // Now it's decided: hire, or end.
     await page.goto(`${PATH.team}?tab=overview`);
+    await expect(page.getByRole("heading", { name: "Trial fit score", exact: true })).toBeVisible();
     await expect(page.getByText("Evaluation sent", { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/The trial is evaluated\. Hire Juan full-time or part-time to keep working together, or end the contract\./)).toBeVisible();
+
+    const juan = await secondPage();
+    await juan.goto(`${PATH.independent}?tab=evaluation`);
+    await expect(juan.getByText("Clear, careful work — ready for more.")).toBeVisible();
+    await expect(juan.getByRole("heading", { name: "Trial fit score", exact: true })).toHaveCount(0);
   });
 });
 

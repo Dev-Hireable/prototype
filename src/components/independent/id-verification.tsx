@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
-import { Button, Checkbox, Field, Modal, Select, StatusDot } from "@/components/portal/ui";
+import { Button, Card, Checkbox, Field, Modal, Select, StatusDot } from "@/components/portal/ui";
 import { useIdVerification } from "@/lib/independent/kyc";
 import { payoutTitle, useWallet } from "@/lib/independent/wallet";
 import type { SetToast } from "@/lib/portal/toast";
@@ -123,13 +123,13 @@ function PayoutStatus({ onToast }: { onToast: SetToast }) {
  */
 export function ProposalReadiness({ onToast }: { onToast: SetToast }) {
   return (
-    <section aria-label="Payout and ID check" className="flex flex-col gap-4 rounded-2xl border border-border bg-white p-6">
+    <Card label="Payout and ID check" panelClassName="flex flex-col gap-4 p-6">
       <div className="flex flex-col gap-1 leading-[1.4] tracking-[0.2px]">
         <h3 className="text-[16px] font-semibold text-ink">Payout and ID check</h3>
         <p className="text-[13px] text-ink-2">Before your first proposal, set up where you&apos;re paid and verify your ID.</p>
       </div>
       <PayoutStatus onToast={onToast} />
       <IdStatus onToast={onToast} />
-    </section>
+    </Card>
   );
 }

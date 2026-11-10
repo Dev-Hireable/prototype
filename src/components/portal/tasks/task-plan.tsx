@@ -167,11 +167,11 @@ function ShowDetails({ index, onClick }: { index: number; onClick: () => void })
 /** A task's ⋯ menu: show, hide or add its details, and delete it (not the only row while it's still empty). */
 function RowMenu({ index, open, described, deletable, onDetails, onDelete }: { index: number; open: boolean; described: boolean; deletable: boolean; onDetails: () => void; onDelete: () => void }) {
   return (
-    <KebabMenu label={`Options for task ${index + 1}`} icon="horizontal" menuWidth={184} buttonClassName="!size-7">
-      <MenuAction onClick={onDetails} icon={<ICONS.notes size={18} aria-hidden />}>
+    <KebabMenu label={`Options for task ${index + 1}`} menuWidth={184} buttonClassName="!size-7">
+      <MenuAction onClick={onDetails}>
         {open ? "Hide details" : described ? "Show details" : "Add details"}
       </MenuAction>
-      <MenuAction destructive disabled={!deletable} onClick={onDelete} icon={<ICONS.trash size={18} aria-hidden />}>
+      <MenuAction destructive disabled={!deletable} onClick={onDelete}>
         Delete task
       </MenuAction>
     </KebabMenu>

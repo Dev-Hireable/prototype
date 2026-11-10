@@ -16,7 +16,7 @@ import { AssigneeChip, BlockedChip, ChangesChip, DueChip, GroupLabel, LockChip, 
 import { sendForReview } from "./moves";
 import { QuickAdd } from "./quick-add";
 import { ago, useProgressive, useWidth } from "./util";
-import { VIEW_FRAME } from "./view-frame";
+import { VIEW_BODY, VIEW_FRAME } from "./view-frame";
 import { groupColors } from "./labels";
 
 /**
@@ -93,12 +93,8 @@ export function ListView({ groups, byId, query, setQuery, pendingIds }: { groups
 
   return (
     <div className="flex min-h-0 flex-1 flex-col px-[var(--ws-gutter,1rem)] pt-3 pb-4">
-      {/* The border is on this frame and the table scrolls inside it. On the scroller itself it was
-          an outline, which the pinned header and name column paint over — so the edge came and went.
-          The scroller is positioned so it holds the cells' screen-reader text (sr-only is absolute):
-          with nothing positioned above it, a row below the fold stretched the page and it scrolled. */}
       <div className={`${VIEW_FRAME} flex-1`}>
-        <div ref={frameRef} className="relative min-h-0 flex-1 overflow-auto" data-testid="list">
+        <div ref={frameRef} className={`${VIEW_BODY} flex-1`} data-testid="list">
           <table className="w-full table-fixed border-separate border-spacing-0 text-[13px] leading-[1.4]" style={{ minWidth: tableWidth }} aria-label="Work items">
             <colgroup>
               {cols.map((c) => (
@@ -146,13 +142,13 @@ function ListHead({ cols, query, setQuery }: { cols: Col[]; query: WorkQuery; se
               key={c.key}
               scope="col"
               aria-sort={active ? (query.dir === "asc" ? "ascending" : "descending") : undefined}
-              className={`sticky top-0 z-20 h-9 border-b border-border bg-surface-2 px-2 py-2 text-left text-[12.5px] font-medium whitespace-nowrap text-ink-2 ${i === 0 ? "left-0 z-30 pl-4" : ""}`}
+              className={`sticky top-0 z-20 h-9 border-b border-line bg-white px-2 py-2 text-left text-[12.5px] font-medium whitespace-nowrap text-ink-2 ${i === 0 ? "left-0 z-30 pl-4" : ""}`}
             >
               {/* On a touch screen the sort is the header's full height to tap; the margin takes the padding back, so nothing moves. */}
               {c.sort ? (
                 <button type="button" onClick={() => sortBy(c.sort as SortKey)} className="inline-flex items-center gap-1 rounded hover:text-ink focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:-my-2 pointer-coarse:py-2">
                   {c.label}
-                  {active ? <ICONS.chevron size={16} aria-hidden className={query.dir === "asc" ? "rotate-180" : ""} /> : <ICONS.sort size={14} aria-hidden className="opacity-40" />}
+                  {active && <ICONS.chevron size={16} aria-hidden className={query.dir === "asc" ? "rotate-180" : ""} />}
                 </button>
               ) : (
                 c.label
@@ -201,7 +197,7 @@ function GroupHeading({ group: g, span, closed, onToggle }: { group: Group; span
           while its group is in view, and its label stays at the left edge when the
           table scrolls sideways (the cell spans every column, so the label pins
           itself inside it). */}
-      <th colSpan={span} scope="rowgroup" className="sticky top-9 z-[15] border-b border-[#e3e3e3] p-0 text-left" style={{ background: colors.bg }}>
+      <th colSpan={span} scope="rowgroup" className="sticky top-9 z-[15] border-b border-line bg-surface-alt p-0 text-left">
         <button type="button" aria-expanded={!closed} onClick={onToggle} className="flex w-full text-left hover:bg-black/[0.03] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary">
           <span className="sticky left-0 flex items-center gap-2 px-3 py-2.5">
             <ICONS.chevron size={18} aria-hidden className={`transition-transform ${closed ? "-rotate-90" : ""}`} style={{ color: colors.text }} />
@@ -242,7 +238,7 @@ function Rows({ items, kit }: { items: WorkItem[]; kit: RowKit }) {
   );
 }
 
-const CELL = "border-b border-[#eeeeee] px-2 py-1 align-middle";
+const CELL = "border-b border-line px-2 py-2 align-middle";
 
 const Row = memo(function Row({ item: t, blockers, pending, handle, onKeyMove, shown }: { item: WorkItem; blockers: number; pending: boolean; handle: ItemMenuHandle; onKeyMove: (t: WorkItem, e: KeyboardEvent) => void; shown: ReadonlySet<ColKey> }) {
   const { openTask } = useWorkspace();

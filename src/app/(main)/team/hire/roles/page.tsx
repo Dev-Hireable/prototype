@@ -24,29 +24,28 @@ const DECLINED = columnOf({ stage: "applied", dropped: true }) ?? "dropped";
  * stage, so they add up: a hired Independent is in Candidates, Matched and Offers too, and
  * Candidates is everyone in the pipeline. Declined counts the ones turned down, at whatever stage.
  * `key` is the TRACKER_COLUMNS column a cell opens the role's pipeline at, where the board shows
- * who is there now. Pale fill, dark text — each pair clears 4.5:1. Solid fills with white text were
- * tried and read as a strip of traffic lights across the row.
+ * who is there now.
  */
 const STATS = [
-  { key: "candidates", label: "Candidates", tone: "bg-[#eeeeee] text-ink" },
-  { key: "matched", label: "Matched", tone: "bg-[#e6f4ff] text-[#005b99]" },
-  { key: "offer", label: "Offers", tone: "bg-[#f6ecff] text-[#6b21a8]" },
-  { key: "hired", label: "Hired", tone: "bg-[#e7f7ed] text-[#1b6b3a]" },
-  { key: DECLINED, label: "Declined", tone: "bg-[#fdecec] text-[#a62121]" },
+  { key: "candidates", label: "Candidates" },
+  { key: "matched", label: "Matched" },
+  { key: "offer", label: "Offers" },
+  { key: "hired", label: "Hired" },
+  { key: DECLINED, label: "Declined" },
 ];
 
 /* The pipeline columns share the spare width equally (flex-1 over a floor) so they spread across
    the row instead of bunching up against Updated. Role, Type and Status read left-aligned as the
    row's label; the numbers and everything after them are centred, header and cell alike. Each
    floor fits its one-word heading ("Candidates"), so a heading never ends in "…". */
-const STAT = "min-w-[96px] flex-1 text-center whitespace-normal leading-tight max-md:min-w-0";
+const STAT = "min-w-[88px] flex-1 text-center whitespace-normal leading-tight max-md:min-w-0";
 /*
  * A phone's card (RoleRow): the title, its type, status and menu on the first line — the title takes
  * what the other three leave and wraps rather than cutting off — then the counts as a strip of five,
  * and when it was posted under them.
  */
 const COL = {
-  role: "w-[160px] shrink-0 max-md:basis-0! max-md:grow!",
+  role: "w-[216px] shrink-0 max-md:basis-0! max-md:grow!",
   type: "w-[96px] shrink-0",
   status: "w-[88px] shrink-0",
   updated: "w-[88px] shrink-0 text-center max-md:order-3 max-md:basis-full! max-md:text-left max-md:text-[12px]",
@@ -54,14 +53,6 @@ const COL = {
 };
 const COLS = [COL.role, COL.type, COL.status, ...STATS.map(() => STAT), COL.updated, COL.actions];
 const HEAD = ["Role", "Type", "Status", ...STATS.map((s) => s.label), "Updated", "Actions"];
-const Edit = ICONS.edit;
-const Copy = ICONS.copy;
-const Trash = ICONS.trash;
-const Check = ICONS.check;
-const People = ICONS.people;
-const Lock = ICONS.lock;
-const Reopen = ICONS.retry;
-const Archive = ICONS.archive;
 
 type Confirm = { role: Role; action: "close" | "reopen" | "archive" | "delete" };
 
@@ -114,12 +105,11 @@ function reached(rows: Candidate[] | null, key: string) {
 const PHONE_TILE = "max-md:min-h-11 max-md:flex-col max-md:gap-0.5 max-md:px-0.5 max-md:py-1.5";
 
 /**
- * A filled cell rather than a pill: the tone covers the whole column cell, top to bottom, so a
- * row reads as a band of pipeline colour. The cell links to the role's tracker with that column
+ * The count links to the role's tracker with that column
  * in focus. A draft has no pipeline, so it gets a plain dash and no link. A phone has no heading
  * row, so each tile names its count under the number.
  */
-function Stat({ value, tone, href, label }: { value: number | null; tone: string; href: string; label: string }) {
+function Stat({ value, href, label }: { value: number | null; href: string; label: string }) {
   const name = <span className="text-[11px] leading-[1.2] font-normal md:hidden">{label}</span>;
   if (value === null)
     return (
@@ -131,7 +121,7 @@ function Stat({ value, tone, href, label }: { value: number | null; tone: string
     <Link
       href={href}
       aria-label={`${value} ${label}, open in the pipeline`}
-      className={`flex w-full items-center justify-center text-[13px] leading-[1.2] font-medium hover:brightness-95 hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${PHONE_TILE} ${tone}`}
+      className={`flex w-full items-center justify-center rounded-md text-[13px] leading-[1.2] font-medium tabular-nums hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${PHONE_TILE} ${value === 0 ? "text-ink-2" : "text-ink"}`}
     >
       {value}
       {name}
@@ -160,7 +150,7 @@ function RoleTitle({ role }: { role: Role }) {
   // text would clip a hit-area too.
   return (
     <Tip label={role.title} off={!clipped}>
-      <Link ref={ref} href={`/team/hire/roles/${role.slug}`} className="min-w-0 truncate text-[14px] font-medium text-primary hover:underline max-md:line-clamp-2 max-md:font-semibold max-md:whitespace-normal pointer-coarse:-my-3 pointer-coarse:py-3">
+      <Link ref={ref} href={`/team/hire/roles/${role.slug}`} className="min-w-0 truncate text-[14px] font-semibold text-ink hover:underline max-md:line-clamp-2 max-md:whitespace-normal pointer-coarse:-my-3 pointer-coarse:py-3">
         {role.title}
       </Link>
     </Tip>
@@ -178,10 +168,6 @@ export default function AllRoles() {
   return (
     <Page title="All roles">
       <div className="flex min-h-full w-full flex-col gap-6">
-        {/* The counts, search and filters wait for a first role: with none, the empty card says so
-            and holds the one Create role. */}
-        {roles.length > 0 && <RolesToolbar roles={roles} filters={filters} />}
-
         {/* TB-026: nothing posted yet is a different situation from a filter that matched nothing. */}
         {roles.length === 0 ? (
           <EmptyState
@@ -194,12 +180,12 @@ export default function AllRoles() {
             }
           />
         ) : (
-        <Table cols={COLS} head={HEAD}>
-          {list.map((r) => (
-            <RoleRow key={r.slug} r={r} candidates={candidates} actions={actions} />
-          ))}
-          {list.length === 0 && <p className="border-t border-border px-4 py-8 text-center text-[13px] text-ink-2">No roles match these filters.</p>}
-        </Table>
+          <Table cols={COLS} head={HEAD} toolbar={<RolesToolbar roles={roles} filters={filters} />}>
+            {list.map((r) => (
+              <RoleRow key={r.slug} r={r} candidates={candidates} actions={actions} />
+            ))}
+            {list.length === 0 && <p className="border-t border-line px-4 py-8 text-center text-[13px] text-ink-2">No roles match these filters.</p>}
+          </Table>
         )}
       </div>
 
@@ -295,20 +281,20 @@ function RolesToolbar({ roles, filters }: { roles: Role[]; filters: RoleFilters 
     <Toolbar
       right={
         <>
-          <span className="text-[14px] leading-[1.4] text-ink-2">
+          <span className="text-[13px] leading-[1.4] text-ink-2 tabular-nums">
             {count("Active")} active · {count("Draft")} draft · {count("Closed")} closed
           </span>
           {/* On a phone it floats in the thumb's corner, like Add task, and the counts keep the row. */}
-          <LinkButton size="lg" variant="primary" href="/team/hire" className={`max-md:flex-none ${PHONE_FAB}`}>
+          <LinkButton size="md" variant="primary" href="/team/hire" className={`max-md:flex-none ${PHONE_FAB}`}>
             <ICONS.add size={20} aria-hidden className="md:hidden" />
             Create role
           </LinkButton>
         </>
       }
     >
-      <SearchBox value={q} onChange={setQ} placeholder="Search roles" className="w-[320px]" />
-      <Select options={["All statuses", "Active", "Draft", "Closed", "Archived"]} value={status} onChange={(e) => setStatus(e.target.value)} className="!w-[160px]" />
-      <Select options={["All types", "Trial", "Full-time", "Part-time"]} value={type} onChange={(e) => setType(e.target.value)} className="!w-[190px]" />
+      <SearchBox value={q} onChange={setQ} placeholder="Search roles" className="h-10! w-[260px] focus-within:border-primary" />
+      <Select options={["All statuses", "Active", "Draft", "Closed", "Archived"]} value={status} onChange={(e) => setStatus(e.target.value)} className="h-10! w-[144px]!" />
+      <Select options={["All types", "Trial", "Full-time", "Part-time"]} value={type} onChange={(e) => setType(e.target.value)} className="h-10! w-[144px]!" />
     </Toolbar>
   );
 }
@@ -327,18 +313,11 @@ function RoleRow({ r, candidates, actions }: { r: Role; candidates: Candidate[];
       <span className={COL.status}>
         <StatusDot tone={ROLE_STATUS[r.status]}>{r.status}</StatusDot>
       </span>
-      {/* TB-026: stats read as coloured cells while the role is live and grey once it
-          isn't, so a closed role doesn't look like it's still collecting people. No box of its
-          own on a wider screen (`contents`), so each count is a cell of the row; a phone sets
-          the five as a strip of tiles across the card. */}
-      <div className="contents max-md:order-2 max-md:grid max-md:basis-full! max-md:grid-cols-5 max-md:overflow-hidden max-md:rounded-lg">
+      <div className="contents max-md:order-2 max-md:grid max-md:basis-full! max-md:grid-cols-5">
         {STATS.map((s) => (
-          /* !p-0 + items-stretch: the fill covers the grid cell edge to edge. */
-          // A white hairline between the fills keeps the band reading column by column.
-          <span key={s.key} className={`${STAT} flex !items-stretch border-l border-white !p-0`}>
+          <span key={s.key} className={`${STAT} flex !items-stretch !p-0`}>
             <Stat
               value={reached(rows, s.key)}
-              tone={r.status === "Active" ? s.tone : "bg-[#eeeeee] text-ink-2"}
               href={`/team/hire/roles/${r.slug}?stage=${s.key}`}
               label={s.label}
             />
@@ -355,7 +334,6 @@ function RoleRow({ r, candidates, actions }: { r: Role; candidates: Candidate[];
           label="Role actions"
           open={actions.menu === r.slug}
           onOpenChange={(open) => actions.setMenu(open ? r.slug : null)}
-          iconSize={20}
           menuWidth={220}
           buttonClassName="!size-7 max-md:size-8!"
         >
@@ -370,17 +348,17 @@ function RoleRow({ r, candidates, actions }: { r: Role; candidates: Candidate[];
 function DraftItems({ r, actions }: { r: Role; actions: RoleActions }) {
   return (
     <>
-      <MenuLink href={`/team/hire/new?type=${r.type}&edit=${r.slug}`} icon={<Edit size={18} aria-hidden />}>
+      <MenuLink href={`/team/hire/new?type=${r.type}&edit=${r.slug}`}>
         Continue editing
       </MenuLink>
-      <MenuAction onClick={() => actions.duplicate(r)} icon={<Copy size={18} aria-hidden />}>
+      <MenuAction onClick={() => actions.duplicate(r)}>
         Duplicate
       </MenuAction>
       {/* TB-035: publish straight from the list, but only once the draft is complete. */}
-      <MenuAction onClick={() => actions.publishDraft(r)} icon={<Check size={18} aria-hidden />}>
+      <MenuAction onClick={() => actions.publishDraft(r)}>
         Publish
       </MenuAction>
-      <MenuAction destructive onClick={() => actions.ask(r, "delete")} icon={<Trash size={18} aria-hidden />}>
+      <MenuAction destructive onClick={() => actions.ask(r, "delete")}>
         Delete draft
       </MenuAction>
     </>
@@ -391,24 +369,24 @@ function DraftItems({ r, actions }: { r: Role; actions: RoleActions }) {
 function PostedItems({ r, actions }: { r: Role; actions: RoleActions }) {
   return (
     <>
-      <MenuLink href={`/team/hire/roles/${r.slug}`} icon={<People size={18} aria-hidden />}>
+      <MenuLink href={`/team/hire/roles/${r.slug}`}>
         View candidates
       </MenuLink>
       {/* TB-032: duplicating is offered on any post, not just drafts. */}
-      <MenuAction onClick={() => actions.duplicate(r)} icon={<Copy size={18} aria-hidden />}>
+      <MenuAction onClick={() => actions.duplicate(r)}>
         Duplicate
       </MenuAction>
       {r.status === "Active" ? (
-        <MenuAction onClick={() => actions.ask(r, "close")} icon={<Lock size={18} aria-hidden />}>
+        <MenuAction onClick={() => actions.ask(r, "close")}>
           Close role
         </MenuAction>
       ) : (
-        <MenuAction onClick={() => actions.ask(r, "reopen")} icon={<Reopen size={18} aria-hidden />}>
+        <MenuAction onClick={() => actions.ask(r, "reopen")}>
           Reopen role
         </MenuAction>
       )}
       {r.status !== "Archived" && (
-        <MenuAction onClick={() => actions.ask(r, "archive")} icon={<Archive size={18} aria-hidden />}>
+        <MenuAction onClick={() => actions.ask(r, "archive")}>
           Archive role
         </MenuAction>
       )}

@@ -67,7 +67,7 @@ function EmployerTracker({ params }: { params: Promise<{ slug: string }> }) {
       tabs={<ContractTabs value={tab} onChange={setTab} />}
       nav={<ReturnNav fallback={<Crumbs name={name} />} />}
       /* TB-058: Message stays in the header at every tab and stage; File a Dispute is on the dispute card. */
-      navActions={<HeaderActions t={t} />}
+      headerActions={<HeaderActions t={t} />}
     >
       <TabContent tab={tab} t={t} draft={draft} on={on} onTab={setTab} />
       <TrackerDialogs t={t} on={on} onToast={setToast} />
@@ -87,8 +87,8 @@ function HeaderActions({ t }: { t: Tracker }) {
   // The live pair's thread opens on the spot, in the quick chat; nobody else has one in the demo.
   const quick = pair ? () => chat.open({ name: person.name, sub: t.contract.role, avatar: person.avatar, href: thread }) : undefined;
   return (
-    <MessageButton size="md" href={thread} onClick={quick}>
-      Message {t.first}
+    <MessageButton size="sm" variant="ghost" className="max-md:size-10 max-md:px-0" href={thread} onClick={quick}>
+      <span className="max-md:sr-only">Message {t.first}</span>
     </MessageButton>
   );
 }

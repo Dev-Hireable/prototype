@@ -43,34 +43,37 @@ export default function Contracts() {
 
   return (
     <Page title="All contracts">
-      <ContractListToolbar
-        q={q}
-        onQ={setQ}
-        placeholder="Search by role or company"
-        type={type}
-        onType={setType}
-        showInactive={showInactive}
-        onShowInactive={setShowInactive}
-        count={list.length === 1 ? "1 contract" : `${list.length} contracts`}
+      <ContractList
         layout={layout}
-        onLayout={setLayout}
+        items={list.map((c) => ({ id: c.slug, ...summaryOf(c, withReturn) }))}
+        toolbar={
+          <ContractListToolbar
+            q={q}
+            onQ={setQ}
+            placeholder="Search by role or company"
+            type={type}
+            onType={setType}
+            showInactive={showInactive}
+            onShowInactive={setShowInactive}
+            count={list.length === 1 ? "1 contract" : `${list.length} contracts`}
+            layout={layout}
+            onLayout={setLayout}
+          />
+        }
+        empty={contracts.length === 0 ? (
+            <EmptyState
+              title="No contracts yet"
+              body="When you accept an offer, the contract and its task list appear here."
+              action={
+                <LinkButton href="/independent/jobs" variant="primary" size="lg">
+                  Discover roles
+                </LinkButton>
+              }
+            />
+        ) : (
+            <NoMatch filtering={filtering} showInactive={showInactive} onClear={clearAll} onShowInactive={() => setShowInactive(true)} />
+        )}
       />
-
-      {contracts.length === 0 ? (
-        <EmptyState
-          title="No contracts yet"
-          body="When you accept an offer, the contract and its task list appear here."
-          action={
-            <LinkButton href="/independent/jobs" variant="primary" size="lg">
-              Discover roles
-            </LinkButton>
-          }
-        />
-      ) : list.length === 0 ? (
-        <NoMatch filtering={filtering} showInactive={showInactive} onClear={clearAll} onShowInactive={() => setShowInactive(true)} />
-      ) : (
-        <ContractList layout={layout} items={list.map((c) => ({ id: c.slug, ...summaryOf(c, withReturn) }))} />
-      )}
     </Page>
   );
 }

@@ -47,7 +47,7 @@ type Props = {
 export function Toolbar(props: Props) {
   const { query, setQuery } = props;
   return (
-    <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Search, filter, sort and group">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-alt p-1.5" role="toolbar" aria-label="Search, filter, sort and group">
       <Search value={query.q} onChange={(q) => setQuery({ q })} />
       <ToolbarMenus {...props} />
     </div>
@@ -65,7 +65,7 @@ export function ToolbarMenus({ query, setQuery, assigneeLabel, tags, shown, tota
       <FilterMenu query={query} setQuery={setQuery} assigneeLabel={assigneeLabel} tags={tags} />
       {sortable && <SortMenu query={query} setQuery={setQuery} />}
       {groupable && <GroupMenu query={query} setQuery={setQuery} projects={projects} />}
-      <span className="ml-auto text-[13px] leading-[1.4] whitespace-nowrap text-ink-2 tabular-nums max-sm:sr-only" aria-live="polite">
+      <span className="ml-auto pr-1 text-xs leading-[1.4] whitespace-nowrap text-ink-2 tabular-nums max-sm:sr-only" aria-live="polite">
         {shown === total ? `${total} ${total === 1 ? "item" : "items"}` : `${shown} of ${total} items`}
         {query.archived && " · deleted"}
       </span>

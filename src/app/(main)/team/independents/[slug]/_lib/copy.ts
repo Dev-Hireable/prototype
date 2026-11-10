@@ -104,7 +104,7 @@ export function evaluationIntro({ view, first, isTrial, ended }: Tracker) {
     if (phase === "starts" && life) return `Reviews open on ${dayLabel(life.since)}, ${first}'s first day.`;
     return ended ? "The contract has ended; its evaluations stay on file." : `Send feedback any time. ${first} is notified and each evaluation is saved.`;
   }
-  return `Scores are final once sent and count toward ${first}'s Trial fit score.`;
+  return "Your evaluation is final once sent.";
 }
 
 /** The Hire button once the trial's evaluation is in: hire them, the offer that's out, or a new one after the last. */

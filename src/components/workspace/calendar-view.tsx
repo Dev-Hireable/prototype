@@ -15,7 +15,7 @@ import { checkDates } from "@/lib/work/validate";
 import { useWorkspace, type WorkspaceEnv } from "./context";
 import { Ref } from "./meta";
 import { QuickAdd } from "./quick-add";
-import { STEP_BUTTON, TODAY_BUTTON, VIEW_FRAME } from "./view-frame";
+import { STEP_BUTTON, TODAY_BUTTON, VIEW_BODY, VIEW_FRAME, WORK_STATUS_SURFACE } from "./view-frame";
 
 /**
  * The Calendar: a month, Sunday first. An item with a start and a due spans those days (split at
@@ -32,12 +32,6 @@ const countLabel = (n: number) => (n ? `, ${n} ${n === 1 ? "item" : "items"}` : 
 const LANE_H = 24;
 const HEAD_H = 28;
 
-const BAR_TONE: Record<WorkItem["status"], string> = {
-  todo: "bg-[#eeeeee] text-ink",
-  doing: "bg-[#dff3fd] text-[#004675]",
-  review: "bg-[#fff3cc] text-[#6b5208]",
-  done: "bg-[#e3f6ea] text-[#1b6b3a]",
-};
 
 function monthOf(query: WorkQuery, today: Day) {
   return parseMonth(query.month) ?? (({ y, m }) => ({ y, m }))(partsOf(today));
@@ -57,7 +51,7 @@ function CalendarHeader({ query, setQuery, today, className = "" }: { query: Wor
   const isThis = y === here.y && m === here.m;
   return (
     <div role="group" aria-label="Month" className={`flex shrink-0 items-center gap-1 ${className}`}>
-      <h2 className="mr-auto text-[15px] leading-[1.3] font-semibold text-ink" aria-live="polite">
+      <h2 className="mr-auto font-display text-[17px] leading-[1.3] font-semibold text-ink" aria-live="polite">
         {MONTH_LONG[m - 1]} {y}
       </h2>
       <button type="button" disabled={isThis} onClick={() => setQuery({ month: null })} className={`${TODAY_BUTTON} mr-1`}>
@@ -91,10 +85,9 @@ export function CalendarView({ items, query, setQuery, narrow }: { items: readon
   return (
     // Below a laptop Unscheduled goes under the month, so the month keeps the full width.
     <div className="flex min-h-0 flex-1 gap-3 px-[var(--ws-gutter,1rem)] pt-3 pb-4 max-lg:flex-col">
-      {/* Bordered frame, scroller inside: the day cells are positioned, so they painted over an outline on the scroller. */}
       <div className={`${VIEW_FRAME} min-w-0 flex-1`}>
-        {header("border-b border-border px-3 py-2")}
-        <div ref={grid} className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-auto" data-testid="calendar">
+        {header("px-3 py-2")}
+        <div ref={grid} className={`${VIEW_BODY} flex flex-1 flex-col`} data-testid="calendar">
           {scheduled === 0 && items.length > 0 && (
             <p className="border-b border-border bg-[#fafafa] px-4 py-2.5 text-[13px] leading-[1.4] text-ink-2">Nothing here has dates yet. Set a start or due date and it shows on the calendar. Everything else is under Unscheduled.</p>
           )}
@@ -123,7 +116,7 @@ function useTodayInView(today: Day, shownMonth: string) {
     scrolledFor.current = shownMonth;
     const row = grid.current?.querySelector<HTMLElement>(`[data-day="${isoOf(today)}"]`)?.parentElement;
     const box = grid.current;
-    if (row && box) box.scrollTop = Math.max(0, row.offsetTop - 36);
+    if (row && box) box.scrollTop = Math.max(0, row.offsetTop + row.offsetHeight - box.clientHeight);
   });
   return grid;
 }
@@ -186,9 +179,9 @@ const movable = (t: WorkItem, { actor, access, names }: Pick<WorkspaceEnv, "acto
 function MonthGrid({ layouts, y, month }: { layouts: WeekLayout[]; y: number; month: MonthState }) {
   return (
     <div role="grid" aria-label={`${MONTH_LONG[month.m - 1]} ${y}`} className="flex min-w-[720px] flex-1 flex-col max-lg:min-w-0">
-      <div role="row" className="sticky top-0 z-20 grid grid-cols-7 border-b border-border bg-surface-2">
+      <div role="row" className="sticky top-0 z-20 grid grid-cols-7 border-b border-line bg-white">
         {WEEKDAY_SHORT.map((d) => (
-          <span key={d} role="columnheader" className="px-2 py-1.5 text-[12px] font-medium text-ink-2">
+          <span key={d} role="columnheader" className="px-3 py-2 text-xs font-medium text-ink-2">
             {d}
           </span>
         ))}
@@ -239,7 +232,7 @@ function DayCell({ day, col, layout, month }: { day: Day; col: number; layout: W
         e.preventDefault();
         dnd.drop(day);
       }}
-      className={dayClass(day, target, !!l?.bad)}
+      className={dayClass(day, isToday, target, !!l?.bad)}
       style={{ gridColumn: col + 1, gridRow: 1 }}
     >
       <DayHead day={day} isToday={isToday} month={month} />
@@ -251,8 +244,9 @@ function DayCell({ day, col, layout, month }: { day: Day; col: number; layout: W
 }
 
 /** A day cell's look: weekends shaded, and — while an item is dragged over it — blue where it can land, red where it can't. */
-function dayClass(day: Day, target: boolean, bad: boolean) {
-  return `group/day relative flex flex-col border-r border-[#eeeeee] last:border-r-0 ${isWeekend(day) ? "bg-[#fafafa]" : "bg-white"} ${target ? (bad ? "bg-[#fcf2f2]" : "bg-accent-bg") : ""}`;
+function dayClass(day: Day, today: boolean, target: boolean, bad: boolean) {
+  const surface = target ? (bad ? "bg-danger/10" : "bg-accent-bg") : today ? "bg-accent-bg/40" : isWeekend(day) ? "bg-surface-alt" : "bg-white";
+  return `group/day relative flex flex-col border-r border-line/65 last:border-r-0 ${surface}`;
 }
 
 /** "+k more" under a day's lanes when more is on it than they hold; it opens everything on the day. */
@@ -332,7 +326,7 @@ function SegmentBar({ segment: s, days, dnd }: { segment: Segment; days: Day[]; 
       onDragEnd={dnd.end}
       onClick={() => env.openTask(t.id)}
       aria-label={segmentLabel(s)}
-      className={`absolute z-10 flex items-center gap-1 overflow-hidden px-1.5 text-left text-[12px] leading-none font-medium whitespace-nowrap ${BAR_TONE[t.status]} ${s.before ? "rounded-l-none" : "rounded-l"} ${s.after ? "rounded-r-none" : "rounded-r"} hover:brightness-95 focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-primary ${dnd.drag?.id === t.id ? "opacity-40" : ""} ${can ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`absolute z-10 flex items-center gap-1.5 overflow-hidden px-2 text-left text-[12px] leading-none font-medium whitespace-nowrap ${WORK_STATUS_SURFACE[t.status]} ${s.before ? "rounded-l-none" : "rounded-l-full"} ${s.after ? "rounded-r-none" : "rounded-r-full"} hover:brightness-95 focus-visible:z-20 focus-visible:outline-2 focus-visible:outline-primary ${dnd.drag?.id === t.id ? "opacity-40" : ""} ${can ? "cursor-grab active:cursor-grabbing" : ""}`}
       style={{ left: `calc(${(s.col / 7) * 100}% + 2px)`, width: `calc(${(s.cols / 7) * 100}% - 4px)`, top: HEAD_H + s.lane * LANE_H, height: LANE_H - 3 }}
     >
       {s.kind === "milestone" ? <ICONS.typeMilestone size={13} aria-hidden className="shrink-0" /> : <StatusCircle status={t.status} size={12} />}
@@ -347,34 +341,36 @@ function SegmentBar({ segment: s, days, dnd }: { segment: Segment; days: Day[]; 
 function UnscheduledList({ loose, dnd }: { loose: WorkItem[]; dnd: DayDrag }) {
   const env = useWorkspace();
   return (
-    <aside className="flex w-64 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-[#fafafa] max-lg:max-h-44 max-lg:w-full" aria-label="Unscheduled">
-      <h3 className="flex items-center justify-between border-b border-border px-3 py-2.5 text-[13.5px] font-semibold text-ink">
+    <aside className={`${VIEW_FRAME} w-64 shrink-0 max-lg:max-h-44 max-lg:w-full`} aria-label="Unscheduled">
+      <h3 className="flex items-center justify-between px-3 py-2.5 text-[13.5px] font-semibold text-ink">
         Unscheduled
-        <CountPill className="bg-surface-2 text-ink-2">{loose.length}</CountPill>
+        <CountPill className="bg-white text-ink-2">{loose.length}</CountPill>
       </h3>
-      <p className="px-3 pt-2 text-[12px] leading-[1.4] text-ink-2">{loose.length ? "No start or due date yet. Drag one onto a day to set its due date." : "Everything here has a date."}</p>
-      <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto p-2">
-        {loose.map((t) => {
-          const can = movable(t, env);
-          return (
-            <li key={t.id}>
-              <button
-                type="button"
-                data-item-id={t.id}
-                draggable={can}
-                onDragStart={(e) => dnd.start(t, e, 0)}
-                onDragEnd={dnd.end}
-                onClick={() => env.openTask(t.id, "dates")}
-                className={`flex w-full items-center gap-2 rounded-md bg-white px-2 py-1.5 text-left text-[13px] outline -outline-offset-1 outline-border hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:outline-primary ${can ? "cursor-grab" : ""}`}
-              >
-                <StatusCircle status={t.status} size={14} />
-                <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
-                <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <div className={`${VIEW_BODY} flex-1 p-2`}>
+        <p className="px-2 pt-1 pb-2 text-xs leading-[1.4] text-ink-2">{loose.length ? "Drag a task onto a day to set its due date." : "Everything here has a date."}</p>
+        <ul className="divide-y divide-line">
+          {loose.map((t) => {
+            const can = movable(t, env);
+            return (
+              <li key={t.id}>
+                <button
+                  type="button"
+                  data-item-id={t.id}
+                  draggable={can}
+                  onDragStart={(e) => dnd.start(t, e, 0)}
+                  onDragEnd={dnd.end}
+                  onClick={() => env.openTask(t.id, "dates")}
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary ${can ? "cursor-grab" : ""}`}
+                >
+                  <StatusCircle status={t.status} size={14} />
+                  <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+                  <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </aside>
   );
 }

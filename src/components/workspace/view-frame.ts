@@ -1,19 +1,21 @@
-import { TOOLBAR_BUTTON } from "@/components/portal/toolbar";
+import { TRAY, TRAY_PANEL } from "@/components/portal/styles";
+import type { WorkItem } from "@/lib/work/model";
 
 /**
- * The bordered frame round a view's grid — the List's table, the Calendar's month, the Timeline's
- * chart, the Workload's grid — with the scroller inside it. The border is on the frame because an
- * outline on the scroller sat under its pinned header and columns, so the edge came and went. Each
- * view adds how it fills the pane (`flex-1`), or not (the Workload is as tall as its rows).
+ * The shared card tray holds the view controls. Its inset panel scrolls independently so sticky
+ * headings and columns stay inside the rounded corners.
  */
-export const VIEW_FRAME = "flex min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-white";
+export const VIEW_FRAME = `flex min-h-0 flex-col ${TRAY}`;
+export const VIEW_BODY = `relative min-h-0 min-w-0 overflow-auto ${TRAY_PANEL}`;
+export const VIEW_CONTROLS = "flex shrink-0 flex-wrap items-center gap-2 px-3 py-2";
 
-/**
- * "Today" / "This week" over a view: the toolbar's button, greyed while the view already shows it,
- * and 40px on a phone like the view tabs, for a thumb.
- */
-export const TODAY_BUTTON = `${TOOLBAR_BUTTON} whitespace-nowrap max-md:h-10 disabled:text-ink-2 disabled:hover:bg-white`;
+export const WORK_STATUS_SURFACE: Record<WorkItem["status"], string> = {
+  todo: "bg-surface-2 text-ink",
+  doing: "bg-accent-bg text-accent-ink",
+  review: "bg-[#fff3cc] text-[#6b5208]",
+  done: "bg-[#e3f6ea] text-[#1b6b3a]",
+};
 
-/** The arrows either side of a view's window (a month, a few weeks): square, the Today button's height and border. */
-export const STEP_BUTTON =
-  "flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-primary max-md:size-10";
+const DATE_CONTROL = "inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-ink-2 enabled:hover:bg-white enabled:hover:text-ink focus-visible:outline-2 focus-visible:outline-primary max-md:h-10";
+export const TODAY_BUTTON = `${DATE_CONTROL} px-3 text-[13px] font-medium whitespace-nowrap disabled:opacity-60`;
+export const STEP_BUTTON = `${DATE_CONTROL} w-9 max-md:w-10`;

@@ -13,8 +13,6 @@ type CommentBoxProps = {
   maxLength?: number;
   /** A reason the text can't be sent yet, shown under it; null when it can. */
   validate?: (text: string) => string | null;
-  /** The id of what's said about the box beside it (who a comment notifies), read with it. */
-  describedBy?: string;
   /** Files can go with what's written: the paperclip, drop and paste. */
   attach?: boolean;
 };
@@ -25,7 +23,7 @@ type CommentBoxProps = {
  * Files waiting to go sit above the text. Enter sends and Shift+Enter breaks the line; files can be
  * dropped on the box or pasted into it too. A work item's sheet writes its comments with it.
  */
-export function CommentBox({ onSend, placeholder = "Add a comment...", label = "Add a comment", sendLabel = "Send", maxLength, validate, describedBy, attach = false }: CommentBoxProps) {
+export function CommentBox({ onSend, placeholder = "Add a comment...", label = "Add a comment", sendLabel = "Send", maxLength, validate, attach = false }: CommentBoxProps) {
   const draft = useCommentDraft(onSend, validate);
   const { files } = draft;
   const pending = files.files.length > 0;
@@ -42,7 +40,7 @@ export function CommentBox({ onSend, placeholder = "Add a comment...", label = "
         )}
         <div className="flex items-end gap-0.5 pr-1.5">
           <div className="flex min-w-0 flex-1">
-            <CommentField text={draft.text} onText={draft.setText} onSend={draft.send} label={label} invalid={!!draft.problem} placeholder={placeholder} maxLength={maxLength} describedBy={describedBy} underFiles={pending} />
+            <CommentField text={draft.text} onText={draft.setText} onSend={draft.send} label={label} invalid={!!draft.problem} placeholder={placeholder} maxLength={maxLength} underFiles={pending} />
           </div>
           <span className="flex items-end gap-0.5 pb-1.5">
             {attach && <AttachButton onPick={files.add} />}
@@ -90,7 +88,7 @@ function useCommentDraft(onSend: CommentBoxProps["onSend"], validate: CommentBox
  * the box's padding as its own — less above it under files waiting to go (`underFiles`), which have
  * the box's top edge — so the whole pill is the field to tap.
  */
-function CommentField({ text, onText, onSend, label, invalid, placeholder, maxLength, describedBy, underFiles }: { text: string; onText: (text: string) => void; onSend: () => void; label: string; invalid: boolean; placeholder: string; maxLength?: number; describedBy?: string; underFiles: boolean }) {
+function CommentField({ text, onText, onSend, label, invalid, placeholder, maxLength, underFiles }: { text: string; onText: (text: string) => void; onSend: () => void; label: string; invalid: boolean; placeholder: string; maxLength?: number; underFiles: boolean }) {
   return (
     <textarea
       rows={1}
@@ -105,7 +103,6 @@ function CommentField({ text, onText, onSend, label, invalid, placeholder, maxLe
       }}
       aria-label={label}
       aria-invalid={invalid}
-      aria-describedby={describedBy}
       placeholder={placeholder}
       // 160px of text at most, as before the padding moved in: 13.5px is the box's 6 and the line's 7.5.
       className={`field-sizing-content max-h-[187px] w-full resize-none bg-transparent pb-[13.5px] pl-3.5 text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2 ${underFiles ? "min-h-[38px] pt-[7.5px]" : "min-h-11 pt-[13.5px]"}`}

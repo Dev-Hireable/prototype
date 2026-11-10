@@ -23,7 +23,7 @@ export function ChatBubble({ mine, time, receipt, header, className = "w-[420px]
   return (
     <div
       className={`flex min-w-0 flex-col gap-1 px-3.5 py-2.5 text-[13px] leading-[1.45] whitespace-pre-wrap [overflow-wrap:anywhere] ${
-        mine ? "rounded-tl-xl rounded-tr-xl rounded-br rounded-bl-xl bg-primary text-white" : "rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white text-ink-deep outline -outline-offset-1 outline-line"
+        mine ? "rounded-2xl rounded-br-md bg-primary text-white" : "rounded-2xl rounded-bl-md bg-surface-2 text-ink-deep"
       } ${className}`}
     >
       {header}

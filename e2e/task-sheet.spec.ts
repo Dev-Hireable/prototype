@@ -63,8 +63,8 @@ test.describe("task sheet · the next step", () => {
     await open(page, "independent", "?task=t-type");
     const p = panel(page);
     const comment = p.getByRole("textbox", { name: "Add a comment" });
-    // Who a comment reaches is said under the box, not in it.
-    await expect(p.getByText("Alex will be notified")).toBeVisible();
+    await expect(comment).toBeVisible();
+    await expect(p.getByText("Alex will be notified")).toHaveCount(0);
     await p.getByRole("button", { name: "Send for review" }).click();
     const note = p.getByRole("textbox", { name: "Note for Alex (optional)" });
     await expect(note).toBeFocused();

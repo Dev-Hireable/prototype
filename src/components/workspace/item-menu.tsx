@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu } from "@base-ui/react/menu";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { ICONS } from "@/components/icons";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -10,12 +10,12 @@ import { capsFor, transitionFor } from "@/lib/work/permissions";
 import { useWorkspace } from "./context";
 
 /**
- * One "⋯" menu per view, shared by every card and row through Base UI's detached triggers — so a
+ * One "⋮" menu per view, shared by every card and row through Base UI's detached triggers — so a
  * board of 600 cards has one menu, not 600. It is also the keyboard's way to do what dragging
  * does: Move to another column, move up or down, to the top or the bottom.
  */
 
-export type MenuMove = { key: string; label: string; icon?: ReactNode; run: () => void };
+export type MenuMove = { key: string; label: string; run: () => void };
 export type MenuModel = {
   item: WorkItem;
   /** Other columns or groups it can go to. */
@@ -41,7 +41,7 @@ export function ItemMenuTrigger({ handle, item, className = "" }: { handle: Item
       onKeyDown={(e) => e.stopPropagation()}
       className={`${ICON_BUTTON} size-7 data-popup-open:opacity-100 ${className}`}
     >
-      <ICONS.moreH size={18} aria-hidden />
+      <ICONS.moreV size={18} aria-hidden />
     </DropdownMenuTrigger>
   );
 }
@@ -66,11 +66,11 @@ function ItemMenuContent({ model: m }: { model: MenuModel }) {
   return (
     <DropdownMenuContent align="end" className="w-60" onClick={(e) => e.stopPropagation()}>
       <DropdownMenuItem onClick={() => openTask(t.id)}>
-        <ICONS.northEast size={16} aria-hidden /> Open {refOf(t)}
+        Open {refOf(t)}
       </DropdownMenuItem>
       {changes.ok && changes.kind === "requestChanges" && (
         <DropdownMenuItem onClick={() => openTask(t.id, "changes")}>
-          <ICONS.undo size={16} aria-hidden /> Request changes…
+          Request changes…
         </DropdownMenuItem>
       )}
       <MoveToGroup moves={m.moves} />
@@ -80,11 +80,11 @@ function ItemMenuContent({ model: m }: { model: MenuModel }) {
           <DropdownMenuSeparator />
           {isArchived(t) ? (
             <DropdownMenuItem onClick={() => void actions.restore(t)}>
-              <ICONS.unarchive size={16} aria-hidden /> Restore
+              Restore
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem variant="destructive" className="text-danger" onClick={() => void actions.archive(t)}>
-              <ICONS.trash size={16} aria-hidden /> Delete task
+              Delete task
             </DropdownMenuItem>
           )}
         </>
@@ -103,7 +103,7 @@ function MoveToGroup({ moves }: { moves: MenuModel["moves"] }) {
         <DropdownMenuLabel>Move to</DropdownMenuLabel>
         {moves.map((mv) => (
           <DropdownMenuItem key={mv.key} onClick={mv.run}>
-            {mv.icon ?? <ICONS.moveTo size={16} aria-hidden />} {mv.label}
+            {mv.label}
           </DropdownMenuItem>
         ))}
       </DropdownMenuGroup>
@@ -121,22 +121,22 @@ function OrderGroup({ order: o }: { order: MenuModel["order"] }) {
         <DropdownMenuLabel>Order</DropdownMenuLabel>
         {o.up && (
           <DropdownMenuItem onClick={o.up}>
-            <ICONS.arrowUp size={16} aria-hidden /> Move up
+            Move up
           </DropdownMenuItem>
         )}
         {o.down && (
           <DropdownMenuItem onClick={o.down}>
-            <ICONS.arrowDown size={16} aria-hidden /> Move down
+            Move down
           </DropdownMenuItem>
         )}
         {o.top && (
           <DropdownMenuItem onClick={o.top}>
-            <ICONS.toTop size={16} aria-hidden /> Move to top
+            Move to top
           </DropdownMenuItem>
         )}
         {o.bottom && (
           <DropdownMenuItem onClick={o.bottom}>
-            <ICONS.toBottom size={16} aria-hidden /> Move to bottom
+            Move to bottom
           </DropdownMenuItem>
         )}
       </DropdownMenuGroup>

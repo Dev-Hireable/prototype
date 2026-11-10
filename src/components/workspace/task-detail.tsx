@@ -1,16 +1,16 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type Ref, type RefObject } from "react";
+import { useEffect, useRef, useState, type Ref, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import { ICONS } from "@/components/icons";
-import { Avatar, Button, Drawer, InfoBanner, KebabMenu } from "@/components/portal/ui";
+import { Button, Drawer, InfoBanner, KebabMenu } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { MenuAction } from "@/components/portal/controls";
 import { CommentBox } from "@/components/portal/comment-box";
 import { Tip } from "@/components/portal/tip";
 import { ICON_BUTTON } from "@/components/portal/styles";
 import { KEEP_FAILED, keepFiles } from "@/lib/demo/files";
-import { hearsComments, isArchived, isCompleted, isOverdue, openBlockers, refOf, type WorkFile, type WorkItem } from "@/lib/work/model";
+import { isArchived, isCompleted, isOverdue, openBlockers, refOf, type WorkFile, type WorkItem } from "@/lib/work/model";
 import { PHONE, useMedia } from "@/lib/portal/media";
 import { capsFor, changeFor, type AgreedField } from "@/lib/work/permissions";
 import { checkComment, checkTitle } from "@/lib/work/validate";
@@ -150,8 +150,8 @@ function PanelActions({ item }: { item: WorkItem }) {
         </Tip>
       ) : null}
       {!isArchived(item) && capsFor(item, actor, access).archive && (
-        <KebabMenu label="Item actions" icon="horizontal" iconSize={20} menuWidth={200}>
-          <MenuAction destructive onClick={() => void actions.archive(item)} icon={<ICONS.trash size={18} aria-hidden />}>
+        <KebabMenu label="Item actions" menuWidth={200}>
+          <MenuAction destructive onClick={() => void actions.archive(item)}>
             Delete task
           </MenuAction>
         </KebabMenu>
@@ -294,7 +294,7 @@ function DetailBody({ item: t, items, byId, focus, locked, onLocked, activityRef
 
       <TaskProps item={t} items={items} byId={byId} onLocked={onLocked} />
 
-      <ActivitySection ref={activityRef} item={t} items={items} changes={changes} review={review} canComment={caps.comment} />
+      <ActivitySection ref={activityRef} item={t} items={items} changes={changes} review={review} />
     </>
   );
 }
@@ -376,8 +376,8 @@ function historyOf(t: WorkItem, people: WorkspaceEnv["people"], { changes, revie
  * that sticks at the top. An item a comment names, by a typed "#4" or its pasted link, opens from it
  * and shows as a card under it (`items`).
  */
-function ActivitySection({ ref, item: t, items, changes, review, canComment }: { ref: Ref<HTMLElement>; item: WorkItem; items: readonly WorkItem[]; canComment: boolean } & ReturnType<typeof neededNow>) {
-  const { actor, people, names } = useWorkspace();
+function ActivitySection({ ref, item: t, items, changes, review }: { ref: Ref<HTMLElement>; item: WorkItem; items: readonly WorkItem[] } & ReturnType<typeof neededNow>) {
+  const { people } = useWorkspace();
   /** Whether only the talk shows; back to everything when another item opens. */
   const [only, setOnly] = useState<{ id: string; on: boolean }>({ id: t.id, on: false });
   const onlyComments = only.id === t.id && only.on;
@@ -393,28 +393,18 @@ function ActivitySection({ ref, item: t, items, changes, review, canComment }: {
           </button>
         )}
       </h3>
-      <ActivityStream key={t.id} feed={onlyComments ? feed.filter((f) => f.kind === "comment") : feed} items={items} empty={conversationEmpty(t, actor.role === "contributor", names, canComment)} />
+      <ActivityStream key={t.id} feed={onlyComments ? feed.filter((f) => f.kind === "comment") : feed} items={items} empty="No comments on this task." />
     </section>
   );
 }
 
-/** An empty stream (a task nobody has touched or said anything on): who a first comment reaches — or, for someone who can't comment, just that there's none. */
-function conversationEmpty(t: WorkItem, talent: boolean, names: WorkspaceEnv["names"], canComment: boolean) {
-  if (!canComment) return "No comments on this task.";
-  if (talent) return `No comments yet. Ask ${names.team} a question or share an update. They'll get a notification.`;
-  return hearsComments(t, "independent")
-    ? `No comments yet. Ask ${names.independent} a question or share an update. They'll get a notification.`
-    : `No comments yet. ${names.independent} can read what you write here but won't be notified.`;
-}
-
 /**
  * The sheet's foot, pinned under the scroll: the comment box — always in reach, as in a work chat,
- * however far down the sheet is scrolled — and who a comment reaches. Files go with a comment, kept
+ * however far down the sheet is scrolled. Files go with a comment, kept
  * in this browser's file store first so the comment that names them opens them for either side.
  */
 function SheetFoot({ item: t, onSent }: { item: WorkItem; onSent: () => void }) {
   const { actions } = useWorkspace();
-  const notified = useId();
   const send = async (text: string, picked: File[]) => {
     let files: WorkFile[];
     try {
@@ -426,28 +416,5 @@ function SheetFoot({ item: t, onSent }: { item: WorkItem; onSent: () => void }) 
     onSent();
     return null;
   };
-  return (
-    <div className="flex flex-col gap-2">
-      <CommentBox attach label="Add a comment" placeholder="Add a comment" maxLength={2000} describedBy={notified} validate={(v) => checkComment(v)?.message ?? null} onSend={send} />
-      <Notified id={notified} item={t} />
-    </div>
-  );
-}
-
-/**
- * Who a comment reaches, where the reference lists a task's subscribers: the other side's photo and
- * that they'll be told — or, on the Team Builder's own items, that the Independent can read it but
- * won't be. Nobody follows or unfollows a task, so there's no one to add.
- */
-function Notified({ id, item: t }: { id: string; item: WorkItem }) {
-  const { actor, people, names } = useWorkspace();
-  const talent = actor.role === "contributor";
-  const hears = talent || hearsComments(t, "independent");
-  const name = talent ? names.team : names.independent;
-  return (
-    <p id={id} className="flex items-center gap-2 text-[12.5px] leading-[1.3] text-ink-2">
-      <Avatar src={people[talent ? "team" : "independent"].avatar} size={20} className={hears ? "" : "opacity-50 grayscale"} />
-      {hears ? `${name} will be notified` : `${name} can read it but won't be notified`}
-    </p>
-  );
+  return <CommentBox attach placeholder="Add a comment" maxLength={2000} validate={(v) => checkComment(v)?.message ?? null} onSend={send} />;
 }

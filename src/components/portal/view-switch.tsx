@@ -12,7 +12,7 @@ type ViewOption<T extends string> = { value: T; label: string; icon: IconName };
  * guesswork), and the switch is 40px tall there, for a thumb. This is the list only, for a switcher
  * whose Tabs root also holds the views.
  */
-export function ViewTabsList<T extends string>({ options, label = "Views" }: { options: readonly ViewOption<T>[]; label?: string }) {
+export function ViewTabsList<T extends string>({ options, label = "Views", desktopIcons = true }: { options: readonly ViewOption<T>[]; label?: string; desktopIcons?: boolean }) {
   return (
     // 36px, the height of the toolbar controls beside it. The shadcn default's own height is scoped
     // (group-data-horizontal/tabs:h-8) and outranked a plain h-9, so it has to be scoped the same way.
@@ -21,7 +21,7 @@ export function ViewTabsList<T extends string>({ options, label = "Views" }: { o
         const Icon = ICONS[o.icon];
         return (
           <TabsTrigger key={o.value} value={o.value} className="h-full gap-1.5 rounded-md px-3 text-[13px] font-medium text-ink-2 hover:text-ink data-active:text-ink data-active:shadow-sm focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-primary max-md:data-active:[&>span]:not-sr-only max-md:data-active:[&>span]:whitespace-nowrap">
-            <Icon size={16} aria-hidden /> <span className="max-md:sr-only">{o.label}</span>
+            <Icon size={16} aria-hidden className={desktopIcons ? undefined : "md:hidden"} /> <span className="max-md:sr-only">{o.label}</span>
           </TabsTrigger>
         );
       })}

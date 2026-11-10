@@ -356,11 +356,11 @@ function RowMenu({ item: n, onMark, onDelete }: { item: FeedItem; onMark: () => 
   const [open, setOpen] = useState(false);
   return (
     <span className={`mt-1 mr-2 -ml-3 shrink-0 ${open ? "flex" : "hidden group-focus-within/note:flex group-hover/note:flex [@media(hover:none)]:flex"}`}>
-      <KebabMenu label={`More actions for ${n.title}`} tip="More actions" open={open} onOpenChange={setOpen} menuWidth={176}>
-        <MenuAction density="compact" onClick={onMark}>
+      <KebabMenu label={`More actions for ${n.title}`} open={open} onOpenChange={setOpen} menuWidth={176}>
+        <MenuAction onClick={onMark}>
           {n.unread ? "Mark as read" : "Mark as unread"}
         </MenuAction>
-        <MenuAction density="compact" destructive onClick={onDelete}>
+        <MenuAction destructive onClick={onDelete}>
           Delete
         </MenuAction>
       </KebabMenu>

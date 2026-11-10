@@ -1,38 +1,5 @@
-"use client";
-
-import { useState } from "react";
-import { Page, Toast } from "@/components/portal/ui";
-import { IndependentCard } from "@/components/team/ui";
-import { useToast } from "@/lib/portal/toast";
-import { liveIndependents } from "@/lib/team/data";
-import type { Independent } from "@/lib/team/data";
-import { ReturnNav, useReturnTo } from "@/components/portal/return";
-import { TalentBrowser } from "./_components/talent-browser";
-import { TalentOverlays } from "./_components/talent-overlays";
-import { useTalentFilters } from "./_lib/filters";
+import DiscoverScreen from "./_components/discover-screen";
 
 export default function Discover() {
-  const filters = useTalentFilters(liveIndependents());
-  const [target, setTarget] = useState<Independent | null>(null);
-  const [preview, setPreview] = useState<Independent | null>(null);
-  const [toast, setToast] = useToast();
-  const matched = filters.results.length;
-  // The back link's row only when there's somewhere to go back to, so Discover sits like Saved (ReturnNav).
-  const back = useReturnTo();
-
-  return (
-    <Page title="Discover Independents" nav={back ? <ReturnNav /> : undefined}>
-      <TalentBrowser
-        filters={filters}
-        // A name isn't searchable: until a hire it shows as "Juan D." (useHired).
-        placeholder="Search by title or skill"
-        count={matched === 1 ? "1 Independent matched" : `${matched} Independents matched`}
-        emptyTitle="No Independents match these filters"
-        card={(p) => <IndependentCard key={p.slug} person={p} onInvite={() => setTarget(p)} onOpen={setPreview} />}
-      />
-
-      <TalentOverlays target={target} preview={preview} onTarget={setTarget} onPreview={setPreview} onToast={setToast} />
-      <Toast toast={toast} onClose={() => setToast(null)} />
-    </Page>
-  );
+  return <DiscoverScreen />;
 }

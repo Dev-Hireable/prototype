@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { Highlight, SearchBox } from "@/components/portal/ui";
-import { Badge } from "@/components/portal/badge";
 import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { TypingDots } from "@/components/portal/typing-dots";
 import { DayDivider } from "@/components/portal/day-divider";
@@ -86,7 +85,6 @@ export function MessagesPage<K extends string, C extends Thread<K>>({ side, conv
   }, [side, live.chat.length]);
 
   return (
-    // A chat app, not a page with a card in it: the list and the thread are panels of their own beside the rail (@/components/portal/Inbox).
     <>
       <Inbox
         open={view.opened}
@@ -232,7 +230,7 @@ function ConversationList<K extends string, C extends Thread<K>>({ chat, convers
   return (
     <>
       <div className="shrink-0 px-4 pb-3">
-        <SearchBox value={q} onChange={onSearch} placeholder="Search by name or keyword" />
+        <SearchBox value={q} onChange={onSearch} placeholder="Search by name or keyword" className="h-9! focus-within:border-primary" />
       </div>
       <div className="flex shrink-0 gap-5 px-4 text-[12.5px] leading-[1.45] font-semibold shadow-[inset_0_-1px_0_var(--color-line)]">
         {tabs.map((t) => (
@@ -287,10 +285,9 @@ function ConversationRow({ name, sub, stage, avatar, on, q, latest, onOpen }: { 
           <span className={`min-w-0 flex-1 text-[13px] font-semibold ${on ? "text-accent-ink" : "text-ink-deep"}`}>
             <Highlight text={name} query={q} />
           </span>
-          {stage && <Badge>{stage}</Badge>}
           <span className={`text-[11px] ${on ? "text-[#6b7480]" : "text-muted"}`}>{latest.time}</span>
         </span>
-        <span className={`text-[11px] ${on ? "text-[#5b6b7a]" : "text-muted"}`}>{sub}</span>
+        <span className="truncate text-[11px] text-ink-2">{sub}{stage && !sub.split(" · ").includes(stage) && ` · ${stage}`}</span>
         <span className="flex items-center gap-[5px]">
           {/* Only on a message we sent, and blue only once they have read it. */}
           {latest.receipt && (latest.receipt === "seen" ? <DoneAll size={16} aria-label="Seen" className="text-primary" /> : <Check size={16} aria-label="Sent" className="text-muted" />)}
@@ -498,7 +495,7 @@ function FileCard({ file, source, side }: { file: { name: string; meta: string }
 export function Composer({ draft, onDraft, pending, onRemove, fileError, onPick, onSend }: { draft: string; onDraft: (text: string) => void; pending: readonly File[]; onRemove: (file: File) => void; fileError: string | null; onPick: (files: FileList | null) => void; onSend: () => void }) {
   return (
     <form
-      className="flex flex-col gap-2 border-t border-line px-[18px] py-3.5"
+      className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 pt-2 pb-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSend();
@@ -516,7 +513,7 @@ export function Composer({ draft, onDraft, pending, onRemove, fileError, onPick,
           {fileError}
         </p>
       )}
-      <div className="flex h-11 items-center gap-1 rounded-lg border border-border px-1.5 focus-within:border-primary">
+      <div className="flex h-11 items-center gap-1 rounded-xl border border-line bg-surface-alt px-1.5 focus-within:border-primary focus-within:bg-white">
         <AttachButton onPick={onPick} />
         <input value={draft} onChange={(e) => onDraft(e.target.value)} aria-label="Message" placeholder="Send a message…" className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-[14px] tracking-[0.2px] outline-none placeholder:text-ink-2" />
         <SendButton type="submit" disabled={!draft.trim() && !pending.length} />

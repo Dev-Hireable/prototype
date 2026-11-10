@@ -20,9 +20,6 @@ import { useToast } from "@/lib/portal/toast";
 
 const Verified = ICONS.checkCircle;
 const Check = ICONS.check;
-const SetDefault = ICONS.checkCircleOutline;
-const History = ICONS.history;
-const Trash = ICONS.trash;
 
 /** The payout cards' brand wordmarks. Bank has no mark. */
 const BRAND: Partial<Record<PayoutMethod["brand"], { src: string; w: number; cls: string }>> = {
@@ -387,13 +384,13 @@ function PayoutCard({ method: m, open, onOpenChange, removeOff, onSetDefault, on
         {brand ? <Image src={brand.src} alt={m.brand} width={brand.w} height={26} className={`${brand.cls} object-contain`} loading="eager" /> : <span className="h-[26px] text-[20px] leading-[26px] font-bold text-ink">Bank</span>}
         <span className="flex-1" />
         <KebabMenu label="Payout method actions" open={open} onOpenChange={onOpenChange} buttonClassName="!size-7">
-          <MenuAction disabled={m.isDefault || !verified} title={m.isDefault ? "This is already your default." : verified ? undefined : "It can be your default once it's verified."} onClick={onSetDefault} icon={<SetDefault size={18} aria-hidden />}>
+          <MenuAction disabled={m.isDefault || !verified} title={m.isDefault ? "This is already your default." : verified ? undefined : "It can be your default once it's verified."} onClick={onSetDefault}>
             Set as default
           </MenuAction>
-          <MenuAction onClick={onHistory} icon={<History size={18} aria-hidden />}>
+          <MenuAction onClick={onHistory}>
             View payout history
           </MenuAction>
-          <MenuAction destructive disabled={!!removeOff} title={removeOff} onClick={onRemove} icon={<Trash size={18} aria-hidden />}>
+          <MenuAction destructive disabled={!!removeOff} title={removeOff} onClick={onRemove}>
             Remove
           </MenuAction>
         </KebabMenu>

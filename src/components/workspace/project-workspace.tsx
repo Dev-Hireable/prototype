@@ -181,7 +181,7 @@ function WorkspaceHead(props: HeadProps) {
   const phone = useMedia(PHONE);
   if (phone) return <PhoneHead {...props} />;
   return (
-    <div className="flex shrink-0 flex-col gap-3 border-b border-border px-[var(--ws-gutter,1rem)] pt-1 pb-3">
+    <div className="flex shrink-0 flex-col gap-2 border-b border-line px-[var(--ws-gutter,1rem)] pt-1 pb-2">
       <SummaryLine context={context} counts={list.counts} split={split} scope={scope} />
       <ViewBar split={split} setQuery={setQuery} inReview={list.inReview} onAdd={onAdd} />
       <Toolbar {...toolbarProps(list, query, setQuery, assigneeLabel, split)} />
@@ -212,7 +212,7 @@ function PhoneHead({ list, split, query, setQuery, onAdd }: HeadProps) {
         </span>
         <Search value={query.q} onChange={(q) => setQuery({ q })} compact />
       </div>
-      <div className="flex shrink-0 flex-col gap-3 border-b border-border px-[var(--ws-gutter,1rem)] pt-1 pb-3">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-line px-[var(--ws-gutter,1rem)] pt-1 pb-2">
         <div className="flex flex-wrap items-center gap-2" role="toolbar" aria-label="Filter, sort and group">
           {split && <ProjectPicker setQuery={setQuery} />}
           <ToolbarMenus {...toolbarProps(list, query, setQuery, assigneeLabel, split)} />
@@ -332,7 +332,7 @@ function SummaryLine({ context, counts, split, scope }: { context?: ReactNode; c
   const { access } = useWorkspace();
   return (
     // A phone leaves the counts to Overview, so the views below get the screen.
-    <p className="flex flex-wrap items-center gap-y-1 text-[13px] leading-[1.4] text-ink-2 max-md:hidden [&>*]:border-l [&>*]:border-border [&>*]:px-3 [&>*:first-child]:border-l-0 [&>*:first-child]:pl-0" aria-label="Summary">
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs leading-[1.4] text-ink-2 max-md:hidden" aria-label="Summary">
       {context}
       {counts.total === 0 ? (
         // A trial takes no new tasks, so an empty one isn't waiting on any.
@@ -363,7 +363,7 @@ function ViewBar({ split, setQuery, inReview, onAdd }: { split: boolean; setQuer
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 max-sm:gap-x-2">
       {split && <ProjectPicker setQuery={setQuery} />}
-      <ViewTabsList options={VIEW_OPTIONS} />
+      <ViewTabsList options={VIEW_OPTIONS} desktopIcons={false} />
       <HeadActions inReview={inReview} onAdd={onAdd} />
     </div>
   );

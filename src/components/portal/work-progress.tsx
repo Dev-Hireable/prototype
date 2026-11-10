@@ -1,7 +1,7 @@
 import { Meter, Swatch } from "@/components/portal/meter";
 import { STATUS_META, type countsOf } from "@/lib/work/model";
 
-/** The bar fills most-done first; To do is what's left of it, hatched, so it has no colour. */
+/** The bar fills most-done first. The gray track represents To do. */
 const FILLED = ["done", "review", "doing"] as const;
 const BAR: Record<(typeof FILLED)[number], string> = { done: "var(--color-ok)", review: "var(--color-review)", doing: "var(--color-primary)" };
 /** The key under the bar, in the bar's order. */
@@ -11,13 +11,14 @@ type Counts = Pick<ReturnType<typeof countsOf>, "total" | (typeof LEGEND)[number
 
 /**
  * A task list's progress, drawn the same wherever it shows — a contract's Overview, its card in
- * All independents and All contracts, and its row there: each status a capsule in its colour,
- * most-done first, and To do the hatched rest.
+ * All independents and All contracts, and its row there. Status colors fill the track from left
+ * to right, most-done first.
  */
-export function WorkMeter({ counts }: { counts: Counts }) {
+export function WorkMeter({ counts, compact }: { counts: Counts; compact?: boolean }) {
   return (
     <Meter
       total={counts.total}
+      compact={compact}
       parts={FILLED.map((s) => ({ value: counts[s], color: BAR[s], label: STATUS_META[s].label }))}
       label={LEGEND.map((s) => `${counts[s]} ${STATUS_META[s].label}`).join(", ")}
     />
@@ -25,7 +26,7 @@ export function WorkMeter({ counts }: { counts: Counts }) {
 }
 
 /**
- * The bar's key, in the bar's order: each status's colour — To do's stripes — and how many are in
+ * The bar's key, in the bar's order: each status's colour and how many are in
  * it. One line on a wide card; `grid` sets it two by two where one line would wrap raggedly.
  */
 export function WorkLegend({ counts, grid = false }: { counts: Counts; grid?: boolean }) {

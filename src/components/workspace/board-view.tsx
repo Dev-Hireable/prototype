@@ -331,13 +331,11 @@ function CardHead({ item: t, handle }: { item: WorkItem; handle: ItemMenuHandle 
       <span className="flex pt-px" onClick={(e) => e.stopPropagation()}>
         <StatusCircle status={t.status} onClick={next?.run} label={next?.label ?? STATUS_META[t.status].label} />
       </span>
-      {/* The name has the line to itself: the menu lies over its end while the card is hovered or
-          focused, and only a touch screen, where it always shows, keeps room for it. */}
-      <p className={`line-clamp-3 min-w-0 flex-1 text-[14px] text-pretty leading-[1.35] font-medium break-words [@media(hover:none)]:pr-8 ${isCompleted(t.status) ? "text-ink-2 line-through" : "text-ink"}`}>
+      <p className={`line-clamp-3 min-w-0 flex-1 text-[14px] text-pretty leading-[1.35] font-medium break-words ${isCompleted(t.status) ? "text-ink-2 line-through" : "text-ink"}`}>
         <Ref item={t} />
         {t.title}
       </p>
-      <ItemMenuTrigger handle={handle} item={t} className="absolute -top-1 -right-1 bg-white opacity-0 group-hover/card:opacity-100 group-focus-within/card:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100" />
+      <ItemMenuTrigger handle={handle} item={t} className="-mt-1 -mr-1" />
     </div>
   );
 }

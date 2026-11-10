@@ -91,7 +91,7 @@ export function ContractOverview({ viewer, tasks, counted, names, people, trial,
 
 /**
  * How far the work has got: the share done as the headline, the smaller numbers beside it, and the
- * bar with its key — every status a part of it, To do the hatched rest.
+ * bar with its key. The exposed track represents To do.
  */
 function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; trial: boolean }) {
   const counts = countsOf(items, today);
@@ -107,7 +107,10 @@ function Progress({ items, today, trial }: { items: WorkItem[]; today: Day; tria
       }
     >
       {counts.total === 0 ? (
-        <p className="text-[13px] leading-[1.4] text-ink-2">{trial ? "No trial tasks: the signed offer has none." : "Nothing on the list yet."}</p>
+        <div className="flex flex-col gap-3">
+          <p className="text-[13px] leading-[1.4] text-ink-2">{trial ? "No trial tasks: the signed offer has none." : "Nothing on the list yet."}</p>
+          <WorkMeter counts={counts} />
+        </div>
       ) : (
         <>
           <div className="flex flex-wrap items-end gap-x-6 gap-y-4">

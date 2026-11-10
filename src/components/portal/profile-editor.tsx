@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { MdOutlineEdit, MdOutlinePhotoCamera } from "react-icons/md";
-import { Button, Input, Select, Textarea } from "@/components/portal/ui";
+import { Button, Card, Input, Select, Textarea } from "@/components/portal/ui";
 import { MiniBar } from "@/components/portal/meter";
 import { CityPicker, TimeZonePicker } from "@/components/portal/time-zone-picker";
 import { Tip } from "@/components/portal/tip";
@@ -17,16 +17,9 @@ import { Badge } from "@/components/portal/badge";
 /** A section of the editor: a card with a heading and a line on what it's for. */
 export function ProfileSection({ title, description, action, children }: { title: string; description?: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="flex w-full flex-col gap-4 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border max-sm:p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="text-[16px] leading-[1.4] font-semibold text-ink">{title}</h2>
-          {description && <p className="text-[13px] leading-[1.45] text-ink-2">{description}</p>}
-        </div>
-        {action}
-      </div>
+    <Card title={title} sub={description} aside={action} trayClassName="w-full" panelClassName="flex flex-col gap-4 p-6 max-sm:p-4">
       {children}
-    </section>
+    </Card>
   );
 }
 
@@ -84,7 +77,7 @@ export function ProfileHeader({
 }) {
   return (
     // A phone gives the name two lines, a size down, rather than cutting it off after a few letters.
-    <section className="flex w-full flex-wrap items-center gap-5 rounded-xl bg-white p-6 outline -outline-offset-1 outline-border max-sm:gap-4 max-sm:p-4">
+    <Card trayClassName="w-full" panelClassName="flex flex-wrap items-center gap-5 p-6 max-sm:gap-4 max-sm:p-4">
       <ImagePicker image={image} label={imageLabel} onPick={onPick} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <h2 className="font-display truncate text-[24px] leading-[1.3] font-semibold text-ink max-sm:line-clamp-2 max-sm:text-[20px] max-sm:whitespace-normal" style={{ fontVariationSettings: '"opsz" 14' }}>
@@ -103,7 +96,7 @@ export function ProfileHeader({
           </Button>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 

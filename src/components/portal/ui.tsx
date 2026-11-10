@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useId, useRef, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { twMerge } from "tailwind-merge";
 import { ICONS } from "@/components/icons";
 import { dismissToast, raiseToast, type ToastAction } from "@/components/portal/notify";
 import { Badge } from "@/components/portal/badge";
@@ -31,6 +32,7 @@ export function Page({
   onClose,
   tabs,
   badge,
+  headerActions,
   nav,
   navActions,
   children,
@@ -42,6 +44,8 @@ export function Page({
   onClose?: () => void;
   tabs?: ReactNode;
   badge?: ReactNode;
+  /** Actions attached to the page's subject, beside the title. */
+  headerActions?: ReactNode;
   /** A `Breadcrumb` trail (@/components/ui/breadcrumb) or a `BreadcrumbBack` (@/components/portal/nav). It gets its own row under the header rather than sitting in `children`. */
   nav?: ReactNode;
   /** Page-level actions that share the nav row, so they don't cost the page a second row. */
@@ -56,14 +60,9 @@ export function Page({
   /** One header strip for every page: 24 DM Sans by default; "modal" is the 20 Inter close-button variant (offer / edit screens). */
   heading?: "modal" | "display";
 }) {
-  /**
-   * The page's one side gutter: the title, the tabs, the back link and the content all start on
-   * the same line — --page-gutter (globals.css), 40px on a laptop, 24px on a tablet, 16px on a phone.
-   */
-  const inset = "pl-(--page-gutter)";
   const head = (
     <>
-      <PageHeader title={title} badge={badge} onClose={onClose} tabs={tabs} inset={inset} heading={heading} />
+      <PageHeader title={title} badge={badge} actions={headerActions} onClose={onClose} tabs={tabs} heading={heading} />
       {nav && <PageNavRow nav={nav} actions={navActions} />}
     </>
   );
@@ -98,14 +97,14 @@ function FillPage({ head, underNav, children }: { head: ReactNode; underNav: boo
 }
 
 /** The header strip: the title and its badge on the one 56px row, the close button, and the tabs hanging below. */
-function PageHeader({ title, badge, onClose, tabs, inset, heading }: { title: ReactNode; badge?: ReactNode; onClose?: () => void; tabs?: ReactNode; inset: string; heading: "modal" | "display" }) {
+function PageHeader({ title, badge, actions, onClose, tabs, heading }: { title: ReactNode; badge?: ReactNode; actions?: ReactNode; onClose?: () => void; tabs?: ReactNode; heading: "modal" | "display" }) {
   const Close = ICONS.close;
   return (
-    <header className="shrink-0 shadow-[inset_0_-1px_0_#c3c3c3]">
+    <header className="shrink-0 shadow-[inset_0_-1px_0_var(--color-line)]">
       {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it.
           It ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
       {/* A phone lets a long title (a role and its company) wrap, the badges after it, rather than clip. */}
-      <div className={`flex h-14 min-w-0 items-center justify-between gap-3 ${inset} ${CLEAR_DEMO_RESET} max-md:h-auto max-md:min-h-14 max-md:py-2`}>
+      <div className={`flex h-14 min-w-0 items-center gap-3 pl-(--page-gutter) ${CLEAR_DEMO_RESET} max-md:h-auto max-md:min-h-14 max-md:py-2`}>
         <h1
           className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-ink max-md:leading-[1.3] ${
             heading === "display"
@@ -117,24 +116,21 @@ function PageHeader({ title, badge, onClose, tabs, inset, heading }: { title: Re
           {title}
           {badge}
         </h1>
+        {actions && <div className="flex shrink-0 items-center">{actions}</div>}
         {onClose && (
-          <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -mr-1.5 size-10`}>
+          <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -mr-1.5 ml-auto size-10`}>
             <Close size={24} aria-hidden />
           </button>
         )}
       </div>
       {/* No bottom padding: the active tab's 2px underline has to sit on the header's own rule, not float above it. */}
-      {tabs && <div className={`${inset} pr-(--page-gutter)`}>{tabs}</div>}
+      {tabs && <div className="px-(--page-gutter)">{tabs}</div>}
     </header>
   );
 }
 
 /**
- * One place for every back link and breadcrumb: pinned under the header, in the 40px page gutter,
- * outside the centred content column — so it sits at the same spot on every page, padded or
- * full-bleed, at any window width, and never scrolls away. It used to live inside each layout's own
- * column, so it moved between pages (and the wizard drew its own). Pages whose back link only
- * sometimes appears still pass `nav`, so the row is always reserved.
+ * Back links and breadcrumbs stay under the header at the same fixed gutter as the title and tabs.
  */
 function PageNavRow({ nav, actions }: { nav: ReactNode; actions?: ReactNode }) {
   return (
@@ -156,11 +152,8 @@ function PageScroller({ padded, underNav, children }: { padded: boolean; underNa
     // edge instead of stopping short. With the gutters out here the vertical bar floated 40px in
     // from the right, and content cut off 40px above the bottom over an empty strip. The content
     // itself doesn't move: the padding keeps it exactly where the wrapper did. The width cap goes on
-    // the inner column, matching AdminPage. 40px matches DashboardFrame's own gutter, so every
-    // portal page sits the same distance from the shell. `padded={false}` pages set their own
-    // (wizards, the kanban, the dashboards). Under a nav row the top gutter shrinks: the row already
-    // spaces it.
-    <div className={`flex min-h-0 flex-1 ${padded ? (underNav ? "pt-4" : "pt-(--page-gutter)") : ""}`}>
+    // the inner column, matching AdminPage. Full-bleed pages set their own gutters.
+    <div className={`flex min-h-0 flex-1 ${padded ? (underNav ? "pt-4" : "pt-4 md:pt-6") : ""}`}>
       <ScrollFade className="flex w-full min-w-0">
         {/* Full-bleed pages get a flex column, so a full-height child (the kanban boards) grows into
             the space left under the header and nav row instead of overflowing it. pb-12 is the 40px
@@ -272,7 +265,7 @@ export function LinkButton({
  * Every "Message …" action: the conversation icon plus the label, never a bare text button. With
  * `onClick` it opens the thread on the spot (a work screen's quick chat) instead of going to Messages.
  */
-export function MessageButton({ href, onClick, children = "Message", size = "md", className = "" }: { href: string; onClick?: () => void; children?: ReactNode; size?: "sm" | "md" | "lg" | "xl"; className?: string }) {
+export function MessageButton({ href, onClick, children = "Message", size = "md", variant = "secondary", className = "" }: { href: string; onClick?: () => void; children?: ReactNode; size?: "sm" | "md" | "lg" | "xl"; variant?: "secondary" | "ghost"; className?: string }) {
   const Chat = ICONS.messages;
   const label = (
     <>
@@ -282,12 +275,12 @@ export function MessageButton({ href, onClick, children = "Message", size = "md"
   );
   if (onClick)
     return (
-      <Button size={size} onClick={onClick} className={className}>
+      <Button size={size} variant={variant} onClick={onClick} className={className}>
         {label}
       </Button>
     );
   return (
-    <LinkButton href={href} size={size} className={className}>
+    <LinkButton href={href} size={size} variant={variant} className={className}>
       {label}
     </LinkButton>
   );
@@ -298,16 +291,29 @@ export function MessageButton({ href, onClick, children = "Message", size = "md"
 /**
  * The card every screen builds on, in the one card look (TRAY): a grey tray with the white panel
  * inside it that holds the content. Where it sits and how big it is go on the tray, its own layout
- * and padding on the panel (splitTray), so a call site styles it as if it were one box. A section
+ * and padding on the panel. Use trayClassName and panelClassName for explicit styling.
+ * Existing className callers still use splitTray. A section
  * heading (`title`, with an optional `sub` line and an `aside` for its controls: a menu, an Add
  * button, a badge) sits on the tray above the panel; the thing's own name stays inside.
  */
-export function Card({ title, sub, aside, label, children, className = "" }: { title?: ReactNode; sub?: ReactNode; aside?: ReactNode; /** Names the whole card, tray header included, as a region (the Offer card a test reads). */ label?: string; children?: ReactNode; className?: string }) {
+export function Card({ title, sub, aside, label, children, className = "", trayClassName = "", panelClassName = "" }: {
+  title?: ReactNode;
+  sub?: ReactNode;
+  aside?: ReactNode;
+  /** Names the whole card, including the tray header, as a region. */
+  label?: string;
+  children?: ReactNode;
+  className?: string;
+  trayClassName?: string;
+  panelClassName?: string;
+}) {
   const { tray, panel } = splitTray(className);
   return (
-    <section aria-label={label} className={`flex flex-col ${TRAY} ${tray}`}>
+    <section aria-label={label} className={`flex flex-col ${trayClassName ? twMerge(TRAY, tray, trayClassName) : `${TRAY} ${tray}`}`}>
       {title !== undefined && <TrayHeader title={title} sub={sub} aside={aside} />}
-      {children !== undefined && children !== null && children !== false && <div className={`min-h-0 flex-1 ${TRAY_PANEL} ${panel}`}>{children}</div>}
+      {children !== undefined && children !== null && children !== false && (
+        <div className={`min-h-0 flex-1 ${panelClassName ? twMerge(TRAY_PANEL, panel, panelClassName) : `${TRAY_PANEL} ${panel}`}`}>{children}</div>
+      )}
     </section>
   );
 }
@@ -675,21 +681,32 @@ function minWidthOf(cols: string[]) {
  * off to the right behind a sideways scroll. A page orders or stresses its cells there with
  * `max-md:` classes in `cols` (the contract first, the amount bold).
  */
-export function Table({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
+export function Table({ cols, head, toolbar, children }: { cols: string[]; head: string[]; toolbar?: ReactNode; children: ReactNode }) {
+  return (
+    <Card trayClassName="w-full min-w-0">
+      {toolbar && <div className="px-3 py-3 md:border-b md:border-line">{toolbar}</div>}
+      <TableContent cols={cols} head={head}>{children}</TableContent>
+    </Card>
+  );
+}
+
+/** Table rows and headers inside an existing panel. */
+export function TableContent({ cols, head, children }: { cols: string[]; head: string[]; children: ReactNode }) {
   return (
     // It sized itself to its longest text (min-w-max), so payments and offers scrolled sideways on
     // a laptop whatever room they had. It fills the page now, and only scrolls once the page is
     // narrower than its columns need — which still keeps a narrow pane from crushing them together.
-    <div className="w-full overflow-x-auto rounded-lg bg-white outline -outline-offset-1 outline-border">
+    <div className="overflow-x-auto rounded-[inherit]">
       <div style={{ "--table-min": `${minWidthOf(cols)}px` } as CSSProperties} className="md:min-w-(--table-min)">
-        <div className={`flex bg-surface-2 text-[13px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 max-md:hidden ${CELLS}`}>
-          {/* A heading wider than its column ends in "…" rather than running into the next one. */}
-          {head.map((h, i) => (
-            <span key={h} className={`${cols[i]} truncate`}>
-              {h}
-            </span>
-          ))}
-        </div>
+        {head.length > 0 && (
+          <div className={`flex text-[12px] leading-[1.4] font-medium whitespace-nowrap text-ink-2 max-md:hidden ${CELLS}`}>
+            {head.map((h, i) => (
+              <span key={h} className={`${cols[i]} truncate`}>
+                {h}
+              </span>
+            ))}
+          </div>
+        )}
         {children}
       </div>
     </div>
@@ -705,7 +722,7 @@ const PHONE_ROW =
   "max-md:flex-wrap max-md:items-center max-md:gap-x-3 max-md:gap-y-1.5 max-md:p-3 max-md:whitespace-normal max-md:[&>*]:w-auto max-md:[&>*]:min-w-0 max-md:[&>*]:max-w-full max-md:[&>*]:grow-0 max-md:[&>*]:basis-auto max-md:[&>*]:p-0!";
 
 export function Row({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`flex border-t border-[#e5e5e5] text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt/60 ${CELLS} ${PHONE_ROW} ${className}`}>{children}</div>;
+  return <div className={`flex border-t border-line text-[13px] leading-[1.4] whitespace-nowrap text-ink hover:bg-surface-alt ${CELLS} ${PHONE_ROW} ${className}`}>{children}</div>;
 }
 
 /** Search + dropdowns on the left, a count or a button on the right; they wrap when they don't fit, and on a phone the search takes a row of its own. */
@@ -1060,7 +1077,7 @@ export function Drawer({
         </SheetHeader>
         {/* `relative`: an absolutely placed child (an sr-only label) stays inside the scroll rather than stretching the page. */}
         <div className="relative flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6">{children}</div>
-        {footer && <div className="shrink-0 border-t border-border px-6 py-4">{footer}</div>}
+        {footer && <div className="shrink-0 border-t border-line px-6 py-3">{footer}</div>}
       </SheetContent>
     </Sheet>
   );

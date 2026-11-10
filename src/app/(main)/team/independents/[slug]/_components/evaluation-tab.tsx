@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
-import { Button, Card, CardHeading, Field, InfoBanner, Select, Textarea } from "@/components/portal/ui";
-import { ContractScore } from "@/components/portal/contract-parts";
+import { Button, Field, InfoBanner, Select, Textarea } from "@/components/portal/ui";
+import { PanelCard } from "@/components/portal/panel-card";
 import { Stars } from "@/components/portal/stars";
-import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
 import { ScoreScale } from "@/components/portal/score-scale";
 import { usd } from "@/lib/demo/disputes";
 import { keyed } from "@/lib/portal/keys";
@@ -11,82 +10,65 @@ import { evaluationIntro, evaluationOpens, hireLabel } from "../_lib/copy";
 import { SCORES, type EvaluationDraft as Draft } from "../_lib/forms";
 import type { Tracker } from "../_lib/tracker";
 
-const DM = { fontVariationSettings: '"opsz" 14' } as const;
 const RECOMMENDATIONS = ["Select a recommendation", "Hire full-time", "Hire part-time", "End the engagement"];
 
 
 /**
  * The Evaluation tab: the form (a trial's one, final evaluation, or a role's running reviews), what
- * sending it unlocks, every evaluation on file, and the score beside them.
+ * sending it unlocks, and every evaluation on file.
  */
 export function EvaluationTab({ t, draft, actions }: { t: Tracker; draft: Draft; actions: ReactNode }) {
-  const { contract, name, first, isTrial, submitted, canEvaluate } = t;
-  /** A trial's one evaluation is on file: the form shows it, read-only. */
+  const { name, isTrial, submitted, canEvaluate } = t;
   const sent = isTrial && submitted;
   /** While the trial runs, when its evaluation opens: said first, as why the form below is greyed out. Under the form, a phone had it a screen away from the heading. */
   const opens = isTrial && !submitted && !canEvaluate ? evaluationOpens(t) : null;
+  const footer = <div className="flex flex-wrap justify-end gap-3 border-t border-line pt-4 max-md:flex-col-reverse max-md:*:w-full max-md:[&_button]:w-full">{actions}</div>;
   return (
-    <div className={WITH_SIDE}>
-      <div className="flex w-full min-w-0 flex-1 flex-col gap-5">
-        <div className="flex flex-col gap-1">
-          <h2 className="font-display text-[20px] leading-[1.5] font-semibold text-ink" style={DM}>
-            {sent ? `Your evaluation of ${name}` : `Evaluate ${name}`}
-          </h2>
-          <p className="text-[14px] leading-[1.4] text-ink-2">{evaluationIntro(t)}</p>
-        </div>
-        {opens && <InfoBanner>{opens}</InfoBanner>}
-        <Card className="flex flex-col gap-4 p-5">
-          {/* Dimmed while it can't be sent yet; the buttons stay legible. */}
-          <div className={`flex flex-col gap-4 ${!canEvaluate && !sent ? "opacity-60" : ""}`}>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      {opens && <InfoBanner>{opens}</InfoBanner>}
+      {!sent && (
+        <PanelCard title={`Evaluate ${name}`} sub={evaluationIntro(t)}>
+          <div className={`flex flex-col gap-4 ${canEvaluate ? "" : "opacity-60"}`}>
             <EvaluationForm t={t} draft={draft} />
           </div>
-          {/* TB-067: every field is required (marked *); a disabled Send says what's still missing. A
-              phone stacks the buttons full width, the main one on top, as a dialog's footer does, and
-              keeps any note above them. */}
-          <div className="flex flex-wrap justify-end gap-3 max-md:flex-col-reverse max-md:*:w-full max-md:[&_button]:w-full">{actions}</div>
-        </Card>
-        <EvaluationHistory t={t} />
-      </div>
-      {/* The Overview's side column and score card, so the two tabs read the same. */}
-      <aside className={SIDE_COLUMN}>
-        <ContractScore contract={contract} final={submitted || !isTrial} who={`${first} was`} viewer="team" />
-      </aside>
+          {footer}
+        </PanelCard>
+      )}
+      <EvaluationHistory t={t} title={sent ? `Your evaluation of ${name}` : "Evaluation history"} footer={sent ? footer : undefined} />
     </div>
   );
 }
 
-/** Five scores, a recommendation and comments, all required; or, on a trial whose evaluation is in, what it was sent with. */
+/** Five scores, a recommendation and comments, all required. */
 function EvaluationForm({ t, draft }: { t: Tracker; draft: Draft }) {
-  const { first, isTrial, submitted, latest, canEvaluate } = t;
-  const sent = isTrial && submitted;
-  const locked = !canEvaluate || sent;
-  /** A trial's evaluation shows the scores it was sent with; a new one starts with none picked. */
-  const shownScores = sent && latest?.scores ? SCORES.map((label, i) => latest.scores?.find((s) => s.label === label)?.value ?? draft.scores[i]) : draft.scores;
+  const { first, isTrial, canEvaluate } = t;
   return (
     <>
-      {SCORES.map((label, i) => (
-        // On a phone the label sits over its five scores, which share the width as 44px targets.
-        <div key={label} className="flex items-center justify-between max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
-          <p className="text-[14px] leading-[1.4] font-medium text-ink">
-            {label}
-            <span aria-hidden className="text-danger">
-              {" *"}
-            </span>
-          </p>
-          <ScoreScale label={label} value={shownScores[i]} disabled={locked} onPick={(n) => draft.setScores((s) => s.map((v, k) => (k === i ? n : v)))} />
-        </div>
-      ))}
-      <Field label="Recommendation" required className="pt-2">
+      <p className="text-[13px] leading-[1.4] text-ink-2">Rate each criterion from 1 (Needs improvement) to 5 (Excellent).</p>
+      <div className="divide-y divide-line">
+        {SCORES.map((label, i) => (
+          <div key={label} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 max-sm:flex-col max-sm:items-stretch max-sm:gap-2">
+            <p className="text-[14px] leading-[1.4] font-medium text-ink">
+              {label}
+              <span aria-hidden className="text-danger">
+                {" *"}
+              </span>
+            </p>
+            <ScoreScale label={label} value={draft.scores[i]} disabled={!canEvaluate} onPick={(n) => draft.setScores((s) => s.map((v, k) => (k === i ? n : v)))} />
+          </div>
+        ))}
+      </div>
+      <Field label="Recommendation" required className="border-t border-line pt-4">
         <Select
           aria-label="Recommendation"
           options={isTrial ? RECOMMENDATIONS : ["Select a recommendation", "Keep going as is", "Change the scope", "End the engagement"]}
-          value={sent ? latest.recommendation : draft.recommendation || "Select a recommendation"}
-          disabled={locked}
+          value={draft.recommendation || "Select a recommendation"}
+          disabled={!canEvaluate}
           onChange={(e) => draft.setRecommendation(e.target.value === "Select a recommendation" ? "" : e.target.value)}
         />
       </Field>
       <Field label={`Comments for ${first}`} required>
-        <Textarea rows={3} required disabled={locked} value={sent ? latest.feedback : draft.feedback} onChange={(e) => draft.setFeedback(e.target.value)} placeholder="What went well, what to improve" />
+        <Textarea rows={3} required disabled={!canEvaluate} value={draft.feedback} onChange={(e) => draft.setFeedback(e.target.value)} placeholder="What went well, what to improve" />
       </Field>
     </>
   );
@@ -135,13 +117,13 @@ function TrialPending({ t, ready, missing, onEnd, onSend }: ActionProps) {
   const opens = canEvaluate ? undefined : evaluationOpens(t);
   return (
     <>
-      {/* A warning, before the buttons so they keep to one line: the score is final once this is sent. */}
+      {/* A warning before the buttons so they keep to one line. */}
       {canEvaluate && waiting.length > 0 && (
         <p className="w-full text-right text-[13px] leading-[1.4] text-pretty text-warn-ink max-md:order-last max-md:text-left">
           <span className="font-semibold">
             {refOf(waiting[0])} {waiting[0].title}
           </span>
-          {waiting.length > 1 && ` and ${waiting.length - 1} more`} still {waiting.length === 1 ? "waits" : "wait"} on your review. Approve {waiting.length === 1 ? "it" : "them"} first: the Trial fit score is final once this is sent.
+          {waiting.length > 1 && ` and ${waiting.length - 1} more`} still {waiting.length === 1 ? "waits" : "wait"} on your review. Approve {waiting.length === 1 ? "it" : "them"} before sending your evaluation.
         </p>
       )}
       {ends.cancel ? (
@@ -181,32 +163,42 @@ function RoleReview({ t, ready, missing, onEnd, onSend }: ActionProps) {
 }
 
 /** TB-068 / TB-081 — every evaluation on file, newest first, read-only after sending. */
-function EvaluationHistory({ t }: { t: Tracker }) {
+function EvaluationHistory({ t, title, footer }: { t: Tracker; title: string; footer?: ReactNode }) {
   const { history, isTrial, ended, first, trialFirst } = t;
   return (
-    <div className="flex flex-col gap-3">
-      <CardHeading>Evaluation history</CardHeading>
+    <PanelCard title={title}>
       {history.length === 0 ? (
-        <Card className="p-5 text-[13px] leading-[1.4] text-ink-2">
+        <p className="text-[13px] leading-[1.4] text-ink-2">
           {isTrial ? "No evaluation submitted yet. Once the trial ends and you send yours, it is listed here and cannot be edited." : ended ? "No evaluations were sent on this contract." : `No evaluation submitted yet. Each one you send ${first} is listed here and cannot be edited.`}
-        </Card>
+        </p>
       ) : (
-        keyed(history, (h) => `${h.date}-${h.stars}`).map(({ item: h, key }) => (
-          <Card key={key} className="flex flex-col gap-2 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-[13px] leading-[1.4] text-ink-2">
-                {h === trialFirst || isTrial ? "Trial evaluation · " : ""}Submitted {h.date}
-              </span>
-              <Stars value={h.stars} size={14} />
-            </div>
-            <p className="text-[13.5px] leading-[1.5] text-ink">{h.feedback}</p>
-            <p className="text-[12.5px] leading-[1.4] text-ink-2">
-              Recommendation: {h.recommendation}
-              {h.tfp !== undefined && (isTrial || h === trialFirst) && ` · Final Trial fit score: ${h.tfp}%`}
-            </p>
-          </Card>
-        ))
+        <div className="divide-y divide-line">
+          {keyed(history, (h) => `${h.date}-${h.stars}`).map(({ item: h, key }) => (
+            <article key={key} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-ink">{h === trialFirst || isTrial ? "Trial evaluation" : "Evaluation"}</h3>
+                  <p className="text-xs text-ink-2">Submitted {h.date}</p>
+                </div>
+                <Stars value={h.stars} />
+              </div>
+              {!!h.scores?.length && (
+                <dl className="grid gap-x-6 gap-y-2 rounded-lg bg-surface-alt p-3 text-sm sm:grid-cols-2">
+                  {h.scores.map((s) => (
+                    <div key={s.label} className="flex justify-between gap-2">
+                      <dt className="text-ink-2">{s.label}</dt>
+                      <dd><ScoreScale label={s.label} value={s.value} /></dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              <p className="text-sm leading-[1.5] break-words whitespace-pre-wrap text-ink">{h.feedback}</p>
+              <p className="text-[13px] text-ink-2">Recommendation <span className="ml-2 font-semibold text-ink">{h.recommendation}</span></p>
+            </article>
+          ))}
+        </div>
       )}
-    </div>
+      {footer}
+    </PanelCard>
   );
 }

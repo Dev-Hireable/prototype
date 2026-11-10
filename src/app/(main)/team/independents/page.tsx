@@ -49,27 +49,31 @@ export default function AllIndependents() {
 
   return (
     <Page title="All Independents">
-      <ContractListToolbar
-        q={q}
-        onQ={setQ}
-        placeholder="Search by name or role"
-        type={type}
-        onType={setType}
-        showInactive={showInactive}
-        onShowInactive={setShowInactive}
-        count={list.length === 1 ? "1 Independent" : `${list.length} Independents`}
+      <ContractList
         layout={layout}
-        onLayout={setLayout}
+        who="Independent"
+        items={list.map((c) => ({ id: c.slug, ...summaryOf(c, withReturn) }))}
+        toolbar={
+          <ContractListToolbar
+            q={q}
+            onQ={setQ}
+            placeholder="Search by name or role"
+            type={type}
+            onType={setType}
+            showInactive={showInactive}
+            onShowInactive={setShowInactive}
+            count={list.length === 1 ? "1 Independent" : `${list.length} Independents`}
+            layout={layout}
+            onLayout={setLayout}
+          />
+        }
+        empty={contracts.length === 0 ? (
+            /* TB-051: nobody hired yet — two ways forward, not a dead end. */
+            <NoIndependents discoverHref={withReturn("/team/discover")} />
+        ) : (
+            <NoMatches filtering={filtering} showInactive={showInactive} onClear={clearAll} onShowInactive={() => setShowInactive(true)} />
+        )}
       />
-
-      {contracts.length === 0 ? (
-        /* TB-051: nobody hired yet — two ways forward, not a dead end. */
-        <NoIndependents discoverHref={withReturn("/team/discover")} />
-      ) : list.length === 0 ? (
-        <NoMatches filtering={filtering} showInactive={showInactive} onClear={clearAll} onShowInactive={() => setShowInactive(true)} />
-      ) : (
-        <ContractList layout={layout} who="Independent" items={list.map((c) => ({ id: c.slug, ...summaryOf(c, withReturn) }))} />
-      )}
     </Page>
   );
 }

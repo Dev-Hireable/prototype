@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { JobBadge, Row, Table } from "@/components/portal/ui";
+import { Card, JobBadge, Row, TableContent } from "@/components/portal/ui";
 import { Badge } from "@/components/portal/badge";
 import { Tip } from "@/components/portal/tip";
 import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
@@ -56,15 +56,30 @@ const CONTRACT_LAYOUT_OPTIONS = [
  * The Team Builder's All independents and the independent's All contracts, as cards or as rows:
  * the same contracts and the same facts either way, so switching only changes how dense it is.
  */
-export function ContractList({ layout, items, who = "Contract" }: { layout: ContractLayout; items: (ContractSummary & { id: string })[]; /** The first column's heading in the list: who each row is. */ who?: string }) {
-  if (layout === "grid")
-    return (
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-4">
-        {items.map(({ id, ...c }) => (
-          <ContractCard key={id} {...c} />
-        ))}
-      </div>
-    );
+export function ContractList({ layout, items, who = "Contract", toolbar, empty }: {
+  layout: ContractLayout;
+  items: (ContractSummary & { id: string })[];
+  who?: string;
+  toolbar: ReactNode;
+  empty: ReactNode;
+}) {
+  return (
+    <Card trayClassName="w-full min-w-0">
+      <div className="border-b border-line px-3 py-3">{toolbar}</div>
+      {items.length === 0 ? (
+        <div className="p-3">{empty}</div>
+      ) : layout === "grid" ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))] gap-4 p-3">
+          {items.map(({ id, ...c }) => <ContractCard key={id} {...c} />)}
+        </div>
+      ) : (
+        <ContractRows items={items} who={who} />
+      )}
+    </Card>
+  );
+}
+
+function ContractRows({ items, who }: { items: (ContractSummary & { id: string })[]; who: string }) {
   // Trial fit, status and a call to action get a column only when some row has one.
   const withFit = items.some((c) => c.type === "trial" && c.tfs !== null);
   const withStatus = items.some((c) => c.status);
@@ -72,11 +87,11 @@ export function ContractList({ layout, items, who = "Contract" }: { layout: Cont
   const cols = [COLS.who, COLS.type, COLS.progress, ...(withFit ? [COLS.fit] : []), COLS.time, ...(withStatus ? [COLS.status] : []), withAction ? COLS.actionWide : COLS.action];
   const head = [who, "Type", "Progress", ...(withFit ? ["Trial fit"] : []), "Time", ...(withStatus ? ["Status"] : []), ""];
   return (
-    <Table cols={cols} head={head}>
+    <TableContent cols={cols} head={head}>
       {items.map(({ id, ...c }) => (
         <ContractRow key={id} {...c} withFit={withFit} withStatus={withStatus} withAction={withAction} />
       ))}
-    </Table>
+    </TableContent>
   );
 }
 
@@ -87,12 +102,12 @@ const COLS = {
   // rest, the message last; a cell left empty there (no trial fit, no status) takes no room.
   who: "w-[280px] max-md:basis-0! max-md:grow!",
   type: "w-[112px]",
-  progress: "min-w-[240px] max-w-[440px] flex-1 max-md:basis-full!",
+  progress: "min-w-[200px] max-w-[440px] flex-1 max-md:basis-full!",
   fit: "w-[112px] max-md:empty:hidden",
   time: "w-[176px]",
   status: "w-[120px] max-md:empty:hidden",
-  action: "w-[64px] justify-end max-md:ml-auto",
-  actionWide: "w-[190px] justify-end max-md:ml-auto",
+  action: "ml-auto w-[112px] justify-end",
+  actionWide: "ml-auto w-[248px] justify-end",
 };
 
 type Counts = ReturnType<typeof taskCounts>;
@@ -128,7 +143,7 @@ function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, 
         {type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}
         <span className="relative z-10 ml-auto flex items-center gap-2">
           {status}
-          <MessageLink href={messageHref} name={name} />
+          <MessageLink href={messageHref} name={name} showLabel />
         </span>
       </div>
     </article>
@@ -186,8 +201,8 @@ function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, l
       <span className={`${COLS.type} flex`}>
         <JobBadge type={type} />
       </span>
-      <span className={`${COLS.progress} flex flex-col justify-center gap-2 !items-stretch`}>
-        <WorkMeter counts={counts} />
+      <span className={`${COLS.progress} flex flex-col justify-center gap-1.5 !items-stretch`}>
+        <WorkMeter counts={counts} compact />
         <WorkLine counts={counts} />
       </span>
       {withFit && <span className={`${COLS.fit} flex`}>{type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}</span>}
@@ -197,7 +212,7 @@ function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, l
       {withStatus && <span className={`${COLS.status} relative z-10 flex`}>{status}</span>}
       <span className={`${withAction ? COLS.actionWide : COLS.action} relative z-10 flex gap-2`}>
         {action}
-        <MessageLink href={messageHref} name={name} />
+        <MessageLink href={messageHref} name={name} showLabel />
       </span>
     </Row>
   );
@@ -250,23 +265,23 @@ function TimeLeft({ type, left, over = false, inactive, ended, started }: Pick<C
   const soon = trial && !over && left !== null && left <= 7;
   const Icon = trial ? ICONS.hourglass : ICONS.calendar;
   return (
-    <span className={`flex items-center gap-1.5 whitespace-nowrap ${soon ? "font-semibold text-brand-orange" : ""}`}>
-      <Icon size={15} aria-hidden className="shrink-0" />
-      {inactive ? `Ended ${ended}` : trial ? daysLeftLabel(left ?? 0, over) : `Started ${started}`}
+    <span className={`inline-flex items-center gap-1.5 leading-4 whitespace-nowrap ${soon ? "font-semibold text-brand-orange" : ""}`}>
+      <Icon size={16} aria-hidden className="block shrink-0" />
+      <span>{inactive ? `Ended ${ended}` : trial ? daysLeftLabel(left ?? 0, over) : `Started ${started}`}</span>
     </span>
   );
 }
 
-/** The thread with the other party: a quiet icon button, named for screen readers and in its tooltip. */
 /**
- * The one icon-only link to a thread, on a card: the chat glyph in a 32px circle, its name as the
- * tip and the label. `unread` puts the red count on it (TB-037, the pipeline's cards).
+ * A link to a thread. Contract lists display a label. Pipeline cards use the compact icon and
+ * can display an unread count.
  */
-export function MessageLink({ href, name, unread = 0 }: { href: string; name: string; unread?: number }) {
+export function MessageLink({ href, name, unread = 0, showLabel = false }: { href: string; name: string; unread?: number; showLabel?: boolean }) {
   return (
     <Tip label={`Message ${name}`}>
-      <Link href={href} aria-label={`Message ${name}`} className="relative flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 transition hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary">
-        <Message size={18} aria-hidden />
+      <Link href={href} aria-label={`Message ${name}`} className={`relative flex h-8 shrink-0 items-center justify-center transition hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary ${showLabel ? "gap-1.5 rounded-lg border border-border bg-white px-2.5 text-xs font-medium text-ink" : "size-8 rounded-full text-ink-2"}`}>
+        <Message size={showLabel ? 16 : 18} aria-hidden />
+        {showLabel && "Message"}
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] leading-none font-semibold text-white">
             <span className="badge-count">{unread > 9 ? "9+" : unread}</span>

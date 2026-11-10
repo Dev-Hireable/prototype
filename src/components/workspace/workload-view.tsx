@@ -11,7 +11,7 @@ import type { WorkQuery } from "@/lib/work/query";
 import { formatAmount, workload, WORKLOAD_RULE, type Bucket, type WorkloadRow } from "@/lib/work/workload";
 import { useWorkspace } from "./context";
 import { AssigneeAvatar, AssigneeChip } from "./meta";
-import { STEP_BUTTON, TODAY_BUTTON, VIEW_FRAME } from "./view-frame";
+import { STEP_BUTTON, TODAY_BUTTON, VIEW_BODY, VIEW_CONTROLS, VIEW_FRAME } from "./view-frame";
 
 /**
  * Workload: for each person on the contract (and what's unassigned), how much work falls on each
@@ -32,30 +32,24 @@ export function WorkloadView({ items, query, setQuery }: { items: readonly WorkI
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-[var(--ws-gutter,1rem)] pt-3 pb-4" data-testid="workload">
-      <WindowBar query={query} setQuery={setQuery} from={from} last={last} />
-
-      {/* What the numbers mean, in a line; how they're worked out opens from it. */}
-      <details className="rounded-lg bg-[#f5f9fc] px-3 py-2 text-[12.5px] leading-[1.5] text-[#1d3a52] open:pb-3">
-        <summary className="flex cursor-pointer items-center gap-1.5 font-medium">
-          <ICONS.info size={15} aria-hidden /> {query.metric === "effort" ? "Numbers show the effort planned for each day. Darker means a heavier day." : "Numbers show how many items are planned for each day. Darker means a busier day."}
-        </summary>
-        <p className="mt-1.5">{WORKLOAD_RULE}</p>
-      </details>
-
-      {/* Bordered frame, scroller inside (an outline on the scroller sat under its pinned cells). As
-          tall as its three rows, not the whole pane. Positioned, like the List's, so what its cells
-          place absolutely (sr-only text) stays inside it instead of stretching the page. */}
       <div className={VIEW_FRAME}>
-        <div className="relative min-h-0 overflow-auto">
-          <table className="w-full border-separate border-spacing-0 text-[13px]" aria-label={`Workload by person, ${shortLabel(from)} to ${shortLabel(last)}, in ${unit}`}>
+        <WindowBar query={query} setQuery={setQuery} from={from} last={last} />
+        <div className={VIEW_BODY}>
+          <table className="w-full border-separate border-spacing-0 text-[13px]" aria-label={`Workload by assignee, ${shortLabel(from)} to ${shortLabel(last)}, in ${unit}`}>
             <WorkloadHead days={result.days} from={from} />
             <tbody>
               {result.rows.map((r) => (
-                <PersonRow key={r.key} row={r} grid={grid} />
+                <AssigneeRow key={r.key} row={r} grid={grid} />
               ))}
             </tbody>
           </table>
         </div>
+        <details className="px-3 py-2 text-xs leading-[1.5] text-ink-2">
+          <summary className="flex cursor-pointer items-center gap-1.5 hover:text-ink">
+            <ICONS.info size={15} aria-hidden /> {query.metric === "effort" ? "Numbers show the effort planned for each day. Darker means a heavier day." : "Numbers show how many items are planned for each day. Darker means a busier day."}
+          </summary>
+          <p className="mt-1.5">{WORKLOAD_RULE}</p>
+        </details>
       </div>
     </div>
   );
@@ -78,7 +72,7 @@ function WindowBar({ query, setQuery, from, last }: { query: WorkQuery; setQuery
   const shift = (weeks: number) => setQuery({ week: isoOf(addDays(from, weeks * 7)) });
   const isThisWeek = from === weekStartOf(today);
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={VIEW_CONTROLS} role="toolbar" aria-label="Workload controls">
       <span className="flex items-center gap-1" role="group" aria-label="Window">
         <button type="button" onClick={() => shift(-query.span)} aria-label="Earlier" className={STEP_BUTTON}>
           <ICONS.chevronLeft size={18} aria-hidden />
@@ -104,9 +98,9 @@ function WindowBar({ query, setQuery, from, last }: { query: WorkQuery; setQuery
 }
 
 /**
- * The grid's pinned header: Person, Before, a column per day — today's marked, the 1st and the
+ * The grid's pinned header: Assignee, Before, a column per day — today's marked, the 1st and the
  * window's first day with their month — then After, Total (the weeks showing) and No dates. On a
- * phone the Person column is just wide enough for a photo, and Total stays pinned at the right edge
+ * phone the Assignee column shows an avatar, and Total stays pinned at the right edge
  * while the days scroll under it: at 160px the names left room for three days, and Total never showed.
  */
 function WorkloadHead({ days, from }: { days: Day[]; from: Day }) {
@@ -114,26 +108,26 @@ function WorkloadHead({ days, from }: { days: Day[]; from: Day }) {
   return (
     <thead>
       <tr>
-        <th scope="col" className="sticky top-0 left-0 z-30 w-[160px] min-w-[160px] border-b border-border bg-surface-2 px-3 py-2 text-left text-[12.5px] font-medium text-ink-2 max-md:w-[60px] max-md:min-w-[60px] max-md:px-2">
-          Person
+        <th scope="col" className="sticky top-0 left-0 z-30 w-[160px] min-w-[160px] border-b border-line bg-white px-3 py-2 text-left text-[12.5px] font-medium text-ink-2 max-md:w-[68px] max-md:min-w-[68px] max-md:px-2">
+          Assignee
         </th>
-        <th scope="col" className="sticky top-0 z-20 min-w-[56px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
+        <th scope="col" className="sticky top-0 z-20 min-w-[56px] border-b border-l border-line bg-white px-2 py-2 text-center text-[12px] font-medium text-ink-2">
           Before
         </th>
         {days.map((d) => (
-          <th key={d} scope="col" aria-current={d === today ? "date" : undefined} className={`sticky top-0 z-20 min-w-[42px] border-b border-border px-1 py-1.5 text-center text-[11.5px] font-medium ${isWeekend(d) ? "bg-[#ececec] text-ink-2" : "bg-surface-2 text-ink-2"} ${d === today ? "!text-primary" : ""} ${weekdayOf(d) === 0 ? "border-l border-[#d6d6d6]" : ""}`}>
+          <th key={d} scope="col" aria-current={d === today ? "date" : undefined} className={`sticky top-0 z-20 min-w-[42px] border-b border-line px-1 py-1.5 text-center text-[11.5px] font-medium text-ink-2 ${isWeekend(d) ? "bg-surface-alt" : "bg-white"} ${d === today ? "!text-primary" : ""} ${weekdayOf(d) === 0 ? "border-l" : ""}`}>
             <span className="block">{WEEKDAY_SHORT[weekdayOf(d)]}</span>
             <span className="block tabular-nums">{partsOf(d).d === 1 || d === from ? shortLabel(d, today) : partsOf(d).d}</span>
             {d === today && <span className="sr-only">(today)</span>}
           </th>
         ))}
-        <th scope="col" className="sticky top-0 z-20 min-w-[56px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
+        <th scope="col" className="sticky top-0 z-20 min-w-[56px] border-b border-l border-line bg-white px-2 py-2 text-center text-[12px] font-medium text-ink-2">
           After
         </th>
-        <th scope="col" className={`sticky top-0 z-20 min-w-[72px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2 ${PINNED_TOTAL} max-md:z-30`}>
+        <th scope="col" className={`sticky top-0 z-20 min-w-[72px] border-b border-l border-line bg-white px-2 py-2 text-center text-[12px] font-medium text-ink-2 ${PINNED_TOTAL} max-md:z-30`}>
           Total
         </th>
-        <th scope="col" className="sticky top-0 z-20 min-w-[84px] border-b border-l border-border bg-surface-2 px-2 py-2 text-center text-[12px] font-medium text-ink-2">
+        <th scope="col" className="sticky top-0 z-20 min-w-[84px] border-b border-l border-line bg-white px-2 py-2 text-center text-[12px] font-medium text-ink-2">
           No dates
         </th>
       </tr>
@@ -142,7 +136,7 @@ function WorkloadHead({ days, from }: { days: Day[]; from: Day }) {
 }
 
 /** One person's row: who (and, measuring effort, how much has no estimate), before the window, each day, after it, the total in the window, and what has no dates. */
-function PersonRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid }) {
+function AssigneeRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid }) {
   const { today, people, assigneeLabel } = useWorkspace();
   const { days, from, last, max, unit, metric } = grid;
   return (
@@ -197,7 +191,7 @@ function NoDatesCell({ row: r, metric }: { row: WorkloadRow; metric: WorkQuery["
 /** A choice of two or more, as the Timeline's scale: 40px tall on a phone, the view tabs' height, with narrower segments there. */
 function Segmented({ label, value, options, onChange, className = "" }: { label: string; value: string; options: [string, string][]; onChange: (v: string) => void; className?: string }) {
   return (
-    <span role="radiogroup" aria-label={label} className={`inline-flex rounded-lg bg-surface-2 p-[3px] ${className}`}>
+    <span role="radiogroup" aria-label={label} className={`inline-flex rounded-lg bg-white/65 p-[3px] ${className}`}>
       {options.map(([v, text]) => (
         <button key={v} type="button" role="radio" aria-checked={value === v} onClick={() => onChange(v)} className={`h-7 rounded-md px-3 text-[13px] font-medium whitespace-nowrap max-md:h-[34px] max-md:px-2.5 ${value === v ? "bg-white text-ink shadow-sm" : "text-ink-2 hover:text-ink"}`}>
           {text}

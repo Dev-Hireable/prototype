@@ -10,7 +10,6 @@ import { uiZoom } from "@/lib/portal/zoom";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type MenuPosition = { top: number; left: number; width: number };
-type MenuDensity = "compact" | "regular";
 
 function getMenuPosition(anchor: DOMRect, width: number, itemCount: number, align: "start" | "end"): MenuPosition {
   const maxHeight = Math.min(320, Math.max(1, window.innerHeight - 16));
@@ -118,9 +117,8 @@ function useAnchoredMenu(anchorRef: RefObject<HTMLElement | null>, { open, onClo
 }
 
 /** Row spacing on top of the dropdown item's own look: `regular` for icon rows, `compact` for plain ones. */
-function menuItemClass(density: MenuDensity, destructive: boolean, className: string) {
-  const spacing = density === "regular" ? "gap-2.5 px-3 py-[9px]" : "gap-2 px-3 py-2";
-  return `w-full text-left ${spacing} ${destructive ? "text-danger" : "text-ink"} ${className}`;
+function menuItemClass(destructive: boolean, className: string) {
+  return `w-full px-3 text-left ${destructive ? "text-danger" : "text-ink"} ${className}`;
 }
 
 /**
@@ -129,18 +127,14 @@ function menuItemClass(density: MenuDensity, destructive: boolean, className: st
  */
 export function MenuAction({
   children,
-  icon,
   destructive = false,
-  density = "regular",
   className = "",
   onClick,
   disabled,
   title,
 }: {
   children: ReactNode;
-  icon?: ReactNode;
   destructive?: boolean;
-  density?: MenuDensity;
   className?: string;
   onClick?: () => void;
   disabled?: boolean;
@@ -149,8 +143,7 @@ export function MenuAction({
 }) {
   return (
     <Tip label={title} wrap={!!disabled} wrapClassName="w-full">
-      <DropdownMenuItem onClick={onClick} disabled={disabled} variant={destructive ? "destructive" : "default"} className={menuItemClass(density, destructive, className)}>
-        {icon}
+      <DropdownMenuItem onClick={onClick} disabled={disabled} variant={destructive ? "destructive" : "default"} className={menuItemClass(destructive, className)}>
         {children}
       </DropdownMenuItem>
     </Tip>
@@ -160,21 +153,16 @@ export function MenuAction({
 export function MenuLink({
   href,
   children,
-  icon,
   destructive = false,
-  density = "regular",
   className = "",
 }: {
   href: string;
   children: ReactNode;
-  icon?: ReactNode;
   destructive?: boolean;
-  density?: MenuDensity;
   className?: string;
 }) {
   return (
-    <DropdownMenuItem render={<Link href={href} />} variant={destructive ? "destructive" : "default"} className={menuItemClass(density, destructive, className)}>
-      {icon}
+    <DropdownMenuItem render={<Link href={href} />} variant={destructive ? "destructive" : "default"} className={menuItemClass(destructive, className)}>
       {children}
     </DropdownMenuItem>
   );
@@ -239,7 +227,7 @@ export function Select({ options: all, placeholder = "Select", value, defaultVal
         <span className={`block truncate ${selected ? "" : "text-muted-2"}`}>{selected || placeholder}</span>
       </button>
       {name && <input type="hidden" name={name} value={selected} required={required} />}
-      <Chevron size={24} aria-hidden className="pointer-events-none absolute top-2.5 right-4 text-ink" />
+      <Chevron size={24} aria-hidden className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-ink" />
       <FloatingMenu
         open={open}
         anchorRef={triggerRef}
@@ -321,9 +309,12 @@ function SelectOption({ option, selected, highlighted, onHover, onStep, onPick }
           onPick();
         }
       }}
-      className={`flex w-full items-center px-3 py-2 text-left focus-visible:bg-surface-alt focus-visible:outline-none ${selected ? "bg-accent-bg font-semibold text-accent-ink" : "text-ink hover:bg-surface-alt"}`}
+      className="flex w-full items-center justify-between gap-2 py-2 pr-2 pl-3 text-left text-ink hover:bg-surface-2 focus-visible:bg-surface-2 focus-visible:outline-none"
     >
       {option}
+      <span aria-hidden className="flex size-4 shrink-0 items-center justify-center">
+        {selected && <ICONS.check size={16} />}
+      </span>
     </button>
   );
 }
@@ -338,37 +329,28 @@ export function KebabMenu({
   open,
   onOpenChange,
   children,
-  iconSize = 18,
   menuWidth = 192,
-  icon = "vertical",
   buttonClassName = "",
   menuClassName = "",
-  tip,
 }: {
   label: string;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   children: ReactNode;
-  iconSize?: number;
   menuWidth?: number;
-  /** ⋮ on cards and rows; ⋯ in a panel's header. */
-  icon?: "vertical" | "horizontal";
   buttonClassName?: string;
   menuClassName?: string;
-  /** The button's tooltip ("More actions"), where the kebab is the only way to its actions. */
-  tip?: string;
 }) {
-  const More = icon === "vertical" ? ICONS.moreV : ICONS.moreH;
   return (
     <DropdownMenu open={open} onOpenChange={(next) => onOpenChange?.(next)}>
-      <Tip label={tip}>
+      <Tip label="More actions" off={open}>
         <DropdownMenuTrigger
           aria-label={label}
           // A kebab often sits on a clickable card or row; opening it shouldn't open that too.
           onClick={(event) => event.stopPropagation()}
           className={`${ICON_BUTTON} size-8 ${buttonClassName}`}
         >
-          <More size={iconSize} aria-hidden />
+          <ICONS.moreV size={18} aria-hidden />
         </DropdownMenuTrigger>
       </Tip>
       <DropdownMenuContent align="end" className={menuClassName} style={{ width: menuWidth }} onClick={(event) => event.stopPropagation()}>
