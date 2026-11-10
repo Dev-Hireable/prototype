@@ -35,8 +35,15 @@ type QuizChatThreadProps = {
 };
 
 /**
- * A bubble's entrance: it grows up into place from its speaker's side. The typing dots come in
- * quicker; a message's will-change is cleared once it's in.
+ * A bubble's entrance: it grows up into place from its speaker's side as it fades in, text and
+ * all. The typing dots come in quicker.
+ *
+ * A message is first drawn at full size, all but invisible, for one frame, and only then grows
+ * in. Its bubble has a layer of its own (will-change-transform, on the bubble's class), and the
+ * browser keeps the picture it drew for that layer first: drawn at full size, the picture is
+ * sharp at the end of the entrance and merely shrunk at its start. Started at 96%, it was drawn
+ * small, stretched as it grew, and redrawn when the entrance ended, which showed as the text
+ * shifting.
  */
 function playBubbleEntrance(
   gsap: typeof import('gsap').default,
@@ -44,52 +51,45 @@ function playBubbleEntrance(
   style: BubbleAnimationStyle,
 ) {
   const isUser = style === 'user';
-  const isTyping = style === 'typing';
   gsap.set(element, {
     transformOrigin: isUser ? 'right bottom' : 'left bottom',
-    willChange: 'opacity, transform',
   });
 
-  if (isTyping) {
+  if (style === 'typing') {
     gsap.fromTo(
       element,
-      {
-        autoAlpha: 0,
-        y: 4,
-        scale: 0.96,
-      },
+      { autoAlpha: 0, y: 4, scale: 0.96 },
       {
         autoAlpha: 1,
         y: 0,
         scale: 1,
         duration: 0.2,
         ease: 'power2.out',
-        clearProps: 'willChange, transform',
+        clearProps: 'transform',
       },
     );
     return;
   }
 
-  const timeline = gsap.timeline({
-    onComplete: () => {
-      gsap.set(element, { clearProps: 'willChange, transform' });
-    },
+  // The frame at full size: visible to the browser (so it draws it), not to the eye.
+  gsap.set(element, { autoAlpha: 0.01 });
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (!element.isConnected) return;
+      gsap.fromTo(
+        element,
+        { autoAlpha: 0, y: 8, scale: 0.96 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.3,
+          ease: 'power2.out',
+          clearProps: 'transform',
+        },
+      );
+    });
   });
-  timeline.fromTo(
-    element,
-    {
-      autoAlpha: 0,
-      y: 8,
-      scale: 0.96,
-    },
-    {
-      autoAlpha: 1,
-      y: 0,
-      scale: 1,
-      duration: 0.3,
-      ease: 'power2.out',
-    },
-  );
 }
 
 function useChatBubbleEntranceAnimation(): AnimateBubbleIn {

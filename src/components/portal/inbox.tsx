@@ -58,7 +58,7 @@ export function ThreadBody({ latest, children }: { latest: string; children: Rea
     if (el) el.scrollTop = el.scrollHeight;
   }, [latest]);
   return (
-    <div ref={ref} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-[max(1rem,calc((100%_-_44rem)/2))] py-6">
+    <div ref={ref} className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-6">
       {children}
     </div>
   );

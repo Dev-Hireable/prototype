@@ -2,15 +2,15 @@
 
 import { useRef, type RefObject } from 'react';
 import { useGSAP } from '@gsap/react';
+import gsap from 'gsap';
 
-import { loadGsap, reportGsapLoadError } from '@/web-app/lib/load-gsap';
 import { ONBOARDING_CONFETTI_COLORS } from '@/web-app/lib/brand-colors';
 import { prefersReducedMotion } from '@/web-app/lib/motion';
 import { useIsOnboardingRevealed } from '../shared/splash-gate';
 
 const ANIM = {
-  fadeInUp: { opacity: 0, y: 25 },
-  fadeInUpScale: { opacity: 0, y: 30, scale: 0.8 },
+  fadeInUp: { opacity: 0, y: 16 },
+  fadeInUpScale: { opacity: 0, y: 20, scale: 0.9 },
   visible: { opacity: 1, y: 0, scale: 1, ease: 'power3.out' },
   visibleNoScale: { opacity: 1, y: 0, ease: 'power3.out' },
   exitUp: { opacity: 0, y: -15, ease: 'power2.in' },
@@ -38,7 +38,6 @@ async function fireOnboardingCelebrationConfetti(): Promise<void> {
 
 function animateIntroExit(
   targets: { logo: Element; heading: Element; button: Element },
-  gsap: typeof import('gsap').default,
   onComplete: () => void,
 ): gsap.core.Timeline {
   const tl = gsap.timeline({ onComplete });
@@ -92,8 +91,10 @@ function revealIntroTargets(intro: IntroRefs) {
 }
 
 /**
- * The intro's entrance: the mascot, the heading, then the button rise in, each over the last. A
- * new account's confetti fires as it starts; its module loads with GSAP so it doesn't lag behind.
+ * The intro's entrance: the mascot, the heading, then the button rise in, each over the last. It
+ * starts the moment the splash lifts: it used to wait for GSAP's and the confetti's chunks to load
+ * first (GSAP is already on the page, via useGSAP), then a further 0.1 s, so the screen sat empty.
+ * A new account's confetti fires as its chunk arrives.
  */
 function playIntroEntrance(
   intro: IntroRefs,
@@ -104,40 +105,23 @@ function playIntroEntrance(
   if (!targets) return;
 
   const { logo, heading, button } = targets;
-  void Promise.all([
-    loadGsap(),
-    import('canvas-confetti')
-      .then(() => undefined)
-      .catch(() => undefined),
-  ])
-    .then(([{ default: gsap }]) => {
-      if (run.isCancelled()) return;
+  if (celebrate) void fireOnboardingCelebrationConfetti();
 
-      const tl = gsap.timeline({ delay: 0.1 });
-      run.timelineRef.current = tl;
-      if (celebrate) void fireOnboardingCelebrationConfetti();
-
-      tl.fromTo(logo, ANIM.fadeInUpScale, {
-        ...ANIM.visible,
-        duration: 0.55,
-      })
-        .fromTo(
-          heading,
-          ANIM.fadeInUp,
-          { ...ANIM.visibleNoScale, duration: 0.6 },
-          '-=0.2',
-        )
-        .fromTo(
-          button,
-          ANIM.fadeInUp,
-          { ...ANIM.visibleNoScale, duration: 0.5 },
-          '-=0.35',
-        );
-    })
-    .catch((error: unknown) => {
-      reportGsapLoadError(error);
-      if (!run.isCancelled()) revealIntroTargets(intro);
-    });
+  const tl = gsap.timeline();
+  run.timelineRef.current = tl;
+  tl.fromTo(logo, ANIM.fadeInUpScale, { ...ANIM.visible, duration: 0.45 })
+    .fromTo(
+      heading,
+      ANIM.fadeInUp,
+      { ...ANIM.visibleNoScale, duration: 0.45 },
+      '-=0.3',
+    )
+    .fromTo(
+      button,
+      ANIM.fadeInUp,
+      { ...ANIM.visibleNoScale, duration: 0.4 },
+      '-=0.3',
+    );
 }
 
 type IntroEntranceOptions = {
@@ -225,14 +209,7 @@ function useIntroExit(
 
     clearTimeline(timelineRef);
 
-    void loadGsap()
-      .then(({ default: gsap }) => {
-        timelineRef.current = animateIntroExit(targets, gsap, proceed);
-      })
-      .catch((error: unknown) => {
-        reportGsapLoadError(error);
-        proceed();
-      });
+    timelineRef.current = animateIntroExit(targets, proceed);
   };
 }
 

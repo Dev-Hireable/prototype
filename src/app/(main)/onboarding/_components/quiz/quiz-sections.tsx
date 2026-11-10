@@ -8,7 +8,8 @@ import type { QuizCopy } from '../../_data/onboarding-copy';
 import type { QuizPersona } from '../../_lib/quiz-types';
 import { QuizAnswerSection } from './answer-section';
 import { QuizChatThread } from './chat-thread';
-import { useSpotlightFlight } from './use-spotlight-flight';
+import { ASSISTANT_BUBBLE_CLASS, BubbleTail } from './chat-thread-rows';
+import { useSpotlightEntrance } from './use-spotlight-entrance';
 
 function QuizHeader({
   title,
@@ -61,14 +62,15 @@ function QuizHeader({
 }
 
 /**
- * The quiz's wrap-up: the assistant's closing line lifts out of the chat and settles, zoomed, in
- * the middle of the screen while the rest of the quiz fades away, and a spinner turns after its
- * last word until the curtain comes down on the results. Without it the screen sat still for two
- * seconds after the last answer.
+ * The quiz's wrap-up: the assistant's closing line lifts out of the chat and settles, a little
+ * larger, in the middle of the screen while the rest of the quiz fades away; once it lands a spinner
+ * turns beside it until the curtain comes down on the results. Without it the screen sat
+ * still for two seconds after the last answer.
  *
- * It's a copy of that chat row that starts exactly over it (the row is hidden meanwhile), so the
- * line reads as one piece moving. The card is the page colour, so the chat fading out behind it
- * never shows through. Decorative: the chat log has already announced the line.
+ * It's a copy of that chat row, laid out the same way and starting exactly over it (the row is
+ * hidden meanwhile), so the line reads as one piece moving. It's edged in the page colour, so the
+ * chat fading out behind it never shows through. Decorative: the chat log has already announced
+ * the line.
  */
 function QuizFinalSpotlight({
   contentRef,
@@ -81,43 +83,46 @@ function QuizFinalSpotlight({
   assistantAvatarSrc: string;
   message: string;
 }) {
-  const { cardRef, lineRef, spinnerRef } = useSpotlightFlight(contentRef);
-  // The spinner sits after the last word, and wraps with it rather than onto a line of its own.
-  const lastSpace = message.lastIndexOf(' ');
+  const { lineRef, spinnerRef } = useSpotlightEntrance(contentRef);
 
   return (
     <div
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center"
     >
-      <div ref={cardRef} className="bg-background rounded-2xl p-4">
+      {/* The chat row's own layout (AssistantRowShell), so the two wrap and line up alike. */}
+      <div
+        ref={lineRef}
+        className="bg-background ring-background flex flex-row items-end gap-3 rounded-2xl ring-16 sm:gap-4"
+      >
         <div
-          ref={lineRef}
-          className="flex flex-row items-end gap-3 sm:gap-4"
-        >
-          <div
-            className="size-9 flex-none rounded-[25px] bg-contain bg-center bg-no-repeat"
-            style={{ backgroundImage: `url(${assistantAvatarSrc})` }}
-          />
-          <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
-            <p className="text-foreground text-sm font-semibold leading-[120%] tracking-[0.2px]">
-              {assistantName}
-            </p>
-            <div className="w-full min-h-[44px]">
-              <p className="text-foreground wrap-break-word w-full text-sm font-normal leading-[120%] tracking-[0.2px] whitespace-pre-line">
-                {message.slice(0, lastSpace + 1)}
-                <span className="whitespace-nowrap">
-                  {message.slice(lastSpace + 1)}
-                  <span
-                    ref={spinnerRef}
-                    className="ml-1.5 inline-block align-[-3px]"
-                    style={{ opacity: 0, visibility: 'hidden' }}
-                  >
-                    <InlineSpinner className="text-client size-4" />
-                  </span>
+          className="size-9 flex-none rounded-[25px] bg-contain bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${assistantAvatarSrc})` }}
+        />
+        <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
+          <p
+            data-spotlight-name
+            className="text-foreground text-sm font-semibold leading-[120%] tracking-[0.2px]"
+          >
+            {assistantName}
+          </p>
+          <div className="w-full min-h-[44px]">
+            {/* No layer of its own here (the chat's bubbles keep one): this copy is zoomed, and a
+                layer's picture would be stretched rather than redrawn sharp at the larger size. */}
+            <p className={`${ASSISTANT_BUBBLE_CLASS} rounded-bl-[4px] will-change-auto!`}>
+              {message}
+              <BubbleTail side="left" className="fill-accent-bg" />
+              {/* Beside the bubble, out of its flow: it can't change how the line wraps. */}
+              <span className="absolute top-1/2 left-full ml-3 -translate-y-1/2">
+                <span
+                  ref={spinnerRef}
+                  className="block"
+                  style={{ opacity: 0, visibility: 'hidden' }}
+                >
+                  <InlineSpinner className="text-client size-4" />
                 </span>
-              </p>
-            </div>
+              </span>
+            </p>
           </div>
         </div>
       </div>

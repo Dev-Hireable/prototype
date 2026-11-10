@@ -9,12 +9,18 @@ export type AnimateBubbleIn = (
   style: BubbleAnimationStyle,
 ) => void;
 
+/**
+ * Every message bubble keeps a layer of its own (will-change-transform), for its entrance
+ * (playBubbleEntrance): the browser draws the bubble once and grows that picture, text and all.
+ * It stays on the layer afterwards, because being moved off it is a redraw, and that redraw is
+ * what showed as the text shifting when an entrance ended.
+ */
 const USER_BUBBLE_CLASS =
-  'relative inline-flex w-fit max-w-[85%] flex-row items-center gap-2.5 rounded-[16px] rounded-br-[4px] bg-muted px-4 py-3 sm:px-6 sm:py-4';
+  'relative inline-flex w-fit max-w-[85%] flex-row items-center gap-2.5 rounded-[16px] rounded-br-[4px] bg-muted px-4 py-3 will-change-transform sm:px-6 sm:py-4';
 
 /** The assistant's lines, in a bubble of their own colour; the last of a run carries the tail. */
-const ASSISTANT_BUBBLE_CLASS =
-  'relative w-fit max-w-full rounded-[16px] bg-accent-bg px-4 py-3 text-foreground wrap-break-word text-sm font-normal leading-[140%] tracking-[0.2px] whitespace-pre-line sm:px-5';
+export const ASSISTANT_BUBBLE_CLASS =
+  'relative w-fit max-w-full rounded-[16px] bg-accent-bg px-4 py-3 text-foreground wrap-break-word text-sm font-normal leading-[140%] tracking-[0.2px] whitespace-pre-line will-change-transform sm:px-5';
 
 const USER_BUBBLE_TEXT_CLASS =
   'font-secondary wrap-break-word text-foreground max-w-full text-left text-sm font-normal leading-[120%] tracking-[0.2px]';
@@ -24,7 +30,7 @@ const USER_BUBBLE_TEXT_CLASS =
  * colour (`className` sets the fill). It sits just outside the bubble, whose corner on that side is
  * squared off to meet it, Messenger style.
  */
-function BubbleTail({ side, className }: { side: 'left' | 'right'; className: string }) {
+export function BubbleTail({ side, className }: { side: 'left' | 'right'; className: string }) {
   return (
     <svg
       aria-hidden
@@ -76,11 +82,13 @@ function AssistantRowShell({
         />
         <div className="flex min-w-0 flex-1 flex-col items-start gap-2">
           {place.first ? (
-            <p className="text-foreground text-sm font-semibold leading-[120%] tracking-[0.2px]">
+            <p data-quiz-assistant-name className="text-foreground text-sm font-semibold leading-[120%] tracking-[0.2px]">
               {assistantName}
             </p>
           ) : null}
-          <div className={place.last ? 'w-full min-h-[44px]' : 'w-full'}>{children}</div>
+          {/* The run's last line keeps a bubble's height and sits at its foot, beside the avatar: the
+              typing dots used to float at the top of that slot, away from it. */}
+          <div className={place.last ? 'flex min-h-[44px] w-full items-end' : 'w-full'}>{children}</div>
         </div>
       </div>
     </div>

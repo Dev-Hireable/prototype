@@ -495,7 +495,7 @@ function FileCard({ file, source, side }: { file: { name: string; meta: string }
 export function Composer({ draft, onDraft, pending, onRemove, fileError, onPick, onSend }: { draft: string; onDraft: (text: string) => void; pending: readonly File[]; onRemove: (file: File) => void; fileError: string | null; onPick: (files: FileList | null) => void; onSend: () => void }) {
   return (
     <form
-      className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 pt-2 pb-4"
+      className="flex w-full flex-col gap-2 px-5 pt-2 pb-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSend();
