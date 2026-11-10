@@ -90,7 +90,7 @@ function WhyClosed({ role, standing }: { role: Role; standing: Standing }) {
       {engagedNote && (
         <p className="text-[12px] leading-[1.4] text-ink-2">
           You already have an engagement with {engagedNote.company} on {engagedNote.title}. The demo runs one engagement at a time:{" "}
-          {engagedNote.withdrawable ? "withdraw that application first, or use Reset demo at the top right." : "it's a signed contract, so use Reset demo at the top right to start another."}
+          {engagedNote.withdrawable ? "withdraw that application first, or use Reset demo." : "it's a signed contract, so use Reset demo to start another."}
         </p>
       )}
     </>

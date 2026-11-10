@@ -30,14 +30,12 @@ export function Inbox({ nav, list, thread, open }: { nav?: ReactNode; list: Reac
 }
 
 /**
- * The thread's top bar. It ends short of the Reset demo button floating in the corner (md:pr-36 is
- * CLEAR_DEMO_RESET, @/components/portal/styles); a phone has no corner button, and there the bar
- * leads back to the list.
+ * The thread's top bar. On phones it leads back to the conversation list.
  */
 export function ThreadHeader({ onBack, children }: { onBack: () => void; children: ReactNode }) {
   const Back = ICONS.chevronLeft;
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line pl-[18px] max-md:pr-3 md:pr-36">
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line pr-4 pl-[18px] max-md:pr-3">
       <button type="button" aria-label="Back to conversations" onClick={onBack} className="-ml-1.5 flex size-8 items-center justify-center rounded-lg text-ink hover:bg-surface-alt md:hidden">
         <Back size={20} aria-hidden />
       </button>

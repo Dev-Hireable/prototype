@@ -13,7 +13,7 @@ import type { Tone } from "@/lib/portal/tone";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
-import { CLEAR_DEMO_RESET, FORM_CONTROL, ICON_BUTTON, layoutClasses, PHONE_FILTER_ROW, splitTray, TRAY, TRAY_PANEL } from "@/components/portal/styles";
+import { FORM_CONTROL, ICON_BUTTON, layoutClasses, PHONE_FILTER_ROW, splitTray, TRAY, TRAY_PANEL } from "@/components/portal/styles";
 import { Checkbox as CheckboxControl } from "@/components/ui/checkbox";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, useSheetSide } from "@/components/ui/sheet";
 import { Tabs as TabsRoot, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -101,10 +101,9 @@ function PageHeader({ title, badge, actions, onClose, tabs, heading }: { title: 
   const Close = ICONS.close;
   return (
     <header className="shrink-0 shadow-[inset_0_-1px_0_var(--color-line)]">
-      {/* One 56px title row for every heading size, so the title sits at the same spot on every page; tabs hang below it.
-          It ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
+      {/* One 56px title row for every heading size. Tabs hang below it. */}
       {/* A phone lets a long title (a role and its company) wrap, the badges after it, rather than clip. */}
-      <div className={`flex h-14 min-w-0 items-center gap-3 pl-(--page-gutter) ${CLEAR_DEMO_RESET} max-md:h-auto max-md:min-h-14 max-md:py-2`}>
+      <div className="flex h-14 min-w-0 items-center gap-3 px-(--page-gutter) max-md:h-auto max-md:min-h-14 max-md:py-2">
         <h1
           className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-ink max-md:leading-[1.3] ${
             heading === "display"

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { MdRestartAlt } from "react-icons/md";
+import { ICONS } from "@/components/icons";
 import { Button, Modal } from "@/components/portal/ui";
 import { resetDemo } from "@/lib/demo/live";
 
@@ -12,15 +12,8 @@ const PORTALS = ["/team", "/independent", "/admin"];
 const portalOf = (pathname: string) => PORTALS.find((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 /**
- * Reset demo, pinned to the top-right corner of every screen. It used to sit in the Notifications
- * toolbar, a screen away from wherever the demo had got messy.
- *
- * It's fixed, so it takes no room in any layout and never moves: the page headers it floats over
- * end short of it instead (CLEAR_DEMO_RESET). 20px in from the top and right is where those
- * headers' own controls start, so it lines up with the offer screens' × and Admin's header
- * buttons. z-40 keeps dialogs and toasts (z-50) above it. A phone's portal screens have no room
- * for it in the corner: there it's in the Menu sheet (MobileNav), and only the sign-in and
- * onboarding screens keep the corner one.
+ * The fixed right-edge tab stays out of the page header. On phones, the portal Menu holds Reset
+ * demo, while sign-in and onboarding keep the tab.
  */
 export function DemoReset() {
   const inPortal = !!portalOf(usePathname());
@@ -31,10 +24,10 @@ export function DemoReset() {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className={`hit-area fixed top-5 right-5 z-40 flex h-6 items-center gap-1 rounded-full border border-border bg-white pr-2.5 pl-2 text-[12px] leading-none font-medium whitespace-nowrap text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${inPortal ? "max-md:hidden" : ""}`}
+        className={`hit-area fixed top-1/2 right-0 z-40 flex w-8 -translate-y-1/2 flex-col items-center gap-1.5 rounded-l-lg border border-r-0 border-border bg-white py-2.5 text-xs leading-none font-medium whitespace-nowrap text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${inPortal ? "max-md:hidden" : ""}`}
       >
-        <MdRestartAlt size={14} aria-hidden />
-        Reset demo
+        <ICONS.restart size={16} aria-hidden />
+        <span className="[writing-mode:vertical-rl]">Reset demo</span>
       </button>
       <ResetDemoDialog open={confirming} onClose={() => setConfirming(false)} />
     </>

@@ -4,7 +4,7 @@ import { Card } from "@/components/portal/ui";
 import { PortalContent } from "@/components/portal/layout";
 import { PageNav } from "@/components/portal/nav";
 import { ScrollFade } from "@/components/portal/scroll-fade";
-import { CLEAR_DEMO_RESET, PHONE_FILTER_ROW, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
+import { PHONE_FILTER_ROW, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
 import { keyed } from "@/lib/portal/keys";
 import { ICONS } from "@/components/icons";
 
@@ -30,8 +30,7 @@ export function AdminPage({
 }) {
   return (
     <>
-      {/* Ends short of the Reset demo button floating in the corner (CLEAR_DEMO_RESET). */}
-      <header className={`flex shrink-0 items-center justify-between gap-2 pt-4 pl-4 ${CLEAR_DEMO_RESET} shadow-[inset_0_-1px_0_#c3c3c3]`}>
+      <header className="flex shrink-0 items-center justify-between gap-2 px-4 pt-4 shadow-[inset_0_-1px_0_#c3c3c3]">
         <h1
           className="truncate font-display text-[24px] leading-[1.5] font-semibold tracking-[0.2px] text-ink"
           style={{ fontVariationSettings: '"opsz" 14' }}
