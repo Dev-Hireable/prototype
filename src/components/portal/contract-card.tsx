@@ -10,7 +10,7 @@ import { ViewSwitch } from "@/components/portal/view-switch";
 import { WorkLegend, WorkMeter } from "@/components/portal/work-progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { CONTRACT_LAYOUTS } from "@/lib/contract/view";
-import { daysLeftLabel } from "@/lib/portal/dates";
+import { daysLeftLabel, startsInLabel } from "@/lib/portal/dates";
 import type { JobType } from "@/lib/contract/job-types";
 import { taskCounts } from "@/lib/demo/tasks";
 import type { Task } from "@/lib/demo/tasks";
@@ -40,6 +40,8 @@ export type ContractSummary = {
   /** When it ended, shown once it has. */
   ended: string;
   started: string;
+  /** The first day, while the contract is signed but hasn't started: the clock counts down to it and there's no Trial fit yet. */
+  startsOn?: string;
   /** Where the contract stands, when the list filters by it. */
   status?: ReactNode;
   /** One call to action under the summary, when there's something to do now. */
@@ -81,11 +83,12 @@ export function ContractList({ layout, items, who = "Contract", toolbar, empty }
 
 function ContractRows({ items, who }: { items: (ContractSummary & { id: string })[]; who: string }) {
   // Trial fit, status and a call to action get a column only when some row has one.
-  const withFit = items.some((c) => c.type === "trial" && c.tfs !== null);
+  const withFit = items.some(showsFit);
   const withStatus = items.some((c) => c.status);
   const withAction = items.some((c) => c.action);
-  const cols = [COLS.who, COLS.type, COLS.progress, ...(withFit ? [COLS.fit] : []), COLS.time, ...(withStatus ? [COLS.status] : []), withAction ? COLS.actionWide : COLS.action];
-  const head = [who, "Type", "Progress", ...(withFit ? ["Trial fit"] : []), "Time", ...(withStatus ? ["Status"] : []), ""];
+  // Who, then what it is and where it stands, then how the work goes, then the clock and the thread.
+  const cols = [COLS.who, COLS.type, ...(withStatus ? [COLS.status] : []), COLS.progress, ...(withFit ? [COLS.fit] : []), COLS.time, withAction ? COLS.actionWide : COLS.action];
+  const head = [who, "Type", ...(withStatus ? ["Status"] : []), "Progress", ...(withFit ? ["Trial fit"] : []), "Time", ""];
   return (
     <TableContent cols={cols} head={head}>
       {items.map(({ id, ...c }) => (
@@ -105,7 +108,7 @@ const COLS = {
   progress: "min-w-[200px] max-w-[440px] flex-1 max-md:basis-full!",
   fit: "w-[112px] max-md:empty:hidden",
   time: "w-[176px]",
-  status: "w-[120px] max-md:empty:hidden",
+  status: "w-[152px] max-md:empty:hidden",
   action: "ml-auto w-[112px] justify-end",
   actionWide: "ml-auto w-[248px] justify-end",
 };
@@ -120,29 +123,36 @@ type Counts = ReturnType<typeof taskCounts>;
  * and any call to action sit above that. The Team Builder's All independents and the independent's
  * All contracts both draw it.
  */
-function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, status, action }: ContractSummary) {
+function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, startsOn, status, action }: ContractSummary) {
   return (
     <article
       className={`relative flex flex-col ${TRAY} transition-[box-shadow,outline-color] duration-200 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.3)] hover:outline-[#a6a6a6] ${inactive ? "opacity-60" : ""}`}
     >
       {/* Who and how the work stands on the white panel; time left, the score and the thread on the tray. */}
       <div className={`flex flex-col gap-5 p-5 ${TRAY_PANEL}`}>
-        <div className="flex items-start gap-3">
-          {avatar(44)}
-          <Link href={href} className={`flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.3] ${ROW_LINK}`}>
-            <span className="truncate text-[15px] font-semibold text-ink">{name}</span>
-            <span className="truncate text-[13px] text-ink-2">{sub}</span>
-          </Link>
-          <JobBadge type={type} />
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-start gap-3">
+            {avatar(44)}
+            <Link href={href} className={`flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.3] ${ROW_LINK}`}>
+              <span className="truncate text-[15px] font-semibold text-ink">{name}</span>
+              <span className="truncate text-[13px] text-ink-2">{sub}</span>
+            </Link>
+            <JobBadge type={type} />
+          </div>
+          {/* Where it stands and, on a trial, how it's scoring: read with who it's with, under the name. */}
+          {(status || showsFit({ type, tfs, startsOn })) && (
+            <div className="relative z-10 flex flex-wrap gap-1.5 pl-14">
+              {status}
+              {showsFit({ type, tfs, startsOn }) && tfs !== null && <TfsBadge tfs={tfs} />}
+            </div>
+          )}
         </div>
         <CardWork counts={taskCounts(tasks)} />
         {action && <div className="relative z-10 flex flex-col">{action}</div>}
       </div>
       <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-2 pb-1.5 text-[12.5px] leading-[1.3] text-ink-2">
-        <TimeLeft type={type} left={left} over={over} inactive={inactive} ended={ended} started={started} />
-        {type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}
-        <span className="relative z-10 ml-auto flex items-center gap-2">
-          {status}
+        <TimeLeft type={type} left={left} over={over} inactive={inactive} ended={ended} started={started} startsOn={startsOn} />
+        <span className="relative z-10 ml-auto flex items-center">
           <MessageLink href={messageHref} name={name} showLabel />
         </span>
       </div>
@@ -187,7 +197,7 @@ function Figure({ children, danger = false }: { children: ReactNode; danger?: bo
  * opens the contract — the name's link stretches over it — while the message button and any call
  * to action sit above that and stay their own.
  */
-function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, status, action, withFit, withStatus, withAction }: ContractSummary & { withFit: boolean; withStatus: boolean; withAction: boolean }) {
+function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, startsOn, status, action, withFit, withStatus, withAction }: ContractSummary & { withFit: boolean; withStatus: boolean; withAction: boolean }) {
   const counts = taskCounts(tasks);
   return (
     <Row className={`relative cursor-pointer ${inactive ? "opacity-60" : ""}`}>
@@ -201,15 +211,15 @@ function ContractRow({ avatar, name, sub, href, messageHref, type, tasks, tfs, l
       <span className={`${COLS.type} flex`}>
         <JobBadge type={type} />
       </span>
+      {withStatus && <span className={`${COLS.status} relative z-10 flex`}>{status}</span>}
       <span className={`${COLS.progress} flex flex-col justify-center gap-1.5 !items-stretch`}>
         <WorkMeter counts={counts} compact />
         <WorkLine counts={counts} />
       </span>
-      {withFit && <span className={`${COLS.fit} flex`}>{type === "trial" && tfs !== null && <TfsBadge tfs={tfs} />}</span>}
+      {withFit && <span className={`${COLS.fit} flex`}>{showsFit({ type, tfs, startsOn }) && tfs !== null && <TfsBadge tfs={tfs} />}</span>}
       <span className={`${COLS.time} flex text-[12.5px] text-ink-2`}>
-        <TimeLeft type={type} left={left} over={over} inactive={inactive} ended={ended} started={started} />
+        <TimeLeft type={type} left={left} over={over} inactive={inactive} ended={ended} started={started} startsOn={startsOn} />
       </span>
-      {withStatus && <span className={`${COLS.status} relative z-10 flex`}>{status}</span>}
       <span className={`${withAction ? COLS.actionWide : COLS.action} relative z-10 flex gap-2`}>
         {action}
         <MessageLink href={messageHref} name={name} showLabel />
@@ -259,15 +269,26 @@ function TfsBadge({ tfs }: { tfs: number }) {
   );
 }
 
-/** How long is left on a trial, when the contract began, or when it ended — orange once a trial is down to its last 7 days (TB-057). */
-function TimeLeft({ type, left, over = false, inactive, ended, started }: Pick<ContractSummary, "type" | "left" | "over" | "inactive" | "ended" | "started">) {
-  const trial = type === "trial" && !inactive;
+/**
+ * A trial's Trial fit shows once it has begun: before its first day there is no work to score, so a
+ * number there only read as a verdict on nothing.
+ */
+const showsFit = ({ type, tfs, startsOn }: Pick<ContractSummary, "type" | "tfs" | "startsOn">) => type === "trial" && tfs !== null && !startsOn;
+
+/**
+ * How long is left on a trial, when the contract began, or when it ended — orange once a trial is
+ * down to its last 7 days (TB-057). Before its first day it counts down to that instead: a trial's
+ * working days don't start running until then, and "Started" would be untrue.
+ */
+function TimeLeft({ type, left, over = false, inactive, ended, started, startsOn }: Pick<ContractSummary, "type" | "left" | "over" | "inactive" | "ended" | "started" | "startsOn">) {
+  const upcoming = !inactive && !!startsOn;
+  const trial = type === "trial" && !inactive && !upcoming;
   const soon = trial && !over && left !== null && left <= 7;
   const Icon = trial ? ICONS.hourglass : ICONS.calendar;
   return (
     <span className={`inline-flex items-center gap-1.5 leading-4 whitespace-nowrap ${soon ? "font-semibold text-brand-orange" : ""}`}>
       <Icon size={16} aria-hidden className="block shrink-0" />
-      <span>{inactive ? `Ended ${ended}` : trial ? daysLeftLabel(left ?? 0, over) : `Started ${started}`}</span>
+      <span>{inactive ? `Ended ${ended}` : upcoming ? startsInLabel(startsOn) : trial ? daysLeftLabel(left ?? 0, over) : `Started ${started}`}</span>
     </span>
   );
 }

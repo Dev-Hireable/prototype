@@ -215,6 +215,14 @@ function weekdaysThrough(from: Date, to: Date) {
  */
 export const daysLeftLabel = (left: number, over = false) => (over ? "Trial closed" : left <= 0 ? "Last day" : `${workingDaysLabel(left)} left`);
 
+/** A signed contract's wait for its first day, in calendar days: "Starts in 11 days", "Starts tomorrow", "Starts today". */
+export function startsInLabel(day: string, now = new Date()) {
+  const d = parseDay(day);
+  if (!d) return `Starts ${day}`;
+  const n = Math.round((startOfDay(d).getTime() - startOfDay(now).getTime()) / 86_400_000);
+  return n <= 0 ? "Starts today" : n === 1 ? "Starts tomorrow" : `Starts in ${n} days`;
+}
+
 /** A date that has come — today counts. */
 export function isPast(day: string, now = new Date()) {
   const d = parseDay(day);
