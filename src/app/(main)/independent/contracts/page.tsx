@@ -120,6 +120,7 @@ function summaryOf(c: Contract, withReturn: (href: string) => string): ContractS
     inactive: isInactive(c),
     ended: c.endedOn ?? c.ends,
     started: c.started,
+    startsOn: c.startsOn,
     status: isInactive(c) ? undefined : <StatusDot tone={c.status.tone}>{c.status.label}</StatusDot>,
   };
 }

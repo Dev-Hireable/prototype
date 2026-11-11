@@ -144,6 +144,7 @@ function summaryOf(c: Contract, withReturn: (href: string) => string): ContractS
     inactive,
     ended: c.endedOn ?? c.ends,
     started: c.started,
+    startsOn: c.startsOn,
     /* TB-108: evaluate straight from the list, but only once the trial is actually over. */
     action: trialEnded(c) && !inactive && (
       <LinkButton href={`/team/independents/${c.slug}?tab=evaluation`} variant="primary" size="md" className="justify-center">
