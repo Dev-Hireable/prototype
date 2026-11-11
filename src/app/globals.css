@@ -630,11 +630,11 @@ summary {
 
 /*
  * The page gutter: the one left edge a page's title, tabs, back link and content share (Page,
- * AdminPage, the workspaces' --ws-gutter). 40px on a laptop or larger, 24px on a tablet beside the
+ * AdminPage, the workspaces' --ws-gutter). 32px on a laptop or larger, 24px on a tablet beside the
  * rail, 16px on a phone, where every pixel of width is the page's.
  */
 :root {
-  --page-gutter: 2.5rem;
+  --page-gutter: 2rem;
 }
 @media (max-width: 1023px) {
   :root {

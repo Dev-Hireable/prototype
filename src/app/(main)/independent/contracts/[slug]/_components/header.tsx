@@ -34,7 +34,7 @@ export function HeaderActions({ contract, thread }: { contract: Contract; thread
   const chat = useQuickChat();
   return (
     /* The thread opens on the spot, in the quick chat, with the full one in Messages a click away. */
-    <MessageButton size="sm" variant="ghost" className="max-md:size-10 max-md:px-0" href={thread} onClick={() => chat.open(companyChat(contract, thread))}>
+    <MessageButton size="sm" variant="secondary" className="max-md:size-10 max-md:px-0" href={thread} onClick={() => chat.open(companyChat(contract, thread))}>
       <span className="max-md:sr-only">Message {contract.managerFirst}</span>
     </MessageButton>
   );
