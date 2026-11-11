@@ -1,7 +1,7 @@
 "use client";
 
 import { DataTable } from "@/components/admin/ui";
-import { Badge } from "@/components/portal/badge";
+import { Badge } from "@/components/kit/badge";
 import type { Tone } from "@/lib/portal/tone";
 import type { AttentionItem } from "@/lib/admin/data/home";
 import { ageOf, holds, partyName, useDisputes, waitingOn } from "@/lib/demo/disputes";
@@ -32,10 +32,10 @@ export function NeedsAttention({ items }: { items: AttentionItem[] }) {
       rowHref={(r) => r.href}
       columns={[
         { header: "Item", cell: (r) => r.item },
-        { header: "Type", cell: (r) => r.type, width: 150 },
-        { header: "Raised by", cell: (r) => r.raisedBy, width: 200 },
-        { header: "Age", cell: (r) => r.age, width: 110 },
-        { header: "Status", cell: (r) => <Badge tone={r.tone}>{r.status}</Badge>, width: 140 },
+        { header: "Type", cell: (r) => r.type, col: "w-[150px]" },
+        { header: "Raised by", cell: (r) => r.raisedBy, col: "w-[200px]" },
+        { header: "Age", cell: (r) => r.age, col: "w-[110px]" },
+        { header: "Status", cell: (r) => <Badge tone={r.tone}>{r.status}</Badge>, col: "w-[140px]" },
       ]}
     />
   );

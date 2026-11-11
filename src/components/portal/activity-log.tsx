@@ -1,11 +1,11 @@
 "use client";
 
-import { InfoTip, Tip } from "@/components/portal/tip";
-import { StatusDot } from "@/components/portal/ui";
-import { PanelCard } from "@/components/portal/panel-card";
+import { InfoTip, Tip } from "@/components/kit/tip";
+import { StatusDot } from "@/components/kit/badge";
+import { PanelCard } from "@/components/kit/panel-card";
 
 /** Grey: no activity; light green: worked on tasks; green: sent a task for review. */
-const TILE = ["bg-[#eeeeee]", "bg-[#a3dfb5]", "bg-ok"];
+const TILE = ["bg-line-soft", "bg-[#a3dfb5]", "bg-ok"];
 const TILE_LABEL = ["no activity", "worked on tasks", "sent a task for review"];
 /** The key under the grid, greenest first, in the words a tile's own tip uses. */
 const KEY = [

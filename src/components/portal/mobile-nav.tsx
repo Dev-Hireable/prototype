@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
-import { Avatar } from "@/components/portal/ui";
+import { Avatar } from "@/components/kit/avatar";
 import { ResetDemoDialog } from "@/components/portal/demo-reset";
 import { TourMenu } from "@/components/portal/tour/tour-help";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";

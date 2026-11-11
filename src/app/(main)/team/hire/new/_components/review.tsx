@@ -1,7 +1,12 @@
 import Link from "next/link";
-import { Button, InfoBanner, Input, JobBadge, Select, Textarea } from "@/components/portal/ui";
-import { StepCard } from "@/components/portal/step-card";
-import { SkillPicker } from "@/components/portal/controls";
+import { Button } from "@/components/kit/button";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Input, Textarea } from "@/components/kit/field";
+import { JobBadge } from "@/components/kit/badge";
+import { Select } from "@/components/kit/select";
+import { TextLink } from "@/components/kit/text-link";
+import { StepCard } from "@/components/kit/step-card";
+import { SkillPicker } from "@/components/kit/skill-picker";
 import { TaskPlanEditor, TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { hoursLabel, type JobType } from "@/lib/contract/job-types";
 import { fromDrafts } from "@/lib/demo/tasks";
@@ -11,6 +16,7 @@ import type { ReviewEdits, RoleForm } from "../_lib/form";
 import { BENEFITS_DISCLAIMER, CHIP_TONES, chipLong, chipText, moneyText, rangeError, TRIAL_TASKS, type PathCopy } from "../_lib/wizard";
 import { BenefitsEditor, Block, Counter, DateChip, DurationChips, HoursChips, MoneyRange, SkillChips, TrialNotes } from "./fields";
 import { ReviewItem } from "./frame";
+import { TEXT_LABEL, TEXT_BODY } from "@/components/kit/styles";
 
 type Item = ReviewEdits["item"];
 
@@ -34,7 +40,7 @@ export function ReviewStep({ f, t, type, weeks, edits, canPublish, onDraft, onPu
           profile, which names the fields still missing. */}
       {!canPublish && (
         <InfoBanner tone="warn">
-          Finish your <Link href="/team/profile/company" className="font-semibold underline">company profile</Link> to publish.
+          Finish your <TextLink href="/team/profile/company" tone="inherit" inline>company profile</TextLink> to publish.
         </InfoBanner>
       )}
       <div className="flex justify-end gap-3">
@@ -126,12 +132,12 @@ function TrialExtras({ f, weeks, item }: { f: RoleForm; weeks: number; item: Ite
         <TaskPlanList tasks={fromDrafts(f.taskRows)} empty="No tasks yet. The trial needs at least one." />
         {f.expectation.trim() && (
           <div className="flex flex-col gap-2">
-            <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Notes</span>
+            <span className={TEXT_LABEL}>Notes</span>
             <p className="rounded-lg border border-border px-4 py-4 text-[14px] leading-[1.4] tracking-[0.2px] whitespace-pre-line text-ink">{f.expectation}</p>
           </div>
         )}
         <div className="flex flex-col gap-2">
-          <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachment link</span>
+          <span className={TEXT_LABEL}>Attachment link</span>
           {f.attachment ? (
             <Link href={f.attachment} target="_blank" className="flex h-11 items-center rounded-lg border border-border px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-primary">
               {f.attachment}
@@ -152,7 +158,7 @@ function BenefitExtras({ f, item }: { f: RoleForm; item: Item }) {
     <StepCard tight>
       <ReviewItem label="Benefits" {...item("benefits")} editor={<BenefitsEditor value={f.benefits} onChange={f.setBenefits} />}>
         {benefits.length === 0 ? (
-          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">None added.</p>
+          <p className={TEXT_BODY}>None added.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {benefits.map(([label, amount]) => (

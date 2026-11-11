@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Avatar, Button, Chip, Drawer, LinkButton, MatchPill, Toast } from "@/components/portal/ui";
-import { TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
+import { Avatar } from "@/components/kit/avatar";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Chip } from "@/components/kit/chip";
+import { Drawer } from "@/components/kit/drawer";
+import { MatchPill } from "@/components/kit/match-pill";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
+import { TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/kit/styles";
 import { useWithReturn } from "@/components/portal/return";
 import { TalentProfile, type TalentProfileData } from "@/components/portal/talent-profile";
-import { SaveButton as BookmarkButton, SaveToggle } from "@/components/portal/save-toggle";
+import { SaveButton as BookmarkButton, SaveToggle } from "@/components/kit/save-toggle";
 import { contractTypeOf, evaluationsOf, pastEvaluations, useDeal, type Deal, type PastEvaluation } from "@/lib/demo/deal";
 import { useIntroVideo } from "@/lib/demo/intro";
 import { PAIR } from "@/lib/demo/live";
@@ -20,7 +26,7 @@ import type { Independent } from "@/lib/team/data";
 import { useHired } from "@/lib/team/hired";
 import { useSavedTalent } from "@/lib/team/saved";
 import { usePipeline } from "@/lib/team/pipeline";
-import { toggleSavedWithNote } from "@/components/portal/notify";
+import { toggleSavedWithNote } from "@/components/kit/notify";
 
 /**
  * A match on Discover and Saved Independents (and a new role's best matches): who they are
@@ -39,9 +45,9 @@ export function IndependentCard({ person, onInvite, onOpen }: { person: Independ
           <Avatar src={person.avatar} size={48} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             {/* A line of text, so a touch screen gives it a finger's height to tap (hit-area). */}
-            <button type="button" onClick={() => onOpen(person)} className="hit-area self-start text-[14px] leading-[1.4] font-medium text-primary hover:underline">
+            <TextLink onClick={() => onOpen(person)} size="md" className="hit-area self-start">
               {nameOf(person)}
-            </button>
+            </TextLink>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-[18px] leading-[1.4] font-semibold text-ink">{person.role}</span>
               <MatchPill pct={person.match} coded title={MATCH_TOOLTIP.team} />

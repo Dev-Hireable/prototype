@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { ICONS } from "@/components/icons";
-import { Initials, JobBadge, LinkButton, Page } from "@/components/portal/ui";
+import { Initials } from "@/components/kit/avatar";
+import { JobBadge } from "@/components/kit/badge";
+import { LinkButton } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { TextLink } from "@/components/kit/text-link";
 import { DashboardBanner, DashboardBarChart, DashboardEmpty, DashboardFrame, DashboardGreeting, DashboardHero, DashboardQuickAction, DashboardSetupCard, DashboardStat, DashboardSummaryCard, DashboardSummaryGrid, type DashboardChecklistItem } from "@/components/portal/dashboard";
 import { DashboardTasks } from "@/components/portal/dashboard-tasks";
 import { isEndedStatus, trialClosed } from "@/lib/contract/lifecycle";
@@ -213,9 +217,9 @@ function ContractsCard({ active }: { active: Contract[] }) {
         </ul>
       )}
       {active.length > 3 && (
-        <Link href="/independent/contracts" className="mt-2 text-center text-[13px] leading-[1.2] font-medium tracking-[0.2px] text-primary hover:underline">
+        <TextLink href="/independent/contracts" size="sm" className="mt-2 text-center">
           View all {active.length} contracts
-        </Link>
+        </TextLink>
       )}
     </DashboardSummaryCard>
   );

@@ -6,8 +6,13 @@ import { useRef, useState, type RefObject } from "react";
 import { flushSync } from "react-dom";
 import type { IconType } from "react-icons";
 import { ICONS } from "@/components/icons";
-import { KebabMenu, MenuAction } from "@/components/portal/controls";
-import { Avatar, Button, Checkbox, CheckboxBox, Pills, Toast } from "@/components/portal/ui";
+import { KebabMenu, MenuAction } from "@/components/kit/kebab-menu";
+import { Avatar } from "@/components/kit/avatar";
+import { Button } from "@/components/kit/button";
+import { Checkbox, CheckboxBox } from "@/components/kit/checkbox";
+import { Pills } from "@/components/kit/pills";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
 import { useWithReturn } from "@/components/portal/return";
 import { MONTHS } from "@/lib/portal/dates";
 import { categoryOf, type NoteCategory } from "@/lib/portal/notification-categories";
@@ -43,8 +48,8 @@ const GROUPS: Group[] = ["Today", "Yesterday", "Earlier"];
 /** How many notifications the feed shows at first, and how many more each "See older notifications" adds. */
 const STEP = 10;
 
-/** The text buttons beside the pills, Select and Mark all as read: blue, grey while there's nothing to do. */
-const TEXT_ACTION = "hit-area rounded-md [--hit:32px] text-[13px] font-medium text-primary enabled:hover:underline focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:text-[#c3c3c3]";
+/** The text buttons beside the pills, Select and Mark all as read (TextLink, grey while there's nothing to do): a finger gets a 32px tap on them. */
+const TEXT_ACTION = "hit-area [--hit:32px]";
 
 /** What a delete took out of the feed: how many, and what puts them back. */
 type Removed = { count: number; undo: () => void };
@@ -71,7 +76,7 @@ function Sender({ item }: { item: FeedItem }) {
   if (item.system) {
     const Icon = CATEGORY_ICON[categoryOf({ kind: item.kind ?? "", title: item.title })];
     return (
-      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8f1fa] text-primary">
+      <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-bg text-primary">
         <Icon size={18} />
       </span>
     );
@@ -79,7 +84,7 @@ function Sender({ item }: { item: FeedItem }) {
   if (item.avatar) return <Avatar src={item.avatar} size={36} />;
   if (item.logo) return <Image src={item.logo} alt="" width={72} height={72} className="size-9 shrink-0 rounded-full bg-white object-cover outline -outline-offset-1 outline-border" loading="eager" />;
   return (
-    <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e8f1fa] text-[12px] font-semibold text-primary">
+    <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-bg text-[12px] font-semibold text-primary">
       {item.initials ?? "H"}
     </span>
   );
@@ -221,12 +226,12 @@ function FeedTools<F extends string>({ filter, filters, onFilter, canSelect, unr
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
       <Pills value={filter} onChange={onFilter} options={filters} />
       <span className="ml-auto flex shrink-0 items-center gap-4">
-        <button ref={selectRef} type="button" onClick={onSelect} disabled={!canSelect} className={TEXT_ACTION}>
+        <TextLink ref={selectRef} onClick={onSelect} disabled={!canSelect} size="sm" className={TEXT_ACTION}>
           Select
-        </button>
-        <button type="button" onClick={onReadAll} disabled={!unread} className={TEXT_ACTION}>
+        </TextLink>
+        <TextLink onClick={onReadAll} disabled={!unread} size="sm" className={TEXT_ACTION}>
           Mark all as read
-        </button>
+        </TextLink>
       </span>
     </div>
   );

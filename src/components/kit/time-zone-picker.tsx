@@ -4,7 +4,7 @@ import { Combobox as ComboboxPrimitive } from "@base-ui/react";
 import { useMemo, useSyncExternalStore } from "react";
 import { ICONS } from "@/components/icons";
 import { Combobox, ComboboxContent, ComboboxEmpty, ComboboxItem, ComboboxList } from "@/components/ui/combobox";
-import { FORM_CONTROL } from "@/components/portal/styles";
+import { FORM_CONTROL } from "@/components/kit/styles";
 import { CITIES } from "@/lib/portal/cities";
 import { deviceTimeZone, timeZoneOptions } from "@/lib/portal/timezones";
 

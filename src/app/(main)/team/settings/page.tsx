@@ -1,6 +1,7 @@
 "use client";
 
-import { Avatar, Page } from "@/components/portal/ui";
+import { Avatar } from "@/components/kit/avatar";
+import { Page } from "@/components/kit/page";
 import { AccountSettingsCard } from "@/components/portal/settings";
 import { useTeamAccount } from "@/lib/team/account";
 

@@ -2,9 +2,10 @@
 
 import { notFound, useSearchParams } from "next/navigation";
 import { use, useState } from "react";
-import { Page, Toast } from "@/components/portal/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
-import { SIDE_COLUMN } from "@/components/portal/page-parts";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
+import { SIDE_COLUMN } from "@/components/kit/page-parts";
 import { ReturnNav } from "@/components/portal/return";
 import { usePostings } from "@/lib/demo/deal";
 import { PAIR } from "@/lib/demo/live";
@@ -19,7 +20,7 @@ import { ApplyDialog } from "./_components/apply-dialog";
 import { ApplyBar, CompanyCard } from "./_components/company-card";
 import { RoleHeader, RoleSections } from "./_components/role-post";
 import { standingOn } from "./_lib/standing";
-import { toggleSavedWithNote } from "@/components/portal/notify";
+import { toggleSavedWithNote } from "@/components/kit/notify";
 
 /**
  * IN-012 / IN-017 — a role's detail page, and the confirm before applying to it.

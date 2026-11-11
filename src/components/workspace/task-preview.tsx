@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { StatusCircle } from "@/components/portal/tasks/task-bits";
+import { StatusCircle, TaskRef } from "@/components/portal/tasks/task-bits";
 import type { Day } from "@/lib/work/dates";
-import { refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
+import { STATUS_META, type WorkItem } from "@/lib/work/model";
 import type { Names } from "@/lib/work/permissions";
 import { firstName } from "./labels";
 import { DueChip } from "./meta";
@@ -15,7 +15,7 @@ export type TaskOpener = { href: string } | { onOpen: () => void };
  * White on any bubble, like a sent file's card, so it reads the same in a blue bubble and a grey one;
  * its own colour and wrapping, not the bubble's white text and kept line breaks.
  */
-const CARD = "flex w-80 max-w-full flex-col gap-1.5 rounded-lg bg-white px-3 py-2.5 text-left whitespace-normal text-ink outline -outline-offset-1 outline-border transition hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:outline-primary";
+const CARD = "flex w-80 max-w-full flex-col gap-1.5 rounded-lg bg-white px-3 py-2.5 text-left whitespace-normal text-ink outline -outline-offset-1 outline-border transition hover:outline-border-strong focus-visible:outline-2 focus-visible:outline-primary";
 
 /**
  * The tasks a comment or a message names, by a pasted link or a typed "#4", as cards under it, the way
@@ -41,7 +41,7 @@ function TaskPreview({ item: t, today, names, open }: { item: WorkItem; today: D
       <span className="flex min-w-0 items-center gap-2">
         <StatusCircle status={t.status} size={16} />
         <span className="flex min-w-0 items-baseline gap-1.5 leading-[1.3] tracking-[0.2px]">
-          <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+          <TaskRef task={t} />
           <span className="truncate text-[14px] font-medium text-ink">{t.title}</span>
         </span>
       </span>

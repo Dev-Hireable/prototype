@@ -2,12 +2,15 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { MdOutlineEdit, MdOutlinePhotoCamera } from "react-icons/md";
-import { Button, Card, Input, Select, Textarea } from "@/components/portal/ui";
-import { MiniBar } from "@/components/portal/meter";
-import { CityPicker, TimeZonePicker } from "@/components/portal/time-zone-picker";
-import { Tip } from "@/components/portal/tip";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Input, Textarea } from "@/components/kit/field";
+import { Select } from "@/components/kit/select";
+import { MiniBar } from "@/components/kit/meter";
+import { CityPicker, TimeZonePicker } from "@/components/kit/time-zone-picker";
+import { Tip } from "@/components/kit/tip";
 import { ICONS } from "@/components/icons";
-import { Badge } from "@/components/portal/badge";
+import { Badge } from "@/components/kit/badge";
 
 /**
  * The profile editors' parts — the Team Builder's own profile and the company profile draw every
@@ -143,7 +146,7 @@ export function EditableRow({
       type="button"
       onClick={() => setDraft(value)}
       aria-label={`${label}: ${value || "not set"}. Edit`}
-      className="group relative isolate grid w-full grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-x-4 border-t border-[#eeeeee] py-3 text-left outline-none first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto]"
+      className="group relative isolate grid w-full grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-x-4 border-t border-line-soft py-3 text-left outline-none first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto]"
     >
       {/* The hover and focus box reaches 12px past the text on both sides, so it doesn't stop dead at
           the label and the pencil; the hairlines between rows stay on the text's edges. */}
@@ -168,7 +171,7 @@ export function EditableRow({
 /** A row that can't be edited here: its value, and a lock that says how it's changed. */
 function LockedRow({ label, value, reason }: { label: string; value: string; reason: string }) {
   return (
-    <div className="grid w-full grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-x-4 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto]">
+    <div className="grid w-full grid-cols-[160px_minmax(0,1fr)_auto] items-center gap-x-4 border-t border-line-soft py-3 first:border-t-0 max-sm:grid-cols-[minmax(0,1fr)_auto]">
       <span className="text-[13px] leading-[1.4] font-medium text-ink-2 max-sm:col-span-2">{label}</span>
       <span className="min-w-0 text-[14px] leading-[1.5] text-ink">{value}</span>
       <Tip label={reason} tap>
@@ -228,7 +231,7 @@ function RowEditor({
   };
 
   return (
-    <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-[#eeeeee] py-3 first:border-t-0 max-sm:grid-cols-1">
+    <div className="grid grid-cols-[160px_minmax(0,1fr)] gap-x-4 gap-y-2 border-t border-line-soft py-3 first:border-t-0 max-sm:grid-cols-1">
       <span className="pt-2.5 text-[13px] leading-[1.4] font-medium text-ink-2">{label}</span>
       <div className="flex min-w-0 flex-col gap-2">
         <DraftField kind={kind} options={options} label={label} placeholder={placeholder} draft={draft} setDraft={setDraft} onKeyDown={keys} />

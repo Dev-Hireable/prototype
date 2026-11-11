@@ -3,13 +3,17 @@
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { ICON_BUTTON } from "@/components/portal/styles";
-import { Avatar, Card, InfoBanner, JobBadge, MatchPill } from "@/components/portal/ui";
-import { Badge } from "@/components/portal/badge";
-import { FactsBox } from "@/components/portal/facts-box";
+import { ICON_BUTTON, TEXT_LABEL, TEXT_BODY } from "@/components/kit/styles";
+import { Avatar } from "@/components/kit/avatar";
+import { Card } from "@/components/kit/card";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { JobBadge, Badge } from "@/components/kit/badge";
+import { MatchPill } from "@/components/kit/match-pill";
+import { TextLink } from "@/components/kit/text-link";
+import { FactsBox } from "@/components/kit/facts-box";
 import { LockedTasks } from "@/components/portal/tasks/locked-tasks";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
-import { ScrollFade } from "@/components/portal/scroll-fade";
+import { ScrollFade } from "@/components/kit/scroll-fade";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import { addWorkingDays, dayLabel, dayRangeLabel, durationDays, fromISODate, trialLength, workingDaysLabel } from "@/lib/portal/dates";
 import type { DealProposal, ProposalEvent } from "@/lib/demo/deal";
@@ -54,7 +58,7 @@ function Term({ label, value }: { label: string; value: string }) {
     <div className="flex min-w-0 flex-1 flex-col gap-3 rounded bg-surface-2 p-2 leading-[1.2] tracking-[0.2px]">
       <span className="text-[10px] text-ink-2">{label}</span>
       {/* Wraps rather than cut off: a trial's dates take two lines in a narrow cell. */}
-      <span className="text-[14px] [overflow-wrap:anywhere] text-[#101828]">{value}</span>
+      <span className="text-[14px] [overflow-wrap:anywhere] text-ink-deep">{value}</span>
     </div>
   );
 }
@@ -192,11 +196,11 @@ function CoverLetter({ letter, portfolio }: { letter: string; portfolio?: string
       <p className="text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line [overflow-wrap:anywhere] text-ink">{letter}</p>
       {/* The work samples the talent linked. */}
       {portfolio && (
-        <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
+        <p className={TEXT_BODY}>
           Portfolio:{" "}
-          <a href={/^https?:\/\//.test(portfolio) ? portfolio : `https://${portfolio}`} target="_blank" rel="noreferrer" className="text-accent-ink hover:underline">
+          <TextLink href={/^https?:\/\//.test(portfolio) ? portfolio : `https://${portfolio}`} external>
             {portfolio}
-          </a>
+          </TextLink>
         </p>
       )}
     </Card>
@@ -246,12 +250,12 @@ function PostedJob({ post, proposal }: { post: ProposalPost; proposal: DealPropo
       {post.attachment && (
         <div className="flex flex-col gap-3">
           <p className="font-semibold text-ink">Attachment</p>
-          <a href={post.attachment} target="_blank" rel="noreferrer" className="truncate text-accent-ink hover:underline">
+          <TextLink href={post.attachment} external className="truncate">
             {post.attachment}
-          </a>
+          </TextLink>
         </div>
       )}
-      <FactsBox rows={postedOf(post, proposal)} valueClassName={(k) => (k === "ROLE" ? "text-accent-ink underline" : "text-ink")} />
+      <FactsBox rows={postedOf(post, proposal)} valueClassName={(k) => (k === "ROLE" ? "text-primary underline" : "text-ink")} />
     </div>
   );
 }
@@ -306,7 +310,7 @@ export function ProposalReview({ author, post, proposal, history, viewer = "team
 function ReviewHeader({ post, onClose }: { post: ProposalPost; onClose: () => void }) {
   return (
     <header className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-3">
-      <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{post.title}</span>
+      <span className={TEXT_LABEL}>{post.title}</span>
       <JobBadge type={post.type} />
       <Badge variant="outline" icon={<Calendar aria-hidden />}>
         {durationOf(post)}
@@ -348,9 +352,9 @@ function SupersededBanner({ shown, latest, onBack }: { shown: DealProposal; late
     <InfoBanner className="shrink-0">
       <span className="flex items-center justify-between gap-3">
         You&apos;re reading v{shown.version}, sent {shown.sent}. v{latest.version} is the latest.
-        <button type="button" onClick={onBack} className="font-semibold whitespace-nowrap hover:underline">
+        <TextLink onClick={onBack} tone="inherit" inline className="whitespace-nowrap">
           Back to v{latest.version}
-        </button>
+        </TextLink>
       </span>
     </InfoBanner>
   );

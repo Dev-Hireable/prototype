@@ -1,24 +1,15 @@
-import Link from "next/link";
-import { Button, LinkButton } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Tip } from "@/components/kit/tip";
+import { BreadcrumbTrail } from "@/components/kit/breadcrumb";
 import type { ContractView } from "@/lib/contract/view";
 import { caseHref } from "@/lib/demo/disputes";
 
 /** All Independents › the person. */
 export function Crumbs({ name }: { name: string }) {
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink render={<Link href="/team/independents" />}>All Independents</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>{name}</BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+    <BreadcrumbTrail href="/team/independents" parent="All Independents">
+      {name}
+    </BreadcrumbTrail>
   );
 }
 

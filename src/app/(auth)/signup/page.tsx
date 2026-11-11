@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, AuthLink, AuthShell, PasswordInput, PasswordRules } from "@/components/portal/auth-shell";
-import { Button, Field, Input, StatusDot } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Input } from "@/components/kit/field";
+import { StatusDot } from "@/components/kit/badge";
 import { emailOk, PASSWORD_RULES, passwordOk, signUp, type Role } from "@/lib/demo/auth";
 import { clearPayouts } from "@/lib/independent/wallet";
 import { clearCards } from "@/lib/team/account";

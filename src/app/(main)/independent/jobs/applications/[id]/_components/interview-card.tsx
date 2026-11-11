@@ -1,6 +1,8 @@
 import { ICONS } from "@/components/icons";
-import { Button, Card, StatusDot } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { StatusDot } from "@/components/kit/badge";
+import { Tip } from "@/components/kit/tip";
 import { useInterviewTime } from "@/lib/independent/interview-time";
 import { canJoin, JOIN_OPENS_MINUTES } from "@/lib/portal/dates";
 import type { SetToast } from "@/lib/portal/toast";

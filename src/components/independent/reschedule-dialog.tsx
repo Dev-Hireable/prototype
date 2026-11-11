@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Modal, Select, Textarea } from "@/components/portal/ui";
-import { DatePicker } from "@/components/portal/date-picker";
+import { Button } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select } from "@/components/kit/select";
+import { DatePicker } from "@/components/kit/date-picker";
 import { formatDate, INTERVIEW_TIMES, startOfToday } from "@/lib/portal/dates";
 
 /**

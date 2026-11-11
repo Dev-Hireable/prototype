@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
+import { TEXT_TITLE } from "@/components/kit/styles";
 
-const TITLE = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink";
 const DM = { fontVariationSettings: '"opsz" 14' };
 
 /**
@@ -28,7 +28,7 @@ export function Section({
     <section className="flex max-w-[768px] flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <h3 className={TITLE}>{title}</h3>
+          <h3 className={TEXT_TITLE}>{title}</h3>
           {edit}
         </div>
         {action}
@@ -49,7 +49,7 @@ export function Section({
 export function FactStrip({ cells, size = "md", className = "" }: { cells: { label: string; value: ReactNode }[]; size?: "md" | "sm"; className?: string }) {
   const sm = size === "sm";
   return (
-    <dl className={`flex w-full flex-wrap gap-px overflow-hidden rounded-lg bg-[#e5e5e5] outline -outline-offset-1 outline-border ${className}`}>
+    <dl className={`flex w-full flex-wrap gap-px overflow-hidden rounded-lg bg-surface-3 outline -outline-offset-1 outline-border ${className}`}>
       {cells.map((c) => (
         <div key={c.label} className={`flex min-w-0 flex-col-reverse gap-1 bg-white max-sm:basis-[150px] ${sm ? "flex-[1_1_104px] px-3 py-2.5" : "flex-[1_1_132px] px-4 py-3"}`}>
           <dt className="truncate text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2 max-sm:whitespace-normal">{c.label}</dt>

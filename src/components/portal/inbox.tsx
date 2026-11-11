@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { TRAY, TRAY_PANEL } from "@/components/portal/styles";
+import { TRAY, TRAY_PANEL } from "@/components/kit/styles";
 
 /**
  * Messages, laid out like a chat app rather than a page: beside the Home panel, the conversation

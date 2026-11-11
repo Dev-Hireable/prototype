@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ASSIGNEE_KEYS, PRIORITY_META, STATUS_META, STATUSES, TYPE_META, WORK_TYPES, type AssigneeKey, type WorkType } from "@/lib/work/model";
 import { activeFilterCount, DUE_FILTERS, DUE_LABEL, EMPTY_FILTERS, GROUP_LABEL, GROUPS, PRIORITY_FILTERS, SORT_LABEL, SORTS, type Filters, type WorkQuery } from "@/lib/work/query";
-import { TOOLBAR_BUTTON } from "@/components/portal/toolbar";
+import { TOOLBAR_BUTTON } from "@/components/kit/styles";
 import { TYPE_ICON } from "./labels";
 
 /**
@@ -44,7 +44,7 @@ type Props = {
   sortable: boolean;
 };
 
-export function Toolbar(props: Props) {
+export function WorkToolbar(props: Props) {
   const { query, setQuery } = props;
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-xl bg-surface-alt p-1.5" role="toolbar" aria-label="Search, filter, sort and group">

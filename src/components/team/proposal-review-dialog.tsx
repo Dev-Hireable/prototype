@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Modal, Select, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select } from "@/components/kit/select";
 import { ProposalReview } from "@/components/portal/proposal-review";
 import { SendOfferDialog } from "@/components/team/send-offer-dialog";
 import { proposalHistory, useDeal, type Deal, type DealProposal } from "@/lib/demo/deal";
@@ -13,6 +16,7 @@ import { DEAL_ID } from "@/lib/team/deal-view";
 import { usePipeline } from "@/lib/team/pipeline";
 import { useOffers } from "@/lib/team/offers";
 import { useCards, useTeamAccount } from "@/lib/team/account";
+import { TEXT_NOTE } from "@/components/kit/styles";
 
 type Step = null | "revision" | "decline" | "offer";
 
@@ -173,7 +177,7 @@ function ReviewActions({ flags, hint, onStep }: { flags: ReviewFlags; hint: stri
           Decline proposal
         </Button>
       </div>
-      {hint && <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">{hint}</p>}
+      {hint && <p className={TEXT_NOTE}>{hint}</p>}
     </div>
   );
 }

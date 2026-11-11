@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Checkbox, Field, Input, Modal } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Field, Input } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
 import { useCards } from "@/lib/team/account";
 import type { PaymentMethod } from "@/lib/team/data";
 

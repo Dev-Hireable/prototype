@@ -1,11 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList } from "@/components/ui/breadcrumb";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 
 /**
  * The fixed slot a breadcrumb or back link lives in: its own row directly under the page header, in
- * the page gutter, never mixed into page content. `Page` and `AdminPage` render it, so a page passes
+ * the page gutter, never mixed into page content. `Page` renders it, so a page passes
  * `nav={<BreadcrumbBack …/>}` or a `<Breadcrumb>` trail instead of putting it in `children`.
  *
  * The links themselves are shadcn's Breadcrumb (@/components/ui/breadcrumb) — back links are built
@@ -21,6 +21,27 @@ export function PageNav({ children, actions }: { children: ReactNode; actions?: 
       {/* Page-level actions ride on this row rather than pushing the content below down a line. */}
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
     </div>
+  );
+}
+
+/**
+ * A two-step trail: the list a page belongs to, as a link, then the page itself (All contracts › the
+ * contract). A page's tabs don't get a third crumb: they already say which one is open, and a phone,
+ * which shows only the step back, would offer the page itself as the way back from its first tab.
+ */
+export function BreadcrumbTrail({ href, parent, children }: { href: string; parent: string; children: ReactNode }) {
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink render={<Link href={href} />}>{parent}</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbPage>{children}</BreadcrumbPage>
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
   );
 }
 

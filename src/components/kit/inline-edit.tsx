@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
+import { Button } from "@/components/kit/button";
+import { Tip } from "@/components/kit/tip";
+import { TEXT_TITLE } from "@/components/kit/styles";
 
 /*
  * Editing in place, one way across the app: the pencil beside what it edits, and the fields that part
@@ -103,7 +104,7 @@ export function EditPanel({
         if (e.key === "Escape" && !e.defaultPrevented) onCancel();
       }}
     >
-      <span className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{label}</span>
+      <span className={TEXT_TITLE}>{label}</span>
       {children}
       {error && <p className="text-[12px] leading-[1.2] tracking-[0.2px] text-danger">{error}</p>}
       <div className="flex justify-end gap-3">

@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { ICONS } from "@/components/icons";
-import { Avatar, JobBadge, LinkButton, Page } from "@/components/portal/ui";
+import { Avatar } from "@/components/kit/avatar";
+import { JobBadge } from "@/components/kit/badge";
+import { LinkButton } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { TextLink } from "@/components/kit/text-link";
 import {
   DashboardBanner,
   DashboardBarChart,
@@ -240,9 +244,9 @@ function ActiveContracts({ active }: { active: Contract[] }) {
         </ul>
       )}
       {active.length > 3 && (
-        <Link href="/team/independents" className="mt-2 text-center text-[13px] leading-[1.2] font-medium tracking-[0.2px] text-primary hover:underline">
+        <TextLink href="/team/independents" size="sm" className="mt-2 text-center">
           View all {active.length} contracts
-        </Link>
+        </TextLink>
       )}
       <Link href="/team/hire" className="mt-2 flex items-center justify-center gap-1 rounded-lg bg-tile py-2.5 text-[13px] leading-[1.2] font-semibold tracking-[0.2px] text-primary hover:bg-surface-2">
         <Add size={18} aria-hidden /> Hire

@@ -2,13 +2,13 @@
 
 import { lockedReason } from "@/lib/work/permissions";
 import { projectKeyOf } from "@/lib/work/projects";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { CountPill, type ColumnColors } from "@/components/portal/board";
+import { CountPill, type ColumnColors } from "@/components/kit/kanban";
 import { PersonChip } from "@/components/portal/tasks/task-bits";
-import { Badge } from "@/components/portal/badge";
-import { Avatar } from "@/components/portal/ui";
+import { Badge } from "@/components/kit/badge";
+import { Avatar } from "@/components/kit/avatar";
 import { firstName, TYPE_ICON, type TaskPeople } from "./labels";
 import { dayOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";
 import type { Group } from "@/lib/work/query";

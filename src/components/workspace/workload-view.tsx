@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { ICONS } from "@/components/icons";
-import { Checkbox } from "@/components/portal/ui";
+import { Checkbox } from "@/components/kit/checkbox";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { addDays, dayOf, isoOf, isWeekend, longLabel, weekStartOf, partsOf, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";
@@ -141,7 +141,7 @@ function AssigneeRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid })
   const { days, from, last, max, unit, metric } = grid;
   return (
     <tr data-row={r.key}>
-      <th scope="row" className="sticky left-0 z-10 border-b border-[#eeeeee] bg-white px-3 py-2 text-left font-normal max-md:px-2">
+      <th scope="row" className="sticky left-0 z-10 border-b border-line-soft bg-white px-3 py-2 text-left font-normal max-md:px-2">
         {/* A phone has room for the photo alone; the name is its tip and its accessible name. */}
         <span className="max-md:hidden">
           <AssigneeChip assignee={r.key === "none" ? null : r.key} people={people} />
@@ -162,7 +162,7 @@ function AssigneeRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid })
         <Cell key={day} bucket={r.cells[i]} max={max} weekend={isWeekend(day)} today={day === today} weekStart={weekdayOf(day) === 0} label={`${assigneeLabel(r.key)}, ${longLabel(day)}`} day={day} />
       ))}
       <Cell bucket={r.after} max={max} label={`${assigneeLabel(r.key)}, after ${shortLabel(last)}`} edge />
-      <td className={`border-b border-l border-[#eeeeee] px-2 text-center font-semibold text-ink tabular-nums max-md:sticky max-md:z-10 max-md:bg-white ${PINNED_TOTAL}`} aria-label={`${assigneeLabel(r.key)}, total for the ${days.length / 7} weeks shown: ${formatAmount(r.total)} ${unit}`}>
+      <td className={`border-b border-l border-line-soft px-2 text-center font-semibold text-ink tabular-nums max-md:sticky max-md:z-10 max-md:bg-white ${PINNED_TOTAL}`} aria-label={`${assigneeLabel(r.key)}, total for the ${days.length / 7} weeks shown: ${formatAmount(r.total)} ${unit}`}>
         {formatAmount(r.total)}
       </td>
       <NoDatesCell row={r} metric={metric} />
@@ -174,7 +174,7 @@ function AssigneeRow({ row: r, grid }: { row: WorkloadRow; grid: WorkloadGrid })
 function NoDatesCell({ row: r, metric }: { row: WorkloadRow; metric: WorkQuery["metric"] }) {
   const { assigneeLabel } = useWorkspace();
   return (
-    <td className="border-b border-l border-[#eeeeee] p-1 text-center">
+    <td className="border-b border-l border-line-soft p-1 text-center">
       {r.unscheduled.length ? (
         <ItemsPopover title={`${assigneeLabel(r.key)} · no dates`} items={r.unscheduled.map((item) => ({ item, value: metric === "count" ? 1 : (item.effort ?? 0) }))} showValues={metric === "effort"}>
           <span className="inline-flex h-8 min-w-12 items-center justify-center rounded-md px-2 text-[12.5px] text-ink-2 hover:bg-surface-2" aria-label={`${r.unscheduled.length} ${r.unscheduled.length === 1 ? "item" : "items"} with no dates for ${assigneeLabel(r.key)}`}>
@@ -208,7 +208,7 @@ function Segmented({ label, value, options, onChange, className = "" }: { label:
 function Cell({ bucket, max, label, weekend, today, weekStart, edge, day }: { bucket: Bucket; max: number; label: string; weekend?: boolean; today?: boolean; weekStart?: boolean; edge?: boolean; day?: Day }) {
   const { value, items } = bucket;
   const alpha = max > 0 && value > 0 ? 0.08 + 0.42 * (value / max) : 0;
-  const base = `border-b border-[#eeeeee] p-1 text-center ${weekend ? "bg-[#fafafa]" : ""} ${weekStart || edge ? "border-l border-l-[#d6d6d6]" : ""} ${today ? "bg-[#f1f8fd]" : ""}`;
+  const base = `border-b border-line-soft p-1 text-center ${weekend ? "bg-surface-alt" : ""} ${weekStart || edge ? "border-l border-l-[#d6d6d6]" : ""} ${today ? "bg-[#f1f8fd]" : ""}`;
   if (!value) return <td className={base} aria-label={`${label}: nothing`} data-day={day !== undefined ? isoOf(day) : undefined} data-value="0" />;
   return (
     <td className={base} data-day={day !== undefined ? isoOf(day) : undefined} data-value={formatAmount(value)}>

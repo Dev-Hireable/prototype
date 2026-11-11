@@ -2,7 +2,18 @@
 
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, EmptyState, Field, Input, LinkButton, Modal, Page, Person, Row, SearchBox, Select, StatusDot, Table, Tabs, Textarea, Toolbar } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Field, Input, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { Person } from "@/components/kit/avatar";
+import { Row, Table } from "@/components/kit/table";
+import { SearchBox } from "@/components/kit/search-box";
+import { Select } from "@/components/kit/select";
+import { StatusDot } from "@/components/kit/badge";
+import { Tabs } from "@/components/kit/tabs";
+import { Toolbar } from "@/components/kit/toolbar";
 import { AttachmentPicker } from "@/components/portal/dispute-case";
 import { caseHref, checkAmount, contractName, dateOf, DISPUTE_REASONS, DISPUTE_STATUSES, leftLabel, otherParty, outcomeOf, partyName, partyTurn, SLA_DAYS, STATUS_TONE, TURN_DAYS, usd, useDisputes, waitingOn } from "@/lib/demo/disputes";
 import type { Attachment, Dispute, DisputeParty } from "@/lib/demo/disputes";
@@ -10,6 +21,7 @@ import { keepFile } from "@/lib/demo/files";
 import { PAIR } from "@/lib/demo/live";
 import { useQueryState } from "@/lib/portal/query-state";
 import { useNow } from "@/lib/portal/use-now";
+import { TEXT_LABEL } from "@/components/kit/styles";
 
 /**
  * The dispute screens both portals share: filing one, the lists, and the rows on a contract's
@@ -64,7 +76,7 @@ export function DisputeForm({ open, onClose, title, description, cap, capNote, o
           <Input value={form.amount} required inputMode="decimal" onChange={(e) => form.setAmount(e.target.value)} onBlur={() => form.setTouched(true)} placeholder="0.00" />
         </Field>
         <div className="flex flex-col gap-2">
-          <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Screenshots and files (optional)</p>
+          <p className={TEXT_LABEL}>Screenshots and files (optional)</p>
           <AttachmentPicker files={form.files} onChange={form.setFiles} onError={form.setFileError} />
           {form.fileError && (
             <p role="alert" className="text-[12.5px] leading-[1.4] text-danger">

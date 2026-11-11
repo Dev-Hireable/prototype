@@ -1,6 +1,8 @@
-import { AdminPage } from "@/components/admin/ui";
-import { Badge } from "@/components/portal/badge";
-import { Avatar, Button, Card } from "@/components/portal/ui";
+import { Badge } from "@/components/kit/badge";
+import { Avatar } from "@/components/kit/avatar";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Page } from "@/components/kit/page";
 import { adminAccounts } from "@/lib/admin/data/settings";
 
 /** The signed-in admin — the owner row of the same list "Admin accounts" renders. */
@@ -15,7 +17,7 @@ const FIELDS = [
 
 export default function AdminProfile() {
   return (
-    <AdminPage title="Profile" actions={<Button size="sm">Edit profile</Button>}>
+    <Page title="Profile" headerActions={<Button size="sm">Edit profile</Button>}>
       <Card className="flex flex-col gap-6 p-[18px]">
         <div className="flex items-center gap-4">
           <Avatar src="/admin/avatar.jpg" size={64} />
@@ -35,6 +37,6 @@ export default function AdminProfile() {
           ))}
         </dl>
       </Card>
-    </AdminPage>
+    </Page>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Page } from "@/components/portal/ui";
+import { Page } from "@/components/kit/page";
 import { AccountSettingsCard } from "@/components/portal/settings";
 import { useIndependentAccount } from "@/lib/independent/account";
 

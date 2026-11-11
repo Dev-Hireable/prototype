@@ -4,11 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useId, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Meter } from "@/components/portal/meter";
+import { Meter } from "@/components/kit/meter";
 import { RetakeQuizDialog } from "@/components/portal/retake-quiz-dialog";
 import { TraitTag } from "@/components/portal/trait-tag";
 import { useNextRetake } from "@/lib/demo/retake";
 import type { WorkStyleSide, WorkStyleTag } from "@/lib/demo/work-style";
+import { TextLink } from "@/components/kit/text-link";
 
 /**
  * `href` is the shortcut link an incomplete step exposes (TB-001 / IN-003).
@@ -108,7 +109,7 @@ function SetupHeading({ id, avatarSrc, avatarClassName, title, description, stac
   return (
     // On a phone the art takes the card's top-right third, so the copy keeps to the rest of the width.
     <div className={`relative flex max-md:pr-[34%] ${stacked ? "flex-col items-start gap-3" : "items-center gap-4 max-md:items-start max-md:gap-3"}`}>
-      <Image src={avatarSrc} alt="" width={96} height={96} className={`shrink-0 rounded-full bg-[#d2d8db] object-cover ${stacked ? "size-14 max-md:size-12" : "size-12 max-md:size-10"} ${avatarClassName}`} loading="eager" />
+      <Image src={avatarSrc} alt="" width={96} height={96} className={`shrink-0 rounded-full bg-skeleton object-cover ${stacked ? "size-14 max-md:size-12" : "size-12 max-md:size-10"} ${avatarClassName}`} loading="eager" />
       {/* Capped so the copy wraps before it runs under the decorative art on the right. */}
       <div className="flex min-w-0 max-w-[50%] flex-1 flex-col gap-1.5 leading-[1.25] tracking-[0.2px] max-md:max-w-none">
         <h2 id={id} className="text-[18px] font-semibold text-ink max-md:text-[16px]">
@@ -131,7 +132,7 @@ function SetupProgress({ done, total }: { done: number; total: number }) {
 }
 
 /** The head's actions are links in its own type, so they read as part of it rather than as a form's buttons; a finger gets a 32px tap on them. */
-const ACTION = "hit-area inline-flex items-center gap-1 [--hit:32px] text-[13px] leading-[1.2] font-semibold text-primary hover:underline";
+const ACTION = "hit-area inline-flex items-center gap-1 [--hit:32px]";
 
 /**
  * Under the line on matching once setup is done: the way to the profile, where the tags are shown in
@@ -143,13 +144,13 @@ function WorkStyleActions({ side, profileHref }: { side: WorkStyleSide; profileH
   const canRetake = useNextRetake(side) === null;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1.5">
-      <Link href={profileHref} className={ACTION}>
+      <TextLink href={profileHref} size="sm" className={ACTION}>
         See your profile <ICONS.arrowForward size={16} aria-hidden />
-      </Link>
+      </TextLink>
       {canRetake && (
-        <button type="button" onClick={() => setAsking(true)} className={ACTION}>
+        <TextLink onClick={() => setAsking(true)} size="sm" className={ACTION}>
           <ICONS.restart size={16} aria-hidden /> Retake quiz
-        </button>
+        </TextLink>
       )}
       <RetakeQuizDialog side={side} open={asking} onClose={() => setAsking(false)} />
     </div>
@@ -179,8 +180,8 @@ function Checklist({ items }: { items: readonly DashboardChecklistItem[] }) {
         return (
           // flex-wrap: once the column is too narrow for label + button side by side, the
           // button drops below the text rather than being clipped by the list's rounded mask.
-          <li key={item.label} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-b border-[#eeeeee] px-4 py-3.5 sm:px-5 last:border-b-0">
-            <span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${item.done ? "bg-primary text-white" : locked ? "bg-[#f2f2f2] text-ink-2" : "border-[1.5px] border-[#d8d8d8]"}`}>
+          <li key={item.label} className="flex flex-wrap items-center gap-x-3.5 gap-y-2 border-b border-line-soft px-4 py-3.5 sm:px-5 last:border-b-0">
+            <span className={`flex size-7 shrink-0 items-center justify-center rounded-full ${item.done ? "bg-primary text-white" : locked ? "bg-surface-2 text-ink-2" : "border-[1.5px] border-[#d8d8d8]"}`}>
               {item.done ? <Check size={17} aria-hidden /> : locked ? <Lock size={15} aria-hidden /> : null}
             </span>
             <span className="flex min-w-[120px] flex-1 flex-col gap-0.5 leading-[1.35] tracking-[0.2px]">

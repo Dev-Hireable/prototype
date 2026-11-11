@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import { Meter } from "@/components/portal/meter";
-import { Button, Steps } from "@/components/portal/ui";
-import { StepCard as StepFrame, StepHeading } from "@/components/portal/step-card";
-import { EditButton, EditPanel } from "@/components/portal/inline-edit";
+import { Meter } from "@/components/kit/meter";
+import { Button } from "@/components/kit/button";
+import { Steps } from "@/components/kit/steps";
+import { StepCard as StepFrame, StepHeading } from "@/components/kit/step-card";
+import { EditButton, EditPanel } from "@/components/kit/inline-edit";
 import type { PathCopy } from "../_lib/wizard";
 
 /**

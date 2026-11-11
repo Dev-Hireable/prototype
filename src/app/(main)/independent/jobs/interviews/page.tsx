@@ -2,14 +2,21 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Button, EmptyState, LinkButton, Modal, Page, Pills, Row, StatusDot, Table, Toast } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { Pills } from "@/components/kit/pills";
+import { Row, Table } from "@/components/kit/table";
+import { StatusDot } from "@/components/kit/badge";
+import { Toast } from "@/components/kit/toast";
 import { canJoin, JOIN_OPENS_MINUTES } from "@/lib/portal/dates";
 import type { Interview } from "@/lib/independent/data";
 import { useApplications } from "@/lib/independent/applications";
 import { useInterviewTime } from "@/lib/independent/interview-time";
 import { useQueryState } from "@/lib/portal/query-state";
 import { useToast } from "@/lib/portal/toast";
-import { ROW_LINK } from "@/components/portal/toolbar";
+import { ROW_LINK } from "@/components/kit/styles";
 import { useWithReturn } from "@/components/portal/return";
 import { RescheduleDialog } from "@/components/independent/reschedule-dialog";
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { InfoBanner } from "@/components/portal/ui";
+import { InfoBanner } from "@/components/kit/info-banner";
 
 /** A banner with its one action beside its message: "Juan sent 2 items for review · Review". */
 export function Callout({ tone = "info", children, action }: { tone?: "info" | "warn" | "success"; children: ReactNode; action?: ReactNode }) {

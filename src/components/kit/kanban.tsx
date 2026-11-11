@@ -13,7 +13,7 @@ export type ColumnColors = { bg: string; text: string; count: string };
 export type ColumnFrame = "rest" | "target" | "over" | "focused";
 
 const FRAME: Record<ColumnFrame, string> = {
-  rest: "border-[#e2e2e2] bg-[#f7f7f7]",
+  rest: "border-[#e2e2e2] bg-tile",
   target: "border-dashed border-[#9fc9ea] bg-[#f7fbfe]",
   over: "border-accent-soft bg-accent-bg",
   focused: "border-accent-soft bg-accent-bg",

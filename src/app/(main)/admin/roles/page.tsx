@@ -1,29 +1,33 @@
-import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
-import { Badge } from "@/components/portal/badge";
+import { Page } from "@/components/kit/page";
+import { SearchBox } from "@/components/kit/search-box";
+import { Select } from "@/components/kit/select";
+import { Toolbar } from "@/components/kit/toolbar";
+import { DataTable } from "@/components/admin/ui";
+import { Badge } from "@/components/kit/badge";
 import { roles } from "@/lib/admin/data/roles";
 import type { Role } from "@/lib/admin/data/roles";
 
 export default function AllRoles() {
   return (
-    <AdminPage title="All roles">
+    <Page title="All roles">
       <Toolbar>
-        <SearchInput placeholder="Search roles" />
-        <Select label="Status" options={["All statuses", "Active", "Draft", "Flagged", "Closed"]} />
-        <Select label="Type" options={["All types", "Trial", "Full-time", "Part-time"]} />
+        <SearchBox placeholder="Search roles" className="w-[320px]" />
+        <Select aria-label="Status" options={["All statuses", "Active", "Draft", "Flagged", "Closed"]} className="!w-[180px]" />
+        <Select aria-label="Type" options={["All types", "Trial", "Full-time", "Part-time"]} className="!w-[180px]" />
       </Toolbar>
 
       <DataTable<Role>
         rows={roles}
         rowHref={(r) => `/admin/roles/${r.slug}`}
         columns={[
-          { header: "Role", cell: (r) => r.role, width: "26%" },
-          { header: "Company", cell: (r) => r.company, width: "20%" },
-          { header: "Type", cell: (r) => r.type, width: "12%" },
-          { header: "Applicants", cell: (r) => r.applicants, width: "12%" },
-          { header: "Posted", cell: (r) => r.posted, width: "14%" },
-          { header: "Status", cell: (r) => <Badge tone={r.tone}>{r.status}</Badge>, width: "14%" },
+          { header: "Role", cell: (r) => r.role },
+          { header: "Company", cell: (r) => r.company, col: "w-[200px]" },
+          { header: "Type", cell: (r) => r.type, col: "w-[120px]" },
+          { header: "Applicants", cell: (r) => r.applicants, col: "w-[120px]" },
+          { header: "Posted", cell: (r) => r.posted, col: "w-[140px]" },
+          { header: "Status", cell: (r) => <Badge tone={r.tone}>{r.status}</Badge>, col: "w-[140px]" },
         ]}
       />
-    </AdminPage>
+    </Page>
   );
 }

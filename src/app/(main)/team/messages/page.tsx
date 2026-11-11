@@ -1,8 +1,8 @@
 "use client";
 
-import { Badge } from "@/components/portal/badge";
+import { Badge } from "@/components/kit/badge";
 import { MessagesPage } from "@/components/portal/messages-page";
-import { Avatar } from "@/components/portal/ui";
+import { Avatar } from "@/components/kit/avatar";
 import { ProfileDrawer } from "@/components/team/ui";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useTeamContracts } from "@/lib/team/contracts";

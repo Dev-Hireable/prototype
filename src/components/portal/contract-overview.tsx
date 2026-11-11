@@ -2,11 +2,12 @@
 
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { CountPill } from "@/components/portal/board";
-import { Button } from "@/components/portal/ui";
-import { FactStrip, SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
-import { PanelCard } from "@/components/portal/panel-card";
-import { StatusCircle } from "@/components/portal/tasks/task-bits";
+import { CountPill } from "@/components/kit/kanban";
+import { Button } from "@/components/kit/button";
+import { TextLink } from "@/components/kit/text-link";
+import { FactStrip, SIDE_COLUMN, WITH_SIDE } from "@/components/kit/page-parts";
+import { PanelCard } from "@/components/kit/panel-card";
+import { StatusCircle, TaskRef } from "@/components/portal/tasks/task-bits";
 import type { TaskPeople } from "@/components/workspace/labels";
 import { WorkLegend, WorkMeter } from "@/components/portal/work-progress";
 import { AssigneeChip } from "@/components/workspace/meta";
@@ -261,7 +262,7 @@ function RecentChanges({ items }: { items: WorkItem[] }) {
           {keyed(feed, (f) => `${f.t.id}-${f.ts}`).map(({ item: f, key }) => (
             <li key={key}>
               <button type="button" onClick={() => openWork(f.t.id)} className="flex w-full items-start gap-3 rounded-md px-2 py-2 text-left hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-primary">
-                <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[#c3c3c3]" />
+                <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-border" />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="text-[13px] leading-[1.4] break-words text-ink">{f.text}</span>
                   <span className="truncate text-[12px] leading-[1.3] text-ink-2">
@@ -291,7 +292,7 @@ function ItemRow({ item: t, lead, meta }: { item: WorkItem; lead?: ReactNode; me
         <StatusCircle status={t.status} size={16} />
         <span className="flex min-w-0 flex-1 items-center gap-2.5 max-md:flex-col max-md:items-start max-md:gap-0.5">
           <span className="flex max-w-full min-w-0 flex-1 items-center gap-2.5 max-md:items-baseline">
-            <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+            <TaskRef task={t} />
             <span className="min-w-0 flex-1 truncate text-ink max-md:line-clamp-2 max-md:whitespace-normal max-md:break-normal">{t.title}</span>
           </span>
           {meta}
@@ -306,8 +307,8 @@ function ItemRow({ item: t, lead, meta }: { item: WorkItem; lead?: ReactNode; me
 function More({ total }: { total: number }) {
   if (total <= ROWS) return null;
   return (
-    <button type="button" onClick={() => openWork()} className="self-start text-[13px] font-medium text-primary hover:underline pointer-coarse:-my-3 pointer-coarse:py-3">
+    <TextLink onClick={() => openWork()} size="sm" className="self-start pointer-coarse:-my-3 pointer-coarse:py-3">
       {total - ROWS} more in the work
-    </button>
+    </TextLink>
   );
 }

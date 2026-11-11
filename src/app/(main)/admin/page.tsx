@@ -1,12 +1,13 @@
 import { BarChart, Donut, Legend } from "@/components/admin/charts";
 import { NeedsAttention } from "@/components/admin/needs-attention";
-import { AdminPage, StatCard, StatGrid } from "@/components/admin/ui";
-import { Card } from "@/components/portal/ui";
+import { StatCard, StatGrid } from "@/components/admin/ui";
+import { Card } from "@/components/kit/card";
+import { Page } from "@/components/kit/page";
 import { needsAttention, platformStats, signups, trialOutcomes } from "@/lib/admin/data/home";
 
 export default function AdminDashboard() {
   return (
-    <AdminPage title="Admin dashboard">
+    <Page title="Admin dashboard">
       <StatGrid>
         {platformStats.map((s) => (
           <StatCard key={s.label} {...s} />
@@ -24,6 +25,6 @@ export default function AdminDashboard() {
       </div>
 
       <NeedsAttention items={needsAttention} />
-    </AdminPage>
+    </Page>
   );
 }

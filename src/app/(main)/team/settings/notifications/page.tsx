@@ -1,6 +1,6 @@
 "use client";
 
-import { Page } from "@/components/portal/ui";
+import { Page } from "@/components/kit/page";
 import { NotificationPreferencesCard, type NotificationPreference } from "@/components/portal/settings";
 
 /** Under the same names as the Notifications filters (@/lib/portal/notification-categories). */

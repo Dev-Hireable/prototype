@@ -1,4 +1,7 @@
-import { Button, Field, Modal, Select as FormSelect, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select as FormSelect } from "@/components/kit/select";
 import { askParty, extendDeadline, partyName, rejectDispute, releasePayment, resolveDispute, stampOf, TURN_DAYS, usd } from "@/lib/demo/disputes";
 import type { Dispute, DisputeParty } from "@/lib/demo/disputes";
 import type { PartyTurn } from "@/lib/disputes/case";

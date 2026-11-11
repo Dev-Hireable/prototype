@@ -2,7 +2,10 @@
 
 import { notFound } from "next/navigation";
 import { Suspense, use } from "react";
-import { JobBadge, MessageButton, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { JobBadge, StatusDot } from "@/components/kit/badge";
+import { MessageButton } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import { UnreadableGate } from "@/components/workspace/unreadable-gate";
 import { CONTRACT_NAMES, byName } from "@/lib/team/data";
 import { CONTRACT_TABS, useContractView } from "@/lib/contract/view";

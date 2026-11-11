@@ -1,10 +1,11 @@
-import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Page } from "@/components/kit/page";
+import { DataTable, StatCard, StatGrid } from "@/components/admin/ui";
 import { cohorts, platformKpis } from "@/lib/admin/data/stats";
 import type { Cohort } from "@/lib/admin/data/stats";
 
 export default function PlatformStats() {
   return (
-    <AdminPage title="Platform stats">
+    <Page title="Platform stats">
       <div className="flex flex-col gap-4">
         <StatGrid>
           {platformKpis.map((s) => (
@@ -17,13 +18,13 @@ export default function PlatformStats() {
           rows={cohorts}
           columns={[
             { header: "Cohort", cell: (c) => c.cohort },
-            { header: "Sign-ups", cell: (c) => c.signups, width: "14%" },
-            { header: "Trials", cell: (c) => c.trials, width: "14%" },
-            { header: "Converted", cell: (c) => c.converted, width: "14%" },
-            { header: "Rate", cell: (c) => c.rate, width: "12%" },
+            { header: "Sign-ups", cell: (c) => c.signups, col: "w-[140px]" },
+            { header: "Trials", cell: (c) => c.trials, col: "w-[140px]" },
+            { header: "Converted", cell: (c) => c.converted, col: "w-[140px]" },
+            { header: "Rate", cell: (c) => c.rate, col: "w-[120px]" },
           ]}
         />
       </div>
-    </AdminPage>
+    </Page>
   );
 }

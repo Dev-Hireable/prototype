@@ -1,16 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Button, Chip, Initials, JobBadge, LinkButton, MatchPill } from "@/components/portal/ui";
-import { TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Chip } from "@/components/kit/chip";
+import { Initials } from "@/components/kit/avatar";
+import { JobBadge } from "@/components/kit/badge";
+import { MatchPill } from "@/components/kit/match-pill";
+import { TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/kit/styles";
 import { hoursLabel, payFor } from "@/lib/contract/job-types";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";
 import type { Application, Role } from "@/lib/independent/data";
 import { useSavedRoles } from "@/lib/independent/saved";
 import { useApplications } from "@/lib/independent/applications";
 import { useWithReturn } from "@/components/portal/return";
-import { toggleSavedWithNote } from "@/components/portal/notify";
-import { SaveToggle } from "@/components/portal/save-toggle";
+import { toggleSavedWithNote } from "@/components/kit/notify";
+import { SaveToggle } from "@/components/kit/save-toggle";
 
 /**
  * A role on Discover or Saved roles: the save toggle (unsaving says so, with Undo), then View role,

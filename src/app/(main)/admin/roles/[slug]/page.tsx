@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
-import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
-import { Badge } from "@/components/portal/badge";
-import { Button } from "@/components/portal/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Badge } from "@/components/kit/badge";
+import { Button } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 import { roles } from "@/lib/admin/data/roles";
 import type { Check } from "@/lib/admin/data/roles";
 
@@ -16,10 +17,10 @@ export default async function RoleDetail({ params }: PageProps<"/admin/roles/[sl
   if (!role) notFound();
 
   return (
-    <AdminPage
+    <Page
       nav={<BreadcrumbBack href="/admin/roles">Back to all roles</BreadcrumbBack>}
       title={role.role}
-      actions={
+      headerActions={
         <>
           <Button size="sm">Unpublish</Button>
           <Button size="sm" variant="primary">Approve</Button>
@@ -41,13 +42,13 @@ export default async function RoleDetail({ params }: PageProps<"/admin/roles/[sl
             { header: "Check", cell: (c) => c.check },
             {
               header: "Result",
-              width: "34%",
+              col: "w-[340px]",
               cell: (c) => <Badge tone={c.pass ? "ok" : "warn"}>{c.result}</Badge>,
             },
-            { header: "Checked", cell: (c) => c.checked, width: "16%" },
+            { header: "Checked", cell: (c) => c.checked, col: "w-[160px]" },
           ]}
         />
       </div>
-    </AdminPage>
+    </Page>
   );
 }

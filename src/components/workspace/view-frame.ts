@@ -1,4 +1,4 @@
-import { TRAY, TRAY_PANEL } from "@/components/portal/styles";
+import { TRAY, TRAY_PANEL } from "@/components/kit/styles";
 import type { WorkItem } from "@/lib/work/model";
 
 /**
@@ -13,7 +13,7 @@ export const WORK_STATUS_SURFACE: Record<WorkItem["status"], string> = {
   todo: "bg-surface-2 text-ink",
   doing: "bg-accent-bg text-accent-ink",
   review: "bg-[#fff3cc] text-[#6b5208]",
-  done: "bg-[#e3f6ea] text-[#1b6b3a]",
+  done: "bg-[#e3f6ea] text-ok-ink",
 };
 
 const DATE_CONTROL = "inline-flex h-9 shrink-0 items-center justify-center rounded-lg text-ink-2 enabled:hover:bg-white enabled:hover:text-ink focus-visible:outline-2 focus-visible:outline-primary max-md:h-10";

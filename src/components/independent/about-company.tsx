@@ -1,6 +1,7 @@
 import type { IconType } from "react-icons";
 import { ICONS } from "@/components/icons";
 import { CompanyMark } from "@/components/portal/company-mark";
+import { TextLink } from "@/components/kit/text-link";
 
 const DM = { fontVariationSettings: '"opsz" 14' };
 const Out = ICONS.northEast;
@@ -42,9 +43,9 @@ export function AboutCompany({ name, initials, industry, blurb, facts, site }: {
           ))}
         {website && (
           <li>
-            <a href={website} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-2 font-medium text-primary hover:underline">
+            <TextLink href={website} external className="inline-flex max-w-full items-center gap-2">
               <Out size={18} aria-hidden className="shrink-0" /> <span className="truncate">{bare(website)}</span>
-            </a>
+            </TextLink>
           </li>
         )}
       </ul>

@@ -1,5 +1,5 @@
-import { Button } from "@/components/portal/ui";
-import { Callout } from "@/components/portal/callout";
+import { Button } from "@/components/kit/button";
+import { Callout } from "@/components/kit/callout";
 import { cancelledLine, type ContractView } from "@/lib/contract/view";
 import { PAIR } from "@/lib/demo/live";
 import { dayLabel } from "@/lib/portal/dates";

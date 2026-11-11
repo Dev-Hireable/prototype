@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "@/components/portal/ui";
+import { Card } from "@/components/kit/card";
 
 /**
  * Tracker card with a heading and optional control on the tray. The white panel's

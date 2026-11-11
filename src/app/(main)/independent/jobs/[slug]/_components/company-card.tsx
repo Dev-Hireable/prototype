@@ -1,7 +1,8 @@
 import { ICONS } from "@/components/icons";
 import { AboutCompany } from "@/components/independent/about-company";
-import { Button, Card, LinkButton } from "@/components/portal/ui";
-import { SaveButton as SaveRoleButton } from "@/components/portal/save-toggle";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { SaveButton as SaveRoleButton } from "@/components/kit/save-toggle";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Role } from "@/lib/independent/data";
 import type { Standing } from "../_lib/standing";

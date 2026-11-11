@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Page } from "@/components/portal/ui";
+import { Page } from "@/components/kit/page";
 import { NotificationFeed } from "@/components/portal/notification-feed";
 import { storedCompanyLogo, useNotifications } from "@/lib/demo/live";
 import { categoryOf, NOTE_CATEGORIES, type NoteCategory } from "@/lib/portal/notification-categories";

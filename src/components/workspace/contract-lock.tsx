@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { InfoBanner } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Tip } from "@/components/kit/tip";
 import type { AgreedField } from "@/lib/work/permissions";
 import { explain } from "@/lib/work/store";
 import { agreedReason, lockLabel } from "./lockable";

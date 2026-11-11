@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Modal } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
+import { Button } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
+import { Tip } from "@/components/kit/tip";
 import { TourHelp } from "@/components/portal/tour/tour-help";
 import { TourProvider } from "@/components/portal/tour/tour-provider";
 import { QuickChat } from "@/components/portal/quick-chat";
@@ -74,7 +75,7 @@ export function PortalShell({
       <div className="flex h-[calc(100dvh/var(--ui-scale))] min-h-[560px] gap-1 bg-surface-2 p-1 font-sans text-ink max-md:min-h-0 max-md:flex-col max-md:gap-0 max-md:p-0">
         <Sidebar sections={sections} section={section} activeMenuHref={activeMenuHref} profileHref={profileHref} avatar={avatar} badges={badges} railBadges={railBadges} onLogout={setLogout} />
 
-        <div className={`flex min-h-0 min-w-0 flex-1 flex-col md:h-full ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] max-md:rounded-none max-md:shadow-none"}`}>
+        <div className={`flex min-h-0 min-w-0 flex-1 flex-col md:h-full ${bare ? "" : "overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_var(--color-border)] max-md:rounded-none max-md:shadow-none"}`}>
           {/* The demo's records live in localStorage, so the page waits one paint for them rather
               than rendering against nothing — a detail screen would otherwise 404 on a refresh. */}
           {/* Pages read the URL (?from=, ?tab=), which a prerendered page may only do under a
@@ -223,7 +224,7 @@ function SectionRail({ rail, activeIndex, badges, profileHref, avatar }: { rail:
               width={128}
               height={128}
               preload
-              className="size-[38.4px] rounded-full bg-[#d2d8db] object-cover"
+              className="size-[38.4px] rounded-full bg-skeleton object-cover"
             />
           </span>
         </Link>
@@ -249,7 +250,7 @@ function SectionPanel({
   onLogout: (href: string) => void;
 }) {
   return (
-    <div className={`absolute top-0 left-24 h-full overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_#c3c3c3] ${EASE} transition-[width] ${collapsed ? "w-14" : "w-60"}`}>
+    <div className={`absolute top-0 left-24 h-full overflow-clip rounded-lg bg-white shadow-[inset_0_0_0_1px_var(--color-border)] ${EASE} transition-[width] ${collapsed ? "w-14" : "w-60"}`}>
       <h2
         className={`absolute top-4 left-4 text-[16px] leading-[1.5] font-semibold tracking-[0.2px] whitespace-nowrap text-ink ${EASE} transition-opacity ${
           collapsed ? "opacity-0" : "opacity-100"

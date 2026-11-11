@@ -3,10 +3,12 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ICONS, type IconName } from "@/components/icons";
-import { Button, InfoBanner } from "@/components/portal/ui";
-import { PHONE_FAB } from "@/components/portal/styles";
-import { MiniBar } from "@/components/portal/meter";
-import { ViewTabsList } from "@/components/portal/view-switch";
+import { Button } from "@/components/kit/button";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { TextLink } from "@/components/kit/text-link";
+import { PHONE_FAB } from "@/components/kit/styles";
+import { MiniBar } from "@/components/kit/meter";
+import { ViewTabsList } from "@/components/kit/view-switch";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { PHONE, useMedia } from "@/lib/portal/media";
 import { writeParams } from "@/lib/portal/query-state";
@@ -26,7 +28,7 @@ import { ProjectPicker } from "./project-picker";
 import { CorruptWork, MissingContract, NoMatches, NoWork, ViewBoundary, WorkspaceSkeleton } from "./states";
 import { TaskDetail } from "./task-detail";
 import { TimelineView } from "./timeline-view";
-import { FilterChips, Search, Toolbar, ToolbarMenus } from "./toolbar";
+import { FilterChips, Search, ToolbarMenus, WorkToolbar } from "./toolbar";
 import { focusItem, useWidth } from "./util";
 import { WorkMessages } from "./work-messages";
 import { WorkloadView } from "./workload-view";
@@ -184,7 +186,7 @@ function WorkspaceHead(props: HeadProps) {
     <div className="flex shrink-0 flex-col gap-2 border-b border-line px-[var(--ws-gutter,1rem)] pt-1 pb-2">
       <SummaryLine context={context} counts={list.counts} split={split} scope={scope} />
       <ViewBar split={split} setQuery={setQuery} inReview={list.inReview} onAdd={onAdd} />
-      <Toolbar {...toolbarProps(list, query, setQuery, assigneeLabel, split)} />
+      <WorkToolbar {...toolbarProps(list, query, setQuery, assigneeLabel, split)} />
       <FilterChips query={query} setQuery={setQuery} assigneeLabel={assigneeLabel} />
     </div>
   );
@@ -412,9 +414,9 @@ function MissingItemNote({ onDismiss }: { onDismiss: () => void }) {
       <InfoBanner tone="warn" className="w-fit max-w-full rounded-lg">
         <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
           That item doesn't exist any more.
-          <button type="button" onClick={onDismiss} className="font-semibold underline">
+          <TextLink onClick={onDismiss} tone="inherit" inline>
             Dismiss
-          </button>
+          </TextLink>
         </span>
       </InfoBanner>
     </div>

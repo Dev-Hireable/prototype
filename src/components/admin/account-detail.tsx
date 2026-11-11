@@ -1,9 +1,11 @@
 import { DisputeHistory } from "./dispute-history";
 import { LiveContractCard } from "./live-contract";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 import { ICONS } from "@/components/icons";
-import { Button, EmptyState } from "@/components/portal/ui";
-import { AdminPage, DataTable, StatCard, StatGrid } from "./ui";
+import { Button } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Page } from "@/components/kit/page";
+import { DataTable, StatCard, StatGrid } from "./ui";
 import type { ActivityEvent, Stat } from "@/lib/admin/data/users";
 
 /** Shared layout for the two account profile screens (stats row, activity log, dispute history). */
@@ -24,10 +26,10 @@ export function AccountDetail({
   disputes: { party: "team" | "independent"; slug: string };
 }) {
   return (
-    <AdminPage
+    <Page
       nav={<BreadcrumbBack href={backHref}>{backLabel}</BreadcrumbBack>}
       title={title}
-      actions={
+      headerActions={
         <>
           <Button size="sm">
             <ICONS.messages size={16} aria-hidden />
@@ -53,7 +55,7 @@ export function AccountDetail({
 
         <DisputeHistory party={disputes.party} slug={disputes.slug} />
       </div>
-    </AdminPage>
+    </Page>
   );
 }
 
@@ -65,8 +67,8 @@ function ActivityLog({ activity }: { activity: ActivityEvent[] }) {
       rows={activity}
       columns={[
         { header: "Event", cell: (r) => r.event },
-        { header: "Actor", cell: (r) => r.actor, width: "22%" },
-        { header: "When", cell: (r) => r.when, width: "20%" },
+        { header: "Actor", cell: (r) => r.actor, col: "w-[220px]" },
+        { header: "When", cell: (r) => r.when, col: "w-[200px]" },
       ]}
     />
   ) : (

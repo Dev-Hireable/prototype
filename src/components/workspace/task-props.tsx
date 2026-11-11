@@ -2,9 +2,9 @@
 
 import type { ReactNode } from "react";
 import { ICONS, type IconName } from "@/components/icons";
-import { Checkbox } from "@/components/portal/ui";
-import { MiniBar } from "@/components/portal/meter";
-import { InfoTip, Tip } from "@/components/portal/tip";
+import { Checkbox } from "@/components/kit/checkbox";
+import { MiniBar } from "@/components/kit/meter";
+import { InfoTip, Tip } from "@/components/kit/tip";
 import { EFFORT_HELP, isArchived, type Subtask, type WorkItem } from "@/lib/work/model";
 import { capsFor, changeFor, tickRefusal, type AgreedField, type Caps } from "@/lib/work/permissions";
 import { checkSubtaskTitle } from "@/lib/work/validate";
@@ -196,7 +196,7 @@ function Subtasks({ item: t, caps }: { item: WorkItem; caps: Caps }) {
 function SubtaskRow({ item: t, sub: s, untickable, removable }: { item: WorkItem; sub: Subtask; untickable: string | null; removable: boolean }) {
   const { actions } = useWorkspace();
   return (
-    <li className="group flex min-h-9 items-center gap-2 border-t border-[#eeeeee] px-1.5 first:border-t-0">
+    <li className="group flex min-h-9 items-center gap-2 border-t border-line-soft px-1.5 first:border-t-0">
       <Tip label={untickable} wrap wrapClassName="min-w-0 flex-1">
         <Checkbox checked={s.done} disabled={untickable !== null} onChange={(v) => void actions.toggleSubtask(t, s.id, v)} className="min-w-0 flex-1">
           <span className={`min-w-0 flex-1 ${s.done ? "text-ink-2 line-through" : ""}`}>{s.title}</span>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button, Modal } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
 import { quizPath, type WorkStyleSide } from "@/lib/demo/work-style";
 
 /** What each side is asked before its quiz starts over, in its own words (TB-096 / IN-064). */

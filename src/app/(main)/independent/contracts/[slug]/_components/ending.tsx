@@ -1,6 +1,7 @@
 import { CancelContractDialog } from "@/components/portal/cancel-contract-dialog";
-import { Button, Modal } from "@/components/portal/ui";
-import { PanelCard } from "@/components/portal/panel-card";
+import { Button } from "@/components/kit/button";
+import { Modal, Bullets } from "@/components/kit/modal";
+import { PanelCard } from "@/components/kit/panel-card";
 import { NOTICE_DAYS } from "@/lib/contract/lifecycle";
 import type { ContractView } from "@/lib/contract/view";
 import type { CancelReason } from "@/lib/demo/contract";
@@ -64,14 +65,14 @@ export function EndDialog({ open, contract, view, cancellable, lastDay, onClose,
         </>
       }
     >
-      <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-[1.4] text-ink-2 marker:text-ink-2">
+      <Bullets>
         <li>
           <span className="font-semibold text-ink">Last day: {dayLabel(lastDay)}</span> ({NOTICE_DAYS[contract.type as OngoingType]} days from today)
         </li>
         <li>You keep working and getting paid until then</li>
         <li>You can take back your notice before that date</li>
         <li>We&apos;ll notify {contract.company}</li>
-      </ul>
+      </Bullets>
     </Modal>
   );
 }

@@ -3,7 +3,7 @@
 import { useState, type ReactNode, type Ref } from "react";
 import type { Matcher } from "react-day-picker";
 import { ICONS } from "@/components/icons";
-import { FORM_CONTROL } from "@/components/portal/styles";
+import { FORM_CONTROL } from "@/components/kit/styles";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatDate } from "@/lib/portal/dates";

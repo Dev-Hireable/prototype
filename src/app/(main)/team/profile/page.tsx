@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { Avatar, Page, Toast } from "@/components/portal/ui";
+import { Avatar } from "@/components/kit/avatar";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/profile-editor";
 import { WorkStyleSection } from "@/components/team/work-style-section";
 import { useToast, type SetToast } from "@/lib/portal/toast";
@@ -88,9 +90,9 @@ function ProfileFields({ onToast }: { onToast: SetToast }) {
         </div>
         <p className="text-[13px] leading-[1.45] text-ink-2">
           Email, phone and time zone are in{" "}
-          <Link href="/team/settings" className="font-medium text-primary hover:underline">
+          <TextLink href="/team/settings">
             Settings › Account
-          </Link>
+          </TextLink>
           .
         </p>
       </ProfileSection>

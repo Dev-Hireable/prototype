@@ -1,5 +1,6 @@
-import { Button, Initials } from "@/components/portal/ui";
-import { PanelCard } from "@/components/portal/panel-card";
+import { Button } from "@/components/kit/button";
+import { Initials } from "@/components/kit/avatar";
+import { PanelCard } from "@/components/kit/panel-card";
 import { TraitTag } from "@/components/portal/trait-tag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";
 import type { Contract } from "@/lib/independent/data";

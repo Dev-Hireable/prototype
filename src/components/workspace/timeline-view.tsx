@@ -4,8 +4,8 @@ import { uiZoom } from "@/lib/portal/zoom";
 import { PHONE, useMedia } from "@/lib/portal/media";
 import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { ICONS } from "@/components/icons";
-import { StatusCircle } from "@/components/portal/tasks/task-bits";
-import { InfoTip, Tip } from "@/components/portal/tip";
+import { StatusCircle, TaskRef } from "@/components/portal/tasks/task-bits";
+import { InfoTip, Tip } from "@/components/kit/tip";
 import { dayOf, isWeekend, MONTH_SHORT, partsOf, rangeLabel, shortLabel, WEEKDAY_SHORT, weekdayOf, type Day } from "@/lib/work/dates";
 import { dateKind, datesOf, isCompleted, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
 import { changeFor } from "@/lib/work/permissions";
@@ -265,7 +265,7 @@ function TimelineHead({ from, to, px, width, scale, today }: { from: Day; to: Da
           </span>
         ))}
         {ticks.map((t) => (
-          <span key={t.day} className={`absolute bottom-0 flex h-6 items-center justify-center truncate border-l border-[#e3e3e3] text-[11px] tabular-nums ${t.day <= today && today < t.day + t.days ? "font-semibold text-primary" : "text-ink-2"}`} style={{ left: t.x, width: t.days * px }}>
+          <span key={t.day} className={`absolute bottom-0 flex h-6 items-center justify-center truncate border-l border-surface-3 text-[11px] tabular-nums ${t.day <= today && today < t.day + t.days ? "font-semibold text-primary" : "text-ink-2"}`} style={{ left: t.x, width: t.days * px }}>
             {scale === "day" ? `${WEEKDAY_SHORT[weekdayOf(t.day)][0]} ${partsOf(t.day).d}` : scale === "week" ? shortLabel(t.day, today) : MONTH_SHORT[partsOf(t.day).m - 1]}
           </span>
         ))}
@@ -498,7 +498,7 @@ function BarInside({ bar, bad, title, grabStart, grabEnd }: { bar: Bar; bad: boo
 /** Above a bar while it moves: the dates it would get — or, in red, why it can't go there. */
 function BarTag({ id, x, problem, dates }: { id: string; x: number; problem?: string; dates: string }) {
   return (
-    <span id={id} role={problem ? "alert" : "status"} className={`absolute z-30 rounded-md px-2 py-1 text-[11.5px] leading-[1.3] whitespace-nowrap shadow ${problem ? "bg-[#fcf2f2] text-[#8f1d1d]" : "bg-ink text-white"}`} style={{ left: x, top: -2, transform: "translateY(-100%)" }}>
+    <span id={id} role={problem ? "alert" : "status"} className={`absolute z-30 rounded-md px-2 py-1 text-[11.5px] leading-[1.3] whitespace-nowrap shadow ${problem ? "bg-danger-bg text-[#8f1d1d]" : "bg-ink text-white"}`} style={{ left: x, top: -2, transform: "translateY(-100%)" }}>
       {problem ?? dates}
     </span>
   );
@@ -514,11 +514,11 @@ function RowLabel({ item: t, violated }: { item: WorkItem; violated: boolean }) 
   const { openTask } = useWorkspace();
   return (
     <div
-      className={`sticky left-0 z-[25] flex shrink-0 items-center gap-2 ${phone ? "w-fit rounded-br-md bg-white/90 px-3 pt-2 pb-0.5" : "border-r border-b border-r-[#eeeeee] border-b-[#f0f0f0] bg-white px-4"}`}
+      className={`sticky left-0 z-[25] flex shrink-0 items-center gap-2 ${phone ? "w-fit rounded-br-md bg-white/90 px-3 pt-2 pb-0.5" : "border-r border-b border-r-line-soft border-b-[#f0f0f0] bg-white px-4"}`}
       style={phone ? { maxWidth: frameW || undefined } : { width: LEFT }}
     >
       <StatusCircle status={t.status} size={14} label={STATUS_META[t.status].label} />
-      <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+      <TaskRef task={t} />
       {/* Two lines hold most titles; one longer than that shows whole on hover. */}
       <Tip label={t.title} off={t.title.length < 70}>
         <button type="button" onClick={() => openTask(t.id)} className={`line-clamp-2 min-w-0 flex-1 text-left text-[13px] leading-[1.25] text-ink hover:underline focus-visible:underline focus-visible:outline-none ${phone ? "break-normal pointer-coarse:-my-2 pointer-coarse:py-2" : "break-words"}`}>

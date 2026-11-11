@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
-import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
-import { Button, EmptyState } from "@/components/portal/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Button } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Page } from "@/components/kit/page";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 import { subscriptions } from "@/lib/admin/data/subscriptions";
 import type { PlanChange } from "@/lib/admin/data/subscriptions";
 
@@ -15,10 +17,10 @@ export default async function SubscriptionDetail({ params }: PageProps<"/admin/s
   if (!sub) notFound();
 
   return (
-    <AdminPage
+    <Page
       nav={<BreadcrumbBack href="/admin/subscriptions">Back to all subscriptions</BreadcrumbBack>}
       title={sub.company}
-      actions={
+      headerActions={
         <>
           <Button size="sm">Change plan</Button>
           <Button size="sm" variant="danger">Cancel</Button>
@@ -39,14 +41,14 @@ export default async function SubscriptionDetail({ params }: PageProps<"/admin/s
             rows={sub.history}
             columns={[
               { header: "Change", cell: (h) => h.change },
-              { header: "By", cell: (h) => h.by, width: "24%" },
-              { header: "Effective", cell: (h) => h.effective, width: "18%" },
+              { header: "By", cell: (h) => h.by, col: "w-[240px]" },
+              { header: "Effective", cell: (h) => h.effective, col: "w-[180px]" },
             ]}
           />
         ) : (
           <EmptyState title="No plan changes recorded" />
         )}
       </div>
-    </AdminPage>
+    </Page>
   );
 }

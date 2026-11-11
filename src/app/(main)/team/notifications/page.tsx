@@ -1,6 +1,6 @@
 "use client";
 
-import { Page } from "@/components/portal/ui";
+import { Page } from "@/components/kit/page";
 import { NotificationFeed } from "@/components/portal/notification-feed";
 import { useNotifications } from "@/lib/demo/live";
 import { categoryOf, NOTE_CATEGORIES, type NoteCategory } from "@/lib/portal/notification-categories";

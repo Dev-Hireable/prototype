@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Card, StatusDot } from "@/components/portal/ui";
+import { Card } from "@/components/kit/card";
+import { StatusDot } from "@/components/kit/badge";
 import { BenefitList } from "@/components/portal/contract-parts";
 import { DisputeRows } from "@/components/portal/disputes";
 import { benefitsOf } from "@/lib/contract/view";

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Modal, StatusDot } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
+import { StatusDot } from "@/components/kit/badge";
 import { OfferTerms } from "@/components/portal/offer-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { hoursLabel, JOB_TYPE_LABEL, payFor } from "@/lib/contract/job-types";
@@ -15,6 +17,7 @@ import type { Offer } from "@/lib/team/data";
 import { DEAL_ID } from "@/lib/team/deal-view";
 import { useOffers } from "@/lib/team/offers";
 import { useRoles } from "@/lib/team/roles";
+import { TEXT_TITLE } from "@/components/kit/styles";
 
 /** The offer's terms, a row each, for the kind of role it's for. */
 function offerRows(sent: DealOffer, title: string, duration: string | undefined): [string, string][] {
@@ -111,7 +114,7 @@ function SentOffer({ status, sent, rows }: { status: Offer["status"]; sent: Deal
         <OfferTerms rows={rows} />
       </div>
       <section aria-label="Tasks" className="flex flex-col gap-3">
-        <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Tasks</h3>
+        <h3 className={TEXT_TITLE}>Tasks</h3>
         <TaskPlanList tasks={sent.tasks} start={sent.start} lastDay={sent.type === "trial" ? sent.end : undefined} empty={sent.type === "trial" ? "No trial tasks." : "None yet. The work is added once the contract starts."} />
       </section>
     </div>

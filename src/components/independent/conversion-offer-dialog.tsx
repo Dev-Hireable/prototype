@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, InfoBanner, Modal, StatusDot } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Modal } from "@/components/kit/modal";
+import { StatusDot } from "@/components/kit/badge";
 import { Agreement, DeclineOfferDialog, OfferTerms, SignCard, Signature } from "@/components/portal/offer-parts";
 import { FT_BENEFITS, JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import { useDeal, type ConversionOffer } from "@/lib/demo/deal";
@@ -12,8 +16,8 @@ import { useIndependentContracts } from "@/lib/independent/contracts";
 import type { Contract } from "@/lib/independent/data";
 import { signatureMatches } from "@/lib/portal/names";
 import type { SetToast } from "@/lib/portal/toast";
+import { TEXT_TITLE } from "@/components/kit/styles";
 
-const HEADING = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink";
 
 /**
  * TB-072 / IN-084 — the offer that follows an evaluated trial, for a full-time role (pay, start date
@@ -82,7 +86,7 @@ function OfferBody({ offer, contract }: { offer: ConversionOffer; contract: Cont
       </div>
       {offer.type === "full-time" && <Benefits included={offer.benefits} />}
       <div className="flex flex-col gap-3">
-        <h3 className={HEADING}>Services Agreement</h3>
+        <h3 className={TEXT_TITLE}>Services Agreement</h3>
         <Agreement type={offer.type} height="h-[260px]" />
       </div>
     </Card>
@@ -93,7 +97,7 @@ function OfferBody({ offer, contract }: { offer: ConversionOffer; contract: Cont
 function Benefits({ included }: { included: string[] }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className={HEADING}>Benefits</h3>
+      <h3 className={TEXT_TITLE}>Benefits</h3>
       <ul className="flex flex-col gap-2 text-[14px] leading-[1.4]">
         {FT_BENEFITS.map((b) => (
           <li key={b} className="flex items-center justify-between gap-4">

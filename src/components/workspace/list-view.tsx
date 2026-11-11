@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useMemo, useState, type KeyboardEvent } from "react";
-import { MiniBar } from "@/components/portal/meter";
+import { MiniBar } from "@/components/kit/meter";
 import { ICONS } from "@/components/icons";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, type WorkItem } from "@/lib/work/model";
@@ -177,7 +177,7 @@ function ListGroup({ group: g, span, heading, closed, onToggle, archived, reorde
       {!closed && <Rows items={g.items} kit={kit} />}
       {!closed && g.items.length === 0 && !addHere && (
         <tr>
-          <td colSpan={span} className="border-b border-[#eeeeee] p-0 text-[12.5px] text-ink-2">
+          <td colSpan={span} className="border-b border-line-soft p-0 text-[12.5px] text-ink-2">
             <span className="sticky left-0 block w-fit py-2.5 pr-4 pl-12">Nothing here.</span>
           </td>
         </tr>
@@ -216,7 +216,7 @@ function GroupAdd({ group: g, span, reorderable }: { group: Group; span: number;
   const env = useWorkspace();
   return (
     <tr>
-      <td colSpan={span} className="border-b border-[#eeeeee] bg-white p-0">
+      <td colSpan={span} className="border-b border-line-soft bg-white p-0">
         <div className="sticky left-0 max-w-[720px] [&>form]:border-t-0 [&>button]:border-t-0">
           <QuickAdd onAdd={(title) => addToGroup(env, g, reorderable, title)} hint={g.value.field === "assignee" ? `Assigned to ${env.assigneeLabel(g.value.value)}` : g.value.field === "status" || g.value.field === "none" ? undefined : `In ${g.label}`} />
         </div>

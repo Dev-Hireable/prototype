@@ -1,9 +1,12 @@
 import { useId, type ReactNode } from "react";
 import { MdAdd, MdAttachMoney, MdOutlineCalendarToday, MdOutlineSchedule, MdRemove } from "react-icons/md";
-import { Checkbox, Chip, Input, Textarea } from "@/components/portal/ui";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Chip } from "@/components/kit/chip";
+import { Input, Textarea } from "@/components/kit/field";
 import { hoursLabel, PART_TIME_HOURS } from "@/lib/contract/job-types";
 import { formatMoney, settleMoney } from "@/lib/portal/money";
 import { BENEFITS, CHIP_TONES } from "../_lib/wizard";
+import { TEXT_TITLE, TEXT_LABEL } from "@/components/kit/styles";
 
 /** A required field's mark after its label, as Field draws it: a red asterisk, hidden from screen readers (the control says it's required). */
 export function Required() {
@@ -22,7 +25,7 @@ export function Block({ label, helper, required = false, children }: { label: st
   return (
     <div role="group" aria-labelledby={label ? id : undefined} className="flex flex-col gap-4">
       {label && (
-        <span id={id} className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">
+        <span id={id} className={TEXT_TITLE}>
           {label}
           {required && <Required />}
         </span>
@@ -44,7 +47,7 @@ export function Block({ label, helper, required = false, children }: { label: st
 function Money({ label, value, onChange, disabled, required }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean; required?: boolean }) {
   return (
     <label className="flex flex-1 flex-col gap-2">
-      {label && <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>}
+      {label && <span className={TEXT_LABEL}>{label}</span>}
       <span className="relative block">
         <MdAttachMoney size={16} aria-hidden className="pointer-events-none absolute top-3.5 left-4 text-ink" />
         <Input
@@ -123,7 +126,7 @@ export function DateChip({ children, tone, selected, onClick, icon = "calendar" 
       disabled={!onClick}
       aria-pressed={onClick ? !!selected : undefined}
       className={`flex h-11 items-center gap-2 rounded-lg border px-4 text-[14px] leading-[1.2] tracking-[0.2px] transition-colors ${
-        selected ? "border-primary bg-accent-bg font-semibold text-accent-ink ring-1 ring-primary" : "border-border bg-white text-ink enabled:hover:border-[#a6a6a6] enabled:hover:bg-surface-alt"
+        selected ? "border-primary bg-accent-bg font-semibold text-accent-ink ring-1 ring-primary" : "border-border bg-white text-ink enabled:hover:border-border-strong enabled:hover:bg-surface-alt"
       }`}
     >
       <Icon size={16} aria-hidden className={tone} /> {children}
@@ -153,7 +156,7 @@ export function TrialNotes({
   return (
     <>
       <label className="flex flex-col gap-2">
-        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Notes (Optional)</span>
+        <span className={TEXT_LABEL}>Notes (Optional)</span>
         <Textarea value={expectation} maxLength={500} onChange={(e) => onExpectation(e.target.value)} placeholder={copy.notesPlaceholder} className="!h-[96px] resize-none" />
         <span className="flex justify-between gap-4 text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">
           <span>{copy.notesHint}</span>
@@ -161,7 +164,7 @@ export function TrialNotes({
         </span>
       </label>
       <label className="flex flex-col gap-2">
-        <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Attachment link (Optional)</span>
+        <span className={TEXT_LABEL}>Attachment link (Optional)</span>
         <Input value={attachment} onChange={(e) => onAttachment(e.target.value)} placeholder="Add a link to a Loom, Google Doc, YouTube video, or anything that helps." />
         <span className="text-[12px] leading-[1.2] tracking-[0.2px] text-ink-2">{copy.linkHint}</span>
       </label>

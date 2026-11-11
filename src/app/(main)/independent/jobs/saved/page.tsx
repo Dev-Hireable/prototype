@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { RoleCard } from "@/components/independent/role-card";
-import { EmptyState, LinkButton, Page, SearchBox, Select } from "@/components/portal/ui";
+import { EmptyState } from "@/components/kit/empty-state";
+import { LinkButton } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { SearchBox } from "@/components/kit/search-box";
+import { Select } from "@/components/kit/select";
 import { roleFromPosting } from "@/lib/independent/data";
 import { usePostings } from "@/lib/demo/deal";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";

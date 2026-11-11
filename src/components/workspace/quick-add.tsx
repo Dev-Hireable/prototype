@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { ICONS } from "@/components/icons";
-import { ICON_BUTTON } from "@/components/portal/styles";
+import { ICON_BUTTON } from "@/components/kit/styles";
 import { StatusCircle } from "@/components/portal/tasks/task-bits";
 import { checkTitle, type Invalid } from "@/lib/work/validate";
 
@@ -17,7 +17,7 @@ const OPENER: Record<Variant, string> = {
   card: "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-white hover:text-ink focus-visible:outline-2 focus-visible:outline-primary",
   cell: `${ICON_BUTTON} size-6`,
   prop: "flex h-8 items-center self-start rounded-md px-1.5 text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-primary",
-  row: "flex w-full items-center gap-2.5 border-t border-[#eeeeee] px-4 py-2.5 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
+  row: "flex w-full items-center gap-2.5 border-t border-line-soft px-4 py-2.5 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-alt hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary",
 };
 
 /** The open entry row in each place. */
@@ -25,7 +25,7 @@ const ENTRY: Record<Variant, string> = {
   card: "flex flex-col gap-1.5 rounded-lg bg-white p-2 outline -outline-offset-1 outline-primary",
   cell: "flex flex-col gap-1 rounded-md bg-white p-1 shadow-[0_4px_16px_rgba(0,0,0,.12)] outline -outline-offset-1 outline-primary",
   prop: "flex flex-col gap-1.5 rounded-lg bg-white py-1 pr-1 pl-2.5 outline -outline-offset-1 outline-primary ring-3 ring-primary/15",
-  row: "flex flex-col gap-1 border-t border-[#eeeeee] px-4 py-1.5",
+  row: "flex flex-col gap-1 border-t border-line-soft px-4 py-1.5",
 };
 
 /**
@@ -176,7 +176,7 @@ function Entry({ variant, field, check, onAdd, close }: { variant: Variant; fiel
           maxLength={400}
           className="h-8 min-w-0 flex-1 bg-transparent text-[14px] leading-[1.2] text-ink outline-none placeholder:text-ink-2"
         />
-        <button type="submit" disabled={!text.trim()} className="h-7 shrink-0 rounded-md bg-primary px-2.5 text-[12px] font-medium text-white disabled:bg-[#e5e5e5] disabled:text-[#9a9a9a]">
+        <button type="submit" disabled={!text.trim()} className="h-7 shrink-0 rounded-md bg-primary px-2.5 text-[12px] font-medium text-white disabled:bg-surface-3 disabled:text-[#9a9a9a]">
           Add
         </button>
       </span>

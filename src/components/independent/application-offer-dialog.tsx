@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Agreement, DeclineOfferDialog, OfferDivider, OfferTerms, SignCard, Signature } from "@/components/portal/offer-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
-import { Button, Card, InfoBanner, LinkButton, Modal } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Modal } from "@/components/kit/modal";
 import { useDeal, type DealOffer } from "@/lib/demo/deal";
 import { PAIR } from "@/lib/demo/live";
 import { useIndependentAccount } from "@/lib/independent/account";
@@ -13,6 +16,7 @@ import type { Application } from "@/lib/independent/data";
 import { useJobView, type JobView } from "@/lib/independent/job-view";
 import { expiryOf, offerRows, offerTotal } from "@/lib/independent/offer-terms";
 import { signatureMatches } from "@/lib/portal/names";
+import { TEXT_TITLE } from "@/components/kit/styles";
 
 /** Which of the offer's dialogs shows: the offer itself, the decline confirmation, or the word that it's accepted. */
 type Step = "offer" | "decline" | "accepted";
@@ -85,7 +89,7 @@ function OfferCard({ job, sent, from }: { job: JobView; sent: DealOffer; from: s
       <OfferDivider />
       <div className="flex flex-col gap-4 px-6 pb-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Tasks</h3>
+          <h3 className={TEXT_TITLE}>Tasks</h3>
           {sent.tasks.length > 0 && (
             <p className="text-[13px] leading-[1.4] text-ink-2">
               {from} set these. {trial ? "The trial's" : "The contract's"} shared task list starts from them when you sign, each due week counted from the start date.
@@ -96,7 +100,7 @@ function OfferCard({ job, sent, from }: { job: JobView; sent: DealOffer; from: s
       </div>
       <OfferDivider />
       <div className="flex flex-col gap-6 px-6 pb-6">
-        <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Services Agreement</h3>
+        <h3 className={TEXT_TITLE}>Services Agreement</h3>
         <Agreement type={sent.type} title="Services Agreement" />
       </div>
     </Card>

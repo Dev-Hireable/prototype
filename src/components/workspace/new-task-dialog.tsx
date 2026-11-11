@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Input, Modal, Select, Textarea } from "@/components/portal/ui";
-import { DatePicker } from "@/components/portal/date-picker";
+import { Button } from "@/components/kit/button";
+import { Field, Input, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select } from "@/components/kit/select";
+import { DatePicker } from "@/components/kit/date-picker";
 import { dayOf, isoOf } from "@/lib/work/dates";
 import { ASSIGNEE_KEYS, assigneeOf, EFFORT_HELP, TYPE_META, WORK_TYPES, type AssigneeKey, type WorkType } from "@/lib/work/model";
 import { checkDates, checkEffort, checkTitle } from "@/lib/work/validate";

@@ -1,9 +1,9 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { FactsBox } from "@/components/portal/facts-box";
+import { FactsBox } from "@/components/kit/facts-box";
 import { durationDays, formatDate, trialLength } from "@/lib/portal/dates";
 import { hoursLabel, payFor, postedStart } from "@/lib/contract/job-types";
 import type { JobView } from "@/lib/independent/job-view";
+import { TextLink } from "@/components/kit/text-link";
 
 /**
  * The role the proposal answers, beside the steps that write it: what it is, and its terms. A
@@ -32,9 +32,9 @@ function PostTerms({ job, back }: { job: JobView; back: string }) {
   const rows: [string, ReactNode][] = [
     [
       "ROLE",
-      <Link key="r" href={back} className="text-accent-ink underline">
+      <TextLink key="r" href={back} inline>
         {job.title}
-      </Link>,
+      </TextLink>,
     ],
     ["PAY", payFor(job.type, job.budget)],
     ["CONTRACT", job.contract],

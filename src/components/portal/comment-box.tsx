@@ -32,7 +32,7 @@ export function CommentBox({ onSend, placeholder = "Add a comment...", label = "
       {/* The text field is the whole box but its buttons, its padding its own: a tap anywhere on the
           pill puts the cursor in it. With the padding on the box, the field was a 17px line in a 44px
           pill, and a finger on the rest of it did nothing. */}
-      <div {...(attach ? fileDropHandlers(files.add) : {})} className="flex flex-col gap-2 rounded-xl bg-white outline -outline-offset-1 outline-border focus-within:outline-[#a6a6a6]">
+      <div {...(attach ? fileDropHandlers(files.add) : {})} className="flex flex-col gap-2 rounded-xl bg-white outline -outline-offset-1 outline-border focus-within:outline-border-strong">
         {pending && (
           <div className="px-3.5 pt-3.5">
             <PendingFiles files={files.files} onRemove={files.remove} />
@@ -122,7 +122,7 @@ export function SendButton({ label = "Send", disabled, onClick, type = "button" 
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-colors focus-visible:outline-2 focus-visible:outline-primary enabled:hover:text-accent disabled:cursor-not-allowed disabled:text-[#c3c3c3]"
+      className="flex size-8 shrink-0 items-center justify-center rounded-md text-primary transition-colors focus-visible:outline-2 focus-visible:outline-primary enabled:hover:text-accent disabled:cursor-not-allowed disabled:text-ink-disabled"
     >
       {/* The send glyph, masked so it takes the button's colour. */}
       <span aria-hidden className="size-5 bg-current" style={{ mask: "url(/icons/proposal/send.svg) center / contain no-repeat", WebkitMask: "url(/icons/proposal/send.svg) center / contain no-repeat" }} />

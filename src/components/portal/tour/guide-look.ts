@@ -9,6 +9,6 @@ export const namesGuide = (side: TourSide, ...lines: string[]): boolean => lines
  * `bar` the tour's progress bar (a deeper pink than the tag for Hira, so it still shows on white).
  */
 export const GUIDE_LOOK: Record<TourSide, { tag: string; wash: string; bar: string }> = {
-  team: { tag: "bg-[#007acc] text-white", wash: "from-[#e3f1fb]", bar: "bg-[#007acc]" },
+  team: { tag: "bg-primary text-white", wash: "from-[#e3f1fb]", bar: "bg-primary" },
   independent: { tag: "bg-[#ffa0d4] text-ink", wash: "from-[#ffeef7]", bar: "bg-[#e0559f]" },
 };

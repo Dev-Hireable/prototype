@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Button, Field, Input, Modal, Select, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Input, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select } from "@/components/kit/select";
 import { CANCEL_REASONS, type CancelReason, type EndSide } from "@/lib/demo/contract";
 
 const REASON_PROMPT = "Select a reason";

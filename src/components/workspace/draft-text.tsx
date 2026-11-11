@@ -2,9 +2,10 @@
 
 import { useCallback, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { ICONS } from "@/components/icons";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import type { AgreedField } from "@/lib/work/permissions";
 import { lockLabel } from "./lockable";
+import { TextLink } from "@/components/kit/text-link";
 
 /**
  * Escape in a field leaves the field; the next one closes the sheet. The sheet listens on the
@@ -222,9 +223,9 @@ function TheirChange({ updatedBy, onUseTheirs }: { updatedBy?: string; onUseThei
   return (
     <span role="status" className="flex flex-wrap items-center gap-2 rounded-md bg-warn-bg px-2 py-1.5 text-[12.5px] text-warn-ink">
       {updatedBy ?? "Someone"} changed this while you were editing.
-      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={onUseTheirs} className="font-semibold underline">
+      <TextLink onMouseDown={(e) => e.preventDefault()} onClick={onUseTheirs} tone="inherit" inline>
         Use theirs
-      </button>
+      </TextLink>
       <span>or keep typing. Saving will check first.</span>
     </span>
   );

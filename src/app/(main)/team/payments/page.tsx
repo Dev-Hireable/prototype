@@ -1,12 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, Chip, Drawer, EmptyState, LinkButton, Page, Pagination, Row, SearchBox, Select, StatusDot, Table, Toast, Toolbar } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Chip } from "@/components/kit/chip";
+import { Drawer } from "@/components/kit/drawer";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Page } from "@/components/kit/page";
+import { Pagination } from "@/components/kit/pagination";
+import { Row, Table } from "@/components/kit/table";
+import { SearchBox } from "@/components/kit/search-box";
+import { Select } from "@/components/kit/select";
+import { StatusDot, Badge } from "@/components/kit/badge";
+import { Toast } from "@/components/kit/toast";
+import { Toolbar } from "@/components/kit/toolbar";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { Transaction } from "@/lib/team/data";
 import { useLedger } from "@/lib/team/contracts";
-import { LEDGER_COLS as COLS } from "@/components/portal/styles";
-import { Badge } from "@/components/portal/badge";
+import { LEDGER_COLS as COLS } from "@/components/kit/styles";
 
 const DM = { fontVariationSettings: '"opsz" 14' } as const;
 
@@ -283,7 +294,7 @@ function TransactionDrawer({ open, viewing, onClose, onToast }: { open: boolean;
             <Chip>{TYPE_LABEL[viewing.type]}</Chip>
             <span className="text-[13px] leading-[1.4] text-ink-2">{viewing.detail.time}</span>
           </div>
-          <dl className="flex flex-col gap-2 rounded-lg bg-[#fafafa] p-4 text-[13px] leading-[1.4]">
+          <dl className="flex flex-col gap-2 rounded-lg bg-surface-alt p-4 text-[13px] leading-[1.4]">
             <dt className="font-medium text-ink-2">Details</dt>
             <DetailRows rows={viewing.detail.rows} />
           </dl>
@@ -336,7 +347,7 @@ function Timeline({ steps }: { steps: Transaction["detail"]["timeline"] }) {
       <p className="text-[13px] leading-[1.4] font-medium text-ink-2">Timeline</p>
       {steps.map((step) => (
         <div key={step.title} className="flex items-center gap-3 py-2.5">
-          <span className={`size-2.5 shrink-0 rounded-full ${step.done ? "bg-ok" : "bg-[#e5e5e5]"}`} />
+          <span className={`size-2.5 shrink-0 rounded-full ${step.done ? "bg-ok" : "bg-surface-3"}`} />
           <div className={`flex flex-col leading-[1.4] whitespace-nowrap ${step.done ? "" : "text-ink-2"}`}>
             <p className={`text-[13px] font-medium ${step.done ? "text-ink" : ""}`}>{step.title}</p>
             <p className="text-[12px] text-ink-2">{step.date}</p>

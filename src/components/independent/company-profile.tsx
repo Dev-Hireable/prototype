@@ -1,6 +1,7 @@
 "use client";
 
-import { Drawer, Initials } from "@/components/portal/ui";
+import { Drawer } from "@/components/kit/drawer";
+import { Initials } from "@/components/kit/avatar";
 import { TraitTag } from "@/components/portal/trait-tag";
 import { usePostings } from "@/lib/demo/deal";
 import type { WorkStyleTag } from "@/lib/demo/work-style";

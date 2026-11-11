@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button, LinkButton } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
 import { ProfileSection } from "@/components/portal/profile-editor";
 import { RetakeQuizDialog } from "@/components/portal/retake-quiz-dialog";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import { TraitTag } from "@/components/portal/trait-tag";
 import { dayLabel } from "@/lib/portal/dates";
 import { useNextRetake } from "@/lib/demo/retake";

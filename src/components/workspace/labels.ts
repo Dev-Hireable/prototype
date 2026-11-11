@@ -1,5 +1,5 @@
 import type { IconName } from "@/components/icons";
-import type { ColumnColors } from "@/components/portal/board";
+import type { ColumnColors } from "@/components/kit/kanban";
 import type { AssigneeKey, Side, WorkStatus, WorkType } from "@/lib/work/model";
 import type { Group } from "@/lib/work/query";
 

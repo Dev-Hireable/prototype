@@ -1,0 +1,12 @@
+{
+  // The workspace's TypeScript, so the editor and `npm run typecheck` agree.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  // Tailwind completions and hover in class strings kept outside `className`: the kit's shared
+  // constants (TEXT_LABEL, ICON_BUTTON in components/kit/styles.ts), a table column's `col`, and
+  // props that end in ClassName.
+  "tailwindCSS.classAttributes": ["class", "className", ".*ClassName"],
+  "tailwindCSS.experimental.classRegex": [
+    ["(?:const|let)\s+[A-Z][A-Z0-9_]*\s*(?::[^=]+)?=\s*([^;]*);", "[\"'`]([^\"'`]*)[\"'`]"],
+    ["\bcol:\s*[\"'`]([^\"'`]*)[\"'`]"]
+  ]
+}

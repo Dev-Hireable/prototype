@@ -3,7 +3,8 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { FilePreview } from "@/components/portal/file-preview";
-import { Button, Modal } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
 import { sizeLabel, useFileUrl } from "@/lib/demo/files";
 import type { Sample } from "@/lib/demo/portfolio";
 import { closeAloneOnEscape } from "@/lib/portal/escape";
@@ -47,7 +48,7 @@ function viewerKey(e: KeyboardEvent, at: number, count: number, go: (at: number 
 function SampleCard({ sample, title, onOpen }: { sample: Sample; title: string; onOpen: () => void }) {
   return (
     <button type="button" onClick={onOpen} aria-label={`Open ${title}`} className="group flex w-full flex-col gap-2 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-      <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-2 outline -outline-offset-1 outline-border transition group-hover:outline-[#a6a6a6]">
+      <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-2 outline -outline-offset-1 outline-border transition group-hover:outline-border-strong">
         <SampleCover sample={sample} />
       </span>
       {sample.caption && <span className="line-clamp-2 text-[14px] leading-[1.4] font-medium tracking-[0.2px] text-ink">{sample.caption}</span>}

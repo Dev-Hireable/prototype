@@ -3,7 +3,8 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { ICONS } from "@/components/icons";
-import { Button } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { TextLink } from "@/components/kit/text-link";
 import { findTarget, placeCard, spotlightBox, type Box } from "@/lib/portal/tour-placement";
 import type { Tour } from "@/lib/portal/tours";
 import { GuideCard, WithGuideName } from "./guide";
@@ -189,9 +190,9 @@ function TourCard({ tour, step, ...controls }: { tour: Tour; step: number } & To
         </p>
       </div>
       {last && current.action && (
-        <button type="button" onClick={controls.onAction} className="flex items-center gap-1.5 self-start text-[14px] font-semibold text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        <TextLink onClick={controls.onAction} size="md" className="flex items-center gap-1.5 self-start">
           {current.action.label} <Forward size={18} aria-hidden />
-        </button>
+        </TextLink>
       )}
       <div className="flex flex-col gap-3 border-t border-border pt-4">
         <StepProgress step={step} total={tour.steps.length} bar={GUIDE_LOOK[tour.side].bar} />
@@ -225,7 +226,7 @@ function StepProgress({ step, total, bar }: { step: number; total: number; bar: 
       </span>
       <span aria-hidden className="flex flex-1 items-center gap-1">
         {Array.from({ length: total }, (_, i) => i + 1).map((n) => (
-          <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= step + 1 ? bar : "bg-[#e5e5e5]"}`} />
+          <span key={n} className={`h-1.5 flex-1 rounded-full ${n <= step + 1 ? bar : "bg-surface-3"}`} />
         ))}
       </span>
     </div>

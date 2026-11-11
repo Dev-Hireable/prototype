@@ -1,8 +1,11 @@
 import type { ReactNode } from "react";
-import { Button, Field, InfoBanner, Select, Textarea } from "@/components/portal/ui";
-import { PanelCard } from "@/components/portal/panel-card";
-import { Stars } from "@/components/portal/stars";
-import { ScoreScale } from "@/components/portal/score-scale";
+import { Button } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Select } from "@/components/kit/select";
+import { PanelCard } from "@/components/kit/panel-card";
+import { Stars } from "@/components/kit/stars";
+import { ScoreScale } from "@/components/kit/score-scale";
 import { usd } from "@/lib/demo/disputes";
 import { keyed } from "@/lib/portal/keys";
 import { refOf } from "@/lib/work/model";

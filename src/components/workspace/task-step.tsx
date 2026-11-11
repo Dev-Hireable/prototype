@@ -2,7 +2,8 @@
 
 import { useId, useState, type Ref } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Textarea } from "@/components/kit/field";
 import { refOf, unfinishedOf, type WorkItem } from "@/lib/work/model";
 import { transitionFor } from "@/lib/work/permissions";
 import { useWorkspace } from "./context";

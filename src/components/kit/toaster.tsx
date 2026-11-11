@@ -3,7 +3,7 @@
 import { Toaster as Sonner } from "sonner";
 
 /**
- * Where every toast shows (`raiseToast` in @/components/portal/notify draws them): Sonner, top right,
+ * Where every toast shows (`raiseToast` in @/components/kit/notify draws them): Sonner, top right,
  * once for the whole app — it stacks them, times them out, holds the countdown while one is hovered
  * and lets one be swiped away. Each toast is our own card, so Sonner's look is off.
  */

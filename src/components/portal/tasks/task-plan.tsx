@@ -2,9 +2,9 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 import { ICONS } from "@/components/icons";
-import { KebabMenu, Textarea } from "@/components/portal/ui";
-import { MenuAction } from "@/components/portal/controls";
-import { InfoTip, Tip } from "@/components/portal/tip";
+import { KebabMenu, MenuAction } from "@/components/kit/kebab-menu";
+import { Textarea } from "@/components/kit/field";
+import { InfoTip, Tip } from "@/components/kit/tip";
 import { blankDraft, dueFromWeek, dueLabel, highInWeek, highTaken, weekLabel } from "@/lib/demo/tasks";
 import type { DraftTask, PlannedTask } from "@/lib/demo/tasks";
 import { keyed } from "@/lib/portal/keys";
@@ -29,7 +29,7 @@ export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a ta
     <div className="flex flex-col gap-2">
       <div className="overflow-hidden rounded-lg bg-white outline -outline-offset-1 outline-border">
         {rows.map((row, i) => (
-          <div key={row.key} className="border-t border-[#eeeeee] first:border-t-0">
+          <div key={row.key} className="border-t border-line-soft first:border-t-0">
             {/* A phone puts the week and priority on a line under the name, which beside them had
                 room for about four letters; the menu stays at the end of the name's line. */}
             <div className="flex items-center gap-2 py-1 pr-2 pl-3 hover:bg-surface-alt focus-within:bg-surface-alt max-sm:flex-wrap max-sm:gap-y-0 max-sm:pb-2">
@@ -62,7 +62,7 @@ export function TaskPlanEditor({ rows, onChange, weeks, placeholder = "Name a ta
             )}
           </div>
         ))}
-        <div className="flex items-center border-t border-[#eeeeee] pr-3">
+        <div className="flex items-center border-t border-line-soft pr-3">
           <button type="button" onClick={() => plan.insertAfter(null)} className="flex flex-1 items-center gap-2.5 px-3 py-2.5 text-left text-[13.5px] leading-[1.2] text-ink-2 hover:bg-surface-alt hover:text-ink">
             <ICONS.add size={18} aria-hidden /> Add task
           </button>
@@ -189,7 +189,7 @@ export function TaskPlanList({ tasks, start, lastDay, empty = "No tasks yet." }:
       {keyed(tasks, (t) => t.title).map(({ item: t, key }) => {
         const due = start ? dueFromWeek(start, t.week, lastDay) : undefined;
         return (
-          <li key={key} className="flex flex-col gap-1 border-t border-[#eeeeee] px-3 py-2.5 first:border-t-0">
+          <li key={key} className="flex flex-col gap-1 border-t border-line-soft px-3 py-2.5 first:border-t-0">
             <div className="flex items-center gap-2.5">
               <StatusCircle status="todo" />
               <span className="min-w-0 flex-1 text-[14px] leading-[1.35] text-ink">{t.title}</span>

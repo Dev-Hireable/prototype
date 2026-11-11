@@ -8,6 +8,7 @@ can move there as a copy rather than a rewrite.
 
 ```bash
 npm run dev          # http://localhost:3000
+npm run check        # typecheck + lint + unit tests: run it before you push (about 30 s)
 npm run typecheck    # both tsconfigs: the app, and e2e/ + tests/
 npm run lint         # oxlint
 npm run test:unit    # tests/unit (no browser)
@@ -26,10 +27,11 @@ src/
     page.tsx                the portal picker
     error.tsx, global-error.tsx, not-found.tsx
   components/               UI shared by several routes
-    portal/                 what every portal draws: the UI kit (ui.tsx), shell, cards, dialogs, pickers
+    kit/                    the design system: one file per component (button.tsx, card.tsx, modal.tsx…)
+    portal/                 what the portals share that knows the product: shell, messages, disputes, contract parts
     workspace/              a contract's Work tab
     team/, independent/, admin/   one portal's own parts
-    ui/                     shadcn components, owned by the CLI
+    ui/                     shadcn primitives, owned by the CLI: the kit wraps them, screens don't import them
     icons.ts                the icon set
   lib/                      logic, types and data: no components
     work/, contract/, disputes/   the rules, the pure ones covered by tests/unit
@@ -46,7 +48,8 @@ src/
 | A URL, shared route shell, loading state, error boundary, or HTTP endpoint | `src/app/` with the appropriate Next.js file, such as `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, or `route.ts` |
 | UI, logic, or static data used in one route subtree | `_components/`, `_lib/`, or `_data/` at the nearest route segment shared by its consumers |
 | UI used across route subtrees | `src/components/<portal>/` for one portal, `src/components/portal/` across portals, or `src/components/workspace/` for contract work |
-| A generic design-system primitive | `src/components/ui/`, the directory configured for shadcn |
+| A design-system component: one another product could use unchanged | `src/components/kit/<name>.tsx`, imported from that file |
+| A shadcn primitive | `src/components/ui/`, added with the shadcn CLI and wrapped by a kit component |
 | Logic or data used across route subtrees | `src/lib/<domain>/` or `src/lib/<portal>/`. Keep pure domain rules separate from the browser-backed stores in `src/lib/demo/`. |
 | Code copied from the production frontend for parity | The existing `src/web-app/` mirror |
 
@@ -62,7 +65,32 @@ hook in `discover/_lib/`. The `discover` segment owns these because it is the ne
 ancestor. The talent card in `src/components/team/ui.tsx` and saved-talent state in
 `src/lib/team/saved.ts` belong to the Team portal.
 
+### Adding a piece of UI
+
+Ask these in order and stop at the first yes:
+
+1. **Does the kit already have it?** Look in `src/components/kit/`: the file is named for the
+   component (`button.tsx`, `text-link.tsx`, `table.tsx`). Import it from that file:
+   `import { Button } from "@/components/kit/button"`. If it almost fits, add a prop there.
+2. **Is it used by one route only?** Put it in that route's `_components/`.
+3. **Does it name a Hireable thing** (a contract, a dispute, a role, a message)? It goes in
+   `src/components/<portal>/` when one portal draws it, `src/components/portal/` when more do.
+4. **Could another product use it unchanged?** It's a kit component: a new file in
+   `src/components/kit/`, named for it.
+
+A file is a Client Component (`"use client"`) only when it uses state, effects, event handlers or
+the browser. The kit's static pieces (`card.tsx`, `badge.tsx`, `table.tsx`) are not, so a Server
+Component page can render them as they are.
+
+There is no `index.ts` in the kit on purpose: Next parses every module a barrel file re-exports to
+import one name from it, so each component is imported from its own file, as with shadcn's.
+
 ## Conventions
+
+One kit draws all three portals. [docs/design-system.md](docs/design-system.md) lists its tokens,
+text styles and components, and which one to use for what. `tests/unit/design-system.spec.ts` fails
+when a screen defines its own copy of a kit component, spells out a colour or text style that has a
+name, draws a link by hand, or when a kit file imports something that knows the product.
 
 Use the shared portal `Card` for standalone content cards. When a card needs its own
 semantic element, use the shared `TRAY` and `TRAY_PANEL` styles, as the work board does.

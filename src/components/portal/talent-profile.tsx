@@ -3,11 +3,16 @@
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Avatar, Chip, EmptyState, JobBadge, Modal, Tabs } from "@/components/portal/ui";
-import { FactStrip, Section } from "@/components/portal/page-parts";
+import { Avatar } from "@/components/kit/avatar";
+import { Chip } from "@/components/kit/chip";
+import { EmptyState } from "@/components/kit/empty-state";
+import { JobBadge } from "@/components/kit/badge";
+import { Modal } from "@/components/kit/modal";
+import { Tabs } from "@/components/kit/tabs";
+import { FactStrip, Section } from "@/components/kit/page-parts";
 import { PortfolioGallery } from "@/components/portal/portfolio-gallery";
-import { Stars } from "@/components/portal/stars";
-import { Tip } from "@/components/portal/tip";
+import { Stars } from "@/components/kit/stars";
+import { Tip } from "@/components/kit/tip";
 import { TraitTag } from "@/components/portal/trait-tag";
 import type { WorkStyleTag } from "@/lib/demo/work-style";
 import type { PastEvaluation } from "@/lib/demo/deal";
@@ -133,7 +138,7 @@ export function TalentProfile({ person, viewer, hired = false, badge, actions, n
           the left with the tabs under them, the intro on the right running down beside them. Narrower, the intro is a 4:5
           card beside the header and the tabs take the full width; narrowest, it drops under the header. */}
       <div
-        className={`grid gap-y-10 shadow-[inset_0_-1px_0_#c3c3c3] ${
+        className={`grid gap-y-10 shadow-[inset_0_-1px_0_var(--color-border)] ${
           // Beside the header alone the card stays small, so the facts strip keeps its room; running down beside the tabs it
           // grows to 320, near the 4:5 of the header's height.
           hasIntro ? "@lg:grid-cols-[minmax(0,1fr)_clamp(160px,30%,240px)] @lg:gap-x-8 @2xl:grid-cols-[minmax(0,1fr)_clamp(200px,34%,320px)] @2xl:gap-x-10" : ""
@@ -456,7 +461,7 @@ function IntroVideo({ still, video, name, onPlay }: { still?: string; video?: st
       type="button"
       onClick={onPlay}
       aria-label={`Play ${name}'s intro video`}
-      className="group absolute inset-0 block overflow-hidden rounded-lg bg-[#d2d8db] outline -outline-offset-1 outline-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="group absolute inset-0 block overflow-hidden rounded-lg bg-skeleton outline -outline-offset-1 outline-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
       {video ? (
         // A frame from the talent's own video (a tenth of a second in, so there's a picture rather than black).
@@ -486,7 +491,7 @@ function IconLink({ label, value, icon }: { label: string; value: string; icon: 
         target="_blank"
         rel="noreferrer"
         aria-label={`${label}: ${bare(value)}`}
-        className="hit-area flex size-7 items-center justify-center rounded-full bg-white p-1 outline -outline-offset-1 outline-[#e5e5e5] transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="hit-area flex size-7 items-center justify-center rounded-full bg-white p-1 outline -outline-offset-1 outline-surface-3 transition hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         {icon}
       </a>
@@ -543,7 +548,7 @@ function LinkList({ links, hidden }: { links: { label: string; value: string; ic
             {open && <Out size={16} aria-hidden className="shrink-0 text-ink-2 transition group-hover:text-primary" />}
           </>
         );
-        const box = `flex items-center gap-3 px-4 py-3 ${i ? "shadow-[inset_0_1px_0_#e5e5e5]" : ""}`;
+        const box = `flex items-center gap-3 px-4 py-3 ${i ? "shadow-[inset_0_1px_0_var(--color-surface-3)]" : ""}`;
         return (
           <li key={label}>
             {open ? (

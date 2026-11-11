@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { useState } from "react";
-import { LinkButton, Page, Toast } from "@/components/portal/ui";
+import { LinkButton } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import { IndependentCard, ProfileDrawer } from "@/components/team/ui";
 import { useToast } from "@/lib/portal/toast";
 import { liveIndependents } from "@/lib/team/data";

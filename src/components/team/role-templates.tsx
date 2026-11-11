@@ -2,9 +2,14 @@
 
 import { useState, type ReactNode } from "react";
 import { MdCheckCircle, MdClose, MdExpandMore } from "react-icons/md";
-import { ICON_BUTTON } from "@/components/portal/styles";
-import { Button, Chip, Modal, Pills, SearchBox } from "@/components/portal/ui";
-import { Badge } from "@/components/portal/badge";
+import { ICON_BUTTON, TEXT_LABEL } from "@/components/kit/styles";
+import { Button } from "@/components/kit/button";
+import { Chip } from "@/components/kit/chip";
+import { Modal } from "@/components/kit/modal";
+import { Pills } from "@/components/kit/pills";
+import { SearchBox } from "@/components/kit/search-box";
+import { TextLink } from "@/components/kit/text-link";
+import { Badge } from "@/components/kit/badge";
 import { hoursLabel } from "@/lib/contract/job-types";
 import { trialLength, trialMonths } from "@/lib/portal/dates";
 import { useHired } from "@/lib/team/hired";
@@ -100,7 +105,7 @@ function TemplateResults({ list, query, applied, trial, onPick }: { list: RoleTe
   return (
     <div className="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
       {list.length === 0 ? (
-        <p className="rounded-lg bg-[#fafafa] px-4 py-8 text-center text-[13px] leading-[1.4] text-ink-2">No templates match “{query.trim()}”. Try another word, or close this and start from scratch.</p>
+        <p className="rounded-lg bg-surface-alt px-4 py-8 text-center text-[13px] leading-[1.4] text-ink-2">No templates match “{query.trim()}”. Try another word, or close this and start from scratch.</p>
       ) : (
         <ul aria-label="Templates" className="divide-y divide-border rounded-lg outline -outline-offset-1 outline-border">
           {list.map((t) => (
@@ -122,7 +127,7 @@ function TemplateRow({ template: t, expanded, onToggle, inUse, trial, onPick }: 
         aria-expanded={expanded}
         aria-controls={panel}
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-[#fafafa] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+        className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-alt focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
       >
         <span className="flex min-w-0 flex-1 items-center gap-2 text-[15px] leading-[1.3] font-semibold text-ink">
           <span>{t.title}</span>
@@ -182,9 +187,9 @@ const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 /** A cited source, by name, opening its page in a new tab. */
 function SourceLink({ name }: { name: string }) {
   return (
-    <a href={SOURCES[name].url} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+    <TextLink href={SOURCES[name].url} external>
       {name}
-    </a>
+    </TextLink>
   );
 }
 
@@ -219,7 +224,7 @@ function TemplateSources({ template: t }: { template: RoleTemplate }) {
 function Source({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2 rounded-lg p-4 text-[13px] leading-[1.45] outline -outline-offset-1 outline-border">
-      <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{title}</p>
+      <p className={TEXT_LABEL}>{title}</p>
       {children}
     </section>
   );

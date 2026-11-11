@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Modal, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
 import { SlotClock, SlotFields } from "@/components/team/interview-slot";
 import { canJoin, formatDate, isUpcoming } from "@/lib/portal/dates";
 import { shortName } from "@/lib/portal/names";
@@ -9,6 +11,7 @@ import type { SetToast } from "@/lib/portal/toast";
 import { byName } from "@/lib/team/data";
 import type { Interview } from "@/lib/team/data";
 import { joinOpensAt, teamOffset } from "@/lib/team/pipeline";
+import { TEXT_NOTE } from "@/components/kit/styles";
 
 /** What a booked interview's buttons open: the reschedule and the cancel confirmations. */
 export type InterviewActions = { onReschedule: (iv: Interview) => void; onCancel: (iv: Interview) => void };
@@ -19,7 +22,7 @@ const firstOf = (iv: Interview) => byName(iv.independent).name.split(" ")[0];
 function JoinNote({ iv, confirmed }: { iv: Interview; confirmed: boolean }) {
   const opens = confirmed && iv.link && isUpcoming(iv.when, iv.offset) ? joinOpensAt(iv.when, iv.offset) : undefined;
   const note = !confirmed ? `Join call opens once ${firstOf(iv)} confirms the interview.` : !iv.link ? "There's no meeting link for this interview." : opens ? `Join call opens ${opens}.` : "This interview's time has passed.";
-  return <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">{note}</p>;
+  return <p className={TEXT_NOTE}>{note}</p>;
 }
 
 /**

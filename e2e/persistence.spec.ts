@@ -53,9 +53,11 @@ test.describe("persistence · the thread's log", () => {
     const started = page.locator('[id^="msg-"]').filter({ hasText: /^Brand Designer trial started, / });
     const logged = () => page.evaluate(() => (JSON.parse(localStorage.getItem("hireable.demo.live") ?? "{}").chat ?? []).filter((m: { event?: { text: string } }) => m.event?.text.startsWith("Brand Designer trial started")).length);
     await expect(started).toHaveCount(1);
-    // Messages opens on the first tab with a thread in it: a hired Independent's is under Conversations, tagged Trial.
+    // Messages opens on the first tab with a thread in it: a hired Independent's is under Conversations.
+    // Its row names the stage on the line under the name (it was a badge of its own): "Brand Designer · Trial".
+    // The row is the button that starts with the name; the thread's header ("View … profile") isn't.
     await page.getByRole("button", { name: /^conversations$/i }).click();
-    await expect(page.getByRole("button", { name: /Juan Dela Cruz/ }).getByText("Trial", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Juan Dela Cruz/ }).getByText("Brand Designer · Trial", { exact: true })).toBeVisible();
     await page.reload();
     await expect(started).toHaveCount(1);
     expect(await logged()).toBe(1);

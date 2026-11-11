@@ -5,7 +5,8 @@ import { ICONS } from "@/components/icons";
 import { ApplicationOfferDialog } from "@/components/independent/application-offer-dialog";
 import { ApplicationProposalDialog } from "@/components/independent/application-proposal-dialog";
 import { ConversionOfferDialog } from "@/components/independent/conversion-offer-dialog";
-import { Toast } from "@/components/portal/ui";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
 import { OfferDialog } from "@/components/team/offer-dialog";
 import { ProposalReviewDialog } from "@/components/team/proposal-review-dialog";
 import type { ChatSource } from "@/lib/demo/live";
@@ -57,9 +58,9 @@ export function EntryDetails({ dialog, side }: { dialog: EntryDialog; side: Side
   const close = () => setOpen(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+      <TextLink onClick={() => setOpen(true)}>
         View details
-      </button>
+      </TextLink>
       {open && (side === "team" ? <TeamEntry dialog={dialog} onClose={close} onToast={setToast} /> : <IndependentEntry dialog={dialog} onClose={close} onToast={setToast} />)}
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>

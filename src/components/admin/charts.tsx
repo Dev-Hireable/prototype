@@ -1,4 +1,4 @@
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 /*
  * Both charts are driven by data:
  *   BarChart  — as wide as its card, 200px tall: a gridline per tick, each month a group of

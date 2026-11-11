@@ -6,8 +6,8 @@ import type { PageToast } from "@/lib/portal/toast";
 
 const TOAST_TONE = {
   success: { fill: "bg-[#e4f5ea]", icon: ICONS.checkCircle, ink: "text-ok" },
-  danger: { fill: "bg-[#fcf2f2]", icon: ICONS.warning, ink: "text-danger" },
-  info: { fill: "bg-[#ebf8fe]", icon: ICONS.info, ink: "text-primary" },
+  danger: { fill: "bg-danger-bg", icon: ICONS.warning, ink: "text-danger" },
+  info: { fill: "bg-info-bg", icon: ICONS.info, ink: "text-primary" },
 } as const;
 
 /** The one thing a toast offers to do about what it says: Undo, Retry, Use mine. */
@@ -46,7 +46,7 @@ function ToastCard({ toast, action, onClose }: { toast: PageToast; action?: Toas
 }
 
 /**
- * Puts a toast up in the app's one Toaster (Sonner, @/components/portal/toaster) and returns its id.
+ * Puts a toast up in the app's one Toaster (Sonner, @/components/kit/toaster) and returns its id.
  * Every toast is drawn here: a page's (`Toast`, which takes it down with the page) and one that must
  * outlive the control that raised it (`notify`) — a card unsaved off a Saved list is gone before its
  * toast is read. An action, or a `danger` tone, keeps it up longer so there's time to read and act;

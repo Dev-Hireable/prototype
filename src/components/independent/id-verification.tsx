@@ -3,7 +3,13 @@
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
-import { Button, Card, Checkbox, Field, Modal, Select, StatusDot } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Field } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select } from "@/components/kit/select";
+import { StatusDot } from "@/components/kit/badge";
 import { useIdVerification } from "@/lib/independent/kyc";
 import { payoutTitle, useWallet } from "@/lib/independent/wallet";
 import type { SetToast } from "@/lib/portal/toast";

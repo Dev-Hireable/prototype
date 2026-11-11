@@ -2,9 +2,15 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { Button, Card, EmptyState, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
-import { PaymentMethodRow } from "@/components/portal/settings";
+import { Button } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { StatusDot } from "@/components/kit/badge";
+import { Toast } from "@/components/kit/toast";
+import { Tip } from "@/components/kit/tip";
+import { PaymentMethodRow, SettingsCard } from "@/components/portal/settings";
 import { AddCardDialog, ADD_CARD } from "@/components/team/add-card-dialog";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import type { PaymentMethod } from "@/lib/team/data";
@@ -23,14 +29,13 @@ export default function PaymentMethods() {
 
   return (
     <Page title="Settings">
-      <Card
+      <SettingsCard
         title="Payment methods"
         aside={
           <Button size="lg" variant="primary" onClick={() => setAdding(true)}>
             {ADD_CARD}
           </Button>
         }
-        className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4"
       >        {cards.length === 0 ? (
           <EmptyState title="No card yet" body="You'll be asked for a card when you send your first offer." />
         ) : (
@@ -50,7 +55,7 @@ export default function PaymentMethods() {
             <InfoBanner>You cannot remove your only payment method. Add another card first, then remove this one.</InfoBanner>
           </div>
         )}
-      </Card>
+      </SettingsCard>
 
       <AddCardDialog open={adding} onClose={() => setAdding(false)} onAdded={() => setToast("Card added")} />
       <RemoveCardDialog card={removing} onClose={() => setRemoving(null)} onToast={setToast} />

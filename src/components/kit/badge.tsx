@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { BadgeTone } from "@/lib/portal/tone";
+import type { BadgeTone, Tone } from "@/lib/portal/tone";
 
 /**
  * The one badge. Every pill in the portals and admin (statuses, job types, durations) is this
@@ -16,16 +16,16 @@ import type { BadgeTone } from "@/lib/portal/tone";
 export type BadgeVariant = "tint" | "solid" | "outline";
 
 const TINT: Record<BadgeTone, string> = {
-  ok: "bg-[#eef9f2] text-ok",
+  ok: "bg-ok-bg text-ok",
   warn: "bg-warn-bg text-warn-ink",
-  danger: "bg-[#fcf2f2] text-danger",
-  info: "bg-[#ebf8fe] text-brand-blue",
+  danger: "bg-danger-bg text-danger",
+  info: "bg-info-bg text-brand-blue",
   neutral: "bg-surface-2 text-ink-2",
   accent: "bg-accent-bg text-accent",
   // In review is a status, not a warning: amber, apart from the orange of a warning.
   review: "bg-[#fff6d9] text-[#7a5a00]",
   trial: "bg-[#fff5ec] text-brand-orange",
-  "full-time": "bg-[#ebf8fe] text-brand-blue",
+  "full-time": "bg-info-bg text-brand-blue",
   "part-time": "bg-[#ffe5f6] text-brand-magenta",
 };
 
@@ -73,7 +73,7 @@ export function Badge({
   className?: string;
 }) {
   const look =
-    variant === "outline" ? "border-[#c3c3c3] bg-white text-ink" : variant === "solid" ? `edge-glow border-0 ${SIZE[size].solid} text-white ${SOLID[tone]}` : `border-transparent ${TINT[tone]}`;
+    variant === "outline" ? "border-border bg-white text-ink" : variant === "solid" ? `edge-glow border-0 ${SIZE[size].solid} text-white ${SOLID[tone]}` : `border-transparent ${TINT[tone]}`;
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1 rounded border ${SIZE[size].box} leading-none font-medium tracking-[0.2px] whitespace-nowrap [&_svg]:size-3.5 [&_svg]:shrink-0 ${caps ? "uppercase" : ""} ${look} ${className}`}
@@ -84,4 +84,19 @@ export function Badge({
       <span className="trim-to-caps">{children}</span>
     </span>
   );
+}
+
+/** A job type's badge: trial orange, full-time blue, part-time magenta, solid with white text. */
+export function JobBadge({ type }: { type: Extract<BadgeTone, "trial" | "full-time" | "part-time"> }) {
+  return (
+    <Badge variant="solid" tone={type} caps>
+      {type}
+    </Badge>
+  );
+}
+
+/** A tinted status pill: the Badge in a status's tone. It used to lead with a 6px dot, which said
+ *  nothing the pill didn't already; the name stays so the call sites don't change. */
+export function StatusDot({ tone, children }: { tone: Tone; children: ReactNode }) {
+  return <Badge tone={tone}>{children}</Badge>;
 }

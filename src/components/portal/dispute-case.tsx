@@ -1,17 +1,23 @@
 "use client";
 
-import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
-import Link from "next/link";
+import { SIDE_COLUMN, WITH_SIDE } from "@/components/kit/page-parts";
 import { notFound } from "next/navigation";
 import { useRef, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Avatar, Button, Field, Input, Modal, Page, Pills, StatusDot, Textarea, Toast } from "@/components/portal/ui";
-import { Callout } from "@/components/portal/callout";
-import { Badge } from "@/components/portal/badge";
+import { Avatar } from "@/components/kit/avatar";
+import { Bullets, Modal } from "@/components/kit/modal";
+import { Button } from "@/components/kit/button";
+import { Field, Input, Textarea } from "@/components/kit/field";
+import { Page } from "@/components/kit/page";
+import { Pills } from "@/components/kit/pills";
+import { StatusDot, Badge } from "@/components/kit/badge";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
+import { Callout } from "@/components/kit/callout";
 import { FileTiles } from "@/components/portal/attachments";
-import { Meter } from "@/components/portal/meter";
-import { BreadcrumbBack } from "@/components/portal/nav";
-import { PanelCard } from "@/components/portal/panel-card";
+import { Meter } from "@/components/kit/meter";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
+import { PanelCard } from "@/components/kit/panel-card";
 import { ReturnNav } from "@/components/portal/return";
 import { useDeal, useHydrated } from "@/lib/demo/deal";
 import {
@@ -56,6 +62,7 @@ import { keyed } from "@/lib/portal/keys";
 import type { BadgeTone } from "@/lib/portal/tone";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { useNow } from "@/lib/portal/use-now";
+import { TEXT_LABEL } from "@/components/kit/styles";
 
 /**
  * A dispute, worked as a case — the same page for the Team Builder, the Independent and Hireable
@@ -73,7 +80,7 @@ const ACTOR: Record<Entry["by"], { mark: string; tag: BadgeTone; role: string }>
   team: { mark: "ring-brand-blue", tag: "info", role: "Team Builder" },
   independent: { mark: "ring-brand-pink", tag: "part-time", role: "Independent" },
   support: { mark: "ring-[#d99a00]", tag: "review", role: "Hireable support" },
-  system: { mark: "ring-[#8a8f98]", tag: "neutral", role: "Hireable" },
+  system: { mark: "ring-muted-2", tag: "neutral", role: "Hireable" },
 };
 
 const avatarOf = (d: Dispute, by: Entry["by"]) => (by === "team" ? PAIR.team.avatar : by === "independent" ? d.independent.avatar : by === "support" ? "/admin/avatar.jpg" : null);
@@ -157,11 +164,11 @@ function WithdrawDialog({ d, side, open, onClose, onToast }: { d: Dispute; side:
         </>
       }
     >
-      <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-[1.4] text-ink-2">
+      <Bullets>
         <li>You can&apos;t file another dispute about this {chapterOf(d)}.</li>
         <li>The {usd(d.amount)} hold is lifted.</li>
         <li>{other} and Hireable support are notified.</li>
-      </ul>
+      </Bullets>
     </Modal>
   );
 }
@@ -419,9 +426,9 @@ function Statement({ e }: { e: Entry }) {
       {e.text && <Quote>{e.text}</Quote>}
       {e.attachments && e.attachments.length > 0 && <FileTiles files={e.attachments} />}
       {e.link && (
-        <a href={/^https?:\/\//.test(e.link) ? e.link : `https://${e.link}`} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1.5 self-start text-[13px] font-medium break-all text-primary hover:underline">
+        <TextLink href={/^https?:\/\//.test(e.link) ? e.link : `https://${e.link}`} external size="sm" className="inline-flex max-w-full items-center gap-1.5 self-start break-all">
           <ICONS.link size={15} aria-hidden className="shrink-0" /> {e.link}
-        </a>
+        </TextLink>
       )}
     </>
   );
@@ -624,7 +631,7 @@ function SayForm({ d, side, respond, onToast }: { d: Dispute; side: DisputeParty
         <Textarea rows={4} required value={text} onChange={(e) => (setText(e.target.value), setError(null))} placeholder="Dates, what was agreed and what happened. Support checks it against the task log and the payments." maxLength={4000} />
       </Field>
       <div className="flex flex-col gap-2">
-        <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Screenshots and files (optional)</p>
+        <p className={TEXT_LABEL}>Screenshots and files (optional)</p>
         <AttachmentPicker files={files} onChange={setFiles} onError={setError} />
       </div>
       <Field label="Link (optional)">
@@ -871,9 +878,9 @@ function CaseSide({ d, viewer }: { d: Dispute; viewer: CaseViewer }) {
           <Line k={d.type === "trial" ? "Trial tasks done" : `${d.independent.name.split(" ")[0]}'s tasks done`} v={facts.tasksTotal ? `${facts.tasksDone} of ${facts.tasksTotal}` : "No tasks on record"} />
         </dl>
         {contractHref && (
-          <Link href={contractHref} className="inline-flex items-center gap-1.5 self-start text-[13px] font-semibold text-primary hover:underline">
+          <TextLink href={contractHref} size="sm" className="inline-flex items-center gap-1.5 self-start">
             Open the contract <ICONS.northEast size={16} aria-hidden />
-          </Link>
+          </TextLink>
         )}
       </PanelCard>
     </aside>

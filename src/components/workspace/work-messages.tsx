@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Toast } from "@/components/portal/ui";
+import { Toast } from "@/components/kit/toast";
 import { onWorkMessage, type WorkMessage } from "@/lib/work/store";
 
 /**

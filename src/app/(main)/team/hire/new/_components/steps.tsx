@@ -1,7 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { MdOutlineLibraryBooks } from "react-icons/md";
-import { Button, InfoBanner, Input, Modal, Pills, Select, Textarea } from "@/components/portal/ui";
-import { SkillPicker } from "@/components/portal/controls";
+import { Button } from "@/components/kit/button";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Input, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Pills } from "@/components/kit/pills";
+import { Select } from "@/components/kit/select";
+import { TextLink } from "@/components/kit/text-link";
+import { SkillPicker } from "@/components/kit/skill-picker";
 import { TaskPlanEditor } from "@/components/portal/tasks/task-plan";
 import { RateSourceModal, TemplateBrowser, TemplateSuggestions } from "@/components/team/role-templates";
 import type { JobType, OngoingType } from "@/lib/contract/job-types";
@@ -15,6 +21,7 @@ import { settleMoney } from "@/lib/portal/money";
 import { BENEFITS_DISCLAIMER, chipLong, chipText, rangeError, TRIAL_TASKS, type PathCopy } from "../_lib/wizard";
 import { BenefitsEditor, Block, Counter, DurationChips, HoursChips, MoneyRange, Required, SkillChips, TrialNotes } from "./fields";
 import { StepCard } from "./frame";
+import { TEXT_LABEL } from "@/components/kit/styles";
 
 /** Step 1 — Role details: the role, what it involves, the skills and level it needs, and how many to hire. */
 export function DetailsStep({ f, t, type, editing, templates, onType, cta }: { f: RoleForm; t: PathCopy; type: JobType; editing: boolean; templates: Templates; onType: (type: OngoingType) => void; cta: ReactNode }) {
@@ -145,7 +152,7 @@ export function BudgetStep({ f, t, type, template, cta }: { f: RoleForm; t: Path
       <StepCard title={t.h3} body={t.sub3} bodySize={16}>
         <div className="flex flex-col gap-10">
           <div className="flex flex-col gap-4">
-            <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">
+            <p className={TEXT_LABEL}>
               {t.pay}
               <Required />
             </p>
@@ -155,12 +162,12 @@ export function BudgetStep({ f, t, type, template, cta }: { f: RoleForm; t: Path
           </div>
           {type === "part-time" && (
             <div className="flex flex-col gap-6">
-              <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">Hours a week</p>
+              <p className={TEXT_LABEL}>Hours a week</p>
               <HoursChips value={f.hours} onChange={f.setHours} />
             </div>
           )}
           <div className="flex flex-col gap-6">
-            <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{t.label3}</p>
+            <p className={TEXT_LABEL}>{t.label3}</p>
             <DurationChips chips={t.chips} label={(c) => chipText(type, c)} value={f.chip} onChange={f.setChip} />
             {type === "trial" && <p className="-mt-3 text-[12px] leading-[1.4] tracking-[0.2px] text-ink-2">{chipLong(type, t.chips[f.chip])} from the trial&apos;s start date.</p>}
           </div>
@@ -187,15 +194,15 @@ function SuggestedRange({ f, suggestion, inUse, onSource, onUse }: { f: RoleForm
   return (
     <p className="w-[533px] max-w-full text-[12px] leading-[1.5] tracking-[0.2px] text-ink-2">
       Suggested pay for {f.title.trim() || suggestion.guide.title} ({covers}): <strong className="font-semibold text-ink">{rangeText(suggestion, suggestion.hours, suggestion.trialDays)}</strong>, based on published market rates.{" "}
-      <button type="button" onClick={onSource} className="font-medium text-primary underline underline-offset-2">
+      <TextLink onClick={onSource} inline>
         See source
-      </button>
+      </TextLink>
       {!inUse && (
         <>
           {" · "}
-          <button type="button" onClick={onUse} className="font-medium text-primary underline underline-offset-2">
+          <TextLink onClick={onUse} inline>
             Use this range
-          </button>
+          </TextLink>
         </>
       )}
     </p>

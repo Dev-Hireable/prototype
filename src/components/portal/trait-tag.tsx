@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { MdOutlineAutorenew, MdOutlineBalance, MdOutlineBolt, MdOutlineChatBubbleOutline, MdOutlineGroups, MdOutlineSchedule } from "react-icons/md";
 import type { IconType } from "react-icons";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import { WORK_STYLE_TRAITS, type WorkStyleTag } from "@/lib/demo/work-style";
 import { nunitoSans } from "@/web-app/lib/fonts/nunito-sans";
 

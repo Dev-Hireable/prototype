@@ -3,11 +3,16 @@
 import Image from "next/image";
 import { useId, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Card, Checkbox, Field, Modal, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Field, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
 import type { JobType } from "@/lib/contract/job-types";
 import { PAIR } from "@/lib/demo/live";
 import { agreementFor } from "@/lib/contract/agreement";
 import { signatureMatches } from "@/lib/portal/names";
+import { TEXT_TITLE, TEXT_LABEL, TEXT_BODY } from "@/components/kit/styles";
 
 /*
  * The pieces every offer page is built from — the talent's offer, the post-trial offer and the Team
@@ -18,12 +23,12 @@ import { signatureMatches } from "@/lib/portal/names";
 export function OfferTerms({ rows }: { rows: [string, ReactNode][] }) {
   return (
     <>
-      <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Offer Details</h3>
+      <h3 className={TEXT_TITLE}>Offer Details</h3>
       <dl className="flex flex-col text-[14px] leading-[1.2] tracking-[0.2px]">
         {rows.map(([k, v]) => (
-          <div key={k} className="flex items-center justify-between border-b border-[#e5e5e5] pt-3 pb-[13px]">
+          <div key={k} className="flex items-center justify-between border-b border-surface-3 pt-3 pb-[13px]">
             <dt className="text-ink-2">{k}</dt>
-            <dd className="text-[#101828]">{v}</dd>
+            <dd className="text-ink-deep">{v}</dd>
           </div>
         ))}
       </dl>
@@ -44,7 +49,7 @@ export function Signature({ name, onName, agree, onAgree, disabled, fullName, si
   if (signed) return <SignedBy signed={signed} />;
   return (
     <>
-      <label htmlFor={id} className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
+      <label htmlFor={id} className={TEXT_BODY}>
         {fullName !== undefined ? `Type your full name exactly as on your account (${fullName})` : "Type your full name to sign. This is your electronic signature confirming commitment to the offer terms."}
       </label>
       <input
@@ -103,7 +108,7 @@ export function Agreement({ type, title, height = "h-[320px]" }: { type: JobType
         <ICONS.chevron size={18} aria-hidden className="shrink-0 text-ink-2 transition-transform group-open:rotate-180" />
       </summary>
       <div className={`flex flex-col gap-6 overflow-y-auto border-t border-border px-4 pt-4 ${height}`}>
-        {title && <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{title}</p>}
+        {title && <p className={TEXT_LABEL}>{title}</p>}
         <p className="pb-4 text-[14px] leading-[1.2] tracking-[0.2px] whitespace-pre-line text-ink-2">{agreementFor(type)}</p>
       </div>
     </details>
@@ -114,7 +119,7 @@ export function Agreement({ type, title, height = "h-[320px]" }: { type: JobType
 export function OfferDivider() {
   return (
     <span aria-hidden className="flex h-12 items-center px-6">
-      <span className="h-px w-full bg-[#e5e5e5]" />
+      <span className="h-px w-full bg-surface-3" />
     </span>
   );
 }
@@ -123,12 +128,12 @@ export function OfferDivider() {
 export function OfferFrom({ name, company }: { name: string; company: string }) {
   return (
     <div className="flex flex-col gap-4 p-6">
-      <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Offer from</h3>
+      <h3 className={TEXT_TITLE}>Offer from</h3>
       <div className="flex items-center gap-3">
         <Image src={PAIR.team.avatar} alt="" width={88} height={88} className="size-11 rounded-full object-cover" loading="eager" />
         <div>
-          <p className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{name}</p>
-          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{company}</p>
+          <p className={TEXT_TITLE}>{name}</p>
+          <p className={TEXT_BODY}>{company}</p>
         </div>
       </div>
     </div>
@@ -141,10 +146,10 @@ export function OfferFrom({ name, company }: { name: string; company: string }) 
  */
 export function SignCard({ name, company, children }: { name: string; company: string; children: ReactNode }) {
   return (
-    <Card className="flex w-[360px] shrink-0 flex-col divide-y divide-[#e5e5e5] max-lg:w-full">
+    <Card className="flex w-[360px] shrink-0 flex-col divide-y divide-surface-3 max-lg:w-full">
       <OfferFrom name={name} company={company} />
       <div className="flex flex-col gap-4 p-6">
-        <h3 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">Sign contract</h3>
+        <h3 className={TEXT_TITLE}>Sign contract</h3>
         {children}
       </div>
     </Card>

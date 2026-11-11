@@ -3,9 +3,18 @@
 import { notFound, useRouter, useSearchParams } from "next/navigation";
 import { use, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Card, Field, JobBadge, LinkButton, MessageButton, Modal, Page, Select, StatusDot, Tabs, Textarea, Toast } from "@/components/portal/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
-import { Tip } from "@/components/portal/tip";
+import { Button, LinkButton, MessageButton } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Field, Textarea } from "@/components/kit/field";
+import { JobBadge, StatusDot } from "@/components/kit/badge";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { Select } from "@/components/kit/select";
+import { Tabs } from "@/components/kit/tabs";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
+import { Tip } from "@/components/kit/tip";
 import { ProfileActions } from "@/components/portal/talent-profile";
 import { SaveButton, TeamProfile } from "@/components/team/ui";
 import { DropDialog } from "@/components/team/drop-dialog";
@@ -26,6 +35,7 @@ import { useRoles } from "@/lib/team/roles";
 import { useOffers } from "@/lib/team/offers";
 import { slotForTeam, usePipeline } from "@/lib/team/pipeline";
 import { useWithReturn } from "@/components/portal/return";
+import { TEXT_NOTE } from "@/components/kit/styles";
 
 const Flag = ICONS.flag;
 
@@ -142,14 +152,14 @@ function ProfileAside({ view, onOpen, onToast }: { view: CandidateView; onOpen: 
       <NotesCard live={live} first={first} />
       {/* Text buttons, each a finger's height to tap on a touch screen (hit-area). */}
       <div className="flex items-center gap-4 text-[14px] leading-[1.2] font-medium tracking-[0.2px]">
-        <button type="button" onClick={() => onOpen("flag")} className="hit-area flex items-center gap-2 text-accent-ink hover:underline">
+        <TextLink onClick={() => onOpen("flag")} className="hit-area flex items-center gap-2">
           <Flag size={20} aria-hidden /> Flag candidate
-        </button>
+        </TextLink>
         {/* Hired candidates can't be declined (TB-037). */}
         {!cand.dropped && cand.stage !== "hired" && (
-          <button type="button" onClick={() => onOpen("drop")} className="hit-area text-danger hover:underline">
+          <TextLink onClick={() => onOpen("drop")} tone="danger" className="hit-area">
             Decline
-          </button>
+          </TextLink>
         )}
       </div>
     </>
@@ -352,7 +362,7 @@ function StageNote({ cand, first }: { cand: Candidate; first: string }) {
   if (cand.dropped || (cand.stage !== "invited" && cand.stage !== "invite_accepted")) return null;
   const fellThrough = cand.status?.label === INTERVIEW_DECLINED ? `${first} declined the interview` : cand.status?.label === INTERVIEW_MISSED ? "The interview didn't happen" : "The interview was cancelled";
   return (
-    <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">
+    <p className={TEXT_NOTE}>
       {cand.status?.label === NEW_TIME_REQUESTED
         ? `${first} can't make the slot and asked for ${cand.status.meta ?? "another time"}. Confirm it or offer another to keep going.`
         : needsNewSlot(cand)
@@ -375,21 +385,21 @@ function InterviewCard({ interview, onCopied, children }: { interview: Interview
         {link && (
           <div className="col-span-2 flex flex-col gap-2">
             <dt className="font-semibold">Meeting link</dt>
-            <dd className="h-11 truncate rounded-lg bg-[#e5e5e5] px-4 leading-[44px] text-ink-2 outline -outline-offset-1 outline-border">{link}</dd>
+            <dd className="h-11 truncate rounded-lg bg-surface-3 px-4 leading-[44px] text-ink-2 outline -outline-offset-1 outline-border">{link}</dd>
           </div>
         )}
       </dl>
       {link && (
-        <button
-          type="button"
+        <TextLink
           onClick={() => {
             navigator.clipboard?.writeText(link);
             onCopied();
           }}
-          className="self-start text-[14px] leading-[1.2] font-medium tracking-[0.2px] text-accent-ink hover:underline"
+          size="md"
+          className="self-start"
         >
           Copy link
-        </button>
+        </TextLink>
       )}
       {children}
     </Card>

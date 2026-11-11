@@ -4,8 +4,9 @@ import { Fragment, useState } from "react";
 import { ICONS } from "@/components/icons";
 import { FileTiles } from "@/components/portal/attachments";
 import { DayDivider } from "@/components/portal/day-divider";
-import { Tip } from "@/components/portal/tip";
-import { Avatar } from "@/components/portal/ui";
+import { Tip } from "@/components/kit/tip";
+import { Avatar } from "@/components/kit/avatar";
+import { TextLink } from "@/components/kit/text-link";
 import { keyed } from "@/lib/portal/keys";
 import { stampLabel, type Day } from "@/lib/work/dates";
 import { refOf, type WorkComment, type WorkItem } from "@/lib/work/model";
@@ -111,7 +112,7 @@ export function ActivityStream({ feed, items, empty }: { feed: readonly (FeedEve
 function NoteMark() {
   return (
     <span aria-hidden className="flex w-8 shrink-0 justify-center pt-[5px]">
-      <span className="size-2 rounded-full border-[1.5px] border-[#c3c3c3]" />
+      <span className="size-2 rounded-full border-[1.5px] border-border" />
     </span>
   );
 }
@@ -153,9 +154,9 @@ function MovesNote({ run }: { run: FeedMoves }) {
             Moved {run.moves.length} times{now ? `, now ${now}` : ""}
           </span>{" "}
           <span className="text-muted-2">by {run.who}</span>{" "}
-          <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="rounded font-medium whitespace-nowrap text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+          <TextLink aria-expanded={open} onClick={() => setOpen(!open)} className="whitespace-nowrap">
             {open ? "Hide" : "Show"}
-          </button>
+          </TextLink>
         </p>
         <time className="shrink-0 text-[12px] leading-[1.5] text-muted-2 tabular-nums">{split(run.at).time}</time>
       </div>
@@ -186,9 +187,9 @@ function TaskRefText({ parts, items }: { parts: readonly TextPart[]; items: read
     const name = `${refOf(t)} ${t.title}`;
     return (
       <Tip key={key} label={name}>
-        <button type="button" aria-label={name} onClick={() => openTask(t.id)} className="rounded font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+        <TextLink aria-label={name} onClick={() => openTask(t.id)}>
           {p.taskId ? t.title : p.text}
-        </button>
+        </TextLink>
       </Tip>
     );
   });

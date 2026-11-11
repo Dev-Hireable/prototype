@@ -1,29 +1,33 @@
-import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
-import { Badge } from "@/components/portal/badge";
+import { Page } from "@/components/kit/page";
+import { SearchBox } from "@/components/kit/search-box";
+import { Select } from "@/components/kit/select";
+import { Toolbar } from "@/components/kit/toolbar";
+import { DataTable } from "@/components/admin/ui";
+import { Badge } from "@/components/kit/badge";
 import { subscriptions } from "@/lib/admin/data/subscriptions";
 import type { Subscription } from "@/lib/admin/data/subscriptions";
 
 export default function AllSubscriptions() {
   return (
-    <AdminPage title="All subscriptions">
+    <Page title="All subscriptions">
       <Toolbar>
-        <SearchInput placeholder="Search subscriptions" />
-        <Select label="Plan" options={["All plans", "Starter", "Growth", "Scale"]} />
-        <Select label="Status" options={["All statuses", "Active", "Payment failed", "Cancelled"]} />
+        <SearchBox placeholder="Search subscriptions" className="w-[320px]" />
+        <Select aria-label="Plan" options={["All plans", "Starter", "Growth", "Scale"]} className="!w-[180px]" />
+        <Select aria-label="Status" options={["All statuses", "Active", "Payment failed", "Cancelled"]} className="!w-[180px]" />
       </Toolbar>
 
       <DataTable<Subscription>
         rows={subscriptions}
         rowHref={(s) => `/admin/subscriptions/${s.slug}`}
         columns={[
-          { header: "Company", cell: (s) => s.company, width: "26%" },
-          { header: "Plan", cell: (s) => s.plan, width: "12%" },
-          { header: "Seats", cell: (s) => s.seats, width: "10%" },
-          { header: "MRR", cell: (s) => s.mrr, width: "12%" },
-          { header: "Renews", cell: (s) => s.renews, width: "16%" },
-          { header: "Status", cell: (s) => <Badge tone={s.tone}>{s.status}</Badge>, width: "16%" },
+          { header: "Company", cell: (s) => s.company },
+          { header: "Plan", cell: (s) => s.plan, col: "w-[120px]" },
+          { header: "Seats", cell: (s) => s.seats, col: "w-[100px]" },
+          { header: "MRR", cell: (s) => s.mrr, col: "w-[120px]" },
+          { header: "Renews", cell: (s) => s.renews, col: "w-[160px]" },
+          { header: "Status", cell: (s) => <Badge tone={s.tone}>{s.status}</Badge>, col: "w-[160px]" },
         ]}
       />
-    </AdminPage>
+    </Page>
   );
 }

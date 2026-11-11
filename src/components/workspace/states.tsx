@@ -2,7 +2,8 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, EmptyState } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
 import { BACKUP_KEY, resetUnreadableDeal } from "@/lib/demo/deal";
 import type { Role } from "@/lib/work/permissions";
 import type { ViewKey } from "@/lib/work/query";
@@ -15,7 +16,7 @@ export function WorkspaceSkeleton({ view }: { view: ViewKey }) {
       {view === "board" ? (
         <div className="flex gap-3">
           {[0, 1, 2, 3].map((c) => (
-            <div key={c} className="flex w-[288px] shrink-0 flex-col gap-2 rounded-xl border-2 border-transparent bg-[#f7f7f7] p-2">
+            <div key={c} className="flex w-[288px] shrink-0 flex-col gap-2 rounded-xl border-2 border-transparent bg-tile p-2">
               <div className={`${bar} h-8`} />
               {[0, 1, 2].slice(0, 3 - (c % 2)).map((r) => (
                 <div key={r} className={`${bar} h-24 bg-white outline -outline-offset-1 outline-border`} />

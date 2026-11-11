@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 
 const Check = ICONS.check;
 const DoneAll = ICONS.doneAll;

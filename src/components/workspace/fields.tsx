@@ -2,10 +2,10 @@
 
 import { useMemo, useState, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import { ICONS } from "@/components/icons";
-import { DatePicker } from "@/components/portal/date-picker";
+import { DatePicker } from "@/components/kit/date-picker";
 import { PriorityMenu, PriorityPill, StatusCircle, StatusPill } from "@/components/portal/tasks/task-bits";
-import { Tip } from "@/components/portal/tip";
-import { Button } from "@/components/portal/ui";
+import { Tip } from "@/components/kit/tip";
+import { Button } from "@/components/kit/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { dayOf, isoOf, longLabel, relativeLabel, type Day } from "@/lib/work/dates";

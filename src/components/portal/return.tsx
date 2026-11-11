@@ -2,7 +2,7 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 
 /**
  * "Back to where I was" for pages reached through an action on another page — Message from a

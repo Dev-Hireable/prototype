@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { CountPill } from "@/components/portal/board";
-import { ICON_BUTTON } from "@/components/portal/styles";
-import { StatusCircle } from "@/components/portal/tasks/task-bits";
+import { CountPill } from "@/components/kit/kanban";
+import { ICON_BUTTON } from "@/components/kit/styles";
+import { StatusCircle, TaskRef } from "@/components/portal/tasks/task-bits";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { agendaDays, layoutWeek, monthWeeks, moveToDay, spanOf, unscheduled, type Segment, type WeekLayout } from "@/lib/work/calendar";
 import { addMonths, dayOf, isoOf, isWeekend, longLabel, MONTH_LONG, monthKey, parseMonth, partsOf, shortLabel, WEEKDAY_SHORT, type Day } from "@/lib/work/dates";
@@ -89,10 +89,10 @@ export function CalendarView({ items, query, setQuery, narrow }: { items: readon
         {header("px-3 py-2")}
         <div ref={grid} className={`${VIEW_BODY} flex flex-1 flex-col`} data-testid="calendar">
           {scheduled === 0 && items.length > 0 && (
-            <p className="border-b border-border bg-[#fafafa] px-4 py-2.5 text-[13px] leading-[1.4] text-ink-2">Nothing here has dates yet. Set a start or due date and it shows on the calendar. Everything else is under Unscheduled.</p>
+            <p className="border-b border-border bg-surface-alt px-4 py-2.5 text-[13px] leading-[1.4] text-ink-2">Nothing here has dates yet. Set a start or due date and it shows on the calendar. Everything else is under Unscheduled.</p>
           )}
           {dnd.hint && (
-            <p role="alert" className="flex items-center justify-between gap-2 border-b border-border bg-[#fcf2f2] px-4 py-2 text-[13px] text-[#8f1d1d]">
+            <p role="alert" className="flex items-center justify-between gap-2 border-b border-border bg-danger-bg px-4 py-2 text-[13px] text-[#8f1d1d]">
               {dnd.hint}
               <button type="button" onClick={() => dnd.setHint(null)} aria-label="Dismiss" className="rounded p-1 hover:bg-white/70">
                 <ICONS.close size={14} aria-hidden />
@@ -187,7 +187,7 @@ function MonthGrid({ layouts, y, month }: { layouts: WeekLayout[]; y: number; mo
         ))}
       </div>
       {layouts.map((layout, w) => (
-        <div key={w} role="row" className="relative grid flex-1 grid-cols-7 border-b border-[#eeeeee] last:border-b-0" style={{ minHeight: HEAD_H + LANES * LANE_H + 26 }}>
+        <div key={w} role="row" className="relative grid flex-1 grid-cols-7 border-b border-line-soft last:border-b-0" style={{ minHeight: HEAD_H + LANES * LANE_H + 26 }}>
           {layout.days.map((day, col) => (
             <DayCell key={day} day={day} col={col} layout={layout} month={month} />
           ))}
@@ -267,7 +267,7 @@ function DayHead({ day, isToday, month }: { day: Day; isToday: boolean; month: M
   const addable = canCreate && !month.archived && month.adding !== day && !checkDates({ due: isoOf(day), type: "task" }, null, { today, lastDay: dayOf(access.lastDay) });
   return (
     <span className="flex h-7 items-center justify-between px-1.5">
-      <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[12.5px] tabular-nums ${isToday ? "bg-primary font-semibold text-white" : inMonth ? "text-ink" : "text-[#b0b0b0]"}`}>
+      <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[12.5px] tabular-nums ${isToday ? "bg-primary font-semibold text-white" : inMonth ? "text-ink" : "text-ink-faint"}`}>
         {partsOf(day).d === 1 ? shortLabel(day) : partsOf(day).d}
         {isToday && <span className="sr-only"> (today)</span>}
       </span>
@@ -363,7 +363,7 @@ function UnscheduledList({ loose, dnd }: { loose: WorkItem[]; dnd: DayDrag }) {
                   className={`flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13px] hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary ${can ? "cursor-grab" : ""}`}
                 >
                   <StatusCircle status={t.status} size={14} />
-                  <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+                  <TaskRef task={t} />
                   <span className="min-w-0 flex-1 truncate text-ink">{t.title}</span>
                 </button>
               </li>
@@ -471,7 +471,7 @@ function MiniMonth({ y, m, today, busy }: { y: number; m: number; today: Day; bu
             disabled={!has}
             onClick={() => jump(day)}
             className={`mx-auto flex size-9 flex-col items-center justify-center rounded-full text-[13px] tabular-nums ${
-              day === today ? "bg-primary font-semibold text-white" : !inMonth ? "text-[#c3c3c3]" : has ? "font-semibold text-ink active:bg-surface-2" : "text-ink-2"
+              day === today ? "bg-primary font-semibold text-white" : !inMonth ? "text-ink-disabled" : has ? "font-semibold text-ink active:bg-surface-2" : "text-ink-2"
             }`}
           >
             {partsOf(day).d}

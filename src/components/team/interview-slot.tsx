@@ -1,12 +1,14 @@
 "use client";
 
-import { Field, Select } from "@/components/portal/ui";
-import { DatePicker } from "@/components/portal/date-picker";
+import { Field } from "@/components/kit/field";
+import { Select } from "@/components/kit/select";
+import { DatePicker } from "@/components/kit/date-picker";
 import { formatDate, INTERVIEW_TIMES, startOfToday } from "@/lib/portal/dates";
 import { effectiveTimeZone } from "@/lib/portal/timezones";
 import { useTeamAccount } from "@/lib/team/account";
 import { byName } from "@/lib/team/data";
 import { slotForTeam } from "@/lib/team/pipeline";
+import { TEXT_NOTE } from "@/components/kit/styles";
 
 /**
  * An interview slot's date and time, side by side, both required. Any day from today can be picked,
@@ -36,7 +38,7 @@ export function SlotClock({ date, time, offset, independent }: { date: Date | un
   const first = byName(independent).name.split(" ")[0];
   const picked = date && time ? slotForTeam(`${formatDate(date)}, ${time}`, offset, independent) : undefined;
   return (
-    <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">
+    <p className={TEXT_NOTE}>
       {picked ? `${picked}. ` : `Times are in your time zone, ${effectiveTimeZone(profile.timezone)}. `}
       {first} sees this in their own time.
     </p>

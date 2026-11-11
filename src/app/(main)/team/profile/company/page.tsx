@@ -1,6 +1,8 @@
 "use client";
 
-import { Checkbox, Page, Toast } from "@/components/portal/ui";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import { CompanyMark } from "@/components/portal/company-mark";
 import { Completeness, EditableRow, ProfileHeader, ProfileSection } from "@/components/portal/profile-editor";
 import { WorkStyleSection } from "@/components/team/work-style-section";

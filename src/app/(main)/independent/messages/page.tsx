@@ -1,7 +1,7 @@
 "use client";
 
-import { Initials } from "@/components/portal/ui";
-import { Badge } from "@/components/portal/badge";
+import { Initials } from "@/components/kit/avatar";
+import { Badge } from "@/components/kit/badge";
 import { MessagesPage } from "@/components/portal/messages-page";
 import { CompanyProfileDrawer } from "@/components/independent/company-profile";
 import { useApplications } from "@/lib/independent/applications";

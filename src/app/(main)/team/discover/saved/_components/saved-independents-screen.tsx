@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { EmptyState, LinkButton, Page, Toast } from "@/components/portal/ui";
+import { EmptyState } from "@/components/kit/empty-state";
+import { LinkButton } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import { IndependentCard } from "@/components/team/ui";
 import { useToast } from "@/lib/portal/toast";
 import type { Independent } from "@/lib/team/data";

@@ -3,8 +3,8 @@
 import Image from "next/image";
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
-import { Badge } from "@/components/portal/badge";
-import { Button } from "@/components/portal/ui";
+import { Badge } from "@/components/kit/badge";
+import { Button } from "@/components/kit/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useTourRecords, type TourRecord } from "@/lib/demo/tours";
 import { GUIDES, homeTour, tourFor, type Tour, type TourSide } from "@/lib/portal/tours";

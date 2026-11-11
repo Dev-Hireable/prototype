@@ -1,14 +1,20 @@
 "use client";
 
 import { useState, type ChangeEvent, type ReactNode } from "react";
-import { Button, Card, Checkbox, Field, Input, Toast } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Field, Input } from "@/components/kit/field";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
 import { DEMO_PASSWORD, PASSWORD_RULES as AUTH_RULES } from "@/lib/demo/auth";
 import { ImagePicker } from "@/components/portal/profile-editor";
-import { TimeZonePicker, useDeviceTimeZone } from "@/components/portal/time-zone-picker";
+import { TimeZonePicker, useDeviceTimeZone } from "@/components/kit/time-zone-picker";
 import { ICONS } from "@/components/icons";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import { useToast, type SetToast } from "@/lib/portal/toast";
 import { checkImage, IMAGE_MAX_MB, readImage } from "@/lib/portal/profile-fields";
+import { TEXT_LABEL, TEXT_BODY } from "@/components/kit/styles";
 
 export type AccountSettingsValues = { first: string; last: string; email: string; phone: string; tz: string };
 
@@ -24,6 +30,20 @@ export type AccountSettingsCardProps = {
   /** TB-099 / IN-067 — given a handler, Change photo picks a real file instead of toasting. */
   onPhoto?: (dataUrl: string) => void;
 };
+
+/**
+ * A settings screen's card: one 720px column in the middle of the page, its sections 16px apart
+ * (`tight`: 12px, a list of short rows), padded a size down on a phone. Account, password, payment
+ * methods, payout methods and the subscription are each one of these, so the screens line up as the
+ * tabs switch between them.
+ */
+export function SettingsCard({ title, sub, aside, tight = false, children }: { title: ReactNode; sub?: ReactNode; aside?: ReactNode; tight?: boolean; children: ReactNode }) {
+  return (
+    <Card title={title} sub={sub} aside={aside} className={`mx-auto flex w-full max-w-[720px] flex-col p-6 max-sm:p-4 ${tight ? "gap-3" : "gap-4"}`}>
+      {children}
+    </Card>
+  );
+}
 
 /**
  * The account card, with its toast kept outside the form. The form is keyed on the saved values:
@@ -49,7 +69,7 @@ function AccountForm({ initial, avatar, emailLabel, accountType, onSave, onPhoto
   const set = (key: keyof AccountSettingsValues) => (event: ChangeEvent<HTMLInputElement>) => setForm((current) => ({ ...current, [key]: event.target.value }));
   // A phone pads the settings cards as it pads the profile's header card: the fields keep the width the 24px sides took.
   return (
-    <Card title="Account" className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
+    <SettingsCard title="Account">
       {/* The same photo control as both profiles (ImagePicker): the camera on the photo's corner. */}
       <PhotoField avatar={avatar} onPhoto={onPhoto} onToast={onToast} />
       {/* TB-099 / IN-067 — the name is the account's legal name: shown here, changed only through support. */}
@@ -72,7 +92,7 @@ function AccountForm({ initial, avatar, emailLabel, accountType, onSave, onPhoto
           onToast(pending ? "Verify the new email first" : "Changes saved", pending ? "danger" : "success");
         }}
       />
-    </Card>
+    </SettingsCard>
   );
 }
 
@@ -80,12 +100,12 @@ function AccountForm({ initial, avatar, emailLabel, accountType, onSave, onPhoto
 function ReadOnlyField({ label, hint, locked = false, children }: { label: string; hint?: string; locked?: boolean; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</span>
+      <span className={TEXT_LABEL}>{label}</span>
       <p className="flex h-11 items-center gap-2 rounded-lg bg-surface-2 px-4 text-[14px] leading-[1.2] text-ink-2">
         <span className="min-w-0 flex-1 truncate">{children}</span>
         {locked && <ICONS.lock size={16} aria-label="Locked" className="shrink-0" />}
       </p>
-      {hint && <span className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{hint}</span>}
+      {hint && <span className={TEXT_BODY}>{hint}</span>}
     </div>
   );
 }
@@ -205,7 +225,7 @@ function EmailField({ label, value, saved, onChange, onChangeEmail }: { label: s
           Change email
         </Button>
       </div>
-      <p id="email-change-hint" className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">
+      <p id="email-change-hint" className={TEXT_BODY}>
         Type a new email, then select Change email. We&apos;ll send a 6-digit code to it.
       </p>
     </div>
@@ -269,9 +289,9 @@ function VerifyEmail({ address, code, sentAt, onCode, onResend, onVerify, onCanc
       </div>
       <p className="text-[13px] leading-[1.4] text-ink-2">
         Enter the 6-digit code. Didn&apos;t get it?{" "}
-        <button type="button" onClick={() => (setProblem(null), onResend())} className="hit-area font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+        <TextLink onClick={() => (setProblem(null), onResend())} className="hit-area">
           Resend code
-        </button>
+        </TextLink>
       </p>
     </div>
   );
@@ -304,7 +324,7 @@ export function PasswordSettingsCard() {
 
   return (
     <>
-      <Card title="Change password" className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
+      <SettingsCard title="Change password">
         <Field label="Current password">
           <Input
             type="password"
@@ -345,7 +365,7 @@ export function PasswordSettingsCard() {
             setConfirm("");
           }}
         />
-      </Card>
+      </SettingsCard>
       <Toast toast={toast} onClose={() => setToast(null)} />
     </>
   );

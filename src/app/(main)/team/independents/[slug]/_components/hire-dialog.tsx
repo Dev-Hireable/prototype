@@ -1,6 +1,10 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Button, Checkbox, Field, Input, Modal, Pills } from "@/components/portal/ui";
-import { DatePicker } from "@/components/portal/date-picker";
+import { Button } from "@/components/kit/button";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Field, Input } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Pills } from "@/components/kit/pills";
+import { DatePicker } from "@/components/kit/date-picker";
 import { fromISODate, isoDay, startOfToday } from "@/lib/portal/dates";
 import { formatMoney } from "@/lib/portal/money";
 import { FT_BENEFITS, JOB_TYPE_LABEL, type OngoingType } from "@/lib/contract/job-types";

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
+import { TextLink } from "@/components/kit/text-link";
 
 /** The box a file opens in: most of the window's height, so a viewer's controls stay put from one file to the next. */
 const BOX = "h-[calc(70vh/var(--ui-scale))] w-full rounded-lg bg-surface-2";
@@ -20,9 +21,9 @@ export function FilePreview({ url, type, alt, missing = false, children }: { url
       <Shown url={url} pdf={pdf} alt={alt} missing={missing} />
       <div className="flex min-h-8 flex-wrap items-center gap-3">
         {url && (
-          <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline">
+          <TextLink href={url} external size="sm" className="inline-flex items-center gap-1.5">
             {pdf ? "Open the PDF" : "Open full size"} <ICONS.northEast size={16} aria-hidden />
-          </a>
+          </TextLink>
         )}
         {children && <div className="ml-auto">{children}</div>}
       </div>

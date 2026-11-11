@@ -4,8 +4,14 @@ import Image from "next/image";
 import { useState } from "react";
 import { AddPayoutModal } from "@/components/independent/add-payout-modal";
 import { IdStatus } from "@/components/independent/id-verification";
-import { Button, Card, EmptyState, InfoBanner, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
-import { PaymentMethodRow } from "@/components/portal/settings";
+import { Button } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { StatusDot } from "@/components/kit/badge";
+import { Toast } from "@/components/kit/toast";
+import { PaymentMethodRow, SettingsCard } from "@/components/portal/settings";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { payoutTitle, removeBlocker, useWallet } from "@/lib/independent/wallet";
 import { useToast } from "@/lib/portal/toast";
@@ -24,7 +30,7 @@ export default function PayoutSettings() {
 
   return (
     <Page title="Settings">
-      <Card
+      <SettingsCard
         title="Payout methods"
         sub="Released pay waits in your balance until you withdraw it to a verified payout method."
         aside={
@@ -32,7 +38,6 @@ export default function PayoutSettings() {
             Add payout method
           </Button>
         }
-        className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6"
       >
         {/* KYC: payouts go only to a verified name, so the methods say where the ID check stands. */}
         <IdStatus onToast={setToast} />
@@ -45,7 +50,7 @@ export default function PayoutSettings() {
             <InfoBanner>You cannot remove your only payout method. Add another one first, then remove this one.</InfoBanner>
           </div>
         )}
-      </Card>
+      </SettingsCard>
 
       <AddPayoutModal open={adding} onClose={() => setAdding(false)} onAdded={(m) => setToast(`${m.brand} added${m.isDefault ? " and set as default" : ""}`)} />
       <Modal

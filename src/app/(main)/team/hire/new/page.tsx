@@ -2,8 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Page } from "@/components/portal/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { Page } from "@/components/kit/page";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 import { useRoles } from "@/lib/team/roles";
 import type { JobType } from "@/lib/contract/job-types";
 import type { Role } from "@/lib/team/data";

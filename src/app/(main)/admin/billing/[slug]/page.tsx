@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
-import { Button } from "@/components/portal/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Button } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { TextLink } from "@/components/kit/text-link";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 import { transactions } from "@/lib/admin/data/billing";
 import type { BreakdownLine, LinkedRecord } from "@/lib/admin/data/billing";
 
@@ -16,10 +17,10 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
   if (!txn) notFound();
 
   return (
-    <AdminPage
+    <Page
       nav={<BreadcrumbBack href="/admin/billing">Back to all transactions</BreadcrumbBack>}
       title={txn.reference}
-      actions={
+      headerActions={
         <>
           <Button size="sm">Download receipt</Button>
           <Button size="sm" variant="primary">Release escrow</Button>
@@ -39,7 +40,7 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
           rows={txn.breakdown}
           columns={[
             { header: "Line", cell: (b) => (b.total ? <strong>{b.line}</strong> : b.line) },
-            { header: "Amount", align: "right", width: "24%", cell: (b) => (b.total ? <strong>{b.amount}</strong> : b.amount) },
+            { header: "Amount", align: "right", col: "w-[240px]", cell: (b) => (b.total ? <strong>{b.amount}</strong> : b.amount) },
           ]}
         />
 
@@ -47,14 +48,14 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
           caption="Linked records"
           rows={txn.linked}
           columns={[
-            { header: "Record", cell: (l) => l.record, width: "26%" },
+            { header: "Record", cell: (l) => l.record, col: "w-[260px]" },
             {
               header: "Reference",
               cell: (l) =>
                 l.href ? (
-                  <Link href={l.href} className="text-accent transition hover:underline">
+                  <TextLink href={l.href}>
                     {l.reference}
-                  </Link>
+                  </TextLink>
                 ) : (
                   l.reference
                 ),
@@ -62,6 +63,6 @@ export default async function TransactionDetail({ params }: PageProps<"/admin/bi
           ]}
         />
       </div>
-    </AdminPage>
+    </Page>
   );
 }

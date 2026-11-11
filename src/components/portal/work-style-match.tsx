@@ -1,6 +1,6 @@
 "use client";
 
-import { StatusDot } from "@/components/portal/ui";
+import { StatusDot } from "@/components/kit/badge";
 import type { Tone } from "@/lib/portal/tone";
 import { TraitTag } from "@/components/portal/trait-tag";
 import { traitFit, traitTagsFor, WORK_STYLE_TRAITS } from "@/lib/demo/work-style";
@@ -65,7 +65,7 @@ export function WorkStyleMatch({ company, theirs, mine }: { company: string; the
           <span className="sr-only">Fit</span>
         </div>
         {rows.map((r) => (
-          <div key={r.trait} className={`${ROW} border-t border-[#eeeeee] py-2.5`}>
+          <div key={r.trait} className={`${ROW} border-t border-line-soft py-2.5`}>
             <span className="hidden text-[13px] leading-[1.3] font-medium text-ink @min-[660px]:block">{r.trait}</span>
             {/* Narrow, the two tags share a line while both fit, and yours drops under theirs when
                 they don't: half a phone's width is narrower than the longest tags, which then broke

@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button, EmptyState, Initials, LinkButton, Page, StatusDot } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Initials } from "@/components/kit/avatar";
+import { Page } from "@/components/kit/page";
+import { StatusDot } from "@/components/kit/badge";
 import { ContractList, ContractListToolbar, type ContractSummary, type ContractTypeFilter } from "@/components/portal/contract-card";
 import { useWithReturn } from "@/components/portal/return";
 import { useQueryState } from "@/lib/portal/query-state";

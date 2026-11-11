@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Field, InfoBanner, Modal, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Modal } from "@/components/kit/modal";
 import { isUpcoming } from "@/lib/portal/dates";
 import type { Interview } from "@/lib/team/data";
 import { slotForTeam } from "@/lib/team/pipeline";

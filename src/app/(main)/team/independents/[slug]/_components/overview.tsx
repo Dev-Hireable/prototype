@@ -1,8 +1,8 @@
-import { Button } from "@/components/portal/ui";
-import { Callout } from "@/components/portal/callout";
+import { Button } from "@/components/kit/button";
+import { Callout } from "@/components/kit/callout";
 import { ContractActivity, ContractScore, SummaryRows } from "@/components/portal/contract-parts";
-import { PanelCard } from "@/components/portal/panel-card";
-import { Tip } from "@/components/portal/tip";
+import { PanelCard } from "@/components/kit/panel-card";
+import { Tip } from "@/components/kit/tip";
 import { dayLabel } from "@/lib/portal/dates";
 import { cancelledLine } from "@/lib/contract/view";
 import { PAIR } from "@/lib/demo/live";

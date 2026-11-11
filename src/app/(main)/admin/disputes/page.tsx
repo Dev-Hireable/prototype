@@ -1,8 +1,12 @@
 "use client";
 
+import { Page } from "@/components/kit/page";
+import { SearchBox } from "@/components/kit/search-box";
+import { Select } from "@/components/kit/select";
+import { Toolbar } from "@/components/kit/toolbar";
 import { useState } from "react";
-import { AdminPage, DataTable, SearchInput, Select, StatCard, StatGrid, Toolbar } from "@/components/admin/ui";
-import { Badge } from "@/components/portal/badge";
+import { DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { Badge } from "@/components/kit/badge";
 import { ageOf, contractName, dateOf, daysOpen, DISPUTE_REASONS, DISPUTE_STATUSES, holds, leftLabel, otherParty, partyName, partyTurn, SLA_DAYS, STATUS_TONE, unseenByAdmin, usd, useDisputes, waitingOn } from "@/lib/demo/disputes";
 import { useNow } from "@/lib/portal/use-now";
 import type { Dispute } from "@/lib/demo/disputes";
@@ -22,13 +26,13 @@ export default function AllDisputes() {
   const rows = matching(all, q, status, reason);
 
   return (
-    <AdminPage title="All disputes">
+    <Page title="All disputes">
       <DisputeStats all={all} />
 
       <Toolbar>
-        <SearchInput placeholder="Search by party, contract or reason" value={q} onChange={setQ} />
-        <Select label="Status" options={["All statuses", ...DISPUTE_STATUSES]} value={status} onChange={setStatus} />
-        <Select label="Reason" options={["All reasons", ...DISPUTE_REASONS]} value={reason} onChange={setReason} />
+        <SearchBox placeholder="Search by party, contract or reason" value={q} onChange={setQ} className="w-[320px]" />
+        <Select aria-label="Status" options={["All statuses", ...DISPUTE_STATUSES]} value={status} onChange={(e) => setStatus(e.target.value)} className="!w-[180px]" />
+        <Select aria-label="Reason" options={["All reasons", ...DISPUTE_REASONS]} value={reason} onChange={(e) => setReason(e.target.value)} className="!w-[220px]" />
       </Toolbar>
 
       <DataTable<Dispute>
@@ -45,18 +49,17 @@ export default function AllDisputes() {
                 {unseen.has(d.id) && <Badge tone="accent">New</Badge>}
               </span>
             ),
-            width: "24%",
           },
-          { header: "Date filed", cell: (d) => dateOf(d.at), width: "10%" },
-          { header: "Filed by", cell: (d) => partyName(d, d.filedBy), width: "13%" },
-          { header: "Against", cell: (d) => partyName(d, otherParty(d.filedBy)), width: "13%" },
-          { header: "Amount", cell: (d) => usd(d.amount), width: "9%" },
-          { header: "Waiting on", cell: (d) => waitingCell(d, now), width: "15%" },
-          { header: "Age", cell: (d) => ageOf(d), width: "7%" },
-          { header: "Status", cell: (d) => <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>, width: "12%" },
+          { header: "Date filed", cell: (d) => dateOf(d.at), col: "w-[100px]" },
+          { header: "Filed by", cell: (d) => partyName(d, d.filedBy), col: "w-[130px]" },
+          { header: "Against", cell: (d) => partyName(d, otherParty(d.filedBy)), col: "w-[130px]" },
+          { header: "Amount", cell: (d) => usd(d.amount), col: "w-[90px]" },
+          { header: "Waiting on", cell: (d) => waitingCell(d, now), col: "w-[150px]" },
+          { header: "Age", cell: (d) => ageOf(d), col: "w-[70px]" },
+          { header: "Status", cell: (d) => <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>, col: "w-[120px]" },
         ]}
       />
-    </AdminPage>
+    </Page>
   );
 }
 

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { DM_Sans, Inter } from "next/font/google";
 import "./globals.css";
 import { DemoReset } from "@/components/portal/demo-reset";
-import { Toaster } from "@/components/portal/toaster";
+import { Toaster } from "@/components/kit/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({

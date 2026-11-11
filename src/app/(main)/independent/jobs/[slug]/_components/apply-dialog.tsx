@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Button, Field, Modal, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
 
 /**
  * IN-017 — "Apply to role · confirm": the profile goes with the application, with a note if the

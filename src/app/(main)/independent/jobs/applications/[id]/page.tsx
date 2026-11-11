@@ -8,9 +8,16 @@ import { ApplicationProposalDialog } from "@/components/independent/application-
 import { AboutCompany } from "@/components/independent/about-company";
 import { RescheduleDialog } from "@/components/independent/reschedule-dialog";
 import { LockedTasks } from "@/components/portal/tasks/locked-tasks";
-import { Button, Card, Chip, JobBadge, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
-import { FactStrip } from "@/components/portal/page-parts";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Chip } from "@/components/kit/chip";
+import { JobBadge, StatusDot } from "@/components/kit/badge";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
+import { FactStrip } from "@/components/kit/page-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { WorkStyleMatch } from "@/components/portal/work-style-match";
 import { useDeal } from "@/lib/demo/deal";
@@ -222,9 +229,9 @@ function ActionColumn({ app, job, live, onReadProposal, onReviewOffer, ...action
           className={`flex flex-col gap-3 p-4 ${ORDER.proposal}`}
         >
           {/* A finger gets a tap 45px tall on the link without the card moving. */}
-          <button type="button" onClick={onReadProposal} className="self-start text-[14px] font-medium text-accent-ink hover:underline focus-visible:outline-2 focus-visible:outline-primary pointer-coarse:-my-3 pointer-coarse:py-3">
+          <TextLink onClick={onReadProposal} size="md" className="self-start pointer-coarse:-my-3 pointer-coarse:py-3">
             View proposal
-          </button>
+          </TextLink>
         </Card>
       )}
 

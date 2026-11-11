@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
-import { Badge } from "@/components/portal/badge";
-import { Button, Field, Input, Steps, Textarea } from "@/components/portal/ui";
-import { StepCard } from "@/components/portal/step-card";
-import { DatePicker } from "@/components/portal/date-picker";
+import { Badge } from "@/components/kit/badge";
+import { Button } from "@/components/kit/button";
+import { Field, Input, Textarea } from "@/components/kit/field";
+import { Steps } from "@/components/kit/steps";
+import { StepCard } from "@/components/kit/step-card";
+import { DatePicker } from "@/components/kit/date-picker";
 import { ProposalReadiness } from "@/components/independent/id-verification";
 import { ProposalBody, type ProposalAuthor } from "@/components/portal/proposal-review";
 import { addWorkingDays, dayLabel, durationDays, fromISODate, isoDay, startOfToday, today, workingDaysLabel } from "@/lib/portal/dates";

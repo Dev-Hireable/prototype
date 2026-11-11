@@ -3,8 +3,12 @@
 import { useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ICONS } from "@/components/icons";
-import { PHONE_FAB, TABLET_FAB } from "@/components/portal/styles";
-import { Button, Checkbox, Input, Select } from "@/components/portal/ui";
+import { PHONE_FAB, TABLET_FAB } from "@/components/kit/styles";
+import { Button } from "@/components/kit/button";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Input } from "@/components/kit/field";
+import { Select } from "@/components/kit/select";
+import { TextLink } from "@/components/kit/text-link";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 type FilterProps = {
@@ -70,9 +74,9 @@ function FilterFields({ levels, selectedLevels, onToggleLevel, min, max, onMinCh
           {action.label}
         </Button>
       )}
-      <button type="button" onClick={onReset} className="self-start text-[14px] leading-[1.4] font-medium text-accent-ink hover:underline">
+      <TextLink onClick={onReset} size="md" className="self-start">
         Reset filters
-      </button>
+      </TextLink>
     </>
   );
 }

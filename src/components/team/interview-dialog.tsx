@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, InfoBanner, Input, Modal, Textarea } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Input, Textarea } from "@/components/kit/field";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { Modal } from "@/components/kit/modal";
 import { SlotClock, SlotFields } from "@/components/team/interview-slot";
 import { useDeal } from "@/lib/demo/deal";
 import { byName } from "@/lib/team/data";

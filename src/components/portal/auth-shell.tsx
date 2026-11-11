@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Input } from "@/components/portal/ui";
+import { Input } from "@/components/kit/field";
+import { TextLink } from "@/components/kit/text-link";
 
 const Visible = ICONS.visibility;
 const Hidden = ICONS.visibilityOff;
@@ -24,7 +25,7 @@ const Hidden = ICONS.visibilityOff;
 export function AuthFrame({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-[calc(100dvh/var(--ui-scale))] w-full overflow-x-hidden bg-white">
-      <aside className="fixed top-0 left-0 isolate hidden h-[calc(100dvh/var(--ui-scale))] w-[480px] flex-col items-start overflow-hidden bg-[#212121] p-14 lg:flex">
+      <aside className="fixed top-0 left-0 isolate hidden h-[calc(100dvh/var(--ui-scale))] w-[480px] flex-col items-start overflow-hidden bg-ink p-14 lg:flex">
         <Link href="/" className="z-10 inline-flex shrink-0 items-center" aria-label="Hireable">
           <Image src="/hireable-wordmark-white.svg" alt="Hireable" width={164} height={26} loading="eager" unoptimized />
         </Link>
@@ -68,9 +69,9 @@ export function AuthLink({ prompt, linkText, href }: { prompt: string; linkText:
   return (
     <>
       <span className="text-ink">{prompt}</span>
-      <Link href={href} className="hit-area rounded-lg font-medium text-primary hover:underline">
+      <TextLink href={href} className="hit-area">
         {linkText}
-      </Link>
+      </TextLink>
     </>
   );
 }

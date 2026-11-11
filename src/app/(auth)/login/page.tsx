@@ -3,9 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuthError, AuthShell, PasswordInput } from "@/components/portal/auth-shell";
-import { Button, Field, Input } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Field, Input } from "@/components/kit/field";
 import { DEMO_ACCOUNTS, DEMO_PASSWORD, landingFor, signIn } from "@/lib/demo/auth";
-import { Badge } from "@/components/portal/badge";
+import { Badge } from "@/components/kit/badge";
 
 /** OB-001 — sign in, land on the dashboard the account type belongs to (by way of the quiz, the first time). */
 export default function Login() {

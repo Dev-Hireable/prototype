@@ -3,7 +3,8 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Modal } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
 import { resetDemo } from "@/lib/demo/live";
 
 const PORTALS = ["/team", "/independent", "/admin"];

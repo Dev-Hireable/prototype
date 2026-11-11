@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Page, Toast } from "@/components/portal/ui";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import { IndependentCard } from "@/components/team/ui";
 import { useToast } from "@/lib/portal/toast";
 import { liveIndependents } from "@/lib/team/data";

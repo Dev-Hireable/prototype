@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Highlight, SearchBox } from "@/components/portal/ui";
+import { Highlight, SearchBox } from "@/components/kit/search-box";
+import { TextLink } from "@/components/kit/text-link";
 import { ChatBubble, type Receipt } from "@/components/portal/chat-bubble";
 import { TypingDots } from "@/components/portal/typing-dots";
 import { DayDivider } from "@/components/portal/day-divider";
@@ -20,7 +21,7 @@ import { fileDropHandlers, KEEP_FAILED, keepFiles, usePendingFiles } from "@/lib
 import { markTyping, stopTyping, useTyping } from "@/lib/demo/typing";
 import { AttachButton, FileTiles, PendingFiles } from "@/components/portal/attachments";
 import { SendButton } from "@/components/portal/comment-box";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import { keyed } from "@/lib/portal/keys";
 import { readableRefs, taskOf, taskRefParts, tasksNamed } from "@/lib/work/refs";
 import { todayDay } from "@/lib/work/dates";
@@ -459,9 +460,9 @@ function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boo
         <EntryDetails dialog={dialog} side={side} />
       ) : (
         href && (
-          <Link href={withReturn(href)} className="font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-primary">
+          <TextLink href={withReturn(href)}>
             View details
-          </Link>
+          </TextLink>
         )
       )}
     </p>
@@ -475,7 +476,7 @@ function EventEntry({ m, side, focused }: { m: ChatMsg; side: Side; focused: boo
 function FileCard({ file, source, side }: { file: { name: string; meta: string }; source?: ChatSource; side: Side }) {
   return (
     <div className="flex w-[420px] max-w-full min-w-0 items-center gap-3 rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl bg-white px-3.5 py-2.5 outline -outline-offset-1 outline-line">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-[#fdf2f2] text-danger">
+      <span className="flex size-9 items-center justify-center rounded-lg bg-danger-bg text-danger">
         <Pdf size={20} aria-hidden />
       </span>
       <span className="flex min-w-0 flex-1 flex-col leading-[1.45]">

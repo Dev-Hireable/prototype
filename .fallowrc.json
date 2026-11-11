@@ -18,10 +18,7 @@
     {
       "file": "src/lib/{team,independent}/data.ts",
       "exports": ["CompanyProfile", "Contract", "Conversation", "INITIAL_SAVED", "Interview", "MARKETING_BANNER", "Notification", "Role", "Transaction", "TxnType", "contracts", "conversationsFor", "interviews", "notifications", "setupSteps", "transactions"]
-    },
-    // Three toolbars, each drawn its own way: the portals' list toolbar here, admin's in
-    // components/admin/ui.tsx and the Work tab's in components/workspace/toolbar.tsx.
-    { "file": "src/components/portal/ui.tsx", "exports": ["Toolbar"] }
+    }
   ],
   "health": {
     // Code we don't write, for the same reasons as above: shadcn's components belong to the CLI,

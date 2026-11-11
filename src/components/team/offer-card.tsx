@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, StatusDot } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { StatusDot } from "@/components/kit/badge";
 import { OfferDialog, WithdrawOfferDialog } from "@/components/team/offer-dialog";
 import { hoursLabel, payFor } from "@/lib/contract/job-types";
 import { dayRangeLabel } from "@/lib/portal/dates";

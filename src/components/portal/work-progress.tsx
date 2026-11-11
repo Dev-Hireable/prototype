@@ -1,4 +1,4 @@
-import { Meter, Swatch } from "@/components/portal/meter";
+import { Meter, Swatch } from "@/components/kit/meter";
 import { STATUS_META, type countsOf } from "@/lib/work/model";
 
 /** The bar fills most-done first. The gray track represents To do. */

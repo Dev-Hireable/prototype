@@ -1,6 +1,7 @@
 import { CancelContractDialog } from "@/components/portal/cancel-contract-dialog";
-import { Button, Modal } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
+import { Button } from "@/components/kit/button";
+import { Modal, Bullets } from "@/components/kit/modal";
+import { Tip } from "@/components/kit/tip";
 import type { CancelReason } from "@/lib/demo/contract";
 import { endChoices, endNote } from "../_lib/copy";
 import type { Tracker } from "../_lib/tracker";
@@ -46,11 +47,11 @@ export function EndDialog({ t, open, onClose, onNotice, onEnd, onCancel }: { t: 
       }
     >
       {choices && (
-        <ul className="flex list-disc flex-col gap-1.5 pl-5 text-[14px] leading-[1.4] text-ink-2">
+        <Bullets>
           {choices.map((c) => (
             <li key={c}>{c}</li>
           ))}
-        </ul>
+        </Bullets>
       )}
     </Modal>
   );

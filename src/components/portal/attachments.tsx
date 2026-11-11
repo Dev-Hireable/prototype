@@ -3,9 +3,9 @@
 import { useRef, useState } from "react";
 import { ICONS, type IconName } from "@/components/icons";
 import { FilePreview } from "@/components/portal/file-preview";
-import { ICON_BUTTON } from "@/components/portal/styles";
-import { Tip } from "@/components/portal/tip";
-import { Modal } from "@/components/portal/ui";
+import { ICON_BUTTON } from "@/components/kit/styles";
+import { Tip } from "@/components/kit/tip";
+import { Modal } from "@/components/kit/modal";
 import { fileKind, SHARED_FILE_ACCEPT, sizeLabel, useFileUrl, usePreviewUrl, type FileKind } from "@/lib/demo/files";
 import type { Attachment } from "@/lib/disputes/case";
 import { closeAloneOnEscape } from "@/lib/portal/escape";
@@ -20,7 +20,7 @@ import { keyed } from "@/lib/portal/keys";
 /** Each kind of file's icon, on its own tint, so a document reads at a glance before its name does. */
 const KIND: Record<FileKind, { icon: IconName; tint: string }> = {
   image: { icon: "fileImage", tint: "bg-[#f3effc] text-[#6b4fbb]" },
-  pdf: { icon: "pdf", tint: "bg-[#fdf2f2] text-danger" },
+  pdf: { icon: "pdf", tint: "bg-danger-bg text-danger" },
   doc: { icon: "document", tint: "bg-[#eef3fb] text-[#2b579a]" },
   sheet: { icon: "fileSheet", tint: "bg-[#edf7f1] text-[#217346]" },
   slides: { icon: "fileSlides", tint: "bg-[#fdf1ec] text-[#c43e1c]" },
@@ -129,7 +129,7 @@ function FileTile({ file }: { file: Attachment }) {
     // Escape closes the viewer alone, not the task sheet or the chat it was opened from.
     <div className="contents" onKeyDown={(e) => open && closeAloneOnEscape(e, () => setOpen(false))}>
       {kind === "image" ? (
-        <button type="button" onClick={() => setOpen(true)} aria-label={`Open ${label}`} className="block size-24 overflow-hidden rounded-lg bg-surface-2 outline -outline-offset-1 outline-border hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:outline-primary">
+        <button type="button" onClick={() => setOpen(true)} aria-label={`Open ${label}`} className="block size-24 overflow-hidden rounded-lg bg-surface-2 outline -outline-offset-1 outline-border hover:outline-border-strong focus-visible:outline-2 focus-visible:outline-primary">
           {/* eslint-disable-next-line @next/next/no-img-element -- a file kept in this browser, shown from an object URL */}
           {url && <img src={url} alt={file.name} className="size-full object-cover" />}
         </button>
@@ -145,7 +145,7 @@ function FileTile({ file }: { file: Attachment }) {
   );
 }
 
-const CARD = "flex h-14 w-60 max-w-full items-center gap-2.5 rounded-lg bg-white px-2.5 text-left outline -outline-offset-1 outline-border hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:outline-primary";
+const CARD = "flex h-14 w-60 max-w-full items-center gap-2.5 rounded-lg bg-white px-2.5 text-left outline -outline-offset-1 outline-border hover:outline-border-strong focus-visible:outline-2 focus-visible:outline-primary";
 
 /** A document the browser can't show: its card downloads it. */
 function DownloadCard({ file, kind, url, label }: { file: Attachment; kind: FileKind; url: string | null; label: string }) {

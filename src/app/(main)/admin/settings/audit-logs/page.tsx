@@ -1,15 +1,19 @@
-import { AdminPage, DataTable, SearchInput, Select, Toolbar } from "@/components/admin/ui";
-import { Button } from "@/components/portal/ui";
+import { DataTable } from "@/components/admin/ui";
+import { Button } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { SearchBox } from "@/components/kit/search-box";
+import { Select } from "@/components/kit/select";
+import { Toolbar } from "@/components/kit/toolbar";
 import { auditLog } from "@/lib/admin/data/settings";
 import type { AuditEntry } from "@/lib/admin/data/settings";
 
 export default function AuditLogs() {
   return (
-    <AdminPage title="Audit logs">
+    <Page title="Audit logs">
       <Toolbar>
-        <SearchInput placeholder="Search events" />
-        <Select label="Admin" options={["All admins", "Admin Lead", "Product Lead", "Ops Manager"]} />
-        <Select label="Action" options={["All actions", "Escrow", "Accounts", "Verification", "Roles"]} />
+        <SearchBox placeholder="Search events" className="w-[320px]" />
+        <Select aria-label="Admin" options={["All admins", "Admin Lead", "Product Lead", "Ops Manager"]} className="!w-[180px]" />
+        <Select aria-label="Action" options={["All actions", "Escrow", "Accounts", "Verification", "Roles"]} className="!w-[180px]" />
         <Button size="sm" variant="primary">Export</Button>
       </Toolbar>
 
@@ -17,11 +21,11 @@ export default function AuditLogs() {
         rows={auditLog}
         columns={[
           { header: "Action", cell: (e) => e.action },
-          { header: "Admin", cell: (e) => e.admin, width: "16%" },
-          { header: "Target", cell: (e) => e.target, width: "24%" },
-          { header: "When", cell: (e) => e.when, width: "18%" },
+          { header: "Admin", cell: (e) => e.admin, col: "w-[160px]" },
+          { header: "Target", cell: (e) => e.target, col: "w-[240px]" },
+          { header: "When", cell: (e) => e.when, col: "w-[180px]" },
         ]}
       />
-    </AdminPage>
+    </Page>
   );
 }

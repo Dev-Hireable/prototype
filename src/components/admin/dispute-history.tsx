@@ -1,7 +1,7 @@
 "use client";
 
 import { DataTable } from "@/components/admin/ui";
-import { Badge } from "@/components/portal/badge";
+import { Badge } from "@/components/kit/badge";
 import { dateOf, otherParty, partyName, STATUS_TONE, usd, useDisputes } from "@/lib/demo/disputes";
 import type { Dispute, DisputeParty } from "@/lib/demo/disputes";
 
@@ -20,11 +20,11 @@ export function DisputeHistory({ party, slug }: { party: DisputeParty; slug: str
       rowHref={(d) => `/admin/disputes/${d.id}`}
       empty="No disputes filed by or against this account."
       columns={[
-        { header: "Date", cell: (d) => dateOf(d.at), width: "14%" },
-        { header: "Opposing party", cell: (d) => `${partyName(d, otherParty(party))}${d.filedBy === party ? " · filed by this account" : " · filed against it"}`, width: "34%" },
-        { header: "Amount", cell: (d) => usd(d.amount), width: "14%" },
-        { header: "Reason", cell: (d) => d.reason, width: "22%" },
-        { header: "Status", cell: (d) => <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>, width: "16%" },
+        { header: "Date", cell: (d) => dateOf(d.at), col: "w-[140px]" },
+        { header: "Opposing party", cell: (d) => `${partyName(d, otherParty(party))}${d.filedBy === party ? " · filed by this account" : " · filed against it"}` },
+        { header: "Amount", cell: (d) => usd(d.amount), col: "w-[140px]" },
+        { header: "Reason", cell: (d) => d.reason, col: "w-[220px]" },
+        { header: "Status", cell: (d) => <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>, col: "w-[160px]" },
       ]}
     />
   );

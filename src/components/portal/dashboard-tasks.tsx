@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useRef, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
 import { DashboardEmpty, DashboardSummaryCard } from "@/components/portal/dashboard";
-import { StatusCircle } from "@/components/portal/tasks/task-bits";
+import { StatusCircle, TaskRef } from "@/components/portal/tasks/task-bits";
 import { slotAt, useCardDrag } from "@/components/workspace/card-drag";
 import { stepByKey } from "@/components/workspace/group-actions";
 import { firstName } from "@/components/workspace/labels";
@@ -16,6 +16,7 @@ import { todayDay, type Day } from "@/lib/work/dates";
 import { refOf, STATUS_META, type Side, type WorkItem } from "@/lib/work/model";
 import { reorderFor, type WorkAccess } from "@/lib/work/permissions";
 import { useWork, useWorkActions } from "@/lib/work/store";
+import { TextLink } from "@/components/kit/text-link";
 
 /** Rows the card lists; the rest are a click away in the contract's Work tab. */
 const ROWS = 5;
@@ -68,9 +69,9 @@ export function DashboardTasks({ side, me, base, allHref, about, counterpart, le
         <TaskList rows={rows} byId={work.byId} ctx={{ side, base, today, counterpart }} mover={mover} />
       )}
       {rows.length > ROWS && (
-        <Link href={allHref} className="mt-3 self-start text-[13px] leading-[1.2] font-medium tracking-[0.2px] text-primary hover:underline">
+        <TextLink href={allHref} size="sm" className="mt-3 self-start">
           {rows.length - ROWS} more in the Work tab
-        </Link>
+        </TextLink>
       )}
       <WorkMessages />
     </DashboardSummaryCard>
@@ -218,7 +219,7 @@ function TaskRow({ row: { item: t, reason }, ctx: { side, base, today, counterpa
       {/* On a phone why it's here drops under the title, so neither is cut short. */}
       <span className="flex min-w-0 flex-1 items-center gap-3 max-sm:flex-col max-sm:items-start max-sm:gap-1">
         <span className="flex min-w-0 flex-1 items-baseline gap-1.5 leading-[1.3] tracking-[0.2px] max-sm:w-full">
-          <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(t)}</span>
+          <TaskRef task={t} />
           <span className="truncate text-[14px] font-medium text-ink max-sm:line-clamp-2 max-sm:whitespace-normal">{t.title}</span>
         </span>
         {/* Why it's here, in the words and chips the board uses. */}

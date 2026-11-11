@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import { ICONS } from "@/components/icons";
-import { Page } from "@/components/portal/ui";
+import { Page } from "@/components/kit/page";
 
 /**
  * The job-type cards' illustrations, each with a hover twin. The twins are drawn 1.05× (a 298.2-wide
@@ -116,7 +116,7 @@ const CAROUSEL = "(max-width: 1023px)";
 
 /** The carousel's previous / next buttons: round, 44px, greyed out at either end. */
 const ARROW =
-  "flex size-11 items-center justify-center rounded-full border border-border bg-white text-ink shadow-[0_1px_2px_rgba(0,0,0,.06)] active:bg-surface-2 disabled:text-[#c3c3c3] disabled:shadow-none focus-visible:outline-2 focus-visible:outline-primary";
+  "flex size-11 items-center justify-center rounded-full border border-border bg-white text-ink shadow-[0_1px_2px_rgba(0,0,0,.06)] active:bg-surface-2 disabled:text-ink-disabled disabled:shadow-none focus-visible:outline-2 focus-visible:outline-primary";
 
 /**
  * The carousel below a laptop: which card is in front, and a way to bring one there. The front card

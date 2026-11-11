@@ -1,31 +1,15 @@
-import Link from "next/link";
-import { MessageButton } from "@/components/portal/ui";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { MessageButton } from "@/components/kit/button";
+import { BreadcrumbTrail } from "@/components/kit/breadcrumb";
 import type { Contract } from "@/lib/independent/data";
 import { useQuickChat } from "@/lib/portal/quick-chat";
 import { companyChat } from "../_lib/chat";
 
-/**
- * All contracts › the contract, on every tab, as the Team Builder's tracker reads (All Independents ›
- * the person): the tabs under the title already say which one is open. With the tab as a third crumb,
- * a phone — which shows only the step back — offered the contract itself as the way back from its
- * own Overview.
- */
+/** All contracts › the contract, on every tab, as the Team Builder's tracker reads (All Independents › the person). */
 export function Crumbs({ contract }: { contract: Contract }) {
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink render={<Link href="/independent/contracts" />}>All contracts</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>
-            {contract.title} at {contract.company}
-          </BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+    <BreadcrumbTrail href="/independent/contracts" parent="All contracts">
+      {contract.title} at {contract.company}
+    </BreadcrumbTrail>
   );
 }
 

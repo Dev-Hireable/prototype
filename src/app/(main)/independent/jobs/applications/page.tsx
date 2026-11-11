@@ -2,12 +2,19 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Button, EmptyState, Initials, JobBadge, KebabMenu, LinkButton, MatchPill, Modal, Page, StatusDot, Toast } from "@/components/portal/ui";
-import { KanbanColumn, KanbanJump, KanbanList } from "@/components/portal/board";
+import { Button, LinkButton } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Initials } from "@/components/kit/avatar";
+import { JobBadge, StatusDot } from "@/components/kit/badge";
+import { KebabMenu, MenuAction, MenuLink } from "@/components/kit/kebab-menu";
+import { MatchPill } from "@/components/kit/match-pill";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
+import { KanbanColumn, KanbanJump, KanbanList } from "@/components/kit/kanban";
 import { useBoardJump } from "@/components/portal/board-jump";
-import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
-import { MenuAction, MenuLink } from "@/components/portal/controls";
-import { ScrollFade } from "@/components/portal/scroll-fade";
+import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/kit/styles";
+import { ScrollFade } from "@/components/kit/scroll-fade";
 import { usePostings } from "@/lib/demo/deal";
 import { COLUMNS, roleFromPosting } from "@/lib/independent/data";
 import { MATCH_TOOLTIP } from "@/lib/portal/match";

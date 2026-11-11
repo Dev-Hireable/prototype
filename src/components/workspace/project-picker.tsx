@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Input, KebabMenu, Modal } from "@/components/portal/ui";
-import { MiniBar } from "@/components/portal/meter";
-import { MenuAction } from "@/components/portal/controls";
-import { TOOLBAR_BUTTON } from "@/components/portal/toolbar";
+import { Button } from "@/components/kit/button";
+import { Input } from "@/components/kit/field";
+import { KebabMenu, MenuAction } from "@/components/kit/kebab-menu";
+import { Modal } from "@/components/kit/modal";
+import { MiniBar } from "@/components/kit/meter";
+import { TOOLBAR_BUTTON } from "@/components/kit/styles";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { WorkProject } from "@/lib/work/model";
 import { ALL, OPEN, scopeLabel, type ProjectSummary } from "@/lib/work/projects";

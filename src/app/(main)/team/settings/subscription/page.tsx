@@ -1,6 +1,11 @@
 "use client";
 
-import { Button, Card, Chip, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Chip } from "@/components/kit/chip";
+import { Page } from "@/components/kit/page";
+import { StatusDot } from "@/components/kit/badge";
+import { Toast } from "@/components/kit/toast";
+import { SettingsCard } from "@/components/portal/settings";
 import { useToast } from "@/lib/portal/toast";
 import { PLAN, PLANS, planRenewal } from "@/lib/team/data";
 
@@ -13,7 +18,7 @@ export default function Subscription() {
 
   return (
     <Page title="Settings">
-      <Card title="Subscription" aside={<StatusDot tone="ok">Active</StatusDot>} className="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 max-sm:p-4">
+      <SettingsCard title="Subscription" aside={<StatusDot tone="ok">Active</StatusDot>}>
         <PlanTerms current={current} />
 
         <div className="flex flex-col gap-2">
@@ -38,7 +43,7 @@ export default function Subscription() {
             </Button>
           )}
         </div>
-      </Card>
+      </SettingsCard>
 
       <OtherPlans current={current} />
       <Toast toast={toast} onClose={() => setToast(null)} />
@@ -71,7 +76,7 @@ function PlanTerms({ current }: { current: Plan }) {
 /** Every plan this account isn't on, with its price and headline feature: for reading. Upgrade is the one button that moves plan. */
 function OtherPlans({ current }: { current: Plan }) {
   return (
-    <Card title="Other plans" className="mx-auto flex w-full max-w-[720px] flex-col gap-3 p-6 max-sm:p-4">
+    <SettingsCard title="Other plans" tight>
       {PLANS.filter((p) => p.name !== current.name).map((p) => (
         <div key={p.name} className="flex items-center gap-3 border-t border-border py-3 first:border-t-0">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5 leading-[1.4]">
@@ -82,6 +87,6 @@ function OtherPlans({ current }: { current: Plan }) {
           </div>
         </div>
       ))}
-    </Card>
+    </SettingsCard>
   );
 }

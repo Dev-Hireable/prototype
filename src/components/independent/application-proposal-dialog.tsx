@@ -1,6 +1,7 @@
 "use client";
 
-import { LinkButton, Modal } from "@/components/portal/ui";
+import { LinkButton } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
 import { ProposalReview } from "@/components/portal/proposal-review";
 import { proposalHistory, useDeal } from "@/lib/demo/deal";
 import type { Application } from "@/lib/independent/data";

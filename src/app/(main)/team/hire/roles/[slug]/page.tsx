@@ -3,13 +3,23 @@
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { Suspense, use, useEffect, useRef, useState } from "react";
-import { Avatar, Button, Card, Chip, JobBadge, LinkButton, MatchPill, MessageButton, Modal, Page, StatusDot, Tabs, Toast } from "@/components/portal/ui";
-import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList } from "@/components/portal/board";
+import { Avatar } from "@/components/kit/avatar";
+import { Button, LinkButton, MessageButton } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { Chip } from "@/components/kit/chip";
+import { JobBadge, StatusDot } from "@/components/kit/badge";
+import { MatchPill } from "@/components/kit/match-pill";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { Tabs } from "@/components/kit/tabs";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
+import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList } from "@/components/kit/kanban";
 import { useBoardJump } from "@/components/portal/board-jump";
-import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
-import { FactStrip } from "@/components/portal/page-parts";
-import { BreadcrumbBack } from "@/components/portal/nav";
-import { ScrollFade } from "@/components/portal/scroll-fade";
+import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/kit/styles";
+import { FactStrip } from "@/components/kit/page-parts";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
+import { ScrollFade } from "@/components/kit/scroll-fade";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { MessageLink } from "@/components/portal/contract-card";
 import { DropDialog } from "@/components/team/drop-dialog";
@@ -386,9 +396,9 @@ function CandidateCard({ c, type, column, unread, actions }: { c: Candidate; typ
           </div>
         ) : (
           c.stage !== "hired" && (
-            <button type="button" onClick={() => actions.drop(c)} className="self-start text-[13px] leading-[1.2] font-medium text-danger hover:underline">
+            <TextLink onClick={() => actions.drop(c)} tone="danger" size="sm" className="self-start">
               Decline
-            </button>
+            </TextLink>
           )
         )}
       </div>

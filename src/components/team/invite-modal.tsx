@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, LinkButton, Modal, Select, Textarea } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Field, Textarea } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select } from "@/components/kit/select";
 import { useWithReturn } from "@/components/portal/return";
 import type { Independent, Role } from "@/lib/team/data";
 import { useHired } from "@/lib/team/hired";

@@ -1,7 +1,11 @@
 "use client";
 
 import { use } from "react";
-import { InfoBanner, LinkButton, Modal, Page, Toast } from "@/components/portal/ui";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { LinkButton } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import type { Deal } from "@/lib/demo/deal";
 import type { JobView } from "@/lib/independent/job-view";
 import type { Application } from "@/lib/independent/data";
@@ -9,6 +13,7 @@ import { JobPost } from "./_components/job-post";
 import { ProposalSteps } from "./_components/proposal-steps";
 import { pageTitle, proposalHeading, revisionLine } from "./_lib/proposal";
 import { useProposalWizard } from "./_lib/wizard";
+import { TEXT_BODY } from "@/components/kit/styles";
 
 /**
  * IN-072 — the proposal: pay, cover letter, review and send (or revise). The Team Builder sets the
@@ -69,7 +74,7 @@ function Intro({ job, revise, previous }: { job: JobView; revise: boolean; previ
       <h2 className="font-display text-[32px] leading-[1.5] font-semibold text-black" style={{ fontVariationSettings: '"opsz" 14' }}>
         {proposalHeading(job.title, revise)}
       </h2>
-      {revise && <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{revisionLine(previous)}</p>}
+      {revise && <p className={TEXT_BODY}>{revisionLine(previous)}</p>}
     </div>
   );
 }

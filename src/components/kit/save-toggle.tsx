@@ -1,8 +1,8 @@
 "use client";
 
 import { ICONS } from "@/components/icons";
-import { Button } from "@/components/portal/ui";
-import { Tip } from "@/components/portal/tip";
+import { Button } from "@/components/kit/button";
+import { Tip } from "@/components/kit/tip";
 
 const Bookmark = ICONS.saved;
 const Bookmarked = ICONS.bookmark;

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
+    "check": "npm run typecheck && npm run lint && npm run test:unit",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p tsconfig.test.json",
     "test:unit": "playwright test -c playwright.unit.config.ts",
     "test:e2e": "playwright test -c playwright.config.ts --project desktop --project los-angeles --project mobile",

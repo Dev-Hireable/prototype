@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Button, Card, LinkButton } from "@/components/portal/ui";
+import { Button, LinkButton } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
 import { useWithReturn } from "@/components/portal/return";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { Application } from "@/lib/independent/data";
@@ -10,6 +11,7 @@ import { useWallet } from "@/lib/independent/wallet";
 import { slotOffset } from "@/lib/portal/dates";
 import type { InterviewActions, StepProps } from "../_lib/steps";
 import { InterviewCard } from "./interview-card";
+import { TEXT_BODY, TEXT_NOTE } from "@/components/kit/styles";
 
 /**
  * The stage's action card — or, once the company has dropped the application (TB-044) or the talent
@@ -30,7 +32,7 @@ export function NextStep({ app, job, live, onReviewOffer, ...actions }: StepProp
 
       {(app.stage === "applied" || app.stage === "matched") && (
         <Card title={app.stage === "matched" ? "You are matched" : "Application received"} className="flex flex-col gap-2 p-4">
-          <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{app.stage === "matched" ? `${job.company} can now invite you to an interview.` : `${job.company} is reviewing applications.`}</p>
+          <p className={TEXT_BODY}>{app.stage === "matched" ? `${job.company} can now invite you to an interview.` : `${job.company} is reviewing applications.`}</p>
         </Card>
       )}
     </>
@@ -102,7 +104,7 @@ function ProposalStep({ app, job, live }: StepProps) {
             <Button size="lg" disabled>
               Proposal sent
             </Button>
-            <p className="text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2">{job.company} is reviewing your proposal. You will be notified when they reply.</p>
+            <p className={TEXT_BODY}>{job.company} is reviewing your proposal. You will be notified when they reply.</p>
           </Card>
         )
       )}
@@ -130,7 +132,7 @@ function ProposalRequest({ app, job, note }: { app: Application; job: JobView; n
         <LinkButton size="lg" variant="primary" href={`/independent/jobs/applications/${app.id}/proposal`}>
           Submit proposal
         </LinkButton>
-        {setup && <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">{setup}</p>}
+        {setup && <p className={TEXT_NOTE}>{setup}</p>}
       </div>
     </Card>
   );

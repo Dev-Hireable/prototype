@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Children, isValidElement, type CSSProperties, type ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { PORTAL_CONTENT_CLASS } from "@/components/portal/layout";
-import { TRAY, TRAY_PANEL } from "@/components/portal/styles";
+import { PORTAL_CONTENT_CLASS } from "@/components/kit/portal-content";
+import { TRAY, TRAY_PANEL, TEXT_TITLE, TEXT_NOTE } from "@/components/kit/styles";
 import { dayLabel } from "@/lib/portal/dates";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -159,12 +159,12 @@ export function DashboardSummaryCard({ title, subtitle, href, linkLabel, childre
     <section aria-label={title} className={`flex min-w-0 shrink-0 grow flex-col ${TRAY} md:min-h-[259px]`}>
       <div className="flex items-start justify-between gap-4 px-3 pt-2 pb-3">
         <div className="flex min-w-0 flex-col gap-0.5 pt-1">
-          <h2 className="text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink">{title}</h2>
-          {subtitle && <p className="text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2">{subtitle}</p>}
+          <h2 className={TEXT_TITLE}>{title}</h2>
+          {subtitle && <p className={TEXT_NOTE}>{subtitle}</p>}
         </div>
         {/* 48px: double the old 24px, which was both hard to spot and under the 44px minimum
             touch target. */}
-        <Link href={href} aria-label={linkLabel ?? `See more ${title.toLowerCase()}`} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink outline -outline-offset-1 outline-[#e3e3e3] hover:bg-surface-alt">
+        <Link href={href} aria-label={linkLabel ?? `See more ${title.toLowerCase()}`} className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-ink outline -outline-offset-1 outline-surface-3 hover:bg-surface-alt">
           <Forward size={24} aria-hidden />
         </Link>
       </div>

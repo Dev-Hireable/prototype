@@ -1,8 +1,8 @@
 "use client";
 
-import { Meter, ScoreRing } from "@/components/portal/meter";
-import { Tip } from "@/components/portal/tip";
-import { PanelCard } from "@/components/portal/panel-card";
+import { Meter, ScoreRing } from "@/components/kit/meter";
+import { Tip } from "@/components/kit/tip";
+import { PanelCard } from "@/components/kit/panel-card";
 import { TFP_TOOLTIP, TFP_WEIGHTS, type FitScore } from "@/lib/contract/fit-score";
 import type { Side } from "@/lib/work/model";
 

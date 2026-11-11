@@ -150,7 +150,7 @@ test("a portal imports nothing from another portal's folders", () => {
 });
 
 /** What every portal draws and runs on. lib/demo, the stand-in backend, serves both portals from their own data. */
-const SHARED = ["src/components/portal/", "src/components/workspace/", "src/components/ui/", "src/components/icons.ts", "src/lib/portal/", "src/lib/work/", "src/lib/contract/", "src/lib/disputes/"];
+const SHARED = ["src/components/kit/", "src/components/portal/", "src/components/workspace/", "src/components/ui/", "src/components/icons.ts", "src/lib/portal/", "src/lib/work/", "src/lib/contract/", "src/lib/disputes/"];
 
 /** Where shared code still reads a portal's own files, and why. */
 const READS_A_PORTAL: Record<string, string[]> = {

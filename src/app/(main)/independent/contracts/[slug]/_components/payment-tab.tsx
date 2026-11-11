@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
-import { Button, Chip, StatusDot } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Chip } from "@/components/kit/chip";
+import { StatusDot } from "@/components/kit/badge";
+import { TextLink } from "@/components/kit/text-link";
 import { BenefitList } from "@/components/portal/contract-parts";
 import { DisputeRows } from "@/components/portal/disputes";
-import { SIDE_COLUMN, WITH_SIDE } from "@/components/portal/page-parts";
-import { PanelCard } from "@/components/portal/panel-card";
-import { Tip } from "@/components/portal/tip";
+import { SIDE_COLUMN, WITH_SIDE } from "@/components/kit/page-parts";
+import { PanelCard } from "@/components/kit/panel-card";
+import { Tip } from "@/components/kit/tip";
 import { benefitsOf, trialDates, type ContractView } from "@/lib/contract/view";
 import { escrowLine, STATUS_TONE } from "@/lib/demo/disputes";
 import type { Contract, Transaction } from "@/lib/independent/data";
@@ -90,9 +93,9 @@ export function RoleNotes({ company, text, link }: { company: string; text?: str
     <PanelCard title={`Notes from ${company}`}>
       {note && <p className="text-[13px] leading-[1.5] whitespace-pre-line text-ink">{note}</p>}
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="self-start text-[13px] leading-[1.4] font-medium break-all text-primary hover:underline">
+        <TextLink href={href} external size="sm" className="self-start break-all">
           {extra}
-        </a>
+        </TextLink>
       ) : (
         extra && <p className="text-[13px] leading-[1.5] break-words text-ink">{extra}</p>
       )}

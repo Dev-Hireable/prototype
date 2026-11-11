@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StatusDot } from "@/components/portal/ui";
+import { StatusDot } from "@/components/kit/badge";
 import { ActivityLog } from "@/components/portal/activity-log";
 import { MatchAtHire, TrialFitScore } from "@/components/portal/trial-widgets";
 import { FT_BENEFITS, type JobType } from "@/lib/contract/job-types";

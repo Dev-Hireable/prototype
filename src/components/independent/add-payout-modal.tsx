@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
-import { Button, Checkbox, Field, Input, Modal, Select } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Field, Input } from "@/components/kit/field";
+import { Modal } from "@/components/kit/modal";
+import { Select } from "@/components/kit/select";
 import { useIndependentAccount } from "@/lib/independent/account";
 import type { PayoutMethod } from "@/lib/independent/data";
 import { useWallet } from "@/lib/independent/wallet";

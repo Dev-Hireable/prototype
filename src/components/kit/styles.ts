@@ -5,6 +5,21 @@ export const layoutClasses = (className: string) =>
     .filter((c) => /^(w-full|flex-1|grow|shrink-0|self-\S+|w-\[.+\])$/.test(c))
     .join(" ");
 
+/*
+ * The text styles a screen reuses outside a kit component, by what the text is. Each is the size,
+ * leading, weight, tracking and colour together, so two screens can't draw the same thing a shade
+ * apart. A heading that sits on a card goes through CardTitle or CardHeading instead.
+ */
+
+/** A block's heading inside a page or card: Section's title, CardTitle, a dialog's sub-heading. */
+export const TEXT_TITLE = "text-[16px] leading-[1.5] font-semibold tracking-[0.2px] text-ink";
+/** The name of a field or of a value: Field's label, a review line's label. */
+export const TEXT_LABEL = "text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink";
+/** Secondary copy at the body size: Field's hint, a line under a heading. */
+export const TEXT_BODY = "text-[14px] leading-[1.2] tracking-[0.2px] text-ink-2";
+/** A smaller note under a control or a figure. */
+export const TEXT_NOTE = "text-[13px] leading-[1.4] tracking-[0.2px] text-ink-2";
+
 /** Shared form-control surface used by text inputs, textareas, and custom selects. */
 export const FORM_CONTROL =
   "h-11 w-full rounded-lg border border-border bg-white px-4 text-[14px] leading-[1.2] tracking-[0.2px] text-ink outline-none placeholder:text-ink-2 focus:border-primary disabled:bg-surface-2";
@@ -90,3 +105,18 @@ export function splitTray(className: string) {
   const classes = className.split(/\s+/).filter((c) => c && !/^(?:[\w-]+:)*rounded/.test(c));
   return { tray: classes.filter((c) => TRAY_PLACEMENT.test(c)).join(" "), panel: classes.filter((c) => !TRAY_PLACEMENT.test(c)).join(" ") };
 }
+
+/**
+ * The page toolbar's button: 36px, white, bordered — Filter and Sort on a contract's work, Type and
+ * Show inactive over the contract lists, Set availability over interviews. One class, so every
+ * toolbar's controls share a height and a look with the search box and the view switch beside them.
+ */
+export const TOOLBAR_BUTTON =
+  "inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-white px-3 text-[13px] leading-[1.2] font-medium text-ink transition hover:bg-surface-alt focus-visible:outline-2 focus-visible:outline-primary data-popup-open:bg-surface-2";
+
+/**
+ * A table row's main link, stretched over the whole row (the row is `relative`): the row opens it
+ * from anywhere, while the buttons in it sit above (`relative z-10`) and stay their own.
+ */
+export const ROW_LINK =
+  "after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-lg focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-primary";

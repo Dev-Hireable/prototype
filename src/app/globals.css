@@ -65,15 +65,20 @@
   --color-ink: #212121; /* primary text */
   --color-ink-2: #616161; /* secondary text and icons */
   --color-ink-deep: #141a21; /* card values, table primary cells */
+  --color-ink-disabled: #c3c3c3; /* the text of a disabled control */
   /* muted, border and danger read variables (same values as before) so .web-app-theme can swap in
      the real app's for the ported onboarding; the portals never set --hireable-muted. */
   --color-muted: var(--hireable-muted, #737d8a); /* card labels, table secondary cells */
   --color-muted-2: #8a8f98;
   --color-border: var(--border); /* #c3c3c3 — panels, header, inputs */
+  --color-border-strong: #a6a6a6; /* a clickable card's edge on hover, an empty status circle */
   --color-line: #e3e8ed; /* card + table hairlines */
+  --color-line-soft: #eeeeee; /* a divider between rows inside a white panel */
   --color-grid: #edf0f2; /* chart gridlines */
   --color-baseline: #ccd4db; /* chart baseline */
   --color-surface-2: #f2f2f2; /* the shell's frame + rail */
+  --color-surface-3: #e5e5e5; /* a disabled fill, an empty track, the hover on surface-2 */
+  --color-skeleton: #d2d8db; /* behind a photo until it loads */
   --color-surface-alt: #f9fafb; /* table head */
   --color-tile: #f6f6f6; /* a row or tile inside a card's white panel (TRAY_PANEL) */
   --color-row-alt: #fcfdfe; /* even table rows */
@@ -83,6 +88,11 @@
   --color-accent-ink: #004675;
   --color-primary: #007acc; /* primary buttons (Independent + Team Builder portals) */
   --color-ok: #27ae60;
+  /* Each status colour's tint (`-bg`) and the text that reads on it (`-ink`): badges, banners, toasts. */
+  --color-ok-bg: #eef9f2;
+  --color-ok-ink: #1b6b3a;
+  --color-info-bg: #ebf8fe;
+  --color-danger-bg: #fcf2f2;
   /* Warnings are orange (changes requested, unverified, outside a range); red is kept for what's
      overdue or failed. `warn-ink` is the text on `warn-bg`. */
   --color-warn: #ef7d1a;
@@ -629,8 +639,8 @@ summary {
 }
 
 /*
- * The page gutter: the one left edge a page's title, tabs, back link and content share (Page,
- * AdminPage, the workspaces' --ws-gutter). 32px on a laptop or larger, 24px on a tablet beside the
+ * The page gutter: the one left edge a page's title, tabs, back link and content share (Page
+ * and the workspaces' --ws-gutter). 32px on a laptop or larger, 24px on a tablet beside the
  * rail, 16px on a phone, where every pixel of width is the page's.
  */
 :root {

@@ -1,6 +1,7 @@
 "use client";
 
-import { Button, Modal } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Modal } from "@/components/kit/modal";
 import { shortName } from "@/lib/portal/names";
 import { byName, type Candidate } from "@/lib/team/data";
 import { usePipeline } from "@/lib/team/pipeline";

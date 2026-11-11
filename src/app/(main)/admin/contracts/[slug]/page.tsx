@@ -1,8 +1,8 @@
 "use client";
 
+import { Page } from "@/components/kit/page";
 import { use } from "react";
-import { AdminPage } from "@/components/admin/ui";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 import { ReturnNav } from "@/components/portal/return";
 import { ProjectWorkspace } from "@/components/workspace/project-workspace";
 import { CorruptWork, MissingContract } from "@/components/workspace/states";
@@ -27,8 +27,8 @@ export default function AdminContractPage({ params }: { params: Promise<{ slug: 
   const status = useDealStatus();
   const live = deal?.contract && deal.roleSlug === slug ? deal : null;
   return (
-    <AdminPage
-      bleed
+    <Page
+      fill
       nav={<ReturnNav fallback={<BreadcrumbBack href="/admin/disputes">Back to all disputes</BreadcrumbBack>} />}
       title={live ? `${live.title} at ${PAIR.team.company}` : "Contract"}
     >
@@ -50,6 +50,6 @@ export default function AdminContractPage({ params }: { params: Promise<{ slug: 
       ) : (
         <MissingContract />
       )}
-    </AdminPage>
+    </Page>
   );
 }

@@ -1,7 +1,16 @@
 "use client";
 
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Avatar, Button, Checkbox, Chip, Field, InfoBanner, KeyValue, MatchPill, Modal, Steps } from "@/components/portal/ui";
+import { Avatar } from "@/components/kit/avatar";
+import { Button } from "@/components/kit/button";
+import { Checkbox } from "@/components/kit/checkbox";
+import { Chip } from "@/components/kit/chip";
+import { Field } from "@/components/kit/field";
+import { InfoBanner } from "@/components/kit/info-banner";
+import { KeyValue } from "@/components/kit/card";
+import { MatchPill } from "@/components/kit/match-pill";
+import { Modal } from "@/components/kit/modal";
+import { Steps } from "@/components/kit/steps";
 import { Signature } from "@/components/portal/offer-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { CardOnFile } from "@/components/team/card-on-file";

@@ -2,7 +2,9 @@
 
 import { notFound } from "next/navigation";
 import { Suspense, use } from "react";
-import { JobBadge, Page, StatusDot, Toast } from "@/components/portal/ui";
+import { JobBadge, StatusDot } from "@/components/kit/badge";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
 import { ContractScore } from "@/components/portal/contract-parts";
 import { ContractWork } from "@/components/workspace/contract-work";
 import { UnreadableGate } from "@/components/workspace/unreadable-gate";

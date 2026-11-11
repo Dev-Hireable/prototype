@@ -2,11 +2,11 @@
 
 import { memo, useCallback, useRef, type DragEvent, type KeyboardEvent, type RefObject } from "react";
 import { ICONS } from "@/components/icons";
-import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList, type ColumnFrame } from "@/components/portal/board";
+import { KanbanColumn, KanbanEmpty, KanbanJump, KanbanList, type ColumnFrame } from "@/components/kit/kanban";
 import { useBoardJump } from "@/components/portal/board-jump";
-import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/portal/styles";
+import { PHONE_BOARD, TRAY, TRAY_FOOT, TRAY_PANEL } from "@/components/kit/styles";
 import { PriorityPill, StatusCircle } from "@/components/portal/tasks/task-bits";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import { isArchived, isCompleted, openBlockers, progressOf, refOf, STATUS_META, TYPE_META, type WorkItem } from "@/lib/work/model";
 import { capsFor, targetsFor, transitionFor } from "@/lib/work/permissions";
 import { sortItems, type Group, type WorkQuery } from "@/lib/work/query";
@@ -292,7 +292,7 @@ const WorkCard = memo(function WorkCard({ item: t, blockers, pending, lifted, sl
           openTask(t.id);
         } else onKeyMove(t, e);
       }}
-      className={`group/card flex cursor-pointer flex-col ${TRAY} transition [contain-intrinsic-size:auto_112px] [content-visibility:auto] hover:outline-[#a6a6a6] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${pending ? "opacity-80" : ""}`}
+      className={`group/card flex cursor-pointer flex-col ${TRAY} transition [contain-intrinsic-size:auto_112px] [content-visibility:auto] hover:outline-border-strong focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary ${pending ? "opacity-80" : ""}`}
     >
       {/* A white panel on a grey tray: the work itself inside, the facts about it on the tray. The name
           follows its status circle, its number ("#4") just before it; what's under it starts where the name does. */}

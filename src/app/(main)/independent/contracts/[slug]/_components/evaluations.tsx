@@ -1,6 +1,8 @@
-import { Card, MessageButton, StatusDot } from "@/components/portal/ui";
-import { Stars } from "@/components/portal/stars";
-import { ScoreScale } from "@/components/portal/score-scale";
+import { Card } from "@/components/kit/card";
+import { MessageButton } from "@/components/kit/button";
+import { StatusDot } from "@/components/kit/badge";
+import { Stars } from "@/components/kit/stars";
+import { ScoreScale } from "@/components/kit/score-scale";
 import { JOB_TYPE_LABEL } from "@/lib/contract/job-types";
 import type { ContractView } from "@/lib/contract/view";
 import type { DealEvaluation } from "@/lib/demo/deal";

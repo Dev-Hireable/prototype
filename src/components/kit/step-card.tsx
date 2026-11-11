@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Card } from "@/components/portal/ui";
+import { Card } from "@/components/kit/card";
 
 /**
  * A wizard step's card, the same on the talent's proposal and the Team Builder's new role (its steps

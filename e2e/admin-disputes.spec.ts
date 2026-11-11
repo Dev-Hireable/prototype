@@ -117,8 +117,20 @@ const moves = (page: Page) => page.getByRole("button", { name: /^(Ask a party|Ex
 
 /** The list's search box. */
 const search = (page: Page) => page.getByPlaceholder("Search by party, contract or reason");
-/** One of the list's two filters. */
-const filter = (page: Page, name: "Status" | "Reason") => page.getByRole("combobox", { name, exact: true });
+/** One of the list's two filters: the app's one Select, a button that opens a list of options. */
+const filter = (page: Page, name: "Status" | "Reason") => page.getByRole("button", { name, exact: true });
+/** A filter's options, as its open list shows them; Escape puts the list away again. */
+async function optionsOf(page: Page, name: "Status" | "Reason") {
+  await filter(page, name).click();
+  const options = await page.getByRole("listbox", { name, exact: true }).getByRole("option").allTextContents();
+  await page.keyboard.press("Escape");
+  return options;
+}
+/** Picks one of a filter's options. */
+async function pick(page: Page, name: "Status" | "Reason", option: string) {
+  await filter(page, name).click();
+  await page.getByRole("listbox", { name, exact: true }).getByRole("option", { name: option, exact: true }).click();
+}
 /** The line the list shows when the search and filters leave nothing. */
 const noMatch = (page: Page) => list(page).getByRole("cell", { name: "No disputes match these filters." });
 
@@ -255,17 +267,17 @@ test.describe("admin disputes · search and filters", () => {
 
   test("the Status and Reason filters narrow the list, together too, and say when nothing is left", async ({ page }) => {
     await openList(page);
-    await expect(filter(page, "Status").getByRole("option")).toHaveText(["All statuses", "Pending", "Resolved", "Rejected", "Withdrawn"]);
-    await expect(filter(page, "Reason").getByRole("option")).toHaveText(["All reasons", "Missing Deliverable", "Out-of-Scope Output", "Missed Deadline", "No Report Submitted"]);
-    await filter(page, "Status").selectOption("Pending");
+    expect(await optionsOf(page, "Status")).toEqual(["All statuses", "Pending", "Resolved", "Rejected", "Withdrawn"]);
+    expect(await optionsOf(page, "Reason")).toEqual(["All reasons", "Missing Deliverable", "Out-of-Scope Output", "Missed Deadline", "No Report Submitted"]);
+    await pick(page, "Status", "Pending");
     await expect.poll(() => names(page)).toEqual(["Missing Deliverable · Sales Associate New", "Missed Deadline · Brand Designer New"]);
-    await filter(page, "Reason").selectOption("Missed Deadline");
+    await pick(page, "Reason", "Missed Deadline");
     await expect.poll(() => names(page)).toEqual(["Missed Deadline · Brand Designer New"]);
-    await filter(page, "Status").selectOption("Rejected");
+    await pick(page, "Status", "Rejected");
     await expect(noMatch(page)).toBeVisible();
-    await filter(page, "Reason").selectOption("All reasons");
+    await pick(page, "Reason", "All reasons");
     await expect.poll(() => names(page)).toEqual(["Out-of-Scope Output · Brand Designer New"]);
-    await filter(page, "Status").selectOption("Withdrawn");
+    await pick(page, "Status", "Withdrawn");
     await expect(noMatch(page)).toBeVisible();
   });
 });

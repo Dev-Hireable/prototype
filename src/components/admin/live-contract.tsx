@@ -9,7 +9,7 @@ import { PAIR } from "@/lib/demo/live";
 import { countsOf } from "@/lib/work/model";
 import { workTabItems } from "@/lib/work/access";
 import { todayDay } from "@/lib/work/dates";
-import { Card } from "@/components/portal/ui";
+import { Card } from "@/components/kit/card";
 
 /** The Team Builder's account slug under User management (see @/lib/demo/disputes TEAM). */
 const TEAM_SLUG = "nairobi-solutions";

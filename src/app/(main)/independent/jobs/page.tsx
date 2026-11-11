@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 import { RoleCard } from "@/components/independent/role-card";
-import { Checkbox, EmptyState, LinkButton, Page, Pagination, SearchBox } from "@/components/portal/ui";
+import { Checkbox } from "@/components/kit/checkbox";
+import { EmptyState } from "@/components/kit/empty-state";
+import { LinkButton } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { Pagination } from "@/components/kit/pagination";
+import { SearchBox } from "@/components/kit/search-box";
+import { TextLink } from "@/components/kit/text-link";
 import { MarketplaceFilterPanel } from "@/components/portal/filters";
 import { roleFromPosting, setupSteps, SETUP_STEP, type Role } from "@/lib/independent/data";
 import { useIndependentAccount } from "@/lib/independent/account";
@@ -159,9 +165,9 @@ function RoleResults({ filters: f, published, results }: { filters: RoleFilters;
           title="No roles match these filters"
           body="Try removing a filter, clearing the search, or widening the rate range."
           action={
-            <button type="button" onClick={f.reset} className="text-[14px] leading-[1.4] font-medium text-accent-ink hover:underline">
+            <TextLink onClick={f.reset} size="md">
               Reset filters
-            </button>
+            </TextLink>
           }
         />
       ) : (

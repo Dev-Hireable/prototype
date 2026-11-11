@@ -1,13 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { use, useEffect } from "react";
-import { AdminPage, DataTable, StatCard, StatGrid } from "@/components/admin/ui";
+import { DataTable, StatCard, StatGrid } from "@/components/admin/ui";
 import { ICONS } from "@/components/icons";
-import { Button, Toast } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
+import { Page } from "@/components/kit/page";
+import { Toast } from "@/components/kit/toast";
+import { TextLink } from "@/components/kit/text-link";
 import { DisputeCase } from "@/components/portal/dispute-case";
-import { BreadcrumbBack } from "@/components/portal/nav";
+import { BreadcrumbBack } from "@/components/kit/breadcrumb";
 import { useWithReturn } from "@/components/portal/return";
 import { useDeal, useHydrated } from "@/lib/demo/deal";
 import type { Deal } from "@/lib/demo/deal";
@@ -57,10 +59,10 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
   const awaitingRelease = d.resolution?.payment === "awaiting release";
 
   return (
-    <AdminPage
+    <Page
       nav={<BreadcrumbBack href="/admin/disputes">Back to all disputes</BreadcrumbBack>}
       title={`${d.reason} · ${d.title}`}
-      actions={open || awaitingRelease ? <SupportActions open={open} turn={turn} onOpen={dialogs.setDialog} /> : undefined}
+      headerActions={open || awaitingRelease ? <SupportActions open={open} turn={turn} onOpen={dialogs.setDialog} /> : undefined}
     >
       <div className="flex flex-col gap-4">
         <CaseStats d={d} turn={turn} open={open} now={now} />
@@ -76,7 +78,7 @@ export default function DisputeDetail({ params }: { params: Promise<{ slug: stri
       <ResolveDialog d={d} refundable={refundable} dialogs={dialogs} />
       <ReleaseDialog d={d} amount={refundable} dialogs={dialogs} />
       <Toast toast={toast} onClose={() => setToast(null)} />
-    </AdminPage>
+    </Page>
   );
 }
 
@@ -132,15 +134,15 @@ function ProcessCheck({ checks, workHref }: { checks: Check[]; workHref: string 
         rows={checks}
         columns={[
           { header: "Check", cell: (c) => c.check },
-          { header: "Result", cell: (c) => c.result, width: "34%" },
-          { header: "Source", cell: (c) => c.source, width: "18%" },
+          { header: "Result", cell: (c) => c.result, col: "w-[340px]" },
+          { header: "Source", cell: (c) => c.source, col: "w-[180px]" },
         ]}
       />
       {/* AD-050 — the task log the process check reads, as both parties see it (read-only). */}
       {workHref && (
-        <Link href={workHref} className="inline-flex items-center gap-1.5 self-start text-[13px] font-semibold text-accent hover:underline">
+        <TextLink href={workHref} size="sm" className="inline-flex items-center gap-1.5 self-start">
           Open the contract&apos;s work <ICONS.northEast size={16} aria-hidden />
-        </Link>
+        </TextLink>
       )}
     </>
   );

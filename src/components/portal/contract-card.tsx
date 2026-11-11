@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ICONS } from "@/components/icons";
-import { Card, JobBadge, Row, TableContent } from "@/components/portal/ui";
-import { Badge } from "@/components/portal/badge";
-import { Tip } from "@/components/portal/tip";
-import { ROW_LINK, TOOLBAR_BUTTON } from "@/components/portal/toolbar";
-import { TRAY, TRAY_PANEL } from "@/components/portal/styles";
-import { ViewSwitch } from "@/components/portal/view-switch";
+import { Card } from "@/components/kit/card";
+import { JobBadge, Badge } from "@/components/kit/badge";
+import { Row, TableContent } from "@/components/kit/table";
+import { Tip } from "@/components/kit/tip";
+import { ROW_LINK, TOOLBAR_BUTTON, TRAY, TRAY_PANEL } from "@/components/kit/styles";
+import { ViewSwitch } from "@/components/kit/view-switch";
 import { WorkLegend, WorkMeter } from "@/components/portal/work-progress";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { CONTRACT_LAYOUTS } from "@/lib/contract/view";
@@ -126,7 +126,7 @@ type Counts = ReturnType<typeof taskCounts>;
 function ContractCard({ avatar, name, sub, href, messageHref, type, tasks, tfs, left, over, inactive, ended, started, startsOn, status, action }: ContractSummary) {
   return (
     <article
-      className={`relative flex flex-col ${TRAY} transition-[box-shadow,outline-color] duration-200 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.3)] hover:outline-[#a6a6a6] ${inactive ? "opacity-60" : ""}`}
+      className={`relative flex flex-col ${TRAY} transition-[box-shadow,outline-color] duration-200 hover:shadow-[0_12px_28px_-16px_rgba(16,24,40,0.3)] hover:outline-border-strong ${inactive ? "opacity-60" : ""}`}
     >
       {/* Who and how the work stands on the white panel; time left, the score and the thread on the tray. */}
       <div className={`flex flex-col gap-5 p-5 ${TRAY_PANEL}`}>
@@ -372,7 +372,7 @@ export function ContractListToolbar({
       </DropdownMenu>
       {/* TB-054: ended contracts are hidden by default; one press brings them back. */}
       <button type="button" aria-pressed={showInactive} onClick={() => onShowInactive(!showInactive)} className={`${TOOLBAR_BUTTON} ${showInactive ? "!border-accent-soft !bg-accent-bg text-accent-ink" : ""}`}>
-        <span aria-hidden className={`flex size-4 items-center justify-center rounded border ${showInactive ? "border-primary bg-primary text-white" : "border-[#a6a6a6] bg-white"}`}>
+        <span aria-hidden className={`flex size-4 items-center justify-center rounded border ${showInactive ? "border-primary bg-primary text-white" : "border-border-strong bg-white"}`}>
           {showInactive && <Check size={12} />}
         </span>
         Show inactive

@@ -4,10 +4,11 @@ import Image from "next/image";
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
 import { PaymentMethodRow } from "@/components/portal/settings";
-import { Button } from "@/components/portal/ui";
+import { Button } from "@/components/kit/button";
 import { AddCardDialog, ADD_CARD } from "@/components/team/add-card-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { PaymentMethod } from "@/lib/team/data";
+import { TEXT_LABEL } from "@/components/kit/styles";
 
 const CardIcon = ICONS.card;
 
@@ -21,7 +22,7 @@ export function CardOnFile({ cards, card, onPick, label, empty }: { cards: Payme
   const [adding, setAdding] = useState(false);
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[14px] leading-[1.2] font-semibold tracking-[0.2px] text-ink">{label}</p>
+      <p className={TEXT_LABEL}>{label}</p>
       {card ? (
         <PaymentMethodRow
           brand={<Image src={card.brand === "Visa" ? "/brands/visa.svg" : "/brands/mastercard.svg"} alt={card.brand} width={26} height={17} className="h-[17px] w-[26px]" loading="eager" />}

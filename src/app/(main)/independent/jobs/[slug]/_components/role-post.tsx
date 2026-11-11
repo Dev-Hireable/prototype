@@ -1,6 +1,8 @@
 import { LockedTasks } from "@/components/portal/tasks/locked-tasks";
-import { Chip, JobBadge, MatchPill } from "@/components/portal/ui";
-import { FactStrip, Section } from "@/components/portal/page-parts";
+import { Chip } from "@/components/kit/chip";
+import { JobBadge } from "@/components/kit/badge";
+import { MatchPill } from "@/components/kit/match-pill";
+import { FactStrip, Section } from "@/components/kit/page-parts";
 import { TaskPlanList } from "@/components/portal/tasks/task-plan";
 import { WorkStyleMatch } from "@/components/portal/work-style-match";
 import { durationDays, trialLength } from "@/lib/portal/dates";

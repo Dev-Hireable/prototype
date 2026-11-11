@@ -1,15 +1,15 @@
 "use client";
 
 import { ICONS } from "@/components/icons";
-import { Avatar, StatusDot } from "@/components/portal/ui";
-import { Badge } from "@/components/portal/badge";
+import { Avatar } from "@/components/kit/avatar";
+import { StatusDot, Badge } from "@/components/kit/badge";
 import type { Tone } from "@/lib/portal/tone";
-import { Tip } from "@/components/portal/tip";
+import { Tip } from "@/components/kit/tip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { firstName } from "@/components/workspace/labels";
 import { PRIORITY_LABEL, TASK_STATUS_LABEL, weekLabel } from "@/lib/demo/tasks";
 import type { TaskPriority, TaskStatus } from "@/lib/demo/tasks";
-import { PRIORITIES, PRIORITY_META } from "@/lib/work/model";
+import { PRIORITIES, PRIORITY_META, refOf, type WorkItem } from "@/lib/work/model";
 
 /**
  * The small parts a task is drawn from, shared by the contract workspace (@/components/workspace)
@@ -18,6 +18,11 @@ import { PRIORITIES, PRIORITY_META } from "@/lib/work/model";
  */
 
 const STATUS_TONE: Record<TaskStatus, Tone> = { todo: "neutral", doing: "info", review: "review", done: "ok" };
+
+/** A task's number ("#12") beside its name, wherever a task is listed: the digits line up down a column. */
+export function TaskRef({ task }: { task: Pick<WorkItem, "number"> }) {
+  return <span className="shrink-0 text-[12px] text-ink-2 tabular-nums">{refOf(task)}</span>;
+}
 
 export function StatusPill({ status }: { status: TaskStatus }) {
   return <StatusDot tone={STATUS_TONE[status]}>{TASK_STATUS_LABEL[status]}</StatusDot>;
@@ -44,14 +49,14 @@ export function PriorityPill({ priority }: { priority: TaskPriority }) {
 export function StatusCircle({ status, onClick, label, size = 18 }: { status: TaskStatus; onClick?: () => void; label?: string; size?: number }) {
   const Check = ICONS.check;
   const fill = {
-    todo: "border-[#a6a6a6] bg-white",
+    todo: "border-border-strong bg-white",
     doing: "border-primary bg-primary text-white",
     review: "border-review bg-review text-[#4d3800]",
     done: "border-ok bg-ok text-white",
   }[status];
   const hover = !!onClick;
   const body = (
-    <span className={`relative flex shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors ${fill} ${hover ? "group-hover/circle:border-ok group-hover/circle:bg-[#eef9f2]" : ""}`} style={{ width: size, height: size }}>
+    <span className={`relative flex shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors ${fill} ${hover ? "group-hover/circle:border-ok group-hover/circle:bg-ok-bg" : ""}`} style={{ width: size, height: size }}>
       {status === "done" ? (
         <Check size={size - 6} aria-hidden />
       ) : (

@@ -3,7 +3,7 @@
 import { Menu } from "@base-ui/react/menu";
 import { useState } from "react";
 import { ICONS } from "@/components/icons";
-import { ICON_BUTTON } from "@/components/portal/styles";
+import { ICON_BUTTON } from "@/components/kit/styles";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { isArchived, refOf, type WorkItem } from "@/lib/work/model";
 import { capsFor, transitionFor } from "@/lib/work/permissions";
