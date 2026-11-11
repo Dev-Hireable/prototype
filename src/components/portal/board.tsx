@@ -13,7 +13,7 @@ export type ColumnColors = { bg: string; text: string; count: string };
 export type ColumnFrame = "rest" | "target" | "over" | "focused";
 
 const FRAME: Record<ColumnFrame, string> = {
-  rest: "border-transparent bg-[#f7f7f7]",
+  rest: "border-[#e2e2e2] bg-[#f7f7f7]",
   target: "border-dashed border-[#9fc9ea] bg-[#f7fbfe]",
   over: "border-accent-soft bg-accent-bg",
   focused: "border-accent-soft bg-accent-bg",
@@ -25,7 +25,8 @@ const FRAME: Record<ColumnFrame, string> = {
  * column's tint, the cards scrolling inside it once it's full, and room at the foot for an add
  * button. It used to stretch to the board's full height whatever it held, so a column with one card
  * ran to the bottom of the page as a long empty panel. The frame is a real 2px
- * border, transparent at rest, so it can light up without the cards shifting. On a phone a column is
+ * border, a solid hairline colour at rest, so it can light up without the cards shifting and the
+ * cards sit the same 8px from it on every side. On a phone a column is
  * the screen's width less a sliver of the next one, which says there's more to swipe to; the board
  * settles on a column at a time (PHONE_BOARD) and its chips jump between them (KanbanJump).
  */

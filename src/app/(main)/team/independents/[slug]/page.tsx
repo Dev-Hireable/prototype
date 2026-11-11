@@ -87,7 +87,7 @@ function HeaderActions({ t }: { t: Tracker }) {
   // The live pair's thread opens on the spot, in the quick chat; nobody else has one in the demo.
   const quick = pair ? () => chat.open({ name: person.name, sub: t.contract.role, avatar: person.avatar, href: thread }) : undefined;
   return (
-    <MessageButton size="sm" variant="ghost" className="max-md:size-10 max-md:px-0" href={thread} onClick={quick}>
+    <MessageButton size="sm" variant="secondary" className="max-md:size-10 max-md:px-0" href={thread} onClick={quick}>
       <span className="max-md:sr-only">Message {t.first}</span>
     </MessageButton>
   );

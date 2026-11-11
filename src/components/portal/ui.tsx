@@ -115,7 +115,8 @@ function PageHeader({ title, badge, actions, onClose, tabs, heading }: { title: 
           {title}
           {badge}
         </h1>
-        {actions && <div className="flex shrink-0 items-center">{actions}</div>}
+        {/* At the row's far end, apart from the title and its badges, where a page's own actions sit. */}
+        {actions && <div className="ml-auto flex shrink-0 items-center">{actions}</div>}
         {onClose && (
           <button type="button" onClick={onClose} aria-label="Close" className={`${ICON_BUTTON} -mr-1.5 ml-auto size-10`}>
             <Close size={24} aria-hidden />
